@@ -1,0 +1,2 @@
+A two-thread workload (anagram & gcc) that also tests starting from an
+EIO checkpoint.

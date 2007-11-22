@@ -1,0 +1,9 @@
+insure++.compiler_c gcc
+insure++.compiler_cpp g++
+insure++.compiler_default cpp
+insure++.c_as_cpp off
+insure++.runtime.report_file stderr
+insure++.inuse off
+
+insra.visual emacs +%l %f
+

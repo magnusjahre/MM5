@@ -1,0 +1,64 @@
+#! /usr/bin/env perl
+
+open (FOO, "<$ARGV[0]") or die;
+
+# Suck in everything before the first include
+# (line-by-line into @before list).
+while (($_ = <FOO>) && !/^#include/) {
+    push @before, $_;
+}
+
+#print join("", @before);
+#print "##########################\n";
+
+# Suck in include lines into @includes list.
+# Skip blank lines (keep processing, but don't put in @includes).
+# End on first non-blank, non-include line.
+# Note that this means that files with comments or #ifdefs
+# interspersed among their #includes will only get the initial
+# set of #includes sorted.
+do {
+    push @includes, $_ unless /^\s*$/;
+} while (($_ = <FOO>) && /^#include|^\s*$/);
+
+# Now sort the includes.  This simple ordering function
+# puts system includes first, followed by non-system includes.
+# Within each group the sort is alphabetical.
+# We may want something a little more sophisticated.
+# Personally, I'd like to see something like:
+# <sys/*.h>	- header files from sys subdir
+# <*.h>		- other system headers
+# <*>		- STL headers
+# "base/*"	- M5 base headers
+# "sim/*"	- M5 sim headers
+# "*"		- other M5 headers
+# ...but I didn't have the energy to code that up.
+sub sortorder {
+    my $sysa = ($a =~ /<.*>/);
+    my $sysb = ($b =~ /<.*>/);
+    return -1 if ($sysa && !$sysb);
+    return  1 if ($sysb && !$sysa);
+    return $a cmp $b;
+}
+
+@includes = sort sortorder @includes;
+#print join("", @includes);
+#print "##########################\n";
+
+# Put everything after the includes in the @after list.
+do {
+    push @after, $_;
+    if (/^#include/) {
+	print "$ARGV[0]: ";
+	print $after[0];
+	exit 0;
+    }
+} while ($_ = <FOO>);
+
+#print join("", @after);
+#print "##########################\n";
+
+# Print out the file with sorted includes.
+
+print join("", @before, @includes, @after);
+

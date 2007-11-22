@@ -1,0 +1,22 @@
+M5 Simulator System
+Copyright (c) 2001-2005
+The Regents of The University of Michigan
+All Rights Reserved
+
+This code is part of the M5 simulator, developed by Nathan Binkert,
+Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+and Andrew Schultz.
+
+M5 compiled on Sep 25 2005 21:21:00
+M5 simulation started Sun Sep 25 21:22:09 2005
+Listening for console connection on port 3456
+      0: system.tsunami.io.rtc: Real-time clock set to Sun Jan  1 00:00:00 2006
+Listening for remote gdb connection on port 7000
+Listening for remote gdb connection on port 7001
+warn: Entering event queue.  Starting simulation...
+warn: 281901: Trying to launch another CPU!
+warn: Copied block source spans pages.
+warn: Copied block destination spans pages. 
+Terminating simulation -- m5_exit instruction encountered
+Simulation complete at Mon Sep 26 09:05:14 2005

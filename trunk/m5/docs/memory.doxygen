@@ -1,0 +1,132 @@
+/*
+ * Copyright (c) 2003, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+/** @page memory M5's Memory Hierarchy
+
+The memory hierarchy in m5 can be somewhat confusing.  Partly
+    because there are really two hierarchies involved: the functional
+    memory hierarchy that is used to execute the instructions, and the
+    timing memory hierarchy for determining the latency of an executed
+    operation.
+
+@section memory_functional Functional Memory
+
+    Because M5 does its execution in the fetch stage of the
+    pipeline, it actually becomes necessary for us to determine what
+    memory will do in the future.  (Meaning that we need to know the
+    result of the operation when the instruction is actually fetched.)
+    The functional hierarchy has no timing events whatsoever.  A read
+    or write call to functional memory completes instantly.
+
+    There are several classes derived from functional memory
+    including:
+
+    
+    - PhysicalMemory - This is a contiguous chunk of memory that
+      esentially mimics physical ram and is used in the full-system
+      simulator.
+
+    - MainMemory - This class simulates a sparse memory space, and
+      any address is valid.  It is uses in the standalone simulator to
+      provide memory to the simualtor.  If a page is accessed, and
+      there is no memory allocated to that page, a new page is
+      allocated that can be used for the rest of the program's
+      execution.  This esentially makes it unnecessary to determine
+      the size of memory ahead of time.  (It also make a TLB
+      unnecessary.)
+
+    - MemoryController - This class is esentially a mux.  Other
+      FunctionalMmeory classes get registered as children of a
+      MemoryController where they claim responsibility for a range of
+      address space.  A read or write call that is performed on the
+      memory controller is then routed to the appropriate child memory
+      object.  If there is no object registered at the location of the
+      request, a fault occurs.  This is how we attach devices and
+      memory to the hierarchy.
+
+    - PioDevice - This class doesn't really add any functionality
+      to the FunctionalMemory class, but any class derived from it is
+      expected to be a device (e.g. an ethernet controller).  This
+      interface is esentially used to do the PIO (programmed
+      i/o... think memory mapped) type calls to the device.  There
+      are several other clases that inherit from PioDevice that add
+      additional functionality, such as DMADevice, which adds a DMA
+      bus interface.
+
+@section memory_timing Timing Memory
+
+    When the execution of a memory request actually occurs, the
+    request is sent to the timing hierarchy, and event notification
+    system is used to signal the completion of that memory request.
+    In the current simulator, there is no functional operation here.
+    The devices in the hierarchy just access the next lower object (if
+    there is one) in the hierarchy, and respond with a completion
+    event when the request is done.
+
+@section memory_full_system Impact of Dual-Hierarchy on full-system
+
+    Currently, the PIO request path for devices is not attached to
+    the timing hierarchy.  These requests (which are generally
+    uncached) are just assumed to have a constant latency.
+
+    For DMA type operations, a device uses the DMA engine which
+    interfaces with both the functional memory hierarchy and the
+    timing hierarchy.  When a request occurs, the engine breaks up the
+    request int appropriately sized chunks, and then passes the
+    request to the timing hierarchy.  When the timing hierarchy
+    indicates that the request is complete, then the engine performs
+    the operation on the function hierarchy.
+
+@section memory_future Future Directions
+
+Because we execute in the fetch stage, and know the outcome of
+    an operation immediately, it is necessary for us to have a memory
+    hierarchy that can instantly give us the result of an executed
+    memory operation.  This is where the parallel functional/timing
+    hierarchy came from.
+
+    Eventually the two hierarchies will be merged into a single
+    hierarchy that provides a timing (with or without data) path and a
+    non-timing path to access data
+
+    This became especially important as we moved towards an
+    execute-in-execute model.  When moving toward this model, it
+    became necessary for the timing operation and the functional
+    operation to take place at the same time.  While we could maintain
+    the parallel hierarchy, we have the opportunity of merging them
+    and doing the timing and data part in the same step.  This will
+    increase accuracy of the simulations since it will then be
+    possible for mis-speculated requests to receive outdated
+    information. A version of this merged memory heirarchy is under
+    development and a patch to the release to support this will be
+    available soon.
+
+*/

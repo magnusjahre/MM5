@@ -1,0 +1,2 @@
+A four-thread workload (two copies each of anagram & gcc, one each
+from the start of the program and from a checkpoint).

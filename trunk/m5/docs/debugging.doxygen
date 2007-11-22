@@ -1,0 +1,232 @@
+/*
+ * Copyright (c) 2003, 2004, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/** @page debugging Debugging M5
+
+M5 is a complex piece of software that models complex hardware systems
+running other even more complex pieces of software (e.g., full
+operating systems).  Debugging is thus a major issue.  Although
+debugging is not guaranteed to be easy, M5 has several features
+designed specifically to help you figure out what's going on.
+
+@section tracing Trace-based debugging
+
+The simplest method of debugging is to have M5 print out traces of
+what it's doing and examine these traces for problems.  M5 contains
+numerous DPRINTF statements that print trace messages describing
+potentially interesting events.  Each DPRINTF is associated with a
+trace category (e.g., %Bus or %Cache).  To display the trace messages
+for a particular category, simply specify the category using the
+--root.trace.flags parameter.  Multiple categories can be specified by giving
+a list of strings, e.g.:
+
+@verbatim
+% m5.opt foo.py --root.trace.flags="Bus Cache"
+@endverbatim
+
+The complete list of flags can be seen by looking at m5/base/traceflags.py.
+
+By default, trace output goes to stdout.  The output can be directed
+to a file using the --root.trace.file parameter. 
+
+The InstExec trace flag enables tracing of instruction execution in
+the CPU models.  There are a number of additional parameters that
+control detailed aspects of instruction tracing, all grouped under
+'exetrace'.  For example, you can control whether misspeculated instructions are included in the trace. (The default for the parameter is false, i.e., misspeculated instructions are not traced.) To do this, simply set the python string:
+
+-P"root.exetrace=ExecutionTrace(speculative=True)"
+
+There are other arguments you can provide; to see a comprehensive list, see m5/python/m5/objects/ExeTrace.py.  To set multiple parameters at once, just give them as arguments to the ExecutionTrace instantiation in a comma-separated list.
+
+If you want detailed tracing, but the bug occurs well into the
+execution, you can delay the start of tracing until a particular
+simulation cycle using --root.trace.start .  (If you want tracing to end at
+a particular point, you would typically just use -P"root.max=Terminate(cycle=n) to end the simulation at that point.)
+
+If some supposedly innocuous change has caused %m5 to stop working
+correctly, you can compare trace outputs from two versions of %m5 using
+the tracediff script located in the m5/util directory.  Read the
+comments in the script for instructions on how to use it.
+
+If you find that events of interest are not being traced, feel free to
+add DPRINTFs yourself.  You can add new trace categories simply by
+adding a new string to the baseFlags array in base/traceflags.py.
+(The needed C++ code, including the Trace::Flags enum, is
+automatically generated from this script.)
+
+@section debugger Debugging with a debugger
+
+If traces alone are not sufficient, you'll need to inspect what %m5 is
+doing in detail using a debugger (e.g., gdb).  You definitely want to
+use the m5.debug binary if you reach this point.
+
+Ideally, looking at traces has at least allowed you to narrow down the
+range of cycles in which you think something is going wrong.  The
+fastest way to reach that point is to use a DebugEvent, which goes on
+M5's event queue and forces entry into the debugger when the specified
+cycle is reached (via SIGTRAP).  (Of course, it's necessary to start
+%m5 under the debugger or have the debugger attached to the %m5 process
+first.)
+
+You can create one or more DebugEvents when you invoke %m5 using the
+-P"root.debug=Debug(break_cycles=100)" parameter.  You can also create new DebugEvents from the debugger prompt using the sched_break_cycle() function.  The
+following example session illustrates both of these approaches:
+
+@verbatim
+% gdb m5/build/ALPHA/m5.debug
+GNU gdb 5.3
+Copyright 2002 Free Software Foundation, Inc.
+[...]
+(gdb) run m5-test/test1/run.py -P"root.debug=Debug(break_cycles=2000)"
+Starting program: /z/stever/bk/m5/build/ALPHA_SE/m5.debug m5-test/test1/run.py -Proot.debug=Debug(break_cycles(2000)
+M5 Simulator System
+[...]
+warn: Entering event queue.  Starting simulation...
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+0xffffe002 in ?? ()
+(gdb) p curTick
+$1 = 2000
+(gdb) c
+Continuing.
+
+(gdb) call sched_break_cycle(3000)
+(gdb) c
+Continuing.
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+0xffffe002 in ?? ()
+(gdb) p curTick
+$3 = 3000
+(gdb)
+@endverbatim
+
+M5 includes a number of functions specifically intended to be called
+from the debugger (e.g., using the gdb 'call' command, as in the
+sched_break_cycle() example above).  Many of these are "dump"
+functions which display internal simulator data structures.  For
+example, eventq_dump() displays the events scheduled on the main event
+queue.  Most of the other dump functions are associated with
+particular objects, such as the instruction queue and the ROB in the
+detailed CPU model.  The setTraceFlag() and clearTraceFlag() functions
+allow you to turn trace flags on and off from within the debugger.
+These functions take a string argument specifying the name of a single
+trace category.
+
+Debugging template-base code is difficult, particularly with gdb.
+Placing breakpoints by source line number generally doesn't work since
+gdb doesn't know which template instantiation to put the breakpoint
+in.  Placing breakpoints using function names is also difficult due to
+the verbosity of the template specification.  To get around these
+problems, the memory system uses a "debug callout" technique involving
+a set of functions in the MemDebug namespace.  Calls to MemDebug
+functions are placed at the beginning of key templated functions.
+Since MemDebug is non-templated, breakpoints can be set in the
+MemDebug functions; from these breakpoints, execution can be traced
+back into the templated functions that call them.
+
+@section kernel Kernel debugging
+
+M5 has built-in support for gdb's remote debugger interface.  If you
+are interested in monitoring what the kernel on the simulated machine
+is doing, you can fire up kgdb on the host platform and have it talk
+to the simulated M5 system as if it were a real machine (only better,
+since M5 executions are deterministic and M5's remote debugger
+interface is guaranteed not to perturb execution on the simulated
+system).
+
+To use a remote debugger with M5, the most important part is that you
+have gdb compiled to work with an alpha-linux target.  It is possible
+to compile an alpha-linux gdb on an x86 machine for example.  All that
+must be done is add the --target=alpha-linux option to configure when
+you compile gdb.
+
+@verbatim
+% wget http://ftp.gnu.org/gnu/gdb/gdb-6.3.tar.gz
+--08:05:33--  http://ftp.gnu.org/gnu/gdb/gdb-6.3.tar.gz
+           => `gdb-6.3.tar.gz'
+Resolving ftp.gnu.org... done.
+Connecting to ftp.gnu.org[199.232.41.7]:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 17,374,476 [application/x-tar]
+
+100%[====================================>] 17,374,476   216.57K/s    ETA 00:00
+
+08:06:52 (216.57 KB/s) - `gdb-6.3.tar.gz' saved [17374476/17374476]
+
+% tar xfz gdb-6.3.tar.gz
+% cd gdb-6.3
+% ./configure --target=alpha-linux
+<configure output....>
+% make
+<make output...this may take a while>
+@endverbatim
+
+The end result is gdb/gdb which will work for remote debugging.
+
+When M5 is @ref full_system "run" each CPU listens for a remote debugging
+connection on a TCP port.  The first port allocated is generally 7000,
+though if a port is in use, the next port will be is tried.
+
+To attach the remote debugger, it's necessary to have a copy of the
+kernel and of the source.  To run the remote debugger, do the following:
+
+@verbatim
+ziff% gdb-linux-alpha arch/alpha/boot/vmlinux
+GNU gdb 5.3
+Copyright 2002 Free Software Foundation, Inc.
+GDB is free software, covered by the GNU General Public License, and you are
+welcome to change it and/or distribute copies of it under certain conditions.
+Type "show copying" to see the conditions.
+There is absolutely no warranty for GDB.  Type "show warranty" for details.
+This GDB was configured as "--host=i686-pc-linux-gnu --target=alpha-linux"...
+(no debugging symbols found)...
+(gdb) set remote Z-packet on                [ This can be put in .gdbinit ]
+(gdb) target remote ziff:7000
+Remote debugging using ziff:7000
+0xfffffc0000496844 in strcasecmp (a=0xfffffc0000b13a80 "", b=0x0)
+    at arch/alpha/lib/strcasecmp.c:23
+23              } while (ca == cb && ca != '\0');
+(gdb) 
+@endverbatim
+
+The M5 simulator is already running and the target remote command
+connects to the already running simulator and stops it in the middle
+of execution.  You can set breakpoints and use the debugger to debug
+the kernel.  It is also possible to use the remote debugger to debug
+console code and palcode.  Setting that up is similar, but a how to
+will be left for future work.
+
+If you're using both the remote debugger and the debugger on the
+simulator, it is possible to trigger the remote debugger from the main
+debugger by doing a 'call Debugger()'.
+*/

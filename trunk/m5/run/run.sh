@@ -1,0 +1,1 @@
+/home/jahre/skole/diplom/m5_1.1/m5/build/ALPHA_SE/m5.opt -ENP=2 -ESYSTEM=Detailed -EBENCHMARK=Barnes -EPROTOCOL=moesi -EROOTDIR=/home/jahre/skole/diplom/experiments/benchmarks/splash2/codes/ -ESTATSFILE=m5stats.txt -EMAXINSTS=$1  /home/jahre/skole/diplom/m5_1.1/m5/configs/CMP/run.py

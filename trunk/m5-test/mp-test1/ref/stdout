@@ -1,0 +1,22 @@
+command line: ALPHA_SE/m5.opt -d ALPHA_SE/test/opt/mp-test1 m5-test/mp-test1/run.py
+
+
+Integer Radix Sort
+     262144 Keys
+     4 Processors
+     Radix = 1024
+     Max key = 524288
+
+
+                 PROCESS STATISTICS
+               Total            Rank            Sort
+ Proc          Time             Time            Time
+    0              1               1               0
+
+                 TIMING INFORMATION
+Start time                        :                0
+Initialization finish time        :                3
+Overall finish time               :                4
+Total time with initialization    :                4
+Total time without initialization :                1
+

@@ -1,0 +1,45 @@
+#! /usr/bin/env perl
+
+# Script to simplify using rundiff on trace outputs from two
+# invocations of m5.
+#
+# ******Note that you need to enable some trace flags in the args in order
+# to do anything useful!******
+#
+# If you want to pass different arguments to the two instances of m5,
+# you can embed them in the simulator arguments like this:
+#
+# % tracediff "m5.opt --foo.bar=1" "m5.opt --foo.bar=2" [common args]
+#
+
+if (@ARGV < 2) {
+    die "Usage: tracediff sim1 sim2 [--root.trace.flags=X args...]\n";
+}
+
+# First two args are the two simulator binaries to compare
+$sim1 = shift;
+$sim2 = shift;
+
+# Everything else on the command line is taken to be an m5 argument to
+# be given to both invocations
+$simargs = '"' . join('" "', @ARGV) . '"';
+
+# Run individual invocations in separate dirs so output and intermediate
+# files (particularly config.py and config.ini) don't conflict.
+$dir1 = "tracediff-$$-1";
+$dir2 = "tracediff-$$-2";
+mkdir($dir1) or die "Can't create dir $dir1\n";
+mkdir($dir2) or die "Can't create dir $dir2\n";
+
+$cmd1 = "$sim1 $simargs -d $dir1 2>&1 |";
+$cmd2 = "$sim2 $simargs -d $dir2 2>&1 |";
+
+# This only works if you have rundiff in your path.  I just edit it
+# with an explicit path if necessary.
+$fullcmd = "rundiff '$cmd1' '$cmd2' 2>&1 > tracediff-$$.out";
+
+print "Executing $fullcmd\n";
+system($fullcmd);
+
+
+

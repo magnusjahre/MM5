@@ -1,0 +1,102 @@
+sim-eio: SimpleScalar/Alpha Tool Set version 3.0 of September, 1998.
+Copyright (c) 1994-1998 by Todd M. Austin.  All Rights Reserved.
+
+warning: section `.comment' ignored...
+sim: tracing execution to EIO file `bin/gcc-new.eio.gz'...
+sim: command line: /n/zizzer/z/stever/work/ss3plain/sim-eio -trace bin/gcc-new.eio.gz bin/cc1_peak.ev6 input/cccp.i 
+
+sim: simulation started @ Fri May 11 23:32:25 2001, options follow:
+
+sim-eio: This simulator implements simulator support for generating
+external event traces (EIO traces) and checkpoint files.  External
+event traces capture one execution of a program, and allow it to be
+packaged into a single file for later re-execution.  EIO trace executions
+are 100% reproducible between subsequent executions (on the same platform.
+This simulator also provides functionality to generate checkpoints at
+arbitrary points within an external event trace (EIO) execution.  The
+checkpoint file (along with the EIO trace) can be used to start any
+SimpleScalar simulator in the middle of a program execution.
+
+# -config                     # load configuration from a file
+# -dumpconfig                 # dump configuration to a file
+# -h                    false # print help message    
+# -v                    false # verbose operation     
+# -d                    false # enable debug message  
+# -i                    false # start in Dlite debugger
+-seed                       1 # random number generator seed (0 for timer seed)
+# -q                    false # initialize and terminate immediately
+# -chkpt               <null> # restore EIO trace execution from <fname>
+# -redir:sim           <null> # redirect simulator output to file (non-interactive only)
+# -redir:prog          <null> # redirect simulated program output to file
+-nice                       0 # simulator scheduling priority
+-max:inst                   0 # maximum number of inst's to execute
+-fastfwd                    0 # number of insts skipped before tracing starts
+-trace           bin/gcc-new.eio.gz # EIO trace file output file name
+# -perdump             <null> # periodic checkpoint every n instructions: <base fname> <interval>
+# -dump                <null> # specify checkpoint file and trigger: <fname> <range>
+
+  Checkpoint range triggers are formatted as follows:
+
+    {{@|#}<start>}:{{@|#|+}<end>}
+
+  Both ends of the range are optional, if neither are specified, the range
+  triggers immediately.  Ranges that start with a `@' designate an address
+  range to trigger on, those that start with an `#' designate a cycle count
+  trigger.  All other ranges represent an instruction count range.  The
+  second argument, if specified with a `+', indicates a value relative
+  to the first argument, e.g., 1000:+100 == 1000:1100.
+
+    Examples:   -ptrace FOO.trc #0:#1000
+                -ptrace BAR.trc @2000:
+                -ptrace BLAH.trc :1500
+                -ptrace UXXE.trc :
+
+
+
+sim: writing EIO file initial checkpoint...
+sim: ** starting functional simulation **
+warning: partially supported sigaction() call...
+warning: unsupported ioctl call: ioctl(1074164744, ...)
+warning: unsupported ioctl call: ioctl(1074164744, ...)
+ main path_include trigraph_pcp newline_fix name_newline_fix get_lintcmd rescan expand_to_temp_buffer handle_directive timestamp special_symbol do_include redundant_include_p is_system_include finclude record_control_macro import_hash lookup_import add_import check_precompiled check_preconditions pcfinclude pcstring_used write_output pass_thru_directive create_definition do_define check_macro_name compare_defs comp_def_part collect_expansion do_assert do_unassert check_assertion compare_token_lists read_token_list free_token_list assertion_install assertion_lookup delete_assertion do_line do_undef do_error do_warning do_once do_ident do_pragma do_sccs do_if do_elif eval_if_expression do_xifdef conditional_skip skip_if_group do_else do_endif validate_else skip_to_end_of_comment skip_quoted_string skip_paren_group output_line_command macroexpand macarg macarg1 discard_comments delete_newlines error error_from_errno warning error_with_line pedwarn pedwarn_with_file_and_line print_containing_files line_for_error grow_outbuf install lookup delete_macro hashf dump_single_macro dump_all_macros dump_defn_1 dump_arg_n initialize_char_syntax initialize_builtins make_definition make_undef make_assertion append_include_chain deps_output fatal fancy_abort perror_with_name pfatal_with_name memory_full xmalloc xrealloc xcalloc savestring file_size_and_mode
+time in parse: 34.340000
+time in integration: 3.110000
+time in jump: 39.080000
+time in cse: 75.240000
+time in loop: 32.160000
+time in cse2: 72.900000
+time in flow: 37.540000
+time in combine: 92.100000
+time in sched: 41.220000
+time in local-alloc: 37.570000
+time in global-alloc: 46.490000
+time in sched2: 33.460000
+time in dbranch: 51.940000
+time in shorten-branch: 1.640000
+time in stack-reg: 0.000000
+time in final: 29.060000
+time in varconst: 0.380000
+time in symout: 0.000000
+time in dump: 0.000000
+warning: partially supported sigprocmask() call...
+
+sim: ** simulation statistics **
+sim_num_insn             2030343107 # total number of instructions executed
+sim_num_refs              893923556 # total number of loads and stores executed
+sim_elapsed_time                646 # total simulation time in seconds
+sim_inst_rate          3142945.9861 # simulation speed (in insts/sec)
+ld_text_base           0x0120000000 # program text (code) segment base
+ld_text_size                1990656 # program text (code) size in bytes
+ld_data_base           0x0140000000 # program initialized data segment base
+ld_data_size                 306320 # program init'ed `.data' and uninit'ed `.bss' size in bytes
+ld_stack_base          0x011ff9b000 # program stack segment base (highest address in stack)
+ld_stack_size                 16384 # program initial stack size
+ld_prog_entry          0x012002e530 # program entry point (initial PC)
+ld_environ_base        0x011ff97000 # program environment base address address
+ld_target_big_endian              0 # target executable endian-ness, non-zero if big endian
+mem.page_count                 1117 # total number of pages allocated
+mem.page_mem                  8936k # total size of memory pages allocated
+mem.ptab_misses             4179899 # total first level page table misses
+mem.ptab_accesses        3824527425 # total page table accesses
+mem.ptab_miss_rate           0.0011 # first level page table miss rate
+

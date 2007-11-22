@@ -1,0 +1,181 @@
+/*
+ * Copyright (c) 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/** @page stats Using the Statistics Package
+
+If you're looking at this page, we'll assume you sort of know the ins
+and outs of the simulator and are looking to instrument it in some way
+that is not already there.  In that case, we have a nice stats package
+built into the simulator for you.
+
+One really good place to look for examples of usage is
+<tt>test/stattest.cc</tt>.  This has lots of examples of every type of
+stat.  However, you will still want to look at what we have below.
+      
+@section binning Binning
+
+One thing this package nicely provides is an interface to "bin"
+things.  For example, if you wanted to distinguish a certain set of
+stats between kernel time and user time, you could bin them into
+separate bins, triggered on the activation of a Bin set.  As an
+example, let's say you want to number of instructions committed and
+distinguish between kernel and user time. A Bin set that is already
+built into the package is called MainBin.
+
+To declare such a stat, you could say:
+
+@code
+Scalar<Counter,MainBin> num_insts_committed;
+MainBin kernel_bin, user_bin;
+// must initialize the stat before using it
+MainBin::activate(kernel_bin);
+// ...code...code...code...
+num_insts_committed++;  // This will go into the kernel bin
+MainBin::activate(user_bin);  // switch to user mode
+num_insts_committed++; // This will go into the user bin
+@endcode
+
+The result of this code is that after activating the kernel_bin, all
+stats declared with MainBin as the bin will be counted in the
+kernel_bin.  After activating the user_bin, all stats declared with
+MainBin as their bin will be counted in the user_bin.
+
+@section philosophy Stats "Philosophy" --> Initialization
+
+
+The philosophy of the stats package at the moment is to have a single
+base class called Stat which is merely a hook into every other aspect
+of the stat that may be important.  Thus, this Stat base class has
+virtual functions to name, set precision for, set flags for, and
+initialize size for all the stats.  For all Vector based stats, it is
+very important to do the initialization before using the stat so that
+appropriate storage allocation can occur.  For all other stats, naming
+and flag setting is also important, but not as important for the
+actual proper execution of the binary.
+
+The way this is set up in the code is to have a regStats() pass in
+which all stats can be registered in the stats database and
+initialized.  There is a separate pass (regFormulas) to register all
+Formulas since formulas often depend other stats that must have been
+initialized already.
+
+Thus, to add your own stats, just add them to the appropriate class'
+data member list, and be sure to initialize/register them in that
+class' regStats function.
+
+Here is a list of the various initialization functions. Note that all of these return a Stat& reference, thus enabling a clean looking way of calling them all.
+    <ul>
+      <li>init(various args) //this differs for different types of stats.
+	<ul>
+	  <li>Scalar: does not have an init()
+	  <li>Average: does not have an init()
+	  <li>Vector: init(size_t) //indicates size of vector
+	  <li>AverageVector: init(size_t) //indicates size of vector
+	  <li>Vector2d: init(size_t x, size_t y) //rows, columns
+	  <li>Distribution: init(min, max, bkt) //min refers to minimum value, max the maximum value, and bkt the size of the bkts.  In other words, if you have min=0, max=15, and bkt=8, then 0-7 will go into bucket 0, and 8-15 will go into bucket 1.
+	  <li>StandardDeviation: does not have an init()
+	  <li>AverageDeviation: does not have an init()
+	  <li>VectorDistribution: init(size, min, max, bkt) //the size refers to the size of the vector, the rest are the same as for Distributions.
+	  <li>VectorStandardDeviation: init(size) //size refers to size of the vector
+	  <li>VectorAverageDeviation: init(size) //size refers to size of the vector
+	  <li>Formula: does not have an init()
+	</ul>
+      <li>name(const std::string name) //the name of the stat
+      <li>desc(const std::string desc) //a brief description of the stat
+      <li>precision(int p) //p refers to how many places after the decimal point to go.  p=0 will force rounding to integers.
+      <li>prereq(const Stat &prereq) //this indicates that this stat should not be printed unless prereq has a non-zero value. (like if there are 0 cache accesses, don't print cache misses, hits, etc.)
+      <li>subname(int index, const std::string subname) //this is for Vector based stats to give a subname to each index of the vector.
+      <li>subdesc(int index, const std::string subname) //also for Vector based stats, to give each index a subdesc.  For 2d Vectors, the subname goes to each of the rows (x's).  The y's can be named using a Vector2d member function ysubname, see code for details.
+      <li>flags(FormatFlags f) //these are various flags you can pass to the stat, which i'll describe below.
+	<ul>
+	  <li>none -- no special formatting
+	  <li>total -- this is for Vector based stats, if this flag is set, the total across the Vector will be printed at the end (for those stats which this is supported).
+	  <li>pdf -- This will print the probability distribution of a stat
+	  <li>nozero -- This will not print the stat if its value is zero
+	  <li>nonan -- This will not print the stat if it's Not a Number (nan).
+	  <li>cdf -- This will print the cumulative distribution of a stat
+	</ul>
+    </ul>
+
+Below is an example of how to initialize a VectorDistribution:
+
+@code
+vector_dist.init(4,0,5,2)
+           .name("Dummy Vector Dist")
+           .desc("there are 4 distributions with buckets 0-1, 2-3, 4-5")
+           .flags(nonan | pdf)
+           ;
+@endcode
+
+@section types Stat Types
+
+    <ul>
+      <li><b>Scalar</b>
+	<br>The most basic stat is the Scalar.  This embodies the basic counting stat.  It is a templatized stat and takes two parameters, a type and a bin.  The default type is a Counter, and the default bin is NoBin (i.e. there is no binning on this stat).  It's usage is straightforward: to assign a value to it, just say foo = 10;, or to increment it, just use ++ or += like for any other type.
+      <li><b>Average</b>
+	<br>This is a "special use" stat, geared toward calculating the average of something over the number of cycles in the simulation.  This stat is best explained by example.  If you wanted to know the average occupancy of the load-store queue over the course of the simulation, you'd need to accumulate the number of instructions in the LSQ each cycle and at the end divide it by the number of cycles.  For this stat, there may be many cycles where there is no change in the LSQ occupancy.  Thus, you could use this stat, where you only need to explicitly update the stat when there is a change in the LSQ occupancy.  The stat itself will take care of itself for cycles where there is no change.  This stat can be binned and it also templatized the same way Stat is.
+      <li><b>Vector</b>
+	<br>A Vector is just what it sounds like, a vector of type T in the template parameters.  It can also be binned.  The most natural use of Vector is for something like tracking some stat over number of SMT threads.  A Vector of size n can be declared just by saying Vector<> foo; and later initializing the size to n.  At that point, foo can be accessed as if it were a regular vector or array, like foo[7]++.
+      <li><b>AverageVector</b>
+	<br>An AverageVector is just a Vector of Averages.
+      <li><b>Vector2d</b>
+	<br>A Vector2d is a 2 dimensional vector.  It can be named in both the x and y directions, though the primary name is given across the x-dimension.  To name in the y-dimension, use a special ysubname function only available to Vector2d's.
+      <li><b>Distribution</b>
+	<br>This is essentially a Vector, but with minor differences.  Whereas in a Vector, the index maps to the item of interest for that bucket, in a Distribution you could map different ranges of interest to a bucket.  Basically, if you had the bkt parameter of init for a Distribution = 1, you might as well use a Vector.
+      <li><b>StandardDeviation</b>
+	<br>This stat calculates standard deviation over number of cycles in the simulation.  It's similar to Average in that it has behavior built into it, but it needs to be updated every cycle.
+      <li><b>AverageDeviation</b>
+	<br>This stat also calculates the standard deviation but it does not need to be updated every cycle, much like Average. It will handle cycles where there is no change itself.
+      <li><b>VectorDistribution</b>
+	<br>This is just a vector of distributions.
+      <li><b>VectorStandardDeviation</b>
+	<br>This is just a vector of standard deviations.
+      <li><b>VectorAverageDeviation</b>
+	<br>This is just a vector of AverageDeviations.
+      <li><b>Formula</b>
+	<br>This is a Formula stat.  This is for anything that requires calculations at the end of the simulation, for example something that is a rate.  So, an example of defining a Formula would be:
+
+@code
+Formula foo = bar + 10 / num;
+@endcode
+
+There are a few subtleties to Formula.  If bar and num are both stats,
+then there is no problem.  If bar or num are regular variables, then
+they must be qualified with constant(bar) or scalar(num).  These are
+essentially casts.  If you want to use the value of bar or num at the
+moment of definition, then use constant().  If you want to use the
+value of bar or num at the moment the formula is calculated (i.e. the
+end), use the scalar() cast.
+
+</ul>
+
+*/

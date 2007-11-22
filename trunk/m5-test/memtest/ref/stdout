@@ -1,0 +1,2 @@
+command line: ALPHA_SE/m5.opt -d ALPHA_SE/test/opt/memtest m5-test/memtest/run.py
+

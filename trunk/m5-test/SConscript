@@ -1,0 +1,201 @@
+# -*- mode:python -*-
+
+# Copyright (c) 2004, 2005 The Regents of The University of Michigan
+# All Rights Reserved # This code is part of the M5 simulator,
+# developed by Nathan Binkert, Erik Hallnor, Steve Raasch, and Steve
+# Reinhardt, with contributions from Ron Dreslinski, Dave Greene, Lisa
+# Hsu, Kevin Lim, Ali Saidi, and Andrew Schultz.  # Permission is
+# granted to use, copy, create derivative works and redistribute this
+# software and such derivative works for any purpose, so long as the
+# copyright notice above, this grant of permission, and the disclaimer
+# below appear in all copies made; and so long as the name of The
+# University of Michigan is not used in any advertising or publicity
+# pertaining to the use or distribution of this software without
+# specific, written prior authorization.  # THIS SOFTWARE IS PROVIDED
+# AS IS, WITHOUT REPRESENTATION FROM THE UNIVERSITY OF MICHIGAN AS TO
+# ITS FITNESS FOR ANY PURPOSE, AND WITHOUT WARRANTY BY THE UNIVERSITY
+# OF MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+# WITHOUT LIMITATION THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE. THE REGENTS OF THE UNIVERSITY OF
+# MICHIGAN SHALL NOT BE LIABLE FOR ANY DAMAGES, INCLUDING DIRECT,
+# SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH
+# RESPECT TO ANY CLAIM ARISING OUT OF OR IN CONNECTION WITH THE USE OF
+# THE SOFTWARE, EVEN IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGES.
+
+import os
+import sys
+import glob
+from SCons.Script.SConscript import SConsEnvironment
+
+Import('env')
+
+env['DIFFOUT'] = File('diff-out')
+
+# Dict that accumulates lists of tests by category (quick, medium, long)
+env.Tests = {}
+
+def contents(node):
+    return file(str(node)).read()
+
+def check_test(target, source, env):
+    """Check output from running test.
+
+    Targets are as follows:
+    target[0] : outdiff
+    target[1] : statsdiff
+    target[2] : status
+
+    """
+    # make sure target files are all gone
+    for t in target:
+        if os.path.exists(t.abspath):
+            Execute(Delete(t.abspath))
+    # Run diff on output & ref directories to find differences.
+    # Exclude m5stats.txt since we will use diff-out on that.
+    Execute(env.subst('diff -ubr ${SOURCES[0].dir} ${SOURCES[1].dir} ' +
+                      '-I "^command line:" ' +		# for stdout file
+                      '-I "^M5 compiled on" ' +		# for stderr file
+                      '-I "^M5 simulation started" ' +	# for stderr file
+                      '-I "^Simulation complete at" ' +	# for stderr file
+                      '-I "^Listening for" ' +		# for stderr file
+                      '--exclude=m5stats.txt --exclude=SCCS ' +
+                      '--exclude=${TARGETS[0].file} ' +
+                      '> ${TARGETS[0]}', target=target, source=source), None)
+    print "===== Output differences ====="
+    print contents(target[0])
+    # Run diff-out on m5stats.txt file
+    status = Execute(env.subst('$DIFFOUT $SOURCES > ${TARGETS[1]}',
+                               target=target, source=source),
+                     strfunction=None)
+    print "===== Statistics differences ====="
+    print contents(target[1])
+    # Generate status file contents based on exit status of diff-out
+    if status == 0:
+        status_str = "passed."
+    else:
+        status_str = "FAILED!"
+    f = file(str(target[2]), 'w')
+    print >>f, env.subst('${TARGETS[2].dir}', target=target, source=source), \
+          status_str
+    f.close()
+    # done
+    return 0
+
+def check_test_string(target, source, env):
+    return env.subst("Comparing outputs in ${TARGETS[0].dir}.",
+                     target=target, source=source)
+
+testAction = env.Action(check_test, check_test_string)
+
+def print_test(target, source, env):
+    print '*****', contents(source[0])
+    return 0
+
+printAction = env.Action(print_test, strfunction = None)
+
+def update_test(target, source, env):
+    """Update reference test outputs.
+
+    Target is phony.  First two sources are the ref & new m5stats.txt
+    files, respectively.  We actually copy everything in the
+    respective directories except the status & diff output files.
+
+    """
+    dest_dir = str(source[0].get_dir())
+    src_dir = str(source[1].get_dir())
+    dest_files = os.listdir(dest_dir)
+    src_files = os.listdir(src_dir)
+    # Exclude status & diff outputs
+    for f in ('outdiff', 'statsdiff', 'status'):
+        if f in src_files:
+            src_files.remove(f)
+    for f in src_files:
+        if f in dest_files:
+            print "  Replacing file", f
+            dest_files.remove(f)
+        else:
+            print "  Creating new file", f
+        copyAction = Copy(os.path.join(dest_dir, f), os.path.join(src_dir, f))
+        copyAction.strfunction = None
+        Execute(copyAction)
+    # warn about any files in dest not overwritten (other than SCCS dir)
+    if 'SCCS' in dest_files:
+        dest_files.remove('SCCS')
+    if dest_files:
+        print "Warning: file(s) in", dest_dir, "not updated:",
+        print ', '.join(dest_files)
+    return 0
+
+def update_test_string(target, source, env):
+    return env.subst("Updating ${SOURCES[0].dir} from ${SOURCES[1].dir}",
+                     target=target, source=source)
+
+updateAction = env.Action(update_test, update_test_string)
+
+def test_builder(env, category, refdir='ref', timeout=15):
+    """Define a test.
+
+    Args:
+    category -- string describing test category (e.g., 'quick')
+    refdir -- subdirectory containing reference output (default 'ref')
+    timeout -- test timeout in minutes (only enforced on pool)
+
+    """
+    ref_stats = os.path.join(refdir, 'm5stats.txt')
+
+    # base command for running test
+    base_cmd = '${SOURCES[0]} -d $TARGET.dir ${SOURCES[1]}'
+    # stdout and stderr files
+    cmd_stdout = '${TARGETS[0]}'
+    cmd_stderr = '${TARGETS[1]}'
+
+    # Prefix test run with batch job submission command if appropriate.
+    # Output redirection is also different for batch runs.
+    # Batch command also supports timeout arg (in seconds, not minutes).
+    if env['BATCH']:
+        cmd = [env['BATCH_CMD'], '-t', str(timeout * 60),
+               '-o', cmd_stdout, '-e', cmd_stderr, base_cmd]
+    else:
+        cmd = [base_cmd, '>', cmd_stdout, '2>', cmd_stderr]
+
+    env.Command(['stdout', 'stderr', 'm5stats.txt'], [env.M5Binary, 'run.py'],
+                ' '.join(cmd))
+
+    # order of targets is important... see check_test
+    env.Command(['outdiff', 'statsdiff', 'status'],
+                [ref_stats, 'm5stats.txt'],
+                testAction)
+
+    # phony target to echo status
+    if env['update_ref']:
+        p = env.Command('_update', [ref_stats, 'm5stats.txt', 'status'],
+                        updateAction)
+    else:
+        p = env.Command('_print', ['status'], printAction)
+    env.AlwaysBuild(p)
+
+    env.Tests.setdefault(category, [])
+    env.Tests[category] += p
+
+# Make test_builder a "wrapper" function.  See SCons wiki page at
+# http://www.scons.org/cgi-bin/wiki/WrapperFunctions.
+SConsEnvironment.Test = test_builder
+
+cwd = os.getcwd()
+os.chdir(str(Dir('.').srcdir))
+scripts = glob.glob('*/SConscript')
+os.chdir(cwd)
+
+for s in scripts:
+    SConscript(s, exports = 'env', duplicate = False)
+
+# Set up phony commands for various test categories
+allTests = []
+for (key, val) in env.Tests.iteritems():
+    env.Command(key, val, env.NoAction)
+    allTests += val
+
+# The 'all' target is redundant since just specifying the test
+# directory name (e.g., ALPHA_SE/test/opt) has the same effect.
+env.Command('all', allTests, env.NoAction)

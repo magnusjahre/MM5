@@ -1,0 +1,103 @@
+#! /usr/bin/env python
+
+# Copyright (c) 2005
+# The Regents of The University of Michigan
+# All Rights Reserved
+#
+# This code is part of the M5 simulator, developed by Nathan Binkert,
+# Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+# from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+# and Andrew Schultz.
+#
+# Permission is granted to use, copy, create derivative works and
+# redistribute this software and such derivative works for any purpose,
+# so long as the copyright notice above, this grant of permission, and
+# the disclaimer below appear in all copies made; and so long as the
+# name of The University of Michigan is not used in any advertising or
+# publicity pertaining to the use or distribution of this software
+# without specific, written prior authorization.
+#
+# THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+# UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND WITHOUT
+# WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER EXPRESS OR
+# IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE REGENTS OF
+# THE UNIVERSITY OF MICHIGAN SHALL NOT BE LIABLE FOR ANY DAMAGES,
+# INCLUDING DIRECT, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+# DAMAGES, WITH RESPECT TO ANY CLAIM ARISING OUT OF OR IN CONNECTION
+# WITH THE USE OF THE SOFTWARE, EVEN IF IT HAS BEEN OR IS HEREAFTER
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+
+# Parse sampled function profile output (quick hack).
+
+# Args should be a list of m5prof.* files.
+
+import re, sys
+from stats.profile import Profile
+from stats.output import StatOutput
+from jobfile import JobFile
+
+def usage(exitcode = None):
+    print '''\
+Usage: %s [-1bc] [-g <dir> ] [-n <num>] <jobs directory>
+
+    -1        puts each file on one line (default no)
+    -c        groups symbols into categories
+    -b        dumps data for bar charts
+    -g <d>    draw graphs and send output to <d>
+    -n <n>    selects number of top symbols to print (default 5)
+''' % sys.argv[0]
+
+    if exitcode is not None:
+        sys.exit(exitcode)
+
+def getopts(list, flags):
+    import getopt
+    try:
+        opts, args = getopt.getopt(list, flags)
+    except getopt.GetoptError:
+        usage(2)
+
+    return opts, args
+
+if __name__ == '__main__':
+    # default option values
+    oneline = False
+    numsyms = 5
+    graph = None
+    categorize = False
+    showidle = True
+
+    opts, args = getopts(sys.argv[1:], '1cg:in:')
+    for o,a in opts:
+        if o == "-n":
+            numsyms = int(v)
+        elif o == "-1":
+            oneline = True
+        elif o == "-c":
+            categorize = True
+        elif o == "-g":
+            graph = a
+        elif o == "-i":
+            showidle = False
+
+    if len(args) != 1:
+        usage(1)
+
+    jobfile = JobFile(args[0])
+
+    if graph and not categorize:
+        print "Graphing ('-g') requires categorization ('-c')"
+        sys.exit(2)
+
+    profile = Profile()
+    profile.categorize = categorize
+    profile.inputdir(jobfile.rootdir)
+
+    output = StatOutput('stacks', jobfile, info=profile)
+
+    if graph:
+        output.graph(graph)
+    else:
+        output.display(oneline=oneline, nsyms=numsyms)

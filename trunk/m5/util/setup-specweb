@@ -1,0 +1,67 @@
+#!/bin/sh
+
+if [ "$1" = "" ] || [ "$2" = "" ] || [ "$3" = "" ] || 
+   [ "$4" = "" ] || [ "$5" = "" ]; then
+    echo "Usage: $0 <run-time> <rampup-time> <rampdown-time> <warmup-time> <connections> [ini file]"
+    echo "    Maximum run-time = 4095"
+    echo "    Maximum rampup-time = 4095"
+    echo "    Maximum rampdown-time = 4095"
+    echo "    Maximum warmup-time = 4095"
+    echo "    Maximum connections = 4095"
+    exit 1
+
+    exit 1
+fi
+
+if [ $1 -le 0 ] || [ $1 -gt 4095 ] ||
+   [ $2 -le 0 ] || [ $2 -gt 4095 ] ||
+   [ $3 -le 0 ] || [ $3 -gt 4095 ] ||
+   [ $4 -le 0 ] || [ $4 -gt 4095 ] ||
+   [ $5 -le 0 ] || [ $5 -gt 4095 ]; then
+    echo "Usage: $0 <run-time> <rampup-time> <rampdown-time> <warmup-time> <connections> [ini file]"
+    echo "    Maximum run-time = 4095"
+    echo "    Maximum rampup-time = 4095"
+    echo "    Maximum rampdown-time = 4095"
+    echo "    Maximum warmup-time = 4095"
+    echo "    Maximum connections = 4095"
+    exit 1
+fi
+
+let run=$1\<\<48
+let rampup=$2\<\<36
+let rampdown=$3\<\<24
+let warmup=$4\<\<12
+let conns=$5
+
+let code=${run}+${rampup}+${rampdown}+${warmup}+${conns}
+
+echo "    run-time = $1"
+echo "    rampup-time = $2"
+echo "    rampdown-time = $3"
+echo "    warmup-time = $4"
+echo "    connections = $5"
+echo ""
+echo "Code = $code"
+
+if [ ! "$6" = "" ]; then
+    if [ -w $6 ]; then
+        grep -q "init_param=" $6
+		
+        if [ $? -ne 0 ]; then
+            echo "$6 must have the line 'init_param=XXX' in it somewhere!"
+            exit 1
+        fi
+
+        ed - $6 <<!
+/init_param=/c
+init_param=$code
+.
+w
+q
+!
+        echo "$6 has been updated with code $code"
+    else	
+        echo "$6 must be a file that is writable!"
+        exit 1
+    fi
+fi

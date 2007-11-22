@@ -1,0 +1,221 @@
+
+---------- Begin Simulation Statistics ----------
+DL1.avg_blocked_cycles_no_mshrs             34.925653                       # average number of cycles each access was blocked
+DL1.avg_blocked_cycles_no_targets        <err: div-0>                       # average number of cycles each access was blocked
+DL1.avg_refs                                 1.024434                       # Average number of references to valid blocks.
+DL1.blocked_no_mshrs                          3845403                       # number of cycles access was blocked
+DL1.blocked_no_targets                              0                       # number of cycles access was blocked
+DL1.blocked_cycles_no_mshrs                 134303212                       # number of cycles access was blocked
+DL1.blocked_cycles_no_targets                       0                       # number of cycles access was blocked
+DL1.cache_copies                                    0                       # number of cache copies performed
+DL1.demand_accesses                           6918236                       # number of demand (read+write) accesses
+DL1.demand_avg_miss_latency               1107.446437                       # average overall miss latency
+DL1.demand_avg_mshr_miss_latency          1104.446460                       # average overall mshr miss latency
+DL1.demand_hits                               3500854                       # number of demand (read+write) hits
+DL1.demand_miss_latency                    3784567519                       # number of demand (read+write) miss cycles
+DL1.demand_miss_rate                         0.493967                       # miss rate for demand accesses
+DL1.demand_misses                             3417382                       # number of demand (read+write) misses
+DL1.demand_mshr_hits                                0                       # number of demand (read+write) MSHR hits
+DL1.demand_mshr_miss_latency               3774315454                       # number of demand (read+write) MSHR miss cycles
+DL1.demand_mshr_miss_rate                    0.493967                       # mshr miss rate for demand accesses
+DL1.demand_mshr_misses                        3417382                       # number of demand (read+write) MSHR misses
+DL1.fast_writes                                     0                       # number of fast writes performed
+DL1.mshr_cap_events                                 0                       # number of times MSHR cap was activated
+DL1.no_allocate_misses                              0                       # Number of misses that were no-allocate
+DL1.overall_accesses                          6918236                       # number of overall (read+write) accesses
+DL1.overall_avg_miss_latency              1107.446437                       # average overall miss latency
+DL1.overall_avg_mshr_miss_latency         1104.446460                       # average overall mshr miss latency
+DL1.overall_avg_mshr_uncacheable_latency  1501.528169                       # average overall mshr uncacheable latency
+DL1.overall_hits                              3500854                       # number of overall hits
+DL1.overall_miss_latency                   3784567519                       # number of overall miss cycles
+DL1.overall_miss_rate                        0.493967                       # miss rate for overall accesses
+DL1.overall_misses                            3417382                       # number of overall misses
+DL1.overall_mshr_hits                               0                       # number of overall MSHR hits
+DL1.overall_mshr_miss_latency              3774315454                       # number of overall MSHR miss cycles
+DL1.overall_mshr_miss_rate                   0.493967                       # mshr miss rate for overall accesses
+DL1.overall_mshr_misses                       3417382                       # number of overall MSHR misses
+DL1.overall_mshr_uncacheable_latency       1160663256                       # number of overall MSHR uncacheable cycles
+DL1.overall_mshr_uncacheable_misses            772988                       # number of overall MSHR uncacheable misses
+DL1.prefetcher.num_hwpf_already_in_cache            0                       # number of hwpf that were already in the cache
+DL1.prefetcher.num_hwpf_already_in_mshr             0                       # number of hwpf that were already in mshr
+DL1.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+DL1.prefetcher.num_hwpf_evicted                     0                       # number of hwpf removed due to no buffer left
+DL1.prefetcher.num_hwpf_identified                  0                       # number of hwpf identified
+DL1.prefetcher.num_hwpf_issued                      0                       # number of hwpf issued
+DL1.prefetcher.num_hwpf_removed_MSHR_hit            0                       # number of hwpf removed because MSHR allocated
+DL1.prefetcher.num_hwpf_span_page                   0                       # number of hwpf spanning a virtual page
+DL1.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+DL1.read_accesses                             4497616                       # number of read accesses(hits+misses)
+DL1.read_avg_miss_latency                 1107.991946                       # average read miss latency
+DL1.read_avg_mshr_miss_latency            1104.991969                       # average read mshr miss latency
+DL1.read_avg_mshr_uncacheable_latency     1478.542900                       # average read mshr uncacheable latency
+DL1.read_hits                                 2275602                       # number of read hits
+DL1.read_miss_latency                      2461973617                       # number of read miss cycles
+DL1.read_miss_rate                           0.494043                       # miss rate for read accesses
+DL1.read_misses                               2222014                       # number of read misses
+DL1.read_mshr_miss_latency                 2455307626                       # number of read MSHR miss cycles
+DL1.read_mshr_miss_rate                      0.494043                       # mshr miss rate for read accesses
+DL1.read_mshr_misses                          2222014                       # number of read MSHR misses
+DL1.read_mshr_uncacheable                      502407                       # number of read MSHR uncacheable
+DL1.read_mshr_uncacheable_latency           742830303                       # number of read MSHR uncacheable cycles
+DL1.replacements                              3416331                       # number of replacements
+DL1.sampled_refs                              3417355                       # Sample count of references to valid blocks.
+DL1.soft_prefetch_mshr_full                         0                       # number of mshr full events for SW prefetching instrutions
+DL1.tagsinuse                             1023.827139                       # Cycle average of tags in use
+DL1.total_refs                                3500854                       # Total number of references to valid blocks.
+DL1.warmup_cycle                               100698                       # Cycle when the warmup percentage was hit.
+DL1.write_accesses                            2420620                       # number of write accesses(hits+misses)
+DL1.write_avg_miss_latency                1106.432414                       # average write miss latency
+DL1.write_avg_mshr_miss_latency           1103.432439                       # average write mshr miss latency
+DL1.write_avg_mshr_uncacheable_latency    1544.206552                       # average write mshr uncacheable latency
+DL1.write_hits                                1225252                       # number of write hits
+DL1.write_miss_latency                     1322593902                       # number of write miss cycles
+DL1.write_miss_rate                          0.493827                       # miss rate for write accesses
+DL1.write_misses                              1195368                       # number of write misses
+DL1.write_mshr_miss_latency                1319007828                       # number of write MSHR miss cycles
+DL1.write_mshr_miss_rate                     0.493827                       # mshr miss rate for write accesses
+DL1.write_mshr_misses                         1195368                       # number of write MSHR misses
+DL1.write_mshr_uncacheable                     270581                       # number of write MSHR uncacheable
+DL1.write_mshr_uncacheable_latency          417832953                       # number of write MSHR uncacheable cycles
+DL1.writebacks                                1781688                       # number of writebacks
+L2.avg_blocked_cycles_no_mshrs              28.815069                       # average number of cycles each access was blocked
+L2.avg_blocked_cycles_no_targets         <err: div-0>                       # average number of cycles each access was blocked
+L2.avg_refs                                  0.659456                       # Average number of references to valid blocks.
+L2.blocked_no_mshrs                           2363282                       # number of cycles access was blocked
+L2.blocked_no_targets                               0                       # number of cycles access was blocked
+L2.blocked_cycles_no_mshrs                   68098134                       # number of cycles access was blocked
+L2.blocked_cycles_no_targets                        0                       # number of cycles access was blocked
+L2.cache_copies                                     0                       # number of cache copies performed
+L2.demand_accesses                            3417381                       # number of demand (read+write) accesses
+L2.demand_avg_miss_latency                1493.586839                       # average overall miss latency
+L2.demand_avg_mshr_miss_latency           1478.491333                       # average overall mshr miss latency
+L2.demand_hits                                 908765                       # number of demand (read+write) hits
+L2.demand_miss_latency                     3746835842                       # number of demand (read+write) miss cycles
+L2.demand_miss_rate                          0.734076                       # miss rate for demand accesses
+L2.demand_misses                              2508616                       # number of demand (read+write) misses
+L2.demand_mshr_hits                                 0                       # number of demand (read+write) MSHR hits
+L2.demand_mshr_miss_latency                3708967014                       # number of demand (read+write) MSHR miss cycles
+L2.demand_mshr_miss_rate                     0.734076                       # mshr miss rate for demand accesses
+L2.demand_mshr_misses                         2508616                       # number of demand (read+write) MSHR misses
+L2.fast_writes                                      0                       # number of fast writes performed
+L2.mshr_cap_events                                  0                       # number of times MSHR cap was activated
+L2.no_allocate_misses                               0                       # Number of misses that were no-allocate
+L2.overall_accesses                           5199069                       # number of overall (read+write) accesses
+L2.overall_avg_miss_latency               1057.005427                       # average overall miss latency
+L2.overall_avg_mshr_miss_latency          1478.491333                       # average overall mshr miss latency
+L2.overall_avg_mshr_uncacheable_latency   1475.149464                       # average overall mshr uncacheable latency
+L2.overall_hits                               1654304                       # number of overall hits
+L2.overall_miss_latency                    3746835842                       # number of overall miss cycles
+L2.overall_miss_rate                         0.681808                       # miss rate for overall accesses
+L2.overall_misses                             3544765                       # number of overall misses
+L2.overall_mshr_hits                                0                       # number of overall MSHR hits
+L2.overall_mshr_miss_latency               3708967014                       # number of overall MSHR miss cycles
+L2.overall_mshr_miss_rate                    0.482513                       # mshr miss rate for overall accesses
+L2.overall_mshr_misses                        2508616                       # number of overall MSHR misses
+L2.overall_mshr_uncacheable_latency        1140272834                       # number of overall MSHR uncacheable cycles
+L2.overall_mshr_uncacheable_misses             772988                       # number of overall MSHR uncacheable misses
+L2.prefetcher.num_hwpf_already_in_cache             0                       # number of hwpf that were already in the cache
+L2.prefetcher.num_hwpf_already_in_mshr              0                       # number of hwpf that were already in mshr
+L2.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+L2.prefetcher.num_hwpf_evicted                      0                       # number of hwpf removed due to no buffer left
+L2.prefetcher.num_hwpf_identified                   0                       # number of hwpf identified
+L2.prefetcher.num_hwpf_issued                       0                       # number of hwpf issued
+L2.prefetcher.num_hwpf_removed_MSHR_hit             0                       # number of hwpf removed because MSHR allocated
+L2.prefetcher.num_hwpf_span_page                    0                       # number of hwpf spanning a virtual page
+L2.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+L2.read_accesses                              3417381                       # number of read accesses(hits+misses)
+L2.read_avg_miss_latency                  1493.586839                       # average read miss latency
+L2.read_avg_mshr_miss_latency             1478.491333                       # average read mshr miss latency
+L2.read_avg_mshr_uncacheable_latency      1459.434873                       # average read mshr uncacheable latency
+L2.read_hits                                   908765                       # number of read hits
+L2.read_miss_latency                       3746835842                       # number of read miss cycles
+L2.read_miss_rate                            0.734076                       # miss rate for read accesses
+L2.read_misses                                2508616                       # number of read misses
+L2.read_mshr_miss_latency                  3708967014                       # number of read MSHR miss cycles
+L2.read_mshr_miss_rate                       0.734076                       # mshr miss rate for read accesses
+L2.read_mshr_misses                           2508616                       # number of read MSHR misses
+L2.read_mshr_uncacheable                       502407                       # number of read MSHR uncacheable
+L2.read_mshr_uncacheable_latency            733230296                       # number of read MSHR uncacheable cycles
+L2.replacements                               2507566                       # number of replacements
+L2.sampled_refs                               2508590                       # Sample count of references to valid blocks.
+L2.soft_prefetch_mshr_full                          0                       # number of mshr full events for SW prefetching instrutions
+L2.tagsinuse                              1023.842095                       # Cycle average of tags in use
+L2.total_refs                                 1654304                       # Total number of references to valid blocks.
+L2.warmup_cycle                                 79608                       # Cycle when the warmup percentage was hit.
+L2.write_avg_mshr_uncacheable_latency     1504.327865                       # average write mshr uncacheable latency
+L2.write_mshr_uncacheable                      270581                       # number of write MSHR uncacheable
+L2.write_mshr_uncacheable_latency           407042538                       # number of write MSHR uncacheable cycles
+L2.writeback_accesses                         1781688                       # number of writeback accesses(hits+misses)
+L2.writeback_hits                              745539                       # number of writeback hits
+L2.writeback_miss_rate                       0.581555                       # miss rate for writeback accesses
+L2.writeback_misses                           1036149                       # number of writeback misses
+L2.writeback_mshr_miss_rate                  0.581555                       # mshr miss rate for writeback accesses
+L2.writeback_mshr_misses                      1036149                       # number of writeback MSHR misses
+L2.writebacks                                  618435                       # number of writebacks
+SDRAM.accesses                                4936187                       # total number of accesses
+SDRAM.bytes_requested                       161053831                       # total number of bytes requested
+SDRAM.bytes_sent                            161053831                       # total number of bytes sent
+SDRAM.compressed_responses                          0                       # total number of accesses that are compressed
+checkMem.page_count                                 0                       # total number of pages allocated
+checkMem.page_mem                                   0                       # total size of memory pages allocated
+checkMem.ptab_accesses                        7750940                       # total page table accessess
+checkMem.ptab_miss_rate                        0.0000                       # first level page table miss rate
+checkMem.ptab_misses                                0                       # total first level page table misses
+host_mem_usage                                   4660                       # Number of bytes of host memory used
+host_seconds                                   505.82                       # Real time elapsed on the host
+host_tick_rate                                 280089                       # Simulator tick rate (ticks/s)
+mainMem.page_count                                  0                       # total number of pages allocated
+mainMem.page_mem                                    0                       # total size of memory pages allocated
+mainMem.ptab_accesses                         4974601                       # total page table accessess
+mainMem.ptab_miss_rate                         0.0000                       # first level page table miss rate
+mainMem.ptab_misses                                 0                       # total first level page table misses
+sim_freq                                    200000000                       # Frequency of simulated ticks
+sim_seconds                                  0.708369                       # Number of seconds simulated
+sim_ticks                                   141673765                       # Number of ticks simulated
+test.num_copies                                     0                       # number of copy accesses completed
+test.num_reads                                5000001                       # number of read accesses completed
+test.num_writes                               2691189                       # number of write accesses completed
+toL2Bus.addr_idle_cycles                     95468404                       # number of cycles bus was idle
+toL2Bus.addr_idle_fraction                   0.673861                       # fraction of time addr bus was idle
+toL2Bus.addr_queued                         11.890435                       # average queueing delay seen by bus request
+toL2Bus.addr_queued_cycles                   74227657                       # total number of queued cycles for all requests
+toL2Bus.addr_requests                         6242636                       # number of transmissions on bus
+toL2Bus.bus_blocked                           2423036                       # number of times bus was blocked
+toL2Bus.bus_blocked_cycles                   70576300                       # number of cycles bus was blocked
+toL2Bus.bus_blocked_fraction                 0.498161                       # fraction of time bus was blocked
+toL2Bus.data_idle_cycles                    129729710                       # number of cycles bus was idle
+toL2Bus.data_idle_fraction                   0.915693                       # fraction of time data bus was idle
+toL2Bus.data_queued                          2.026451                       # average queueing delay seen by bus request
+toL2Bus.data_queued_cycles                    7943196                       # total number of queued cycles for all requests
+toL2Bus.data_requests                         3919757                       # number of transmissions on bus
+toL2Bus.null_grants                                 0                       # number of null grants (wasted cycles)
+toMemBus.addr_idle_cycles                   120846364                       # number of cycles bus was idle
+toMemBus.addr_idle_fraction                  0.852990                       # fraction of time addr bus was idle
+toMemBus.addr_queued                        13.751746                       # average queueing delay seen by bus request
+toMemBus.addr_queued_cycles                  71602138                       # total number of queued cycles for all requests
+toMemBus.addr_requests                        5206767                       # number of transmissions on bus
+toMemBus.bus_blocked                              137                       # number of times bus was blocked
+toMemBus.bus_blocked_cycles                       368                       # number of cycles bus was blocked
+toMemBus.bus_blocked_fraction                0.000003                       # fraction of time bus was blocked
+toMemBus.data_idle_cycles                    71971052                       # number of cycles bus was idle
+toMemBus.data_idle_fraction                  0.508006                       # fraction of time data bus was idle
+toMemBus.data_queued                         6.440065                       # average queueing delay seen by bus request
+toMemBus.data_queued_cycles                  19390984                       # total number of queued cycles for all requests
+toMemBus.data_requests                        3010992                       # number of transmissions on bus
+toMemBus.null_grants                                0                       # number of null grants (wasted cycles)
+toMemBusSlow.addr_idle_cycles               100019584                       # number of cycles bus was idle
+toMemBusSlow.addr_idle_fraction              0.705985                       # fraction of time addr bus was idle
+toMemBusSlow.addr_queued                    52.329066                       # average queueing delay seen by bus request
+toMemBusSlow.addr_queued_cycles             272465202                       # total number of queued cycles for all requests
+toMemBusSlow.addr_requests                    5206766                       # number of transmissions on bus
+toMemBusSlow.bus_blocked                            0                       # number of times bus was blocked
+toMemBusSlow.bus_blocked_cycles                     0                       # number of cycles bus was blocked
+toMemBusSlow.bus_blocked_fraction                   0                       # fraction of time bus was blocked
+toMemBusSlow.data_idle_cycles                 2268336                       # number of cycles bus was idle
+toMemBusSlow.data_idle_fraction              0.016011                       # fraction of time data bus was idle
+toMemBusSlow.data_queued                  1159.212787                       # average queueing delay seen by bus request
+toMemBusSlow.data_queued_cycles            3490381588                       # total number of queued cycles for all requests
+toMemBusSlow.data_requests                    3010993                       # number of transmissions on bus
+toMemBusSlow.null_grants                            0                       # number of null grants (wasted cycles)
+
+---------- End Simulation Statistics   ----------

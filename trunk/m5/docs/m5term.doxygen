@@ -1,0 +1,101 @@
+/*
+ * Copyright (c) 2003, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+/** @page m5term m5term
+
+The m5term program allows the user to connect to the simulated
+    console interface that full-system m5 provides.  Simply change
+    into the util/term directory and build m5term:
+
+@verbatim
+	% cd
+	% cd m5
+	% cd util/term 
+	% make
+	gcc  -o m5term term.c
+	% make install
+	sudo install -o root -m 555 m5term /usr/local/bin
+@endverbatim
+   
+
+The usage of m5term is:
+@verbatim
+	./m5term <host> <port>
+
+	<host> is the host that is running m5
+
+	<port> is the console port to connect to. m5 defaults to
+	using port 3456, but if the port is used, it will try the next
+	higher port until it finds one available.
+
+	If there are multiple systems running within one simulation,
+	there will be a console for each one.  (The first system's
+	console will be on 3456 and the second on 3457 for example)
+
+	m5term uses '~' as an escape character.  If you enter
+	the escape character followed by a '.', the m5term program
+	will exit.
+@endverbatim
+
+	m5term can be used to interactively work with the
+	simulator, though users must often set various terminal
+	settings to get things to work
+
+	A slightly shortened example of m5term in action:
+@verbatim
+	% m5term localhost 3456
+	==== m5 slave console: Console 0 ====
+	M5 console
+	Got Configuration 127 
+	memsize 8000000 pages 4000 
+	First free page after ROM 0xFFFFFC0000018000
+	HWRPB 0xFFFFFC0000018000 l1pt 0xFFFFFC0000040000 l2pt 0xFFFFFC0000042000 l3pt_rpb 0xFFFFFC0000044000 l3pt_kernel 0xFFFFFC0000048000 l2reserv 0xFFFFFC0000046000
+	CPU Clock at 2000 MHz IntrClockFrequency=1024 
+	Booting with 1 processor(s) 
+	...
+	...
+	VFS: Mounted root (ext2 filesystem) readonly.
+	Freeing unused kernel memory: 480k freed
+	init started:  BusyBox v1.00-rc2 (2004.11.18-16:22+0000) multi-call binary
+
+	PTXdist-0.7.0 (2004-11-18T11:23:40-0500)
+
+	mounting filesystems...
+	EXT2-fs warning: checktime reached, running e2fsck is recommended
+	loading script...
+	Script from M5 readfile is empty, starting bash shell...
+	# ls
+	benchmarks  etc         lib         mnt         sbin        usr
+	bin         floppy      lost+found  modules     sys         var
+	dev         home        man         proc        tmp         z
+	# 
+@endverbatim
+*/

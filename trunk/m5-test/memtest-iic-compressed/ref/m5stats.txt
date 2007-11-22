@@ -1,0 +1,597 @@
+
+---------- Begin Simulation Statistics ----------
+L1.avg_blocked_cycles_no_mshrs               3.910904                       # average number of cycles each access was blocked
+L1.avg_blocked_cycles_no_targets         <err: div-0>                       # average number of cycles each access was blocked
+L1.avg_refs                                  1.004604                       # Average number of references to valid blocks.
+L1.blocked_no_mshrs                            205766                       # number of cycles access was blocked
+L1.blocked_no_targets                               0                       # number of cycles access was blocked
+L1.blocked_cycles_no_mshrs                     804731                       # number of cycles access was blocked
+L1.blocked_cycles_no_targets                        0                       # number of cycles access was blocked
+L1.cache_copies                                     0                       # number of cache copies performed
+L1.demand_accesses                            6933660                       # number of demand (read+write) accesses
+L1.demand_avg_miss_latency                  31.780232                       # average overall miss latency
+L1.demand_avg_mshr_miss_latency             28.780242                       # average overall mshr miss latency
+L1.demand_hits                                3474787                       # number of demand (read+write) hits
+L1.demand_miss_latency                      109923787                       # number of demand (read+write) miss cycles
+L1.demand_miss_rate                          0.498852                       # miss rate for demand accesses
+L1.demand_misses                              3458873                       # number of demand (read+write) misses
+L1.demand_mshr_hits                                 0                       # number of demand (read+write) MSHR hits
+L1.demand_mshr_miss_latency                  99547201                       # number of demand (read+write) MSHR miss cycles
+L1.demand_mshr_miss_rate                     0.498852                       # mshr miss rate for demand accesses
+L1.demand_mshr_misses                         3458873                       # number of demand (read+write) MSHR misses
+L1.fast_writes                                      0                       # number of fast writes performed
+L1.mshr_cap_events                                  0                       # number of times MSHR cap was activated
+L1.no_allocate_misses                               0                       # Number of misses that were no-allocate
+L1.overall_accesses                           6933660                       # number of overall (read+write) accesses
+L1.overall_avg_miss_latency                 31.780232                       # average overall miss latency
+L1.overall_avg_mshr_miss_latency            28.780242                       # average overall mshr miss latency
+L1.overall_avg_mshr_uncacheable_latency   1047.978612                       # average overall mshr uncacheable latency
+L1.overall_hits                               3474787                       # number of overall hits
+L1.overall_miss_latency                     109923787                       # number of overall miss cycles
+L1.overall_miss_rate                         0.498852                       # miss rate for overall accesses
+L1.overall_misses                             3458873                       # number of overall misses
+L1.overall_mshr_hits                                0                       # number of overall MSHR hits
+L1.overall_mshr_miss_latency                 99547201                       # number of overall MSHR miss cycles
+L1.overall_mshr_miss_rate                    0.498852                       # mshr miss rate for overall accesses
+L1.overall_mshr_misses                        3458873                       # number of overall MSHR misses
+L1.overall_mshr_uncacheable_latency         793174140                       # number of overall MSHR uncacheable cycles
+L1.overall_mshr_uncacheable_misses             756861                       # number of overall MSHR uncacheable misses
+L1.prefetcher.num_hwpf_already_in_cache             0                       # number of hwpf that were already in the cache
+L1.prefetcher.num_hwpf_already_in_mshr              0                       # number of hwpf that were already in mshr
+L1.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+L1.prefetcher.num_hwpf_evicted                      0                       # number of hwpf removed due to no buffer left
+L1.prefetcher.num_hwpf_identified                   0                       # number of hwpf identified
+L1.prefetcher.num_hwpf_issued                       0                       # number of hwpf issued
+L1.prefetcher.num_hwpf_removed_MSHR_hit             0                       # number of hwpf removed because MSHR allocated
+L1.prefetcher.num_hwpf_span_page                    0                       # number of hwpf spanning a virtual page
+L1.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+L1.read_accesses                              4507508                       # number of read accesses(hits+misses)
+L1.read_avg_miss_latency                    31.763013                       # average read miss latency
+L1.read_avg_mshr_miss_latency               28.763023                       # average read mshr miss latency
+L1.read_avg_mshr_uncacheable_latency      1046.769771                       # average read mshr uncacheable latency
+L1.read_hits                                  2259788                       # number of read hits
+L1.read_miss_latency                         71394359                       # number of read miss cycles
+L1.read_miss_rate                            0.498661                       # miss rate for read accesses
+L1.read_misses                                2247720                       # number of read misses
+L1.read_mshr_miss_latency                    64651223                       # number of read MSHR miss cycles
+L1.read_mshr_miss_rate                       0.498661                       # mshr miss rate for read accesses
+L1.read_mshr_misses                           2247720                       # number of read MSHR misses
+L1.read_mshr_uncacheable                       492513                       # number of read MSHR uncacheable
+L1.read_mshr_uncacheable_latency            515547720                       # number of read MSHR uncacheable cycles
+L1.replacements                               3457838                       # number of replacements
+L1.sampled_refs                               3458862                       # Sample count of references to valid blocks.
+L1.soft_prefetch_mshr_full                          0                       # number of mshr full events for SW prefetching instrutions
+L1.tagsinuse                              1023.477458                       # Cycle average of tags in use
+L1.total_refs                                 3474787                       # Total number of references to valid blocks.
+L1.warmup_cycle                                 66974                       # Cycle when the warmup percentage was hit.
+L1.write_accesses                             2426152                       # number of write accesses(hits+misses)
+L1.write_avg_miss_latency                   31.812189                       # average write miss latency
+L1.write_avg_mshr_miss_latency              28.812196                       # average write mshr miss latency
+L1.write_avg_mshr_uncacheable_latency     1050.230832                       # average write mshr uncacheable latency
+L1.write_hits                                 1214999                       # number of write hits
+L1.write_miss_latency                        38529428                       # number of write miss cycles
+L1.write_miss_rate                           0.499207                       # miss rate for write accesses
+L1.write_misses                               1211153                       # number of write misses
+L1.write_mshr_miss_latency                   34895978                       # number of write MSHR miss cycles
+L1.write_mshr_miss_rate                      0.499207                       # mshr miss rate for write accesses
+L1.write_mshr_misses                          1211153                       # number of write MSHR misses
+L1.write_mshr_uncacheable                      264348                       # number of write MSHR uncacheable
+L1.write_mshr_uncacheable_latency           277626420                       # number of write MSHR uncacheable cycles
+L1.writebacks                                 1796123                       # number of writebacks
+L2.advance_pool_dist.start_dist                                # Dist. of Repl. across pools
+L2.advance_pool_dist.samples                   345727                      
+L2.advance_pool_dist.min_value                      0                      
+                               0         5528    159.89%           
+                               1          989     28.61%           
+                               2          401     11.60%           
+                               3          202      5.84%           
+                               4          136      3.93%           
+                               5           91      2.63%           
+                               6           89      2.57%           
+                               7           93      2.69%           
+                               8          112      3.24%           
+                               9           95      2.75%           
+                              10         2015     58.28%           
+                              11         2015     58.28%           
+                              12         2015     58.28%           
+                              13         2015     58.28%           
+                              14         2015     58.28%           
+                              15       325656   9419.46%           
+                              16         2260     65.37%           
+L2.advance_pool_dist.max_value                     16                      
+L2.advance_pool_dist.end_dist
+
+L2.avg_blocked_cycles_no_mshrs             166.220641                       # average number of cycles each access was blocked
+L2.avg_blocked_cycles_no_targets         <err: div-0>                       # average number of cycles each access was blocked
+L2.avg_refs                               1228.936330                       # Average number of references to valid blocks.
+L2.blocked_no_mshrs                               562                       # number of cycles access was blocked
+L2.blocked_no_targets                               0                       # number of cycles access was blocked
+L2.blocked_cycles_no_mshrs                      93416                       # number of cycles access was blocked
+L2.blocked_cycles_no_targets                        0                       # number of cycles access was blocked
+L2.cache_copies                                     0                       # number of cache copies performed
+L2.demand_accesses                            3458868                       # number of demand (read+write) accesses
+L2.demand_avg_miss_latency                 948.739995                       # average overall miss latency
+L2.demand_avg_mshr_miss_latency            930.752165                       # average overall mshr miss latency
+L2.demand_hits                                3454595                       # number of demand (read+write) hits
+L2.demand_miss_latency                        4053966                       # number of demand (read+write) miss cycles
+L2.demand_miss_rate                          0.001235                       # miss rate for demand accesses
+L2.demand_misses                                 4273                       # number of demand (read+write) misses
+L2.demand_mshr_hits                                 0                       # number of demand (read+write) MSHR hits
+L2.demand_mshr_miss_latency                   3977104                       # number of demand (read+write) MSHR miss cycles
+L2.demand_mshr_miss_rate                     0.001235                       # mshr miss rate for demand accesses
+L2.demand_mshr_misses                            4273                       # number of demand (read+write) MSHR misses
+L2.demote_pool_dist.start_dist                                 # Dist. of Repl. across pools
+L2.demote_pool_dist.samples                    152021                      
+L2.demote_pool_dist.min_value                       0                      
+                               0       131722   8664.72%           
+                               1         6118    402.44%           
+                               2         2262    148.80%           
+                               3         1975    129.92%           
+                               4         1957    128.73%           
+                               5         1977    130.05%           
+                               6         1985    130.57%           
+                               7         2000    131.56%           
+                               8           42      2.76%           
+                               9            1      0.07%           
+                              10            1      0.07%           
+                              11            0      0.00%           
+                              12            0      0.00%           
+                              13            0      0.00%           
+                              14            0      0.00%           
+                              15            0      0.00%           
+                              16         1981    130.31%           
+L2.demote_pool_dist.max_value                      16                      
+L2.demote_pool_dist.end_dist
+
+L2.fast_writes                                      0                       # number of fast writes performed
+L2.hash_hit                                   5250016                       # Total of hites in hash table
+L2.hash_miss                                     4975                       # Total of misses in hash table
+L2.hit_depth_total                            5250016                       # Total of hit depths
+L2.hit_hash_depth_dist.start_dist                              # Dist. of Hash lookup depths
+L2.hit_hash_depth_dist.samples                5250016                      
+L2.hit_hash_depth_dist.min_value                    1                      
+                               0            0      0.00%           
+                               1      5250016  10000.00%           
+                               2            0      0.00%           
+                               3            0      0.00%           
+                               4            0      0.00%           
+                               5            0      0.00%           
+                               6            0      0.00%           
+                               7            0      0.00%           
+                               8            0      0.00%           
+                               9            0      0.00%           
+                              10            0      0.00%           
+                              11            0      0.00%           
+                              12            0      0.00%           
+                              13            0      0.00%           
+                              14            0      0.00%           
+                              15            0      0.00%           
+                              16            0      0.00%           
+                              17            0      0.00%           
+                              18            0      0.00%           
+                              19            0      0.00%           
+                              20            0      0.00%           
+L2.hit_hash_depth_dist.max_value                    1                      
+L2.hit_hash_depth_dist.end_dist
+
+L2.miss_depth_total                             15249                       # Total of miss depths
+L2.miss_hash_depth_dist.start_dist                             # Dist. of Hash lookup depths
+L2.miss_hash_depth_dist.samples                  4975                      
+L2.miss_hash_depth_dist.min_value                   1                      
+                               0            0      0.00%           
+                               1         1302   2617.09%           
+                               2          247    496.48%           
+                               3          251    504.52%           
+                               4         3175   6381.91%           
+                               5            0      0.00%           
+                               6            0      0.00%           
+                               7            0      0.00%           
+                               8            0      0.00%           
+                               9            0      0.00%           
+                              10            0      0.00%           
+                              11            0      0.00%           
+                              12            0      0.00%           
+                              13            0      0.00%           
+                              14            0      0.00%           
+                              15            0      0.00%           
+                              16            0      0.00%           
+                              17            0      0.00%           
+                              18            0      0.00%           
+                              19            0      0.00%           
+                              20            0      0.00%           
+L2.miss_hash_depth_dist.max_value                   4                      
+L2.miss_hash_depth_dist.end_dist
+
+L2.mshr_cap_events                                  0                       # number of times MSHR cap was activated
+L2.no_allocate_misses                               0                       # Number of misses that were no-allocate
+L2.overall_accesses                           5254991                       # number of overall (read+write) accesses
+L2.overall_avg_miss_latency                814.867538                       # average overall miss latency
+L2.overall_avg_mshr_miss_latency           930.752165                       # average overall mshr miss latency
+L2.overall_avg_mshr_uncacheable_latency   1023.287926                       # average overall mshr uncacheable latency
+L2.overall_hits                               5250016                       # number of overall hits
+L2.overall_miss_latency                       4053966                       # number of overall miss cycles
+L2.overall_miss_rate                         0.000947                       # miss rate for overall accesses
+L2.overall_misses                                4975                       # number of overall misses
+L2.overall_mshr_hits                                0                       # number of overall MSHR hits
+L2.overall_mshr_miss_latency                  3977104                       # number of overall MSHR miss cycles
+L2.overall_mshr_miss_rate                    0.000813                       # mshr miss rate for overall accesses
+L2.overall_mshr_misses                           4273                       # number of overall MSHR misses
+L2.overall_mshr_uncacheable_latency         774485700                       # number of overall MSHR uncacheable cycles
+L2.overall_mshr_uncacheable_misses             756860                       # number of overall MSHR uncacheable misses
+L2.prefetcher.num_hwpf_already_in_cache             0                       # number of hwpf that were already in the cache
+L2.prefetcher.num_hwpf_already_in_mshr              0                       # number of hwpf that were already in mshr
+L2.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+L2.prefetcher.num_hwpf_evicted                      0                       # number of hwpf removed due to no buffer left
+L2.prefetcher.num_hwpf_identified                   0                       # number of hwpf identified
+L2.prefetcher.num_hwpf_issued                       0                       # number of hwpf issued
+L2.prefetcher.num_hwpf_removed_MSHR_hit             0                       # number of hwpf removed because MSHR allocated
+L2.prefetcher.num_hwpf_span_page                    0                       # number of hwpf spanning a virtual page
+L2.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+L2.read_accesses                              3458868                       # number of read accesses(hits+misses)
+L2.read_avg_miss_latency                   948.739995                       # average read miss latency
+L2.read_avg_mshr_miss_latency              930.752165                       # average read mshr miss latency
+L2.read_avg_mshr_uncacheable_latency      1023.063702                       # average read mshr uncacheable latency
+L2.read_hits                                  3454595                       # number of read hits
+L2.read_miss_latency                          4053966                       # number of read miss cycles
+L2.read_miss_rate                            0.001235                       # miss rate for read accesses
+L2.read_misses                                   4273                       # number of read misses
+L2.read_mshr_miss_latency                     3977104                       # number of read MSHR miss cycles
+L2.read_mshr_miss_rate                       0.001235                       # mshr miss rate for read accesses
+L2.read_mshr_misses                              4273                       # number of read MSHR misses
+L2.read_mshr_uncacheable                       492512                       # number of read MSHR uncacheable
+L2.read_mshr_uncacheable_latency            503871150                       # number of read MSHR uncacheable cycles
+L2.repl_pool_dist.start_dist                                   # Dist. of Repl. across pools
+L2.repl_pool_dist.samples                        2225                      
+L2.repl_pool_dist.min_value                         0                      
+                               0            5     22.47%           
+                               1            6     26.97%           
+                               2            6     26.97%           
+                               3            7     31.46%           
+                               4            5     22.47%           
+                               5            6     26.97%           
+                               6            4     17.98%           
+                               7            6     26.97%           
+                               8          871   3914.61%           
+                               9         1309   5883.15%           
+                              10            0      0.00%           
+                              11            0      0.00%           
+                              12            0      0.00%           
+                              13            0      0.00%           
+                              14            0      0.00%           
+                              15            0      0.00%           
+                              16            0      0.00%           
+L2.repl_pool_dist.max_value                         9                      
+L2.repl_pool_dist.end_dist
+
+L2.replacements                                  2225                       # number of replacements
+L2.sampled_refs                                  4272                       # Sample count of references to valid blocks.
+L2.set_access_dist.start_dist                                  # Dist. of Accesses across sets
+L2.set_access_dist.samples                    5254991                      
+L2.set_access_dist.min_value                        0                      
+                               0        20514     39.04%           
+                               1        20507     39.02%           
+                               2        20437     38.89%           
+                               3        20429     38.88%           
+                               4        20546     39.10%           
+                               5        20644     39.28%           
+                               6        20392     38.81%           
+                               7        20413     38.84%           
+                               8        20482     38.98%           
+                               9        20439     38.89%           
+                              10        20632     39.26%           
+                              11        20541     39.09%           
+                              12        20303     38.64%           
+                              13        20470     38.95%           
+                              14        20571     39.15%           
+                              15        20424     38.87%           
+                              16        20458     38.93%           
+                              17        20429     38.88%           
+                              18        20476     38.96%           
+                              19        20626     39.25%           
+                              20        20486     38.98%           
+                              21        20583     39.17%           
+                              22        20407     38.83%           
+                              23        20568     39.14%           
+                              24        20779     39.54%           
+                              25        20302     38.63%           
+                              26        20702     39.39%           
+                              27        20579     39.16%           
+                              28        20587     39.18%           
+                              29        20651     39.30%           
+                              30        20560     39.12%           
+                              31        20462     38.94%           
+                              32        20719     39.43%           
+                              33        20694     39.38%           
+                              34        20595     39.19%           
+                              35        20794     39.57%           
+                              36        20565     39.13%           
+                              37        20574     39.15%           
+                              38        20691     39.37%           
+                              39        20675     39.34%           
+                              40        20769     39.52%           
+                              41        20472     38.96%           
+                              42        20561     39.13%           
+                              43        20385     38.79%           
+                              44        20645     39.29%           
+                              45        20666     39.33%           
+                              46        20511     39.03%           
+                              47        20455     38.92%           
+                              48        20402     38.82%           
+                              49        20563     39.13%           
+                              50        20381     38.78%           
+                              51        20323     38.67%           
+                              52        20698     39.39%           
+                              53        20610     39.22%           
+                              54        20741     39.47%           
+                              55        20593     39.19%           
+                              56        20650     39.30%           
+                              57        20675     39.34%           
+                              58        20685     39.36%           
+                              59        20570     39.14%           
+                              60        20566     39.14%           
+                              61        20447     38.91%           
+                              62        20595     39.19%           
+                              63        20677     39.35%           
+                              64        20219     38.48%           
+                              65        20461     38.94%           
+                              66        20304     38.64%           
+                              67        20588     39.18%           
+                              68        20474     38.96%           
+                              69        20599     39.20%           
+                              70        20411     38.84%           
+                              71        20501     39.01%           
+                              72        20423     38.86%           
+                              73        20598     39.20%           
+                              74        20645     39.29%           
+                              75        20729     39.45%           
+                              76        20430     38.88%           
+                              77        20502     39.01%           
+                              78        20348     38.72%           
+                              79        20526     39.06%           
+                              80        20434     38.88%           
+                              81        20413     38.84%           
+                              82        20406     38.83%           
+                              83        20576     39.16%           
+                              84        20411     38.84%           
+                              85        20547     39.10%           
+                              86        20343     38.71%           
+                              87        20597     39.20%           
+                              88        20604     39.21%           
+                              89        20541     39.09%           
+                              90        20594     39.19%           
+                              91        20459     38.93%           
+                              92        20592     39.19%           
+                              93        20314     38.66%           
+                              94        20496     39.00%           
+                              95        20640     39.28%           
+                              96        20632     39.26%           
+                              97        20613     39.23%           
+                              98        20702     39.39%           
+                              99        20493     39.00%           
+                             100        20672     39.34%           
+                             101        20638     39.27%           
+                             102        20605     39.21%           
+                             103        20480     38.97%           
+                             104        20515     39.04%           
+                             105        20520     39.05%           
+                             106        20681     39.35%           
+                             107        20511     39.03%           
+                             108        20667     39.33%           
+                             109        20750     39.49%           
+                             110        20531     39.07%           
+                             111        20724     39.44%           
+                             112        20477     38.97%           
+                             113        20399     38.82%           
+                             114        20380     38.78%           
+                             115        20342     38.71%           
+                             116        20491     38.99%           
+                             117        20492     39.00%           
+                             118        20488     38.99%           
+                             119        20461     38.94%           
+                             120        20821     39.62%           
+                             121        20776     39.54%           
+                             122        20515     39.04%           
+                             123        20666     39.33%           
+                             124        20422     38.86%           
+                             125        20714     39.42%           
+                             126        20561     39.13%           
+                             127        20536     39.08%           
+                             128        20297     38.62%           
+                             129        20447     38.91%           
+                             130        20537     39.08%           
+                             131        20401     38.82%           
+                             132        20413     38.84%           
+                             133        20579     39.16%           
+                             134        20443     38.90%           
+                             135        20432     38.88%           
+                             136        20663     39.32%           
+                             137        20465     38.94%           
+                             138        20503     39.02%           
+                             139        20422     38.86%           
+                             140        20632     39.26%           
+                             141        20519     39.05%           
+                             142        20546     39.10%           
+                             143        20513     39.04%           
+                             144        20504     39.02%           
+                             145        20603     39.21%           
+                             146        20468     38.95%           
+                             147        20574     39.15%           
+                             148        20363     38.75%           
+                             149        20504     39.02%           
+                             150        20501     39.01%           
+                             151        20455     38.92%           
+                             152        20573     39.15%           
+                             153        20419     38.86%           
+                             154        20679     39.35%           
+                             155        20256     38.55%           
+                             156        20319     38.67%           
+                             157        20318     38.66%           
+                             158        20626     39.25%           
+                             159        20409     38.84%           
+                             160        20511     39.03%           
+                             161        20474     38.96%           
+                             162        20502     39.01%           
+                             163        20620     39.24%           
+                             164        20570     39.14%           
+                             165        20368     38.76%           
+                             166        20562     39.13%           
+                             167        20477     38.97%           
+                             168        20596     39.19%           
+                             169        20545     39.10%           
+                             170        20605     39.21%           
+                             171        20519     39.05%           
+                             172        20550     39.11%           
+                             173        20530     39.07%           
+                             174        20645     39.29%           
+                             175        20300     38.63%           
+                             176        20510     39.03%           
+                             177        20262     38.56%           
+                             178        20676     39.35%           
+                             179        20370     38.76%           
+                             180        20493     39.00%           
+                             181        20518     39.04%           
+                             182        20611     39.22%           
+                             183        20336     38.70%           
+                             184        20506     39.02%           
+                             185        20562     39.13%           
+                             186        20666     39.33%           
+                             187        20618     39.24%           
+                             188        20524     39.06%           
+                             189        20519     39.05%           
+                             190        20537     39.08%           
+                             191        20673     39.34%           
+                             192        20485     38.98%           
+                             193        20585     39.17%           
+                             194        20570     39.14%           
+                             195        20507     39.02%           
+                             196        20539     39.08%           
+                             197        20530     39.07%           
+                             198        20496     39.00%           
+                             199        20571     39.15%           
+                             200        20544     39.09%           
+                             201        20367     38.76%           
+                             202        20526     39.06%           
+                             203        20415     38.85%           
+                             204        20546     39.10%           
+                             205        20326     38.68%           
+                             206        20348     38.72%           
+                             207        20438     38.89%           
+                             208        20587     39.18%           
+                             209        20628     39.25%           
+                             210        20666     39.33%           
+                             211        20618     39.24%           
+                             212        20425     38.87%           
+                             213        20338     38.70%           
+                             214        20669     39.33%           
+                             215        20417     38.85%           
+                             216        20575     39.15%           
+                             217        20373     38.77%           
+                             218        20644     39.28%           
+                             219        20657     39.31%           
+                             220        20574     39.15%           
+                             221        20305     38.64%           
+                             222        20556     39.12%           
+                             223        20403     38.83%           
+                             224        20640     39.28%           
+                             225        20681     39.35%           
+                             226        20677     39.35%           
+                             227        20495     39.00%           
+                             228        20514     39.04%           
+                             229        20529     39.07%           
+                             230        20502     39.01%           
+                             231        20519     39.05%           
+                             232        20563     39.13%           
+                             233        20664     39.32%           
+                             234        20548     39.10%           
+                             235        20740     39.47%           
+                             236        20524     39.06%           
+                             237        20476     38.96%           
+                             238        20692     39.38%           
+                             239        20676     39.35%           
+                             240        20537     39.08%           
+                             241        20512     39.03%           
+                             242        20547     39.10%           
+                             243        20331     38.69%           
+                             244        20379     38.78%           
+                             245        20455     38.92%           
+                             246        20473     38.96%           
+                             247        20320     38.67%           
+                             248        20409     38.84%           
+                             249        20402     38.82%           
+                             250        20465     38.94%           
+                             251        20839     39.66%           
+                             252        20475     38.96%           
+                             253        20680     39.35%           
+                             254        20603     39.21%           
+                             255        20412     38.84%           
+                             256            0      0.00%           
+L2.set_access_dist.max_value                      255                      
+L2.set_access_dist.end_dist
+
+L2.soft_prefetch_mshr_full                          0                       # number of mshr full events for SW prefetching instrutions
+L2.tagsinuse                              2045.109535                       # Cycle average of tags in use
+L2.total_refs                                 5250016                       # Total number of references to valid blocks.
+L2.warmup_cycle                                 32220                       # Cycle when the warmup percentage was hit.
+L2.write_avg_mshr_uncacheable_latency     1023.705683                       # average write mshr uncacheable latency
+L2.write_mshr_uncacheable                      264348                       # number of write MSHR uncacheable
+L2.write_mshr_uncacheable_latency           270614550                       # number of write MSHR uncacheable cycles
+L2.writeback_accesses                         1796123                       # number of writeback accesses(hits+misses)
+L2.writeback_hits                             1795421                       # number of writeback hits
+L2.writeback_miss_rate                       0.000391                       # miss rate for writeback accesses
+L2.writeback_misses                               702                       # number of writeback misses
+L2.writeback_mshr_miss_rate                  0.000391                       # mshr miss rate for writeback accesses
+L2.writeback_mshr_misses                          702                       # number of writeback MSHR misses
+L2.writebacks                                    2222                       # number of writebacks
+SDRAM.accesses                                 764056                       # total number of accesses
+SDRAM.bytes_requested                          765983                       # total number of bytes requested
+SDRAM.bytes_sent                               513437                       # total number of bytes sent
+SDRAM.compressed_responses                       6495                       # total number of accesses that are compressed
+checkMem.page_count                                 0                       # total number of pages allocated
+checkMem.page_mem                                   0                       # total size of memory pages allocated
+checkMem.ptab_accesses                        7750075                       # total page table accessess
+checkMem.ptab_miss_rate                        0.0000                       # first level page table miss rate
+checkMem.ptab_misses                                0                       # total first level page table misses
+host_mem_usage                                  12600                       # Number of bytes of host memory used
+host_seconds                                    68.23                       # Real time elapsed on the host
+host_tick_rate                                 543712                       # Simulator tick rate (ticks/s)
+mainMem.page_count                                  0                       # total number of pages allocated
+mainMem.page_mem                                    0                       # total size of memory pages allocated
+mainMem.ptab_accesses                          770000                       # total page table accessess
+mainMem.ptab_miss_rate                         0.0000                       # first level page table miss rate
+mainMem.ptab_misses                                 0                       # total first level page table misses
+sim_freq                                    200000000                       # Frequency of simulated ticks
+sim_seconds                                  0.185476                       # Number of seconds simulated
+sim_ticks                                    37095133                       # Number of ticks simulated
+test.num_copies                                     0                       # number of copy accesses completed
+test.num_reads                                5000000                       # number of read accesses completed
+test.num_writes                               2690489                       # number of write accesses completed
+toL2Bus.addr_idle_cycles                      7679236                       # number of cycles bus was idle
+toL2Bus.addr_idle_fraction                   0.207015                       # fraction of time addr bus was idle
+toL2Bus.addr_queued                         14.925941                       # average queueing delay seen by bus request
+toL2Bus.addr_queued_cycles                   93678072                       # total number of queued cycles for all requests
+toL2Bus.addr_requests                         6276192                       # number of transmissions on bus
+toL2Bus.bus_blocked                            159466                       # number of times bus was blocked
+toL2Bus.bus_blocked_cycles                   19804408                       # number of cycles bus was blocked
+toL2Bus.bus_blocked_fraction                 0.533882                       # fraction of time bus was blocked
+toL2Bus.data_idle_cycles                     25071448                       # number of cycles bus was idle
+toL2Bus.data_idle_fraction                   0.675869                       # fraction of time data bus was idle
+toL2Bus.data_queued                          4.902757                       # average queueing delay seen by bus request
+toL2Bus.data_queued_cycles                   19372566                       # total number of queued cycles for all requests
+toL2Bus.data_requests                         3951362                       # number of transmissions on bus
+toL2Bus.null_grants                                 0                       # number of null grants (wasted cycles)
+toMemBus.addr_idle_cycles                    32981512                       # number of cycles bus was idle
+toMemBus.addr_idle_fraction                  0.889106                       # fraction of time addr bus was idle
+toMemBus.addr_queued                        12.308439                       # average queueing delay seen by bus request
+toMemBus.addr_queued_cycles                  12657962                       # total number of queued cycles for all requests
+toMemBus.addr_requests                        1028397                       # number of transmissions on bus
+toMemBus.bus_blocked                                0                       # number of times bus was blocked
+toMemBus.bus_blocked_cycles                         0                       # number of cycles bus was blocked
+toMemBus.bus_blocked_fraction                       0                       # fraction of time bus was blocked
+toMemBus.data_idle_cycles                    34030496                       # number of cycles bus was idle
+toMemBus.data_idle_fraction                  0.917384                       # fraction of time data bus was idle
+toMemBus.data_queued                        11.119363                       # average queueing delay seen by bus request
+toMemBus.data_queued_cycles                   5523788                       # total number of queued cycles for all requests
+toMemBus.data_requests                         496772                       # number of transmissions on bus
+toMemBus.null_grants                                0                       # number of null grants (wasted cycles)
+
+---------- End Simulation Statistics   ----------

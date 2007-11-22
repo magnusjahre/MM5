@@ -1,0 +1,119 @@
+/*
+ * Copyright (c) 2003, 2004, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/** @page compile Compiling M5
+
+M5 runs on %Linux and OpenBSD, but should be easily portable to other
+Unix-like OSes.  Because M5 simulates little-endian Alpha processors,
+the host it runs on must be little-endian as well (e.g., x86).  The
+current release includes experimental support for big-endian hosts
+(e.g., PowerPC), but this has not been extensively tested.
+
+To build M5, you will need the following software:
+
+- g++ 3.x.  Once upon a time, M5 built with g++ 2.95, but it probably
+doesn't anymore.
+- %Python, version 2.3 or newer (http://www.python.org).
+- SCons, version 0.95 or newer (http://www.scons.org).
+
+SCons is a powerful replacement for make.  See <a
+href="http://www.scons.org/download.php">here</a> to download SCons,
+and <a
+href="http://www.scons.org/doc/HTML/scons-user/c95.html">here</a> for
+installation instructions.  Note that you can install SCons in your
+home directory using the '--prefix=' option (see <a
+href="http://www.scons.org/doc/HTML/scons-user/x166.html">here</a> for
+details).
+
+The regression tester and a few utility scripts are written in Perl,
+but Perl is not strictly necessary to build the simulator.
+
+Once you have obtained and unpacked the M5 sources, the root of your
+of your M5 source tree should have three directories:
+
+- %m5 contains the sources for the simulator itself.
+- ext contains external packages used by M5.
+- m5-test contains the M5 regression tests.
+
+Starting in the root of this tree, you can build M5 and test your
+build using the following commands.
+
+@verbatim
+% cd m5/build
+% scons
+scons: Reading SConscript files ...
+Configuring options for directory 'ALPHA_SE'.
+scons: done reading SConscript files.
+scons: Building targets ...
+[...many many files go by...]
+scons: done building targets.
+% cd ../../m5-test
+% ./do-tests.pl -D -B ALPHA_SE
+
+Starting do-tests.pl.....
+
+scons ALPHA_SE/m5.debug
+
+**** Running test1 on /z/stever/bk/m5-test/../m5/build/ALPHA_SE/m5.debug ****
+[...more tests go by...]
+finished do-tests successfully!
+@endverbatim
+
+If your output looked like the above, then congratulations, you've got
+M5 running! Be advised that the "scons ALPHA_SE/m5.debug" step can take a very long time, so if it looks like it's hanging, it's probably not.  If you want to watch the make output go by, try adding a -v to the do-test.pl argument list.
+
+At this point, you may want to go back and build some other versions
+of the M5 binary.  There are three primary configurations:
+
+- ALPHA_SE - an application-level simulator that uses syscall
+emulation to execute statically linked Alpha binaries compiled for
+either %Tru64 or %Linux.
+- ALPHA_FS - a full-system simulator that models a Tsunami-based Alpha
+system faithfully enough to boot %Linux.
+- ALPHA_FS_TL - a full-system simulator that models a
+Turbolaser-based Alpha system faithfully enough to boot Compaq %Tru64
+Unix.
+	
+For each configuration, several different flavors of M5 binary can be
+built.  The two primary flavors are:
+
+- m5.debug - debugging version (g++ -g -O0 -DDEBUG)
+- m5.opt - optimized version (g++ -O5)
+
+Each configuration is built in a separate subdirectory of m5/build.
+For each configuration, the various flavors of binaries are built in
+the same directory.  The default binary that you built above is
+ALPHA_SE/m5.debug.  You can build other binaries by specifying them on
+the scons command line, e.g. 'scons ALPHA_SE/m5.opt' or 'scons
+ALPHA_FS/m5.debug'.
+    
+*/

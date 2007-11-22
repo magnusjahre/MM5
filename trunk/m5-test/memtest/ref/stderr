@@ -1,0 +1,21 @@
+M5 Simulator System
+Copyright (c) 2001-2005
+The Regents of The University of Michigan
+All Rights Reserved
+
+This code is part of the M5 simulator, developed by Nathan Binkert,
+Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+and Andrew Schultz.
+
+M5 compiled on Oct  3 2005 09:03:49
+M5 executing on zizzer.eecs.umich.edu
+M5 simulation started Mon Oct  3 09:04:03 2005
+warn: Entering event queue.  Starting simulation...
+test: completed 1000000 read accesses @28367785
+test: completed 2000000 read accesses @56692766
+test: completed 3000000 read accesses @84982681
+test: completed 4000000 read accesses @113389745
+test: completed 5000000 read accesses @141740621
+Terminating simulation -- Maximum number of loads reached!
+Simulation complete at Mon Oct  3 09:05:38 2005

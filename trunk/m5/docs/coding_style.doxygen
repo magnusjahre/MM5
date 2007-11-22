@@ -1,0 +1,118 @@
+/*
+ * Copyright (c) 2003, 2004, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/** @page coding Coding Style
+
+We strive to maintain a consistent coding style in the M5 source code
+to make the source more readable and maintainable.  This necessarily
+involves compromise among the multiple developers who work on this
+code.  We feel that we have been successful in finding such a
+compromise, as each of the primary M5 developers is annoyed by at
+least one of the rules below.  We ask that you abide by these
+guidelines as well if you develop code that you would like to
+contribute back to M5.
+
+An Emacs c++-mode style embodying the indentation rules is available in
+the source tree at util/emacs/m5-c-style.el.
+
+@section indent Indentation & Spacing
+
+Indentation will be 4 spaces per level.  Exception: labels followed by
+colons (case and goto labels and public/private/protected modifiers)
+are indented two spaces from the enclosing context.
+
+For control blocks (if, while, etc.), opening braces must be on the
+same line as the control keyword.  Exception: for multi-line
+expressions, the opening brace may be placed on a separate line to
+distinguish the control block from the statements inside the block.
+For function definitions or class declarations, the opening brace must
+be in the first column of the following line.
+
+In function definitions, the return type should be on one line,
+followed by the function name, left-justified, on the next line.  As
+mentioned above, the opening brace should also be on a separate line
+following the function name.
+
+Functions should be preceded by a block comment describing the
+function.
+
+There should be a space between keywords and opening parentheses; no
+space between function names and opening parens for arguments; and no
+space immediately inside parens, except for very complex expressions.
+Complex expressions are preferentially broken into multiple simpler
+expressions using temporary variables.
+
+Inline function declarations longer than one line should not be placed
+inside class declarations.  Most functions longer than one line should
+not be inline anyway.
+
+Lines must be a maximum of 78 characters long.
+
+@section naming Naming
+
+Class and type names are mixed case, start with an uppercase letter,
+and do not contain underscores (e.g., ClassName).  Exception: names
+that are acronyms should be all upper case (e.g., CPU).
+
+Class member names (method and variables, including const variables)
+are mixed case, start with a lowercase letter, and do not contain
+underscores (e.g., aMemberVariable).
+
+Local variables are lower case, with underscores separating words
+(e.g., local_variable).
+
+C preprocessor symbols (constants and macros) should be all caps with
+underscores.  However, these are deprecated, and should be replaced
+with const variables and inline functions, respectively, wherever
+possible.
+
+@section structure File structure and modularity
+
+Source files (.cc files) should *never* contain extern declarations;
+instead, include the header file associated with the .cc file in which
+the object is defined.  This header file should contain extern
+declarations for all objects exported from that .cc file.
+
+When sufficient (i.e., when declaring only pointers or references to a
+class), header files should use forward class declarations instead of
+including full header files.
+
+@section documenting Documenting the code
+
+Each file/class/member should be documented using doxygen style comments. 
+The documentation style to use is presented here: @ref doc_guide
+
+@section misc Miscellaneous
+
+File headers should contain CVS/RCS id strings, but not CVS/RCS logs.
+
+*/

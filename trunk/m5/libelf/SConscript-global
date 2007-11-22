@@ -1,0 +1,66 @@
+# -*- mode:python -*-
+
+# Copyright (c) 2004, 2005
+# The Regents of The University of Michigan
+# All Rights Reserved
+#
+# This code is part of the M5 simulator, developed by Nathan Binkert,
+# Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+# from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+# and Andrew Schultz.
+#
+# Permission is granted to use, copy, create derivative works and
+# redistribute this software and such derivative works for any
+# purpose, so long as the copyright notice above, this grant of
+# permission, and the disclaimer below appear in all copies made; and
+# so long as the name of The University of Michigan is not used in any
+# advertising or publicity pertaining to the use or distribution of
+# this software without specific, written prior authorization.
+#
+# THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+# UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+# WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+# EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+# LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+# INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+# ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+# IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+# DAMAGES.
+
+# This SConscript file specifies the "global" libelf build in
+# build/libelf that is shared among all the configurations (ALPHA_SE,
+# ALPHA_FS, etc.).  The per-configuration build is specified in
+# SConscript-local.
+
+import os.path
+
+Import('env')
+
+# build_elf_headers and the library itself all depend on building the library
+lib_deps = Split('#/libelf/lib/libelf.a #/libelf/lib/sys_elf.h')
+
+# this function builds the library
+def build_libelf(target, source, env):
+    targetdir = 'libelf'
+    if not os.path.exists(targetdir):
+        print 'mkdir', targetdir
+        os.mkdir(targetdir)
+    config_command = 'cd %s; %s/libelf/configure '\
+                     '--disable-shared --disable-versioning' \
+                     % (targetdir, env['EXT_SRCDIR'])
+    print config_command
+    rc = os.system(config_command)
+    if rc == 0:
+        make_command = 'cd %s; make' % targetdir
+        print make_command
+        rc = os.system(make_command)
+    return rc
+
+# register the command to build the library.  Note that commands are
+# run with the CWD at the top level (where the SConstruct file is).
+env.Command(lib_deps, None, build_libelf)
+
+env.Append(LIBS=['elf'])
+env.Append(LIBPATH=['#/libelf/lib'])

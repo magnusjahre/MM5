@@ -1,0 +1,2 @@
+command line: ALPHA_FS/m5.opt -d ALPHA_FS/test/opt/linux-boot-detailed m5-test/linux-boot-detailed/run.py
+

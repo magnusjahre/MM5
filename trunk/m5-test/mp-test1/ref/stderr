@@ -1,0 +1,16 @@
+M5 Simulator System
+Copyright (c) 2001-2005
+The Regents of The University of Michigan
+All Rights Reserved
+
+This code is part of the M5 simulator, developed by Nathan Binkert,
+Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+and Andrew Schultz.
+
+M5 compiled on Sep 25 2005 21:20:56
+M5 simulation started Sun Sep 25 21:21:30 2005
+warn: loadGlobalSymbols: bad symbol header magic on /n/poolfs/z/home/stever/bk/m5-test/test-progs/radix/bin/radix
+warn: Entering event queue.  Starting simulation...
+Terminating simulation -- syscall caused exit
+Simulation complete at Sun Sep 25 21:22:08 2005

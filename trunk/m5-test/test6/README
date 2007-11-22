@@ -1,0 +1,4 @@
+This test runs four copies of gcc from the same checkpoint.  The
+primary purpose of this test is to verify that the cache is properly
+discriminating accesses by different threads in different address
+spaces but using the same virtual addresses.

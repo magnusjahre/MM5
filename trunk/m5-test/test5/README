@@ -1,0 +1,5 @@
+A four-thread workload (two copies each of anagram & gcc, one each
+from the start of the program and from a checkpoint).  Same as test4,
+but tests the "max_insts_all_threads" termination condition instead of
+"max_insts_any_thread".
+

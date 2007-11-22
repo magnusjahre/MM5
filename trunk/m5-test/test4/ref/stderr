@@ -1,0 +1,19 @@
+M5 Simulator System
+Copyright (c) 2001-2005
+The Regents of The University of Michigan
+All Rights Reserved
+
+This code is part of the M5 simulator, developed by Nathan Binkert,
+Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi,
+and Andrew Schultz.
+
+M5 compiled on Sep 25 2005 21:20:56
+M5 simulation started Sun Sep 25 21:21:38 2005
+sim: loading checkpoint file: /n/poolfs/z/home/stever/bk/m5-test/test-progs/anagram/bin/anagram-long.cp1.gz
+sim: fast forwarding to instruction 13999314
+sim: loading checkpoint file: /n/poolfs/z/home/stever/bk/m5-test/test-progs/gcc/bin/cc1-cccp.cp1.gz
+sim: fast forwarding to instruction 8933894
+warn: Entering event queue.  Starting simulation...
+Terminating simulation -- a thread reached the max instruction count
+Simulation complete at Sun Sep 25 21:22:21 2005

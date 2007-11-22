@@ -1,0 +1,96 @@
+#!/bin/sh
+
+cint_list="bzip2, crafty, eon, gap, gcc, gzip, mcf, parser, perlbmk, twolf, vortex, vpr"
+cfp_list="ammp, applu, apsi, art, equake, facerec, fma3d, galgel, lucas, mesa, mgrid, sixtrack, swim, wupwise"
+
+usage()
+{
+	echo "Usage: $0 <benchmark> <type> <noexit> [ini file]"
+        echo "  Benchmarks:"
+        echo "    SpecINT = $cint_list"
+        echo "    SpecFP = $cfp_list"
+        echo "  type = ref or test"
+        echo "  noexit = true or false"
+        echo "  ini file = optional file to modify"
+                                                                                
+        exit 1
+}
+
+if [ "$2" = "test" ]; then
+	code=1000
+elif [ "$2" = "ref" ]; then
+	code=0
+else
+	usage
+fi
+
+if [ "$3" = "true" ]; then
+	let code=${code}+10000
+elif [ "$3" = "false" ]; then
+	let code=${code}
+else
+	usage
+fi
+
+echo $cint_list | sed -e 's/ //g' | grep -q $1
+find_cint=$?
+
+echo $cfp_list | sed -e 's/ //g' | grep -q $1
+find_cfp=$?
+
+if [ $find_cint -eq 1 ] && [ $find_cfp -eq 1 ]; then
+	usage
+elif [ $find_cint -eq 0 ]; then
+	let code=${code}+100
+
+	cmdnum=`echo $cint_list | sed -e 's/ //g' | sed -e 's/,/\n/g' | grep -n $1 | awk -F: '{ print $1 }'`
+else
+	cmdnum=`echo $cfp_list | sed -e 's/ //g' | sed -e 's/,/\n/g' | grep -n $1 | awk -F: '{ print $1 }'`
+fi
+
+let code=${code}+$cmdnum
+
+echo "The code for $1 with type $2 and no exit option $3 is $code"
+
+if [ ! "$4" = "" ]; then
+	if [ -w $4 ]; then
+		grep -q "\[System\]" $4
+		if [ $? -ne 0 ]; then
+			echo "$4 must have the line '[System]' in it somewhere!"
+			exit 1
+		fi
+
+		grep -q "init_param=" $4
+		if [ $? -eq 0 ]; then
+			ed - $4 <<EOF 2>&1 > /dev/null
+/init_param=/d
+.
+w
+q
+EOF
+		fi
+		
+		grep -q "\/\/ init parameters:" $4
+		if [ $? -eq 0 ]; then
+			ed - $4 <<EOF 2>&1 > /dev/null
+/\/\/ init parameters:/d
+.
+w
+q
+EOF
+		fi
+
+		ed - $4 <<EOF 2>&1 > /dev/null
+/\[System\]/a
+init_param=$code
+// init parameters: benchmark = $1 type = $2 noexit = $3
+.
+w
+q
+EOF
+		echo "$4 has been updated with code $code"
+	else	
+		echo "$4 must be a file that is writable!"
+		exit 1
+	fi
+fi

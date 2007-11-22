@@ -1,0 +1,177 @@
+
+---------- Begin Simulation Statistics ----------
+cpu.dcache.avg_blocked_cycles_no_mshrs   <err: div-0>                       # average number of cycles each access was blocked
+cpu.dcache.avg_blocked_cycles_no_targets <err: div-0>                       # average number of cycles each access was blocked
+cpu.dcache.avg_refs                        633.527675                       # Average number of references to valid blocks.
+cpu.dcache.blocked_no_mshrs                         0                       # number of cycles access was blocked
+cpu.dcache.blocked_no_targets                       0                       # number of cycles access was blocked
+cpu.dcache.blocked_cycles_no_mshrs                  0                       # number of cycles access was blocked
+cpu.dcache.blocked_cycles_no_targets                0                       # number of cycles access was blocked
+cpu.dcache.cache_copies                             0                       # number of cache copies performed
+cpu.dcache.demand_accesses                     343914                       # number of demand (read+write) accesses
+cpu.dcache.demand_avg_miss_latency                  0                       # average overall miss latency
+cpu.dcache.demand_hits                         343190                       # number of demand (read+write) hits
+cpu.dcache.demand_miss_latency                      0                       # number of demand (read+write) miss cycles
+cpu.dcache.demand_miss_rate                  0.002105                       # miss rate for demand accesses
+cpu.dcache.demand_misses                          724                       # number of demand (read+write) misses
+cpu.dcache.fast_writes                              0                       # number of fast writes performed
+cpu.dcache.overall_accesses                    343914                       # number of overall (read+write) accesses
+cpu.dcache.overall_avg_miss_latency                 0                       # average overall miss latency
+cpu.dcache.overall_hits                        343190                       # number of overall hits
+cpu.dcache.overall_miss_latency                     0                       # number of overall miss cycles
+cpu.dcache.overall_miss_rate                 0.002105                       # miss rate for overall accesses
+cpu.dcache.overall_misses                         724                       # number of overall misses
+cpu.dcache.prefetcher.num_hwpf_already_in_cache            0                       # number of hwpf that were already in the cache
+cpu.dcache.prefetcher.num_hwpf_already_in_mshr            0                       # number of hwpf that were already in mshr
+cpu.dcache.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+cpu.dcache.prefetcher.num_hwpf_evicted              0                       # number of hwpf removed due to no buffer left
+cpu.dcache.prefetcher.num_hwpf_identified            0                       # number of hwpf identified
+cpu.dcache.prefetcher.num_hwpf_issued               0                       # number of hwpf issued
+cpu.dcache.prefetcher.num_hwpf_removed_MSHR_hit            0                       # number of hwpf removed because MSHR allocated
+cpu.dcache.prefetcher.num_hwpf_span_page            0                       # number of hwpf spanning a virtual page
+cpu.dcache.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+cpu.dcache.protocol.hwpf_invalid                    0                       # hard prefetch misses to invalid blocks
+cpu.dcache.protocol.read_invalid                  372                       # read misses to invalid blocks
+cpu.dcache.protocol.snoop_inv_exclusive             0                       # Invalidate snoops on exclusive blocks
+cpu.dcache.protocol.snoop_inv_invalid               0                       # Invalidate snoops on invalid blocks
+cpu.dcache.protocol.snoop_inv_modified              0                       # Invalidate snoops on modified blocks
+cpu.dcache.protocol.snoop_inv_owned                 0                       # Invalidate snoops on owned blocks
+cpu.dcache.protocol.snoop_inv_shared                0                       # Invalidate snoops on shared blocks
+cpu.dcache.protocol.snoop_read_exclusive            0                       # read snoops on exclusive blocks
+cpu.dcache.protocol.snoop_read_modified             0                       # read snoops on modified blocks
+cpu.dcache.protocol.snoop_read_owned                0                       # read snoops on owned blocks
+cpu.dcache.protocol.snoop_read_shared               0                       # read snoops on shared blocks
+cpu.dcache.protocol.snoop_readex_exclusive            0                       # readEx snoops on exclusive blocks
+cpu.dcache.protocol.snoop_readex_modified            0                       # readEx snoops on modified blocks
+cpu.dcache.protocol.snoop_readex_owned              0                       # readEx snoops on owned blocks
+cpu.dcache.protocol.snoop_readex_shared             0                       # readEx snoops on shared blocks
+cpu.dcache.protocol.snoop_upgrade_owned             0                       # upgrade snoops on owned blocks
+cpu.dcache.protocol.snoop_upgrade_shared            0                       # upgradee snoops on shared blocks
+cpu.dcache.protocol.snoop_writeinv_exclusive            0                       # WriteInvalidate snoops on exclusive blocks
+cpu.dcache.protocol.snoop_writeinv_invalid            0                       # WriteInvalidate snoops on invalid blocks
+cpu.dcache.protocol.snoop_writeinv_modified            0                       # WriteInvalidate snoops on modified blocks
+cpu.dcache.protocol.snoop_writeinv_owned            0                       # WriteInvalidate snoops on owned blocks
+cpu.dcache.protocol.snoop_writeinv_shared            0                       # WriteInvalidate snoops on shared blocks
+cpu.dcache.protocol.swpf_invalid                    0                       # soft prefetch misses to invalid blocks
+cpu.dcache.protocol.write_invalid                 170                       # write misses to invalid blocks
+cpu.dcache.protocol.write_owned                     0                       # write misses to owned blocks
+cpu.dcache.protocol.write_shared                  182                       # write misses to shared blocks
+cpu.dcache.read_accesses                       249653                       # number of read accesses(hits+misses)
+cpu.dcache.read_hits                           249281                       # number of read hits
+cpu.dcache.read_miss_rate                    0.001490                       # miss rate for read accesses
+cpu.dcache.read_misses                            372                       # number of read misses
+cpu.dcache.replacements                            80                       # number of replacements
+cpu.dcache.sampled_refs                           542                       # Sample count of references to valid blocks.
+cpu.dcache.tagsinuse                       357.976118                       # Cycle average of tags in use
+cpu.dcache.total_refs                          343372                       # Total number of references to valid blocks.
+cpu.dcache.warmup_cycle                             0                       # Cycle when the warmup percentage was hit.
+cpu.dcache.write_accesses                       94261                       # number of write accesses(hits+misses)
+cpu.dcache.write_hits                           93909                       # number of write hits
+cpu.dcache.write_miss_rate                   0.003734                       # miss rate for write accesses
+cpu.dcache.write_misses                           352                       # number of write misses
+cpu.dcache.writebacks                               0                       # number of writebacks
+cpu.icache.avg_blocked_cycles_no_mshrs   <err: div-0>                       # average number of cycles each access was blocked
+cpu.icache.avg_blocked_cycles_no_targets <err: div-0>                       # average number of cycles each access was blocked
+cpu.icache.avg_refs                       1847.049281                       # Average number of references to valid blocks.
+cpu.icache.blocked_no_mshrs                         0                       # number of cycles access was blocked
+cpu.icache.blocked_no_targets                       0                       # number of cycles access was blocked
+cpu.icache.blocked_cycles_no_mshrs                  0                       # number of cycles access was blocked
+cpu.icache.blocked_cycles_no_targets                0                       # number of cycles access was blocked
+cpu.icache.cache_copies                             0                       # number of cache copies performed
+cpu.icache.demand_accesses                     900000                       # number of demand (read+write) accesses
+cpu.icache.demand_avg_miss_latency                  0                       # average overall miss latency
+cpu.icache.demand_hits                         899513                       # number of demand (read+write) hits
+cpu.icache.demand_miss_latency                      0                       # number of demand (read+write) miss cycles
+cpu.icache.demand_miss_rate                  0.000541                       # miss rate for demand accesses
+cpu.icache.demand_misses                          487                       # number of demand (read+write) misses
+cpu.icache.fast_writes                              0                       # number of fast writes performed
+cpu.icache.overall_accesses                    900000                       # number of overall (read+write) accesses
+cpu.icache.overall_avg_miss_latency                 0                       # average overall miss latency
+cpu.icache.overall_hits                        899513                       # number of overall hits
+cpu.icache.overall_miss_latency                     0                       # number of overall miss cycles
+cpu.icache.overall_miss_rate                 0.000541                       # miss rate for overall accesses
+cpu.icache.overall_misses                         487                       # number of overall misses
+cpu.icache.prefetcher.num_hwpf_already_in_cache            0                       # number of hwpf that were already in the cache
+cpu.icache.prefetcher.num_hwpf_already_in_mshr            0                       # number of hwpf that were already in mshr
+cpu.icache.prefetcher.num_hwpf_already_in_prefetcher            0                       # number of hwpf that were already in the prefetch queue
+cpu.icache.prefetcher.num_hwpf_evicted              0                       # number of hwpf removed due to no buffer left
+cpu.icache.prefetcher.num_hwpf_identified            0                       # number of hwpf identified
+cpu.icache.prefetcher.num_hwpf_issued               0                       # number of hwpf issued
+cpu.icache.prefetcher.num_hwpf_removed_MSHR_hit            0                       # number of hwpf removed because MSHR allocated
+cpu.icache.prefetcher.num_hwpf_span_page            0                       # number of hwpf spanning a virtual page
+cpu.icache.prefetcher.num_hwpf_squashed_from_miss            0                       # number of hwpf that got squashed due to a miss aborting calculation time
+cpu.icache.protocol.hwpf_invalid                    0                       # hard prefetch misses to invalid blocks
+cpu.icache.protocol.read_invalid                  487                       # read misses to invalid blocks
+cpu.icache.protocol.snoop_inv_exclusive             0                       # Invalidate snoops on exclusive blocks
+cpu.icache.protocol.snoop_inv_invalid               0                       # Invalidate snoops on invalid blocks
+cpu.icache.protocol.snoop_inv_modified              0                       # Invalidate snoops on modified blocks
+cpu.icache.protocol.snoop_inv_owned                 0                       # Invalidate snoops on owned blocks
+cpu.icache.protocol.snoop_inv_shared                0                       # Invalidate snoops on shared blocks
+cpu.icache.protocol.snoop_read_exclusive            0                       # read snoops on exclusive blocks
+cpu.icache.protocol.snoop_read_modified             0                       # read snoops on modified blocks
+cpu.icache.protocol.snoop_read_owned                0                       # read snoops on owned blocks
+cpu.icache.protocol.snoop_read_shared               0                       # read snoops on shared blocks
+cpu.icache.protocol.snoop_readex_exclusive            0                       # readEx snoops on exclusive blocks
+cpu.icache.protocol.snoop_readex_modified            0                       # readEx snoops on modified blocks
+cpu.icache.protocol.snoop_readex_owned              0                       # readEx snoops on owned blocks
+cpu.icache.protocol.snoop_readex_shared             0                       # readEx snoops on shared blocks
+cpu.icache.protocol.snoop_upgrade_owned             0                       # upgrade snoops on owned blocks
+cpu.icache.protocol.snoop_upgrade_shared            0                       # upgradee snoops on shared blocks
+cpu.icache.protocol.snoop_writeinv_exclusive            0                       # WriteInvalidate snoops on exclusive blocks
+cpu.icache.protocol.snoop_writeinv_invalid            0                       # WriteInvalidate snoops on invalid blocks
+cpu.icache.protocol.snoop_writeinv_modified            0                       # WriteInvalidate snoops on modified blocks
+cpu.icache.protocol.snoop_writeinv_owned            0                       # WriteInvalidate snoops on owned blocks
+cpu.icache.protocol.snoop_writeinv_shared            0                       # WriteInvalidate snoops on shared blocks
+cpu.icache.protocol.swpf_invalid                    0                       # soft prefetch misses to invalid blocks
+cpu.icache.protocol.write_invalid                   0                       # write misses to invalid blocks
+cpu.icache.protocol.write_owned                     0                       # write misses to owned blocks
+cpu.icache.protocol.write_shared                    0                       # write misses to shared blocks
+cpu.icache.read_accesses                       900000                       # number of read accesses(hits+misses)
+cpu.icache.read_hits                           899513                       # number of read hits
+cpu.icache.read_miss_rate                    0.000541                       # miss rate for read accesses
+cpu.icache.read_misses                            487                       # number of read misses
+cpu.icache.replacements                             8                       # number of replacements
+cpu.icache.sampled_refs                           487                       # Sample count of references to valid blocks.
+cpu.icache.tagsinuse                       354.143562                       # Cycle average of tags in use
+cpu.icache.total_refs                          899513                       # Total number of references to valid blocks.
+cpu.icache.warmup_cycle                             0                       # Cycle when the warmup percentage was hit.
+cpu.icache.writebacks                               0                       # number of writebacks
+cpu.idle_fraction                                   0                       # Percentage of idle cycles
+cpu.not_idle_fraction                               1                       # Percentage of non-idle cycles
+cpu.numCycles                                  900000                       # number of cpu cycles simulated
+cpu.num_insts                                  900000                       # Number of instructions executed
+cpu.num_refs                                   345903                       # Number of memory references
+cpu.workload.MainMem.page_count                    10                       # total number of pages allocated
+cpu.workload.MainMem.page_mem                      80                       # total size of memory pages allocated
+cpu.workload.MainMem.ptab_accesses            1359580                       # total page table accessess
+cpu.workload.MainMem.ptab_miss_rate            0.0356                       # first level page table miss rate
+cpu.workload.MainMem.ptab_misses                48372                       # total first level page table misses
+cpu.workload.PROG:num_syscalls                    173                       # Number of system calls
+dram.accesses                                    1239                       # total number of accesses
+dram.bytes_requested                                0                       # total number of bytes requested
+dram.bytes_sent                                     0                       # total number of bytes sent
+dram.compressed_responses                           0                       # total number of accesses that are compressed
+host_inst_rate                                1678059                       # Simulator instruction rate (inst/s)
+host_mem_usage                                   9196                       # Number of bytes of host memory used
+host_seconds                                     0.54                       # Real time elapsed on the host
+host_tick_rate                                1677203                       # Simulator tick rate (ticks/s)
+sim_freq                                    200000000                       # Frequency of simulated ticks
+sim_insts                                      900000                       # Number of instructions simulated
+sim_seconds                                  0.004500                       # Number of seconds simulated
+sim_ticks                                      899999                       # Number of ticks simulated
+toMembus.addr_idle_cycles                           0                       # number of cycles bus was idle
+toMembus.addr_idle_fraction                         0                       # fraction of time addr bus was idle
+toMembus.addr_queued                         no value                       # average queueing delay seen by bus request
+toMembus.addr_queued_cycles                         0                       # total number of queued cycles for all requests
+toMembus.addr_requests                              0                       # number of transmissions on bus
+toMembus.bus_blocked                                0                       # number of times bus was blocked
+toMembus.bus_blocked_cycles                         0                       # number of cycles bus was blocked
+toMembus.bus_blocked_fraction                       0                       # fraction of time bus was blocked
+toMembus.data_idle_cycles                           0                       # number of cycles bus was idle
+toMembus.data_idle_fraction                         0                       # fraction of time data bus was idle
+toMembus.data_queued                         no value                       # average queueing delay seen by bus request
+toMembus.data_queued_cycles                         0                       # total number of queued cycles for all requests
+toMembus.data_requests                              0                       # number of transmissions on bus
+toMembus.null_grants                                0                       # number of null grants (wasted cycles)
+
+---------- End Simulation Statistics   ----------

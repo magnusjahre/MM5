@@ -1,0 +1,94 @@
+/*
+ * Copyright (c) 2003, 2004, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/**
+ * @page running Running M5
+
+M5 uses <i>configuration files</i> to specify simulated system
+configurations and simulation options.  Running M5 is as simple as
+giving the name of a configuration file (ending in '.py') as a
+command-line argument.
+
+The configuration file documentation page (@ref config_files) has
+details on config file format and interpretation.  The easiest way to
+get started is to use an existing configuration file.  A variety of
+config files are provided in the m5/configs directory.  Another good
+source of example config files is the regression test suite in the
+m5-test directory.  Each regression test is executed by specifying the
+'run.py' file in the test directory as the configuration, e.g.,
+'../m5/build/ALPHA_SE/m5.opt test1/run.py'.  Unlike the files in
+m5/config, the config files in m5-test are tested regularly and are
+guaranteed to work.
+
+Configuration parameters can also be specified directly on the command
+line as "--<variable>=<value>" (see @ref config_files).  From
+the simulator's perspective, setting parameters in this fashion is
+indistinguishable from specifying them in a configuration file.  A few
+parameters typically specified on the command line instead of in a
+config file are:
+
+- --root.trace.flags="SomeFlagString" - turn on event tracing for the specified classes of simulation events
+- --root.trace.start=\<start_cycle\> - cycle at which the traces indicated by the trace.flags param are to begin dumping
+- --Serialize.cycle=\<start_cycle\> - dump a checkpoint at this cycle
+- --Serialize.period=\<period\> - repeat interval for dumping checkpoints
+- --Serialize.count=\<number\> - number of checkpoints to dump
+
+Some configuration parameters require instantiating an actual Python object. To do this on the command line, you can inform m5 that you want a direct python string interpreted using the -P parameter. Here are a few examples:
+
+- -P"root.max=Terminate(cycle=1000)" - terminate the simulation at 1000 cycles
+- -P"root.progress=Progress(cycle=100)" - dump a message every 100 cycles (to know that m5 is not hanging)
+
+
+Running %m5 with the "-h" flag prints a help message,
+including basic command-line parameters. Here is what it looks like:
+
+@verbatim
+Usage:
+m5.debug [-d <dir>] [-E <var>[=<val>]] [-I <dir>] [-P <python>]
+        [--<var>=<val>] <config file>
+
+   -d            set the output directory to <dir>
+   -E            set the environment variable <var> to <val> (or 'True')
+   -I            add the directory <dir> to python's path
+   -P            execute <python> directly in the configuration
+   --var=val     set the python variable <var> to '<val>'
+   <configfile>  config file name (ends in .py)
+
+m5.debug -X
+   -X            extract embedded files
+
+m5.debug -h
+   -h            print short help
+@endverbatim
+
+*/
+

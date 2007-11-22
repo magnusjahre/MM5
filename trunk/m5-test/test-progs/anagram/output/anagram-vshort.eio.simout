@@ -1,0 +1,141 @@
+sim-eio: SimpleScalar/Alpha Tool Set version 3.0 of September, 1998.
+Copyright (c) 1994-1998 by Todd M. Austin.  All Rights Reserved.
+
+warning: section `.comment' ignored...
+sim: tracing execution to EIO file `test-progs/anagram/bin/anagram-vshort.eio.gz'...
+sim: command line: /z/stever/work/ss3plain/sim-eio -trace test-progs/anagram/bin/anagram-vshort.eio.gz test-progs/anagram/bin/anagram test-progs/anagram/input/words.vshort 
+
+sim: simulation started @ Sun May 13 20:28:43 2001, options follow:
+
+sim-eio: This simulator implements simulator support for generating
+external event traces (EIO traces) and checkpoint files.  External
+event traces capture one execution of a program, and allow it to be
+packaged into a single file for later re-execution.  EIO trace executions
+are 100% reproducible between subsequent executions (on the same platform.
+This simulator also provides functionality to generate checkpoints at
+arbitrary points within an external event trace (EIO) execution.  The
+checkpoint file (along with the EIO trace) can be used to start any
+SimpleScalar simulator in the middle of a program execution.
+
+# -config                     # load configuration from a file
+# -dumpconfig                 # dump configuration to a file
+# -h                    false # print help message    
+# -v                    false # verbose operation     
+# -d                    false # enable debug message  
+# -i                    false # start in Dlite debugger
+-seed                       1 # random number generator seed (0 for timer seed)
+# -q                    false # initialize and terminate immediately
+# -chkpt               <null> # restore EIO trace execution from <fname>
+# -redir:sim           <null> # redirect simulator output to file (non-interactive only)
+# -redir:prog          <null> # redirect simulated program output to file
+-nice                       0 # simulator scheduling priority
+-max:inst                   0 # maximum number of inst's to execute
+-fastfwd                    0 # number of insts skipped before tracing starts
+-trace           test-progs/anagram/bin/anagram-vshort.eio.gz # EIO trace file output file name
+# -perdump             <null> # periodic checkpoint every n instructions: <base fname> <interval>
+# -dump                <null> # specify checkpoint file and trigger: <fname> <range>
+
+  Checkpoint range triggers are formatted as follows:
+
+    {{@|#}<start>}:{{@|#|+}<end>}
+
+  Both ends of the range are optional, if neither are specified, the range
+  triggers immediately.  Ranges that start with a `@' designate an address
+  range to trigger on, those that start with an `#' designate a cycle count
+  trigger.  All other ranges represent an instruction count range.  The
+  second argument, if specified with a `+', indicates a value relative
+  to the first argument, e.g., 1000:+100 == 1000:1100.
+
+    Examples:   -ptrace FOO.trc #0:#1000
+                -ptrace BAR.trc @2000:
+                -ptrace BLAH.trc :1500
+                -ptrace UXXE.trc :
+
+
+
+sim: writing EIO file initial checkpoint...
+sim: ** starting functional simulation **
+warning: unsupported ioctl call: ioctl(1074164744, ...)
+warning: unsupported ioctl call: ioctl(1074164744, ...)
+warning: unsupported ioctl call: ioctl(1074164744, ...)
+main dictionary has 1245 entries
+49508 bytes wasted
+>warning: unsupported ioctl call: ioctl(1074164744, ...)
+98 candidates
+Order of search will be bhsoceratklmdnzgpqfijuvwxy
+warning: partially supported sigprocmask() call...
+abc tech sort 
+abc etch sort 
+sob tech cart 
+sob etch cart 
+sorb chat etc 
+sorb tech cat 
+sorb tech act 
+sorb etch cat 
+sorb etch act 
+scab tech tor 
+scab tech rot 
+scab etch tor 
+scab etch rot 
+rob chat sect 
+rob tech scat 
+rob tech cast 
+rob etch scat 
+rob etch cast 
+reb chat cost 
+reb cosh tact 
+bar tech cost 
+bar etch cost 
+best arch cot 
+best char cot 
+best hoc cart 
+bet arch cost 
+bet char cost 
+bet cosh cart 
+beth scar cot 
+beth cost arc 
+beth cost car 
+beth cos cart 
+both sect arc 
+both sect car 
+both sec cart 
+both scar etc 
+cab tech sort 
+cab etch sort 
+orb chat sect 
+orb tech scat 
+orb tech cast 
+orb etch scat 
+orb etch cast 
+hob sect cart 
+herb cos tact 
+herb cost cat 
+herb cost act 
+herb scat cot 
+herb cast cot 
+crab the cost 
+crab hoc test 
+crab host etc 
+crab hot sect 
+crab shot etc 
+>
+sim: ** simulation statistics **
+sim_num_insn                 990298 # total number of instructions executed
+sim_num_refs                 406332 # total number of loads and stores executed
+sim_elapsed_time                  1 # total simulation time in seconds
+sim_inst_rate           990298.0000 # simulation speed (in insts/sec)
+ld_text_base           0x0120000000 # program text (code) segment base
+ld_text_size                 122880 # program text (code) size in bytes
+ld_data_base           0x0140000000 # program initialized data segment base
+ld_data_size                 103760 # program init'ed `.data' and uninit'ed `.bss' size in bytes
+ld_stack_base          0x011ff9b000 # program stack segment base (highest address in stack)
+ld_stack_size                 16384 # program initial stack size
+ld_prog_entry          0x0120005f80 # program entry point (initial PC)
+ld_environ_base        0x011ff97000 # program environment base address address
+ld_target_big_endian              0 # target executable endian-ness, non-zero if big endian
+mem.page_count                   31 # total number of pages allocated
+mem.page_mem                   248k # total size of memory pages allocated
+mem.ptab_misses               49356 # total first level page table misses
+mem.ptab_accesses           2181726 # total page table accesses
+mem.ptab_miss_rate           0.0226 # first level page table miss rate
+

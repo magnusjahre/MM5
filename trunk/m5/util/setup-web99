@@ -1,0 +1,100 @@
+#!/bin/sh
+
+usage()
+{
+    echo "Usage: $0 <spec/specssl> <run-time> <warmup-time> <connections> [ini file]"
+    echo "    Minimum/Maximum values for parameters:"
+    echo "    1) spec/specssl"
+    echo "    2) run-time = 0/4095"
+    echo "    3) warmup-time = 0/4095"
+    echo "    4) connections = 0/65535"
+    exit 1
+}
+
+# check that all the required values are there
+if [ "$1" = "" ] || [ "$2" = "" ] || [ "$3" = "" ] || 
+   [ "$4" = "" ]; then
+    usage
+fi
+
+# check if this is a specweb or specwebssl run
+if [ "$1" = "spec" ]; then
+    let runtype=1\<\<40
+elif [ "$1" = "specssl" ]; then
+    let runtype=2\<\<40
+else
+    usage
+fi
+
+# make sure the values are in the right range
+if [ $2 -le 0 ] || [ $2 -gt 4095 ] ||
+   [ $3 -le 0 ] || [ $3 -gt 4095 ] ||
+   [ $4 -le 0 ] || [ $4 -gt 65535 ]; then
+    usage
+fi
+
+let run=$2\<\<28
+let warmup=$3\<\<16
+let conns=$4
+
+let code=${runtype}+${run}+${warmup}+${conns}
+
+echo "    run-type = $1"
+echo "    run-time = $2"
+echo "    warmup-time = $3"
+echo "    connections = $4"
+echo ""
+echo "Dec Code = $code"
+
+let codeUpper=(${code}\>\>32)\&0xffffffff
+let codeLower=${code}\&0xffffffff
+
+hexUpper=`echo -n $codeUpper | awk '{ printf "%x", $1 }'`
+hexLower=`echo -n $codeLower | awk '{ printf "%x", $1 }'`
+hexCode=`echo ${hexUpper}${hexLower}`
+
+echo "Hex Code = 0x${hexCode}"
+
+if [ ! "$5" = "" ]; then
+    if [ -w $5 ]; then
+        grep -q "\[System\]" $5
+        if [ $? -ne 0 ]; then
+            echo "$5 must have the line '[System]' in it somewhere!"
+            exit 1
+        fi
+
+        grep -q "init_param=" $5
+        if [ $? -eq 0 ]; then
+            ed - $5 <<EOF 2>&1 > /dev/null
+/init_param=/d
+.
+w
+q
+EOF
+        fi
+
+        grep -q "\/\/ init parameters:" $5
+        if [ $? -eq 0 ]; then
+            ed - $5 <<EOF 2>&1 > /dev/null
+/\/\/ init parameters:/d
+.
+w
+q
+EOF
+        fi
+
+        ed - $5 <<EOF 2>&1 > /dev/null
+/\[System\]/a
+init_param=0x${hexCode}
+// init parameters: type = $1 run-time = $2 warmup-time = $3 conns = $4
+.
+w
+q
+EOF
+
+        echo "$5 has been updated with code 0x${hexCode}"
+    else	
+        echo "$5 must be a file that is writable!"
+        exit 1
+    fi
+fi

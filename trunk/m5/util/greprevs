@@ -1,0 +1,20 @@
+#! /usr/bin/env perl
+
+#
+# Simple script to grep through all the revisions of a file.
+#
+# Example: 'greprevs foo.c <regexp>'
+#
+
+$file = shift;
+$grepargs = shift;
+
+@revs = split(' ', `bk prs -hf -d ':REV: ' $file`);
+
+foreach $rev (@revs) {
+    @lines = `bk get -qpr$rev $file | egrep '$grepargs'`;
+    next if (@lines == 0);
+    $prefix = "$rev: ";
+    print $prefix, join("$prefix", @lines);
+}
+

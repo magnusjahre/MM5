@@ -1,0 +1,240 @@
+/*
+ * Copyright (c) 2003, 2005
+ * The Regents of The University of Michigan
+ * All Rights Reserved
+ *
+ * This code is part of the M5 simulator, developed by Nathan Binkert,
+ * Erik Hallnor, Steve Raasch, and Steve Reinhardt, with contributions
+ * from Ron Dreslinski, Dave Greene, Lisa Hsu, Kevin Lim, Ali Saidi, 
+ * and Andrew Schultz.
+ *
+ * Permission is granted to use, copy, create derivative works and
+ * redistribute this software and such derivative works for any
+ * purpose, so long as the copyright notice above, this grant of
+ * permission, and the disclaimer below appear in all copies made; and
+ * so long as the name of The University of Michigan is not used in
+ * any advertising or publicity pertaining to the use or distribution
+ * of this software without specific, written prior authorization.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION FROM THE
+ * UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY PURPOSE, AND
+ * WITHOUT WARRANTY BY THE UNIVERSITY OF MICHIGAN OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE. THE REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE
+ * LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, SPECIAL, INDIRECT,
+ * INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGES.
+ */
+
+// -*- mode:text -*-
+/** @page doc_guide Documentation Guidelines
+
+@section doc_guide_intro Introduction
+
+Doxygen allows use to quickly create documentation for our code by extracting 
+the relavent information from the code and comments. It is able to document
+all the code structures including classes, namespaces, files, members, 
+defines, etc. Most of these are quite simple to document, you only need to
+place a special documentation block before the declaration. The special 
+documentation blocks take the form of a javadoc style comment. A javadoc 
+comment is a C style comment with 2 *'s at the start, like this:
+@verbatim
+/**
+ * ...documentation...
+ */
+@endverbatim
+
+The intermediate asterisks are optional, but please use them to clearly 
+delineate the documentation comments.
+
+The documentation within these blocks is made up of at least a brief 
+description of the documented structure, that can be followed by a more 
+detailed description and other documentation. The brief description is the 
+first sentence of the comment. It ends with a period followed by white space or
+a new line. For example:
+
+@verbatim
+/**
+ * This is the brief description. This is the start of the detailed 
+ * description. Detailed Description continued.
+ */
+@endverbatim
+
+If you need to have a period in the brief description, follow it with a 
+backslash followed by a space. 
+
+@verbatim
+/**
+ * e.g.\ This is a brief description with an internal period.
+ */
+@endverbatim
+
+Blank lines within these comments are interpreted as paragraph breaks to help
+you make the documentation more readble.
+
+@section doc_guide_special Special commands
+
+Placing these comments before the declaration works in most cases. For files
+however, you need to specify that you are documenting the file. Do do this you
+use the \@file special command. To document the file that you are currently in
+you jsut need to use the command followed by your comments. To comment a 
+separate file (we shouldn't have to do this) you can supply the name directly 
+after the file command.
+
+There are some other special commands we will be using quite often. To document
+functions we will use \@param and \@return or \@retval to document the 
+parameters and the return value. \@param takes the name of the paramter and 
+its description. \@return just describes the return value, while \@retval adds a
+name to it. To specify pre and post conditions you can use \@pre and \@post.
+
+Some other useful commands are \@todo and \@sa. \@todo allows you to place
+reminders of things to fix/implement and associate them with a specific class
+or member/function. \@sa lets you place references to another piece of 
+documentation (class, member, etc.). This can be useful to provide links to
+code that would be helpful in understanding the code being documented.
+
+
+@section doc_guide_example Example of Simple Documentation
+Here is a simple header file with doxygen comments added.
+
+@verbatim
+
+/** 
+ * @file 
+ * Contains an example of documentation style.
+ */
+
+#include <vector>
+
+/** 
+ * Adds two numbers together. 
+ */
+#define DUMMY(a,b) (a+b)
+
+/** 
+ * A simple class description. This class does really great things in detail. 
+ *
+ * @todo Update to new statistics model.
+ */
+class foo
+{
+ /**
+  * This function does something.
+  * @param a The number of times to do it.
+  * @param b The thing to do it to.
+  * @return The number of times it was done.
+  *
+  * @sa DUMMY
+  */
+ int bar(int a, long b);
+
+ /**
+  * Returns true if this class sucks
+  * @retval classSucks True if the class is broken
+  */
+ bool manchu();
+
+};
+@endverbatim
+
+@section doc_guide_grouping Grouping
+Doxygen also allows for groups of classes and member (or other groups) to be 
+declared. We can use these to create a listing of all statistics/global 
+variables. Or just to comment about the memory hierarchy as a whole. 
+You define a group using \@defgroup and then add to it using \@ingroup or 
+\@addgroup. For example:
+
+@verbatim
+/**
+ * @defgroup statistics Statistics group
+ */
+
+/**
+  * @defgroup substat1 Statistitics subgroup
+  * @ingroup statistics
+  */
+
+/**
+ *  A simple class.
+ */
+class foo
+{
+  /** 
+   * Collects data about blah.
+   * @ingroup statistics
+   */
+  Stat stat1;
+
+  /** 
+   * Collects data about the rate of blah.
+   * @ingroup statistics
+   */
+  Stat stat2;
+
+  /** 
+   * Collects data about flotsam.
+   * @ingroup statistics
+   */
+  Stat stat3;
+
+  /** 
+   * Collects data about jetsam.
+   * @ingroup substat1
+   */
+  Stat stat4;
+
+};
+@endverbatim
+
+This places stat1-3 in the statistics group and stat4 in the subgroup. There 
+is a shorthand method to place objects in groups. You can use \@{ and \@} to
+mark the start and end of group inclusion. The example above can be rewritten
+as:
+
+@verbatim
+/**
+ * @defgroup statistics Statistics group
+ */
+
+/**
+  * @defgroup substat1 Statistitics subgroup
+  * @ingroup statistics
+  */
+
+/**
+ *  A simple class.
+ */
+class foo
+{
+  /**
+   * @ingroup statistics
+   * @{
+   */
+
+  /** Collects data about blah.*/
+  Stat stat1;
+  /** Collects data about the rate of blah. */
+  Stat stat2;
+  /** Collects data about flotsam.*/
+  Stat stat3;
+
+  /** @} */
+
+  /** 
+   * Collects data about jetsam.
+   * @ingroup substat1
+   */
+  Stat stat4;
+
+};
+@endverbatim
+
+It remains to be seen what groups we can come up with.
+
+@section doc_guide_other_features Other features
+Not sure what other doxygen features we want to use.
+
+*/
