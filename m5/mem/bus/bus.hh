@@ -132,7 +132,8 @@ class Bus : public BaseHier
 	HierParams *hier_params,
 	int width,
 	int clockRate,
-        AdaptiveMHA* _adaptiveMHA);
+        AdaptiveMHA* _adaptiveMHA,
+        bool _uniform_partitioning);
 
     /** Frees locally allocated memory. */
     ~Bus();

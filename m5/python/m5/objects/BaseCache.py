@@ -78,6 +78,8 @@ class BaseCache(BaseMem):
     #directory_protocol = Param.DirectoryProtocol(NULL, "Directory protocol for this cache") # Magnus
     is_shared = Param.Bool("True if this cache is shared by more than one core") # Magnus
     is_read_only = Param.Bool("True if this cache is an instruction cache") # Magnus
+    
+    use_static_partitioning = Param.Bool("True if this cache uses static uniform capacity partitioning") # Magnus
 
     # Directory protocol parameters
     dirProtocolName = Param.DirectoryProtocol('none', "name of coherence protocol")

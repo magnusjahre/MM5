@@ -18,6 +18,15 @@ directory_protocols = ['stenstrom']
 # Check command line options
 ###############################################################################
 
+if "HELP" in env:
+    print >>sys.stderr, '\nNCAR M5 Minimal Command Line:\n'
+    print >>sys.stderr, './m5.opt -ENP=4 -EBENCHMARK=1 -EPROTOCOL=none -EINTERCONNECT=crossbar -EFASTFORWARDTICKS=1000 -ESIMULATETICKS=1000 -ESTATSFILE=test.txt ../../configs/CMP/run.py\n'
+    print >>sys.stderr, 'For other options see the top of the run.py file.\n'
+    panic("Printed help text, quitting...")
+    
+if 'NP' not in env:
+    panic("No number of processors was defined.\ne.g. -ENP=4\n")
+
 if env['PROTOCOL'] not in all_protocols:
   panic('No/Invalid cache coherence protocol specified!')
 
@@ -95,6 +104,13 @@ if "USE-ADAPTIVE-MHA" in env:
     if 'ADAPTIVE-REPEATS' not in env:
         panic("The number of repeats to make a desicion must be given (-EADAPTIVE-REPEATS)")
 
+useUniformCachePartitioning = False
+if "UNIFORM-CACHE-PARTITIONING" in env:
+    useUniformCachePartitioning = True
+
+useUniformMemBusPartitioning = False
+if "UNIFORM-MEMORY-BUS-PARTITIONING" in env:
+    useUniformMemBusPartitioning = True
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -245,7 +261,7 @@ else:
     root.setCPU(root.simpleCPU)
 
 ###############################################################################
-# Interconnect and L2 caches
+# Interconnect, L2 caches and Memory Bus
 ###############################################################################
 
 if env['BENCHMARK'] in Splash2.benchmarkNames:
@@ -289,6 +305,13 @@ if l2mshrs != -1:
     for bank in root.l2:
         bank.mshrs = l2mshrs
         bank.tgts_per_mshr = l2mshrTargets
+
+if useUniformCachePartitioning:
+    for bank in root.l2:
+        bank.use_static_partitioning = True
+
+if useUniformMemBusPartitioning:
+    root.toMemBus.uniform_partitioning = True
 
 ###############################################################################
 # Workloads

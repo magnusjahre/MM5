@@ -67,11 +67,16 @@ Bus::Bus(const string &_name,
 	 HierParams *hier_params,
 	 int _width,
 	 int _clock,
-         AdaptiveMHA* _adaptiveMHA)
+         AdaptiveMHA* _adaptiveMHA,
+         bool _uniform_partitioning)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
+    
+    if(_uniform_partitioning){
+        fatal("Uniform bus partitioning not implemented");
+    }
 
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -957,6 +962,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<int> clock;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
+    Param<bool> uniform_partitioning;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -968,7 +974,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(hier,
 		    "Hierarchy global variables",
 		    &defaultHierParams),
-    INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL)
+    INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
+    INIT_PARAM_DFLT(uniform_partitioning, "Partition bus bandwidth uniformly between cores", false)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -976,7 +983,7 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 CREATE_SIM_OBJECT(Bus)
 {
     return new Bus(getInstanceName(), hier,
-		   width, clock, adaptive_mha);
+		   width, clock, adaptive_mha, uniform_partitioning);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

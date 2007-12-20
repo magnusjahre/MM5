@@ -135,6 +135,7 @@ class BaseCache : public BaseMem {
     bool useDirectory;
     bool isReadOnly;
     bool useAdaptiveMHA;
+    bool useUniformPartitioning;
     
 #ifdef CACHE_DEBUG
     std::map<Addr, std::pair<int, Tick> > pendingRequests;
@@ -252,7 +253,7 @@ class BaseCache : public BaseMem {
      * of this cache.
      * @param params The parameter object for this BaseCache.
      */
-    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly);
+    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning);
     
     /**
      * Set the master interface for this cache to the one provided.

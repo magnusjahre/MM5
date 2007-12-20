@@ -7,12 +7,14 @@ import glob
 # Originally written by James Srinivasan
 # Further modified by Magnus Jahre <jahre @ idi.ntnu.no>
 
+# Provide a processor count to avoid errors
 if 'NP' not in env:
-	panic("No number of processors was defined.\ne.g. -ENP=4\n")
+    print >>sys.stderr, "Warning: No processor count given on command line, using default with 2 processors\nUse -ENP=4 or similar to change."
+    env['NP'] = 2
 
 rootdir = os.getenv("BMROOT")
 if rootdir == None:
-  print "Envirionment variable BMROOT not set. Quitting..."
+  print >>sys.stderr, "Envirionment variable BMROOT not set. Quitting..."
   sys.exit(-1)
 
 # Assumes current working directory is where we ought to run the benchmarks from, copy datasets to etc.
