@@ -101,6 +101,8 @@ class CacheBlk
     int owner;
     bool* presentFlags;
     
+    /** Shared cache owner info */
+    int origRequestingCpuID;
 
     /** Which curTick will this block be accessable */
     Tick whenReady;
@@ -119,7 +121,7 @@ class CacheBlk
 
     CacheBlk()
 	: asid(-1), tag(0), data(0) ,size(0), status(0),
-          dirState(DirNoState), owner(-1), presentFlags(NULL),
+          dirState(DirNoState), owner(-1), presentFlags(NULL), origRequestingCpuID(-1),
           whenReady(0), xc(0), 
 	  set(-1), refCount(0)
     {}
@@ -239,6 +241,7 @@ operator<<(std::ostream &out, const CacheBlk &blk)
     out << std::hex << std::endl;
     out << "  Tag: " << blk.tag << std::endl;
     out << "  Status: " <<  blk.status << std::endl;
+    out << "  Requesting CPU: " << blk.origRequestingCpuID << std::endl;
 
     return(out << std::dec);
 }

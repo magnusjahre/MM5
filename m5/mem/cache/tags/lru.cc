@@ -47,7 +47,6 @@ LRUBlk*
 CacheSet::findBlk(int asid, Addr tag) const
 {
     for (int i = 0; i < assoc; ++i) {
-//         if(curTick == 40050815) cout << "checking tag " << blks[i]->tag << " == " << tag << " (valid=" << (blks[i]->isValid() ? "true" : "false") << ")\n";
 	if (blks[i]->tag == tag && blks[i]->isValid()) {
 	    return blks[i];
 	}
@@ -85,6 +84,7 @@ CacheSet::moveToHead(LRUBlk *blk)
 LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency) :
     numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency)
 {
+    
     // Check parameters
     if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
 	fatal("Block size must be at least 4 and a power of 2");
@@ -176,6 +176,14 @@ LRU::findBlock(Addr addr, int asid, int &lat)
     if (blk != NULL) {
 	// move this block to head of the MRU list
 	sets[set].moveToHead(blk);
+        
+        if(cache->useUniformPartitioning){
+            DPRINTF(UniformPartitioning, "Set %d: Hit in block (1), retrieved by processor %d, replaced block addr is %x\n",
+                    set,
+                    blk->origRequestingCpuID,
+                    regenerateBlkAddr(blk->tag,blk->set));
+        }
+        
 	if (blk->whenReady > curTick
 	    && blk->whenReady - curTick > hitLatency) {
 	    lat = blk->whenReady - curTick;
@@ -199,6 +207,14 @@ LRU::findBlock(MemReqPtr &req, int &lat)
     if (blk != NULL) {
 	// move this block to head of the MRU list
 	sets[set].moveToHead(blk);
+        
+        if(cache->useUniformPartitioning){
+            DPRINTF(UniformPartitioning, "Set %d: Hit in block (2), retrieved by processor %d, replaced block addr is %x\n",
+                    set,
+                    blk->origRequestingCpuID,
+                    regenerateBlkAddr(blk->tag,blk->set));
+        }
+        
 	if (blk->whenReady > curTick
 	    && blk->whenReady - curTick > hitLatency) {
 	    lat = blk->whenReady - curTick;
@@ -225,7 +241,67 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     unsigned set = extractSet(req->paddr);
     
     // grab a replacement candidate
-    LRUBlk *blk = sets[set].blks[assoc-1];
+    LRUBlk *blk;
+    if(cache->useUniformPartitioning){
+        
+        int fromProc = req->adaptiveMHASenderID;
+        
+        // we know that assoc is a power of two, checked in the constructor
+        int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+        assert(maxBlks > 1);
+        
+        int* blkCnt = new int[cache->cpuCount];
+        for(int i=0;i<cache->cpuCount;i++) blkCnt[i] = 0;
+        for(int i=0;i<assoc;i++){
+            int tmpID = sets[set].blks[i]->origRequestingCpuID;
+            if(tmpID >= 0) blkCnt[tmpID]++;
+        }
+        
+        ostringstream tmp;
+        tmp << "Set " << set <<":";
+        for(int i=0;i<cache->cpuCount;i++){
+            tmp << " p" << i << "=" << blkCnt[i];
+            assert(blkCnt[i] <= maxBlks);
+        }
+        DPRINTF(UniformPartitioning, "%s\n", tmp.str().c_str());
+        
+        
+        bool found = false;
+        if(blkCnt[fromProc] < maxBlks){
+            // not using all blocks, LRU block is not touched
+            DPRINTF(UniformPartitioning, "Set %d: Choosing block that has not been touched for replacement, request addr is %x, req from proc %d\n", 
+                    set,
+                    req->paddr, 
+                    fromProc);
+            blk = sets[set].blks[assoc-1];
+            assert(!blk->isTouched);
+            found = true;
+        }
+        else{
+            // replace the LRU block belonging to this cache
+            for(int i = assoc-1;i>=0;i--){
+                blk = sets[set].blks[i];
+                if(blk->origRequestingCpuID == fromProc){
+                    DPRINTF(UniformPartitioning, "Set %d: Replacing block belonging to processor %d, req by proc %d, request addr is %x, replaced block addr is %x\n",
+                            set,
+                            blk->origRequestingCpuID,
+                            fromProc,
+                            req->paddr,
+                            regenerateBlkAddr(blk->tag,blk->set));
+                    found = true;
+                    break;
+                }
+            }
+        }
+        assert(found);
+        
+        delete blkCnt;
+    }
+    else{
+        blk = sets[set].blks[assoc-1];
+    }
+    assert(blk != NULL);
+    
     sets[set].moveToHead(blk);
     if (blk->isValid()) {
 	int thread_num = (blk->xc) ? blk->xc->thread_num : 0;

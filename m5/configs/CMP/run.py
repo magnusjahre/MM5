@@ -21,6 +21,7 @@ directory_protocols = ['stenstrom']
 if "HELP" in env:
     print >>sys.stderr, '\nNCAR M5 Minimal Command Line:\n'
     print >>sys.stderr, './m5.opt -ENP=4 -EBENCHMARK=1 -EPROTOCOL=none -EINTERCONNECT=crossbar -EFASTFORWARDTICKS=1000 -ESIMULATETICKS=1000 -ESTATSFILE=test.txt ../../configs/CMP/run.py\n'
+    print >>sys.stderr, 'Example trace argument: --Trace.flags=\"Cache\"\n'
     print >>sys.stderr, 'For other options see the top of the run.py file.\n'
     panic("Printed help text, quitting...")
     

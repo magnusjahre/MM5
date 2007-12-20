@@ -144,7 +144,8 @@ baseFlags = [
     'FullCPU',
     'CommitRate',
     'OoOCPU',
-    'HWPrefetch'
+    'HWPrefetch',
+    'UniformPartitioning'
     ]
 
 #

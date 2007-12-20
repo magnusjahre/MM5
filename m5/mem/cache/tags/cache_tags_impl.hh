@@ -752,8 +752,6 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
 					   MemReqList &writebacks)
 {
     
-//     Addr tmp = (req->paddr & ~((Addr)blkSize - 1));
-    
     if (blk == NULL) {
         
 	// need to do a replacement
@@ -786,15 +784,9 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
                         assert(blk->dirState == DirOwnedExGR);
                         
                         if(blk->isModified()){
-                            // do normal writeback
-//                             if(curTick > 14103000 && ct->regenerateBlkAddr(blk->tag,blk->set) == 5387328640ull){
-//                                 cout << "sending normal writeback\n";
-//                             }
                             writebacks.push_back(writebackBlk(blk));
                         }
                         else{
-                            // block is not modified, but we need to updated owner info in the L2
-//                             cout << curTick << ": requesting writeback, owner "<< blk->owner <<", blk addr " << (req->paddr & (((ULL(1))<<48)-1)) << "\n";
                             
                             MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
                                               blk->asid,
@@ -867,8 +859,6 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
             assert(blk->dirState != DirInvalid);
             assert(blk->dirState != DirOwnedExGR);
             assert(blk->dirState != DirOwnedNonExGR);
-            
-//             cout << curTick << ": block is INVALID, owner "<< blk->owner <<", blk addr " << (req->paddr & (((ULL(1))<<48)-1)) << "\n";
         }
         
         // set block values to the values of the new occupant
@@ -877,25 +867,18 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
 	assert(req->xc || !cache->doData());
 	blk->xc = req->xc;
         
+        if(cache->isShared){
+            assert(req->adaptiveMHASenderID != -1);
+            blk->origRequestingCpuID = req->adaptiveMHASenderID;
+        }
+        
     } else {
-        
-        
-//         if(!req->writeMiss && !req->cmd.isDirectoryMessage()){
-//             // Write and read misses might result in transfers from a cache to itself
-/*
-            assert(blk->dirState != DirInvalid);
-            assert(blk->dirState != DirOwnedExGR);
-            assert(blk->dirState != DirOwnedNonExGR);*/
-            
-            // must be a status change
-            // assert(blk->status != new_state);
         
         if(!cache->isDirectoryAndL1DataCache()){
             // A cache might recieve the same cache line twice (read and write at the same time)
             // we don't want this warning every time ;-)
             if (blk->status == new_state) warn("Changing state to same value\n");
         }
-//         }
     }
     
     blk->status = new_state;

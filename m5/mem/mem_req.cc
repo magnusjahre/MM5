@@ -128,6 +128,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->oldCmd = r->oldCmd;
     req->expectCompletionEvent = r->expectCompletionEvent;
     
+//     req->senderProcessorID = r->senderProcessorID;
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
     req->data = new uint8_t[r->size];
@@ -184,6 +185,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->oldCmd = from->oldCmd;
     to->expectCompletionEvent = from->expectCompletionEvent;
     
+//     to->senderProcessorID = from->senderProcessorID;
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     
     to->data = new uint8_t[from->size];
