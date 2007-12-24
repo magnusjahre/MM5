@@ -259,6 +259,8 @@ class Bus : public BaseHier
     
     int adaptiveSampleSize;
     
+    bool useUniformPartitioning;
+    
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;

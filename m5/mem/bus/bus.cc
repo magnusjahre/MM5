@@ -74,9 +74,8 @@ Bus::Bus(const string &_name,
     width = _width;
     clockRate = _clock;
     
-    if(_uniform_partitioning){
-        fatal("Uniform bus partitioning not implemented");
-    }
+    useUniformPartitioning = _uniform_partitioning;
+    if(useUniformPartitioning) fatal("Uniform memory partitioning not implemented");
 
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -268,10 +267,6 @@ void
 Bus::requestDataBus(int id, Tick time)
 {
     
-//     if(curTick > 357000){
-//         cout << curTick << ": data bus requested by " << id << " at " << time << "\n";
-//     }
-    
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
@@ -287,9 +282,6 @@ Bus::requestDataBus(int id, Tick time)
 void
 Bus::requestAddrBus(int id, Tick time)
 {
-//     if(curTick > 357000){
-//         cout << curTick << ": addr bus requested by " << id << " at " << time << "\n";
-//     }
     
     assert(doEvents());
     assert(time>=curTick);
@@ -320,10 +312,6 @@ Bus::arbitrateAddrBus()
 
     assert(found);
 
-//     if(curTick > 357000){
-//         cout << curTick << ": addr granted to id " << grant_id << " at " << curTick << "\n";
-//     }
-    
     // grant_id is earliest outstanding request
     // old_grant_id is second earliest request
 
@@ -417,10 +405,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     writeTraceFileLine(req->paddr, "Address Bus sending address");
 #endif
     
-//     if(curTick > 357000){
-//         cout << curTick << ": addr sending addr " << req->paddr << ", busId " << req->busId << "\n";
-//     }
-    
     assert(doEvents());
     if (!req) {
 	// if the bus was granted in error
@@ -439,10 +423,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     // put it here so we know requesting thread
     addrRequests[req->thread_num]++;
-
-//     if(perCPUAddressBusUse.size() > 0 && req->adaptiveMHASenderID != -1){
-//         perCPUAddressBusUse[req->adaptiveMHASenderID] += (nextAddrFree - curTick);
-//     }
     
     int responding_interface_id = -1;
     MemAccessResult retval = BA_NO_RESULT;
@@ -535,13 +515,8 @@ Bus::delayData(int size, int senderID, MemCmdEnum cmd)
     
     storeUseStats(true, senderID);
     if(cmd == Writeback){
-//         cout << "adding " << (nextDataFree - curTick) << " cycles to wbCycles (2)\n";
         writebackCycles += (nextDataFree - curTick);
     }
-    
-//     if(perCPUDataBusUse.size() > 0 && senderID != -1){
-//         perCPUDataBusUse[senderID] += (nextDataFree - curTick);
-//     }
 }
 
 void
@@ -550,10 +525,6 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
 #ifdef DO_BUS_TRACE
     writeTraceFileLine(req->paddr, "Data Bus sending address");
 #endif
-    
-//     if(curTick > 357000){
-//         cout << curTick << ": data sending addr " << req->paddr << ", busID is " << req->busId << "\n";
-//     }
     
     // put it here so we know requesting thread
     dataRequests[req->thread_num]++;
@@ -570,13 +541,8 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
     storeUseStats(true, req->adaptiveMHASenderID);
     
     if(req->cmd == Writeback){
-//         cout << "adding " << (nextDataFree - curTick) << " cycles to wbCycles (1)\n";
         writebackCycles += (nextDataFree - curTick);
     }
-    
-//     if(perCPUDataBusUse.size() > 0 && req->adaptiveMHASenderID != -1){
-//         perCPUDataBusUse[req->adaptiveMHASenderID] += (nextDataFree - curTick);
-//     }
     
     DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
     // let the cache figure out Critical word first
@@ -810,11 +776,9 @@ Bus::storeUseStats(bool data, int senderID){
             && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize) 
           ){
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
-//                 cout << curTick << ": buffer 0, adding " << (nextFree - curTick) << "\n";
                 array[0] += (nextFree - curTick);
             }
             else{
-//                 cout << curTick << ": buffer 1, adding " << (nextFree - curTick) << "\n";
                 array[1] += (nextFree - curTick);
             }
         }
@@ -823,16 +787,10 @@ Bus::storeUseStats(bool data, int senderID){
             int rest = nextFree % adaptiveSampleSize;
         
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
-                
-//                 cout << curTick << ": special (cur to 0), first " << firstCycles << ", rest " << rest << "\n";
-                
                 array[0] += firstCycles;
                 array[1] += rest;
             }
             else{
-                
-//                 cout << curTick << ": special (cur to 1), first " << firstCycles << ", rest " << rest << "\n";
-                
                 array[1] += firstCycles;
                 array[0] += rest;
             }
