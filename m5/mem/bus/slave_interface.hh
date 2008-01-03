@@ -145,6 +145,13 @@ class SlaveInterface : public BusInterface<BusType>
     }
 
     virtual void snoopResponseCall(MemReqPtr &req);
+    
+    virtual int getCurrentReqSenderID(){
+        MemReqPtr req = this->responseQueue.front().req;
+        if(!req) return BUS_NO_REQUEST;
+        assert(req->cmd != Writeback);
+        return req->adaptiveMHASenderID;
+    }
 };
 
 #endif // __MEM_BUS_SLAVE_INTERFACE_HH__

@@ -135,6 +135,12 @@ class MasterInterface : public BusInterface<BusType>
 
     virtual void snoopResponseCall(MemReqPtr &req);
     
+    virtual int getCurrentReqSenderID(){
+        MemReqPtr req = mem->getMemReq();
+        if(!req) return BUS_NO_REQUEST;
+        else if(req->cmd == Writeback) return BUS_WRITEBACK;
+        return mem->getMemReq()->adaptiveMHASenderID;
+    }
 };
 
 #endif // __MEM_BUS_MASTER_INTERFACE_HH__

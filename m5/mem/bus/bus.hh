@@ -133,7 +133,9 @@ class Bus : public BaseHier
 	int width,
 	int clockRate,
         AdaptiveMHA* _adaptiveMHA,
-        bool _uniform_partitioning);
+        bool _uniform_partitioning,
+        int _busCPUCount,
+        int _busBankCount);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -249,6 +251,9 @@ class Bus : public BaseHier
 
   private:
     
+    int busCPUCount;
+    int busBankCount;
+      
     std::vector<int> perCPUAddressBusUse;
     std::vector<int> perCPUAddressBusUseOverflow;
     int addrBusUseSamples[2];
@@ -260,7 +265,8 @@ class Bus : public BaseHier
     int adaptiveSampleSize;
     
     bool useUniformPartitioning;
-    
+    int curAddrNum;
+    int curDataNum;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
@@ -330,6 +336,11 @@ class Bus : public BaseHier
      */
     bool findOldestRequest(std::vector<BusRequestRecord> & requests,
 			   int & grant_id, int & old_grant_id);
+    
+    bool findOldestRequestWithUniformPart(std::vector<BusRequestRecord> & requests,
+                                          int & grant_id,
+                                          int & old_grant_id,
+                                          bool isAddr);
 
     /**
      * Schedule an arbiter for the correct time.

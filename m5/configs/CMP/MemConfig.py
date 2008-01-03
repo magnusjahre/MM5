@@ -115,6 +115,8 @@ class ToMemBus(Bus):
     width = 8
     #clock = 1.5 * Parent.clock.period
     clock = 4 * Parent.clock.period
+    cpu_count = int(env['NP'])
+    bank_count = 4
 
 class SDRAM(BaseMemory):
     #latency = 200 * Parent.clock.period

@@ -68,14 +68,19 @@ Bus::Bus(const string &_name,
 	 int _width,
 	 int _clock,
          AdaptiveMHA* _adaptiveMHA,
-         bool _uniform_partitioning)
+         bool _uniform_partitioning,
+         int _busCPUCount,
+         int _busBankCount)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
+    busCPUCount = _busCPUCount;
+    busBankCount = _busBankCount;
     
     useUniformPartitioning = _uniform_partitioning;
-    if(useUniformPartitioning) fatal("Uniform memory partitioning not implemented");
+    curDataNum = 0;
+    curAddrNum = 0;
 
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -305,10 +310,15 @@ Bus::arbitrateAddrBus()
     int grant_id;
     int old_grant_id;; // used for rescheduling
 
-#ifndef NDEBUG
-    bool found =
-#endif
-	findOldestRequest(addrBusRequests,grant_id,old_grant_id);
+    bool found = false;
+    
+    if(useUniformPartitioning){
+        findOldestRequestWithUniformPart(addrBusRequests,
+                                         grant_id,
+                                         old_grant_id,
+                                         true);
+    }
+    else found =  findOldestRequest(addrBusRequests,grant_id,old_grant_id);
 
     assert(found);
 
@@ -365,11 +375,16 @@ Bus::arbitrateDataBus()
     int grant_id;
     int old_grant_id;
 
-
-#ifndef NDEBUG
-    bool found =
-#endif
-	findOldestRequest(dataBusRequests,grant_id,old_grant_id);
+    
+    bool found = false;
+    
+    if(useUniformPartitioning){
+        findOldestRequestWithUniformPart(dataBusRequests,
+                                         grant_id,
+                                         old_grant_id,
+                                         false);
+    }
+    else found = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
     assert(found);
 
     DPRINTF(Bus, "Data bus granted to id %d\n", grant_id);
@@ -663,6 +678,28 @@ Bus::findOldestRequest(std::vector<BusRequestRecord> & requests,
     return (grant_id != -1);
 }
 
+bool
+Bus::findOldestRequestWithUniformPart(std::vector<BusRequestRecord> & requests,
+                                      int & grant_id,
+                                      int & old_grant_id,
+                                      bool isAddr){
+    grant_id = -1;
+    old_grant_id = -1;
+//     Tick grant_time = TICK_T_MAX; // set to arbitrarily large number
+//     Tick old_grant_time = TICK_T_MAX;
+    
+    int* cntPointer;
+    if(isAddr) cntPointer = &curAddrNum;
+    else cntPointer = &curDataNum;
+    
+    assert(transmitInterfaces.size() - 1 == busBankCount);
+    
+    cout << "count is " << *cntPointer << " and num cpus is " << busCPUCount << ", banks: " << busBankCount << "\n";
+    
+    fatal("stop here for now");
+    return false;
+}
+
 void
 Bus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
 			      Tick nextFreeCycle, Tick idleAdvance)
@@ -921,6 +958,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<bool> uniform_partitioning;
+    Param<int> cpu_count;
+    Param<int> bank_count;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -933,7 +972,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
 		    "Hierarchy global variables",
 		    &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
-    INIT_PARAM_DFLT(uniform_partitioning, "Partition bus bandwidth uniformly between cores", false)
+    INIT_PARAM_DFLT(uniform_partitioning, "Partition bus bandwidth uniformly between cores", false),
+    INIT_PARAM(cpu_count, "The number of CPUs in the system"),
+    INIT_PARAM(bank_count, "The number of L2 cache banks in the system")
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -941,7 +982,7 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 CREATE_SIM_OBJECT(Bus)
 {
     return new Bus(getInstanceName(), hier,
-		   width, clock, adaptive_mha, uniform_partitioning);
+		   width, clock, adaptive_mha, uniform_partitioning, cpu_count, bank_count);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)
