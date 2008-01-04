@@ -11,14 +11,14 @@ if rootdir == None:
 
 successString = 'Simulation complete'
 lostString = 'Sampler exit lost'
-binary = rootdir+'/m5_1.1/m5/build/ALPHA_SE/m5.opt'
+binary = rootdir+'/branch/fairMHA/m5/build/ALPHA_SE/m5.opt'
 bmArg = "-EBENCHMARK="
 cpuArg = "-ENP="
 interconArg = "-EINTERCONNECT="
-args = "-EPROTOCOL=stenstrom -ESTATSFILE=test_output.txt -ESIMULATETICKS=5000000 -EFASTFORWARDTICKS=5000000"
-mshrargs = "-EMSHRSL1D=16 -EMSHRSL1I=16 -EMSHRL1TARGETS=4 -EMSHRSL2=4 -EMSHRL2TARGETS=4 -EUSE-ADAPTIVE-MHA -EADAPTIVE-MHA-LOW-THRESHOLD=0.7 -EADAPTIVE-MHA-HIGH-THRESHOLD=0.9 -EADAPTIVE-REPEATS=1"
-#mshrargs = ""
-configFile = rootdir+"/m5_1.1/m5/configs/CMP/run.py"
+args = "-EPROTOCOL=stenstrom -ESTATSFILE=test_output.txt -ESIMULATETICKS=5000000 -EFASTFORWARDTICKS=10000000"
+#mshrargs = "-EMSHRSL1D=16 -EMSHRSL1I=16 -EMSHRL1TARGETS=4 -EMSHRSL2=4 -EMSHRL2TARGETS=4 -EUSE-ADAPTIVE-MHA -EADAPTIVE-MHA-LOW-THRESHOLD=0.7 -EADAPTIVE-MHA-HIGH-THRESHOLD=0.9 -EADAPTIVE-REPEATS=1"
+mshrargs = "-EUNIFORM-MEMORY-BUS-PARTITIONING"
+configFile = "../configs/CMP/run.py"
 
 REPORTFILE = "testreport.txt"
 report = open(REPORTFILE, 'w')
