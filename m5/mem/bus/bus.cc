@@ -301,6 +301,100 @@ Bus::requestAddrBus(int id, Tick time)
     }
 }
 
+int
+Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
+    
+    int retID = -1;
+    
+    // grant an interface
+    if(counter < busCPUCount){
+        // search through all master interfaces
+        // select the oldest request belonging to the given processor
+        assert(masterInterfaces.size() >= 1);
+        int smallestInterfaceID = -1;
+        Tick smallestReqTime = TICK_T_MAX;
+        for(int i=0;i<masterInterfaces.size();i++){
+            
+            int fromCPU = masterInterfaces[i]->getCurrentReqSenderID();
+            
+            if(fromCPU == counter){
+                if(requests[masterIndexToInterfaceIndex[i]].requested
+                   && requests[masterIndexToInterfaceIndex[i]].requestTime < smallestReqTime){
+                    smallestInterfaceID = masterIndexToInterfaceIndex[i];
+                    smallestReqTime = requests[masterIndexToInterfaceIndex[i]].requestTime;
+                   }
+            }
+        }
+        
+        assert(slaveInterfaces.size() == 1);
+        if(requests[slaveIndexToInterfaceIndex[0]].requested
+           && requests[slaveIndexToInterfaceIndex[0]].requestTime < smallestReqTime){
+            smallestInterfaceID = slaveIndexToInterfaceIndex[0];
+            smallestReqTime = requests[slaveIndexToInterfaceIndex[0]].requestTime;
+        }
+        
+        if(smallestInterfaceID > -1){
+            retID = smallestInterfaceID;
+        }
+    }
+    else{
+        // dedicated writeback slot for one cache bank
+        int tmpMasterID = counter - busCPUCount;
+        int fromCPUID = masterInterfaces[tmpMasterID]->getCurrentReqSenderID();
+        if(fromCPUID == BUS_WRITEBACK){
+            DPRINTF(Bus, "Granting writeback slot to interface %d\n", tmpMasterID);
+            retID = tmpMasterID;
+        }
+    }
+    
+    counter = (counter + 1) % (busCPUCount + busBankCount);
+    
+    return retID;
+}
+
+void
+Bus::arbitrateFairAddrBus(){
+    
+    assert(transmitInterfaces.size() - 1 == busBankCount);
+    assert(masterInterfaces.size() == busBankCount);
+    assert(slaveInterfaces.size() == 1);
+    
+    int grantID = getFairNextInterface(curAddrNum, addrBusRequests);
+    
+    if(grantID != -1){
+        
+        DPRINTF(Bus, "Fair addr bus granted to id %d\n", grantID);
+        
+        addrBusRequests[grantID].requested = false;
+        bool do_request = interfaces[grantID]->grantAddr();
+    
+        if (do_request) {
+            addrBusRequests[grantID].requested = true;
+            addrBusRequests[grantID].requestTime = curTick;
+        }
+    }
+    
+    if(!blocked){
+    
+        int oldestID = -1;
+        int secondOldestID = -1;
+        bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
+        
+        if(found){
+            if(!addrArbiterEvent->scheduled()){
+                scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
+            }
+        }
+    }
+    else{
+        if (addrArbiterEvent->scheduled()) {
+            addrArbiterEvent->deschedule();
+        }
+    }
+
+}
+
+
 void
 Bus::arbitrateAddrBus()
 {
@@ -310,16 +404,7 @@ Bus::arbitrateAddrBus()
     int grant_id;
     int old_grant_id;; // used for rescheduling
 
-    bool found = false;
-    
-    if(useUniformPartitioning){
-        findOldestRequestWithUniformPart(addrBusRequests,
-                                         grant_id,
-                                         old_grant_id,
-                                         true);
-    }
-    else found =  findOldestRequest(addrBusRequests,grant_id,old_grant_id);
-
+    bool found =  findOldestRequest(addrBusRequests,grant_id,old_grant_id);
     assert(found);
 
     // grant_id is earliest outstanding request
@@ -367,6 +452,29 @@ Bus::arbitrateAddrBus()
 }
 
 void
+Bus::arbitrateFairDataBus(){
+    assert(curTick>runDataLast);
+    runDataLast = curTick;
+    assert(doEvents());
+    
+    int grantID = getFairNextInterface(curDataNum, dataBusRequests);
+    
+    if(grantID != -1){
+        DPRINTF(Bus, "Fair data bus granted to id %d\n", grantID);
+        dataBusRequests[grantID].requested = false;
+        interfaces[grantID]->grantData();
+    }
+    int oldestID = -1;
+    int secondOldestID = -1;
+    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
+    
+    if(found){
+        scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
+    }
+    
+}
+
+void
 Bus::arbitrateDataBus()
 {
     assert(curTick>runDataLast);
@@ -376,15 +484,7 @@ Bus::arbitrateDataBus()
     int old_grant_id;
 
     
-    bool found = false;
-    
-    if(useUniformPartitioning){
-        findOldestRequestWithUniformPart(dataBusRequests,
-                                         grant_id,
-                                         old_grant_id,
-                                         false);
-    }
-    else found = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
+    bool found  = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
     assert(found);
 
     DPRINTF(Bus, "Data bus granted to id %d\n", grant_id);
@@ -443,9 +543,9 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     MemAccessResult retval = BA_NO_RESULT;
     MemAccessResult tmp_retval = BA_NO_RESULT;
 
-    DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
+    DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s, from cpu %d\n",
 	    req->cmd.toString(), req->paddr,
-	    req->busId, interfaces[req->busId]->name());
+	    req->busId, interfaces[req->busId]->name(), req->adaptiveMHASenderID);
 
     for (int i = 0; i < numInterfaces; i++) {
 	if (interfaces[req->busId] != transmitInterfaces[i]) {
@@ -541,6 +641,10 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
     writeTraceFileLine(req->paddr, "Data Bus sending address");
 #endif
     
+    DPRINTF(Bus, "sending req %s addr %x from id %d, name %s, from cpu %d\n",
+            req->cmd.toString(), req->paddr,
+            req->busId, interfaces[req->busId]->name(), req->adaptiveMHASenderID);
+    
     // put it here so we know requesting thread
     dataRequests[req->thread_num]++;
    
@@ -591,6 +695,7 @@ Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
+    
     assert(numInterfaces == interfaces.size());
     interfaces.push_back(bi);
     addrBusRequests.push_back(BusRequestRecord());
@@ -598,11 +703,16 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 
     DPRINTF(Bus, "registering interface %s as %s\n",
 	    bi->name(), master ? "master" : "slave");
-
+    
     if (master) {
 	transmitInterfaces.insert(transmitInterfaces.begin(),bi);
+        masterInterfaces.push_back(bi);
+        masterIndexToInterfaceIndex[masterInterfaces.size()-1] = interfaces.size()-1;
+        
     } else {
 	transmitInterfaces.push_back(bi);
+        slaveInterfaces.push_back(bi);
+        slaveIndexToInterfaceIndex[slaveInterfaces.size()-1] = interfaces.size()-1;
     }
 
     return numInterfaces++;
@@ -676,28 +786,6 @@ Bus::findOldestRequest(std::vector<BusRequestRecord> & requests,
 	}
     }
     return (grant_id != -1);
-}
-
-bool
-Bus::findOldestRequestWithUniformPart(std::vector<BusRequestRecord> & requests,
-                                      int & grant_id,
-                                      int & old_grant_id,
-                                      bool isAddr){
-    grant_id = -1;
-    old_grant_id = -1;
-//     Tick grant_time = TICK_T_MAX; // set to arbitrarily large number
-//     Tick old_grant_time = TICK_T_MAX;
-    
-    int* cntPointer;
-    if(isAddr) cntPointer = &curAddrNum;
-    else cntPointer = &curDataNum;
-    
-    assert(transmitInterfaces.size() - 1 == busBankCount);
-    
-    cout << "count is " << *cntPointer << " and num cpus is " << busCPUCount << ", banks: " << busBankCount << "\n";
-    
-    fatal("stop here for now");
-    return false;
 }
 
 void
@@ -912,7 +1000,13 @@ Bus::writeTraceFileLine(Addr address, string message){
 void
 AddrArbiterEvent::process()
 {
-    bus->arbitrateAddrBus();
+    DPRINTF(Bus, "Addr Arb processing event\n");
+    if(bus->useUniformPartitioning){
+        bus->arbitrateFairAddrBus();
+    }
+    else{
+        bus->arbitrateAddrBus();
+    }
 }
 
 const char *
@@ -926,7 +1020,12 @@ void
 DataArbiterEvent::process()
 {
     DPRINTF(Bus, "Data Arb processing event\n");
-    bus->arbitrateDataBus();
+    if(bus->useUniformPartitioning){
+        bus->arbitrateFairDataBus();
+    }
+    else{
+        bus->arbitrateDataBus();
+    }
 }
 
 const char *

@@ -70,6 +70,8 @@ class Bus : public BaseHier
     int width;
     /** Clock rate (clock period in ticks). */
     int clockRate;
+    
+    bool useUniformPartitioning;
 
   protected:
     // statistics
@@ -165,12 +167,16 @@ class Bus : public BaseHier
      * Also reschedules the arbiter event if needed.
      */
     void arbitrateAddrBus();
+    
+    void arbitrateFairAddrBus();
 
     /**
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
     void arbitrateDataBus();
+    
+    void arbitrateFairDataBus();
 
     /**
      * Sends the request to the attached interfaces via the address bus.
@@ -264,7 +270,6 @@ class Bus : public BaseHier
     
     int adaptiveSampleSize;
     
-    bool useUniformPartitioning;
     int curAddrNum;
     int curDataNum;
     
@@ -327,6 +332,21 @@ class Bus : public BaseHier
     std::vector<BusInterface<Bus> *> transmitInterfaces;
 
     /**
+     * A vector containing only masters (for convenience)
+     * Hack by Magnus
+     */
+    std::vector<BusInterface<Bus> *> masterInterfaces;
+    
+    std::map<int, int> masterIndexToInterfaceIndex;
+    std::map<int, int> slaveIndexToInterfaceIndex;
+    
+    /**
+     * A vector containing only slave (for convenience)
+     * Hack by Magnus
+     */
+    std::vector<BusInterface<Bus> *> slaveInterfaces;
+    
+    /**
      * Find the oldest and next to oldest outstanding requests
      * @param requests The list of requests to process.
      * @param grant_id Reference param of request to grant
@@ -336,11 +356,6 @@ class Bus : public BaseHier
      */
     bool findOldestRequest(std::vector<BusRequestRecord> & requests,
 			   int & grant_id, int & old_grant_id);
-    
-    bool findOldestRequestWithUniformPart(std::vector<BusRequestRecord> & requests,
-                                          int & grant_id,
-                                          int & old_grant_id,
-                                          bool isAddr);
 
     /**
      * Schedule an arbiter for the correct time.
@@ -378,6 +393,8 @@ class Bus : public BaseHier
 	// Convert back to global cycles & return.
 	return busCycle * clockRate;
     }
+    
+    int getFairNextInterface(int & counter, std::vector<BusRequestRecord> & requests);
     
     void storeUseStats(bool data, int senderID);
     
