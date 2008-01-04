@@ -137,7 +137,8 @@ class Bus : public BaseHier
         AdaptiveMHA* _adaptiveMHA,
         bool _uniform_partitioning,
         int _busCPUCount,
-        int _busBankCount);
+        int _busBankCount,
+        bool _useNetworkFairQueuing);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -272,6 +273,8 @@ class Bus : public BaseHier
     
     int curAddrNum;
     int curDataNum;
+    
+    bool useNetworkFairQueuing;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;

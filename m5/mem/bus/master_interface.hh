@@ -138,7 +138,10 @@ class MasterInterface : public BusInterface<BusType>
     virtual int getCurrentReqSenderID(){
         MemReqPtr req = mem->getMemReq();
         if(!req) return BUS_NO_REQUEST;
-        else if(req->cmd == Writeback) return BUS_WRITEBACK;
+        else if(mem->getMemReq()->adaptiveMHASenderID == -1){
+            assert(req->cmd == Writeback);
+            return BUS_WRITEBACK;
+        }
         return mem->getMemReq()->adaptiveMHASenderID;
     }
 };

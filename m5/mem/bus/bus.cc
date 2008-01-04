@@ -70,7 +70,8 @@ Bus::Bus(const string &_name,
          AdaptiveMHA* _adaptiveMHA,
          bool _uniform_partitioning,
          int _busCPUCount,
-         int _busBankCount)
+         int _busBankCount,
+         bool _useNetworkFairQueuing)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -79,9 +80,12 @@ Bus::Bus(const string &_name,
     busBankCount = _busBankCount;
     
     useUniformPartitioning = _uniform_partitioning;
+    useNetworkFairQueuing = _useNetworkFairQueuing;
     curDataNum = 0;
     curAddrNum = 0;
 
+    if(useNetworkFairQueuing) fatal("Network fair queuing not implemented");
+    
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
 
@@ -341,9 +345,10 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
         // dedicated writeback slot for one cache bank
         int tmpMasterID = counter - busCPUCount;
         int fromCPUID = masterInterfaces[tmpMasterID]->getCurrentReqSenderID();
-        if(fromCPUID == BUS_WRITEBACK){
+        if(fromCPUID == BUS_WRITEBACK
+           && requests[masterIndexToInterfaceIndex[tmpMasterID]].requested){
             DPRINTF(Bus, "Granting writeback slot to interface %d\n", tmpMasterID);
-            retID = tmpMasterID;
+            retID = masterIndexToInterfaceIndex[tmpMasterID];
         }
     }
     
@@ -461,6 +466,7 @@ Bus::arbitrateFairDataBus(){
     
     if(grantID != -1){
         DPRINTF(Bus, "Fair data bus granted to id %d\n", grantID);
+        assert(grantID >= 0 && grantID < dataBusRequests.size());
         dataBusRequests[grantID].requested = false;
         interfaces[grantID]->grantData();
     }
@@ -1059,6 +1065,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<bool> uniform_partitioning;
     Param<int> cpu_count;
     Param<int> bank_count;
+    Param<bool> use_network_fair_queuing;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1073,7 +1080,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
     INIT_PARAM_DFLT(uniform_partitioning, "Partition bus bandwidth uniformly between cores", false),
     INIT_PARAM(cpu_count, "The number of CPUs in the system"),
-    INIT_PARAM(bank_count, "The number of L2 cache banks in the system")
+    INIT_PARAM(bank_count, "The number of L2 cache banks in the system"),
+    INIT_PARAM_DFLT(use_network_fair_queuing, "Unused bandwidth is distributed fairly among requests", false)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1081,7 +1089,7 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 CREATE_SIM_OBJECT(Bus)
 {
     return new Bus(getInstanceName(), hier,
-		   width, clock, adaptive_mha, uniform_partitioning, cpu_count, bank_count);
+                   width, clock, adaptive_mha, uniform_partitioning, cpu_count, bank_count, use_network_fair_queuing);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

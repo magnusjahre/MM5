@@ -111,7 +111,7 @@ MasterInterface<MemType, BusType>::grantData()
 {	
     typename BusInterface<BusType>::DataResponseEntry entry = 
 	this->responseQueue.front();
-
+    
     if (entry.size > 0) {
 	this->bus->delayData(entry.size, entry.senderID, entry.cmd);
     } else {

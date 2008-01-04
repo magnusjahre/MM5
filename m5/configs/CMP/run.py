@@ -112,6 +112,10 @@ if "UNIFORM-CACHE-PARTITIONING" in env:
 useUniformMemBusPartitioning = False
 if "UNIFORM-MEMORY-BUS-PARTITIONING" in env:
     useUniformMemBusPartitioning = True
+    
+useNetworkFairQueuing = False
+if "NETWORK-FAIR-QUEUING" in env:
+    useNetworkFairQueuing = True
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -313,6 +317,9 @@ if useUniformCachePartitioning:
 
 if useUniformMemBusPartitioning:
     root.toMemBus.uniform_partitioning = True
+
+if useNetworkFairQueuing:
+    root.toMemBus.use_network_fair_queuing = True
 
 ###############################################################################
 # Workloads
