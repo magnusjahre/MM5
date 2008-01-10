@@ -84,7 +84,9 @@ Bus::Bus(const string &_name,
     curDataNum = 0;
     curAddrNum = 0;
 
-    if(useNetworkFairQueuing) fatal("Network fair queuing not implemented");
+    if(useNetworkFairQueuing){
+        warn("Network fair queuing initialization code not implemented");
+    }
     
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -358,6 +360,19 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
 }
 
 void
+Bus::arbitrateNFQAddrBus(){
+    
+    // update virtual clock (reset to zero if there has been an idle period)
+    
+    // compute start tag for all pending requests and choose the req with the lowest time
+    // if tie, choose oldest actual request time
+    
+    // schedule next arb event
+    
+    fatal("NFQ address bus arbitration not implemented");
+}
+
+void
 Bus::arbitrateFairAddrBus(){
     
     assert(transmitInterfaces.size() - 1 == busBankCount);
@@ -454,6 +469,11 @@ Bus::arbitrateAddrBus()
 	    addrArbiterEvent->deschedule();
 	}
     }
+}
+
+void
+Bus::arbitrateNFQDataBus(){
+    fatal("NFQ data bus arbitration not implemented");
 }
 
 void
@@ -1010,6 +1030,9 @@ AddrArbiterEvent::process()
     if(bus->useUniformPartitioning){
         bus->arbitrateFairAddrBus();
     }
+    else if(bus->useNetworkFairQueuing){
+        bus->arbitrateNFQAddrBus();
+    }
     else{
         bus->arbitrateAddrBus();
     }
@@ -1028,6 +1051,9 @@ DataArbiterEvent::process()
     DPRINTF(Bus, "Data Arb processing event\n");
     if(bus->useUniformPartitioning){
         bus->arbitrateFairDataBus();
+    }
+    else if(bus->useNetworkFairQueuing){
+        bus->arbitrateNFQDataBus();
     }
     else{
         bus->arbitrateDataBus();

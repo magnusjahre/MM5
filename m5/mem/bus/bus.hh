@@ -72,6 +72,7 @@ class Bus : public BaseHier
     int clockRate;
     
     bool useUniformPartitioning;
+    bool useNetworkFairQueuing;
 
   protected:
     // statistics
@@ -170,6 +171,8 @@ class Bus : public BaseHier
     void arbitrateAddrBus();
     
     void arbitrateFairAddrBus();
+    
+    void arbitrateNFQAddrBus();
 
     /**
      * Decide which outstanding request to service.
@@ -178,6 +181,8 @@ class Bus : public BaseHier
     void arbitrateDataBus();
     
     void arbitrateFairDataBus();
+    
+    void arbitrateNFQDataBus();
 
     /**
      * Sends the request to the attached interfaces via the address bus.
@@ -273,8 +278,6 @@ class Bus : public BaseHier
     
     int curAddrNum;
     int curDataNum;
-    
-    bool useNetworkFairQueuing;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
