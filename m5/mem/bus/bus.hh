@@ -279,6 +279,11 @@ class Bus : public BaseHier
     int curAddrNum;
     int curDataNum;
     
+    Tick virtualAddrClock;
+    Tick virtualDataClock;
+    std::vector<Tick> lastAddrFinishTag;
+    std::vector<Tick> lastDataFinishTag;
+    
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
     /** The next curTick that the data bus is free. */
@@ -322,6 +327,8 @@ class Bus : public BaseHier
 	bool requested;
 	/** The time when the bus was requested. */
 	Tick requestTime;
+        
+        Tick startTag;
     };
 
     /** A list of the connected interfaces, accessed by bus id. */
@@ -344,6 +351,7 @@ class Bus : public BaseHier
     std::vector<BusInterface<Bus> *> masterInterfaces;
     
     std::map<int, int> masterIndexToInterfaceIndex;
+    std::map<int, int> interfaceIndexToMasterIndex;
     std::map<int, int> slaveIndexToInterfaceIndex;
     
     /**
@@ -401,6 +409,9 @@ class Bus : public BaseHier
     }
     
     int getFairNextInterface(int & counter, std::vector<BusRequestRecord> & requests);
+    
+    int getNFQNextInterface(std::vector<BusRequestRecord> & requests, std::vector<Tick> & finishTags);
+    void resetVirtualClock(bool found, std::vector<BusRequestRecord> & requests, Tick & clock, std::vector<Tick> & tags, Tick curStartTag, Tick oldest);
     
     void storeUseStats(bool data, int senderID);
     

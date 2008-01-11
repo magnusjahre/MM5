@@ -57,7 +57,6 @@ using namespace std;
 /** The maximum value of type Tick. */
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-
 // NOTE: all times are stored internally as cpu ticks
 //       A conversion is made from provided time to
 //       bus cycles
@@ -84,9 +83,10 @@ Bus::Bus(const string &_name,
     curDataNum = 0;
     curAddrNum = 0;
 
-    if(useNetworkFairQueuing){
-        warn("Network fair queuing initialization code not implemented");
-    }
+    virtualAddrClock = 0;
+    virtualDataClock = 0;
+    lastAddrFinishTag.resize(_busCPUCount + _busBankCount, 0);
+    lastDataFinishTag.resize(_busCPUCount + _busBankCount, 0);
     
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -287,6 +287,7 @@ Bus::requestDataBus(int id, Tick time)
     dataBusRequests[id].requested = true;
     // fix this: should we set the time to bus cycle?
     dataBusRequests[id].requestTime = time;
+    dataBusRequests[id].startTag = virtualDataClock;
     scheduleArbitrationEvent(dataArbiterEvent,time,nextDataFree);
 }
 
@@ -302,6 +303,7 @@ Bus::requestAddrBus(int id, Tick time)
     }
     addrBusRequests[id].requested = true;
     addrBusRequests[id].requestTime = time;
+    addrBusRequests[id].startTag = virtualAddrClock;
     if (!isBlocked()) {
 	scheduleArbitrationEvent(addrArbiterEvent,time,nextAddrFree,2);
     }
@@ -359,17 +361,128 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
     return retID;
 }
 
+int
+Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags){
+    
+    Tick lowestVirtClock = TICK_T_MAX;
+    Tick lowestReqTime = TICK_T_MAX;
+    int lowestInternalID = -1;
+    Tick lowestStartStamp = -1;
+    int grantID = -1;
+    
+    for(int i=0;i<interfaces.size();i++){
+        if(requests[i].requested){
+            
+            int internalSenderID = interfaces[i]->getCurrentReqSenderID();
+            assert(internalSenderID != BUS_NO_REQUEST);
+            
+            if(internalSenderID == BUS_WRITEBACK){
+                assert(interfaceIndexToMasterIndex.find(i) != interfaceIndexToMasterIndex.end());
+                internalSenderID = interfaceIndexToMasterIndex[i] + busCPUCount;
+            }
+            
+            cout << curTick << ": Considering interface " << i << " request from " << internalSenderID << ", start tag " << requests[i].startTag << " last finish " << finishTags[internalSenderID] << ", req at " << requests[i].requestTime << "\n";
+            
+            Tick startStamp = requests[i].startTag > finishTags[internalSenderID] ? requests[i].startTag : finishTags[internalSenderID];
+            
+            if(startStamp <= lowestVirtClock &&
+               requests[i].requestTime < lowestReqTime){
+                // policy: first prioritize start tag, then actual request time, then lower interface ID
+                
+                lowestVirtClock = requests[i].startTag;
+                lowestReqTime = requests[i].requestTime;
+                grantID = i;
+                lowestInternalID = internalSenderID;
+                lowestStartStamp = startStamp;
+                
+                cout << curTick << ": Smallest interface ID is now " << i << ", lowest clock " << lowestVirtClock << ", lowest req time " << lowestReqTime << "\n"; 
+            }
+        }
+    }
+    
+    assert(grantID != -1);
+    assert(lowestInternalID != -1);
+    assert(lowestStartStamp != -1);
+    
+    // update finish time
+    finishTags[lowestInternalID] = lowestStartStamp + (clockRate * (busCPUCount + busBankCount));
+    
+    cout << curTick << ": new fin time for granted interface " << grantID << ", internal ID " << lowestInternalID << " is " << finishTags[lowestInternalID] << "\n";
+    
+    return grantID;
+}
+
+void
+Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest){
+    
+    if(!found){ 
+        cout << curTick << ": resetting virtual clock (1)\n";
+        clock = 0;
+        for(int i=0;i<tags.size();i++) tags[i] = 0;
+    }
+    else if(requests[oldest].requestTime > nextAddrFree){
+        cout << curTick << ": resetting virtual clock (2)\n";
+        clock = 0;
+        for(int i=0;i<tags.size();i++) tags[i] = 0;
+    }
+    else{
+        cout << curTick << ": updating virtual clock\n";
+        clock = startTag;
+    }
+        
+    cout << curTick << ": virtual clock is now  " << clock << "\n";
+}
+
 void
 Bus::arbitrateNFQAddrBus(){
     
-    // update virtual clock (reset to zero if there has been an idle period)
+    int grantID = getNFQNextInterface(addrBusRequests, lastAddrFinishTag);
+    Tick curStartTag = addrBusRequests[grantID].startTag;
     
-    // compute start tag for all pending requests and choose the req with the lowest time
-    // if tie, choose oldest actual request time
+    // grant interface access
+    DPRINTF(Bus, "NFQ addr bus granted to id %d\n", grantID);
+    
+    cout << "next addr free is " << nextAddrFree << "\n";
+    
+    addrBusRequests[grantID].requested = false;
+    bool do_request = interfaces[grantID]->grantAddr();
+
+    if (do_request) {
+        addrBusRequests[grantID].requested = true;
+        addrBusRequests[grantID].requestTime = curTick;
+        DPRINTF(Bus, "NFQ addr bus re-request from %d\n", grantID);
+    }
     
     // schedule next arb event
+    if(!blocked){
     
-    fatal("NFQ address bus arbitration not implemented");
+        int oldestID = -1;
+        int secondOldestID = -1;
+        bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
+        
+        cout << "next addr free is " << nextAddrFree << ", oldest is " << oldestID << "\n";
+        
+        // update virtual clock (reset to zero if there will be an idle period)
+        resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID);
+        
+        
+        if(found){
+            if(!addrArbiterEvent->scheduled()){
+                scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
+            }
+        }
+    }
+    else{
+        if(useNetworkFairQueuing) fatal("Bus blocking not tested with STFQ");
+        if (addrArbiterEvent->scheduled()) {
+            addrArbiterEvent->deschedule();
+        }
+    }
+    
+    if(do_request){
+        // safer to issue this after the vc update
+        addrBusRequests[grantID].startTag = virtualAddrClock;
+    }
 }
 
 void
@@ -734,6 +847,7 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 	transmitInterfaces.insert(transmitInterfaces.begin(),bi);
         masterInterfaces.push_back(bi);
         masterIndexToInterfaceIndex[masterInterfaces.size()-1] = interfaces.size()-1;
+        interfaceIndexToMasterIndex[interfaces.size()-1] = masterInterfaces.size()-1;
         
     } else {
 	transmitInterfaces.push_back(bi);
