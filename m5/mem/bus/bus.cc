@@ -381,8 +381,6 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
                 internalSenderID = interfaceIndexToMasterIndex[i] + busCPUCount;
             }
             
-            cout << curTick << ": Considering interface " << i << " request from " << internalSenderID << ", start tag " << requests[i].startTag << " last finish " << finishTags[internalSenderID] << ", req at " << requests[i].requestTime << "\n";
-            
             Tick startStamp = requests[i].startTag > finishTags[internalSenderID] ? requests[i].startTag : finishTags[internalSenderID];
             
             if(startStamp <= lowestVirtClock &&
@@ -394,8 +392,6 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
                 grantID = i;
                 lowestInternalID = internalSenderID;
                 lowestStartStamp = startStamp;
-                
-                cout << curTick << ": Smallest interface ID is now " << i << ", lowest clock " << lowestVirtClock << ", lowest req time " << lowestReqTime << "\n"; 
             }
         }
     }
@@ -407,8 +403,6 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
     // update finish time
     finishTags[lowestInternalID] = lowestStartStamp + (clockRate * (busCPUCount + busBankCount));
     
-    cout << curTick << ": new fin time for granted interface " << grantID << ", internal ID " << lowestInternalID << " is " << finishTags[lowestInternalID] << "\n";
-    
     return grantID;
 }
 
@@ -416,21 +410,16 @@ void
 Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest){
     
     if(!found){ 
-        cout << curTick << ": resetting virtual clock (1)\n";
         clock = 0;
         for(int i=0;i<tags.size();i++) tags[i] = 0;
     }
     else if(requests[oldest].requestTime > nextAddrFree){
-        cout << curTick << ": resetting virtual clock (2)\n";
         clock = 0;
         for(int i=0;i<tags.size();i++) tags[i] = 0;
     }
     else{
-        cout << curTick << ": updating virtual clock\n";
         clock = startTag;
     }
-        
-    cout << curTick << ": virtual clock is now  " << clock << "\n";
 }
 
 void
@@ -441,8 +430,6 @@ Bus::arbitrateNFQAddrBus(){
     
     // grant interface access
     DPRINTF(Bus, "NFQ addr bus granted to id %d\n", grantID);
-    
-    cout << "next addr free is " << nextAddrFree << "\n";
     
     addrBusRequests[grantID].requested = false;
     bool do_request = interfaces[grantID]->grantAddr();
@@ -459,8 +446,6 @@ Bus::arbitrateNFQAddrBus(){
         int oldestID = -1;
         int secondOldestID = -1;
         bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
-        
-        cout << "next addr free is " << nextAddrFree << ", oldest is " << oldestID << "\n";
         
         // update virtual clock (reset to zero if there will be an idle period)
         resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID);
@@ -586,7 +571,27 @@ Bus::arbitrateAddrBus()
 
 void
 Bus::arbitrateNFQDataBus(){
-    fatal("NFQ data bus arbitration not implemented");
+    assert(curTick>runDataLast);
+    runDataLast = curTick;
+    assert(doEvents());
+    
+    int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag);
+    Tick curStartTag = dataBusRequests[grantID].startTag;
+    
+    if(grantID != -1){
+        DPRINTF(Bus, "NFQ data bus granted to id %d\n", grantID);
+        assert(grantID >= 0 && grantID < dataBusRequests.size());
+        dataBusRequests[grantID].requested = false;
+        interfaces[grantID]->grantData();
+    }
+    int oldestID = -1;
+    int secondOldestID = -1;
+    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
+    resetVirtualClock(found, dataBusRequests, virtualDataClock, lastDataFinishTag, curStartTag, oldestID);
+    
+    if(found){
+        scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
+    }
 }
 
 void
