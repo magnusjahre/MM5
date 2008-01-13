@@ -77,7 +77,7 @@ Bus::Bus(const string &_name,
     clockRate = _clock;
     busCPUCount = _busCPUCount;
     busBankCount = _busBankCount;
-    
+
     useUniformPartitioning = _uniform_partitioning;
     useNetworkFairQueuing = _useNetworkFairQueuing;
     curDataNum = 0;
@@ -87,7 +87,7 @@ Bus::Bus(const string &_name,
     virtualDataClock = 0;
     lastAddrFinishTag.resize(_busCPUCount + _busBankCount, 0);
     lastDataFinishTag.resize(_busCPUCount + _busBankCount, 0);
-    
+
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
 
@@ -108,26 +108,26 @@ Bus::Bus(const string &_name,
 
     addrArbiterEvent = new AddrArbiterEvent(this);
     dataArbiterEvent = new DataArbiterEvent(this);
-    
+
     if(_adaptiveMHA != NULL){
 //         lastAddrBusIdleCycles = 0;
 //         lastDataBusIdleCycles = 0;
         _adaptiveMHA->registerBus(this);
-        
+
         int tmpCpuCount = _adaptiveMHA->getCPUCount();
         perCPUAddressBusUse.resize(tmpCpuCount, 0);
         perCPUAddressBusUseOverflow.resize(tmpCpuCount, 0);
         perCPUDataBusUse.resize(tmpCpuCount, 0);
         perCPUDataBusUseOverflow.resize(tmpCpuCount, 0);
-        
+
         adaptiveSampleSize = _adaptiveMHA->getSampleSize();
-        
+
         addrBusUseSamples[0] = 0;
         addrBusUseSamples[1] = 0;
-        
+
         dataBusUseSamples[0] = 0;
         dataBusUseSamples[1] = 0;
-        
+
     }
     else{
         adaptiveSampleSize = -1;
@@ -183,7 +183,7 @@ Bus::regStats()
 	.name(name() + ".data_idle_cycles")
 	.desc("number of cycles bus was idle")
 	;
-    
+
     dataUseCycles
         .name(name() + ".data_use_cycles")
         .desc("number of cycles bus was in use")
@@ -234,29 +234,29 @@ Bus::regStats()
 	;
     busBlockedFraction = busBlockedCycles / simTicks;
 
-    
+
     writebackCycles
             .name(name() + ".data_writeback_cycles")
             .desc("number of bus cycles used for writebacks")
             ;
-    
+
     writebackFraction
             .name(name() + ".data_writeback_fraction")
             .desc("fraction of time used for writebacks")
             ;
-    
+
     writebackFraction = writebackCycles / simTicks;
-    
+
     unknownSenderCycles
             .name(name() + ".data_unknown_sender_cycles")
             .desc("number of bus cycles with req that is not from an L1 cache")
             ;
-    
+
     unknownSenderFraction
             .name(name() + ".data_unknown_sender_fraction")
             .desc("fraction of time bus used by req that is not from an L1 cache")
             ;
-    
+
     unknownSenderFraction = unknownSenderCycles / simTicks;
 
     nullGrants
@@ -271,13 +271,13 @@ Bus::resetStats()
 {
     nextDataFree = curTick;
     nextAddrFree = curTick;
-    
+
 }
 
 void
 Bus::requestDataBus(int id, Tick time)
 {
-    
+
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
@@ -294,7 +294,7 @@ Bus::requestDataBus(int id, Tick time)
 void
 Bus::requestAddrBus(int id, Tick time)
 {
-    
+
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
@@ -311,9 +311,9 @@ Bus::requestAddrBus(int id, Tick time)
 
 int
 Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
-    
+
     int retID = -1;
-    
+
     // grant an interface
     if(counter < busCPUCount){
         // search through all master interfaces
@@ -322,9 +322,9 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
         int smallestInterfaceID = -1;
         Tick smallestReqTime = TICK_T_MAX;
         for(int i=0;i<masterInterfaces.size();i++){
-            
+
             int fromCPU = masterInterfaces[i]->getCurrentReqSenderID();
-            
+
             if(fromCPU == counter){
                 if(requests[masterIndexToInterfaceIndex[i]].requested
                    && requests[masterIndexToInterfaceIndex[i]].requestTime < smallestReqTime){
@@ -333,14 +333,14 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
                    }
             }
         }
-        
+
         assert(slaveInterfaces.size() == 1);
         if(requests[slaveIndexToInterfaceIndex[0]].requested
            && requests[slaveIndexToInterfaceIndex[0]].requestTime < smallestReqTime){
             smallestInterfaceID = slaveIndexToInterfaceIndex[0];
             smallestReqTime = requests[slaveIndexToInterfaceIndex[0]].requestTime;
         }
-        
+
         if(smallestInterfaceID > -1){
             retID = smallestInterfaceID;
         }
@@ -355,38 +355,38 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
             retID = masterIndexToInterfaceIndex[tmpMasterID];
         }
     }
-    
+
     counter = (counter + 1) % (busCPUCount + busBankCount);
-    
+
     return retID;
 }
 
 int
 Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags){
-    
+
     Tick lowestVirtClock = TICK_T_MAX;
     Tick lowestReqTime = TICK_T_MAX;
     int lowestInternalID = -1;
     Tick lowestStartStamp = -1;
     int grantID = -1;
-    
+
     for(int i=0;i<interfaces.size();i++){
         if(requests[i].requested){
-            
+
             int internalSenderID = interfaces[i]->getCurrentReqSenderID();
-            assert(internalSenderID != BUS_NO_REQUEST);
-            
-            if(internalSenderID == BUS_WRITEBACK){
+
+			// if the sender is unknown (writeback or null request) the req is on the L2 bank's quota
+            if(internalSenderID == BUS_WRITEBACK || internalSenderID == BUS_NO_REQUEST){
                 assert(interfaceIndexToMasterIndex.find(i) != interfaceIndexToMasterIndex.end());
                 internalSenderID = interfaceIndexToMasterIndex[i] + busCPUCount;
             }
-            
+
             Tick startStamp = requests[i].startTag > finishTags[internalSenderID] ? requests[i].startTag : finishTags[internalSenderID];
-            
+
             if(startStamp <= lowestVirtClock &&
                requests[i].requestTime < lowestReqTime){
                 // policy: first prioritize start tag, then actual request time, then lower interface ID
-                
+
                 lowestVirtClock = requests[i].startTag;
                 lowestReqTime = requests[i].requestTime;
                 grantID = i;
@@ -395,21 +395,21 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
             }
         }
     }
-    
+
     assert(grantID != -1);
     assert(lowestInternalID != -1);
     assert(lowestStartStamp != -1);
-    
+
     // update finish time
     finishTags[lowestInternalID] = lowestStartStamp + (clockRate * (busCPUCount + busBankCount));
-    
+
     return grantID;
 }
 
 void
 Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest){
-    
-    if(!found){ 
+
+    if(!found){
         clock = 0;
         for(int i=0;i<tags.size();i++) tags[i] = 0;
     }
@@ -424,13 +424,13 @@ Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & c
 
 void
 Bus::arbitrateNFQAddrBus(){
-    
+
     int grantID = getNFQNextInterface(addrBusRequests, lastAddrFinishTag);
     Tick curStartTag = addrBusRequests[grantID].startTag;
-    
+
     // grant interface access
     DPRINTF(Bus, "NFQ addr bus granted to id %d\n", grantID);
-    
+
     addrBusRequests[grantID].requested = false;
     bool do_request = interfaces[grantID]->grantAddr();
 
@@ -439,18 +439,18 @@ Bus::arbitrateNFQAddrBus(){
         addrBusRequests[grantID].requestTime = curTick;
         DPRINTF(Bus, "NFQ addr bus re-request from %d\n", grantID);
     }
-    
+
     // schedule next arb event
     if(!blocked){
-    
+
         int oldestID = -1;
         int secondOldestID = -1;
         bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
-        
+
         // update virtual clock (reset to zero if there will be an idle period)
         resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID);
-        
-        
+
+
         if(found){
             if(!addrArbiterEvent->scheduled()){
                 scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
@@ -463,7 +463,7 @@ Bus::arbitrateNFQAddrBus(){
             addrArbiterEvent->deschedule();
         }
     }
-    
+
     if(do_request){
         // safer to issue this after the vc update
         addrBusRequests[grantID].startTag = virtualAddrClock;
@@ -472,32 +472,32 @@ Bus::arbitrateNFQAddrBus(){
 
 void
 Bus::arbitrateFairAddrBus(){
-    
+
     assert(transmitInterfaces.size() - 1 == busBankCount);
     assert(masterInterfaces.size() == busBankCount);
     assert(slaveInterfaces.size() == 1);
-    
+
     int grantID = getFairNextInterface(curAddrNum, addrBusRequests);
-    
+
     if(grantID != -1){
-        
+
         DPRINTF(Bus, "Fair addr bus granted to id %d\n", grantID);
-        
+
         addrBusRequests[grantID].requested = false;
         bool do_request = interfaces[grantID]->grantAddr();
-    
+
         if (do_request) {
             addrBusRequests[grantID].requested = true;
             addrBusRequests[grantID].requestTime = curTick;
         }
     }
-    
+
     if(!blocked){
-    
+
         int oldestID = -1;
         int secondOldestID = -1;
         bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
-        
+
         if(found){
             if(!addrArbiterEvent->scheduled()){
                 scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
@@ -574,10 +574,10 @@ Bus::arbitrateNFQDataBus(){
     assert(curTick>runDataLast);
     runDataLast = curTick;
     assert(doEvents());
-    
+
     int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag);
     Tick curStartTag = dataBusRequests[grantID].startTag;
-    
+
     if(grantID != -1){
         DPRINTF(Bus, "NFQ data bus granted to id %d\n", grantID);
         assert(grantID >= 0 && grantID < dataBusRequests.size());
@@ -588,7 +588,7 @@ Bus::arbitrateNFQDataBus(){
     int secondOldestID = -1;
     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
     resetVirtualClock(found, dataBusRequests, virtualDataClock, lastDataFinishTag, curStartTag, oldestID);
-    
+
     if(found){
         scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
     }
@@ -599,9 +599,9 @@ Bus::arbitrateFairDataBus(){
     assert(curTick>runDataLast);
     runDataLast = curTick;
     assert(doEvents());
-    
+
     int grantID = getFairNextInterface(curDataNum, dataBusRequests);
-    
+
     if(grantID != -1){
         DPRINTF(Bus, "Fair data bus granted to id %d\n", grantID);
         assert(grantID >= 0 && grantID < dataBusRequests.size());
@@ -611,11 +611,11 @@ Bus::arbitrateFairDataBus(){
     int oldestID = -1;
     int secondOldestID = -1;
     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-    
+
     if(found){
         scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
     }
-    
+
 }
 
 void
@@ -627,7 +627,7 @@ Bus::arbitrateDataBus()
     int grant_id;
     int old_grant_id;
 
-    
+
     bool found  = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
     assert(found);
 
@@ -659,11 +659,11 @@ bool
 Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 {
     // update statistics
-   
+
 #ifdef DO_BUS_TRACE
     writeTraceFileLine(req->paddr, "Address Bus sending address");
 #endif
-    
+
     assert(doEvents());
     if (!req) {
 	// if the bus was granted in error
@@ -671,18 +671,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 	DPRINTF(Bus, "null request");
 	return false;
     }
-    
+
     addrQdly[req->thread_num] += curTick - origReqTime;
     addrIdleCycles += curTick - nextAddrFree;
 
     // Advance nextAddrFree to next clock cycle
     nextAddrFree = nextBusClock(curTick);
-    
+
     storeUseStats(false, req->adaptiveMHASenderID);
-    
+
     // put it here so we know requesting thread
     addrRequests[req->thread_num]++;
-    
+
     int responding_interface_id = -1;
     MemAccessResult retval = BA_NO_RESULT;
     MemAccessResult tmp_retval = BA_NO_RESULT;
@@ -748,9 +748,9 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 	panic("Illegal bus result %d\n", retval);
 	break;
     };
-    
+
     assert(curTick % clockRate == 0);
-    
+
     //New callback function
     //May want to use this to move some requests in front of a NACKED
     //request (depending on consistency model
@@ -759,19 +759,19 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     return true;
 }
 
-void 
+void
 Bus::delayData(int size, int senderID, MemCmdEnum cmd)
 {
-    
+
     int transfer_cycles = DivCeil(size, width);
     //int transfer_time = transfer_cycles * clockRate;
     assert(curTick >= nextDataFree);
     dataIdleCycles += (curTick - nextDataFree);
-    
+
     // assumes we are cycle aligned right now
     assert(curTick % clockRate == 0);
     nextDataFree = nextBusClock(curTick,transfer_cycles);
-    
+
     storeUseStats(true, senderID);
     if(cmd == Writeback){
         writebackCycles += (nextDataFree - curTick);
@@ -784,29 +784,29 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
 #ifdef DO_BUS_TRACE
     writeTraceFileLine(req->paddr, "Data Bus sending address");
 #endif
-    
+
     DPRINTF(Bus, "sending req %s addr %x from id %d, name %s, from cpu %d\n",
             req->cmd.toString(), req->paddr,
             req->busId, interfaces[req->busId]->name(), req->adaptiveMHASenderID);
-    
+
     // put it here so we know requesting thread
     dataRequests[req->thread_num]++;
-   
+
     assert(doEvents());
     int transfer_cycles = DivCeil(req->size, width);
-    
+
     assert(curTick >= nextDataFree);
     dataQdly[req->thread_num] += curTick - origReqTime;
     dataIdleCycles += (curTick - nextDataFree);
-    
+
     nextDataFree = nextBusClock(curTick,transfer_cycles);
-    
+
     storeUseStats(true, req->adaptiveMHASenderID);
-    
+
     if(req->cmd == Writeback){
         writebackCycles += (nextDataFree - curTick);
     }
-    
+
     DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
     // let the cache figure out Critical word first
     // schedule event after first block delivered
@@ -817,19 +817,19 @@ void
 Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 {
     addrRequests[req->thread_num]++;
-   
+
     assert(doEvents());
     addrQdly[req->thread_num] += curTick - origReqTime;
     addrIdleCycles += curTick - nextAddrFree;
     // Advance nextAddrFree to next clock cycle
     nextAddrFree = nextBusClock(curTick);
-    
+
     storeUseStats(false, req->adaptiveMHASenderID);
-    
+
     if(adaptiveSampleSize >= 0){
         fatal("Adaptive MHA is not compatible with sendACK method");
     }
-    
+
     DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
     tmp->schedule(curTick + clockRate);
     DPRINTF(Bus, "sendAck: scheduling deliver for %x on id %d @ %d\n",
@@ -839,7 +839,7 @@ Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
-    
+
     assert(numInterfaces == interfaces.size());
     interfaces.push_back(bi);
     addrBusRequests.push_back(BusRequestRecord());
@@ -847,13 +847,13 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 
     DPRINTF(Bus, "registering interface %s as %s\n",
 	    bi->name(), master ? "master" : "slave");
-    
+
     if (master) {
 	transmitInterfaces.insert(transmitInterfaces.begin(),bi);
         masterInterfaces.push_back(bi);
         masterIndexToInterfaceIndex[masterInterfaces.size()-1] = interfaces.size()-1;
         interfaceIndexToMasterIndex[interfaces.size()-1] = masterInterfaces.size()-1;
-        
+
     } else {
 	transmitInterfaces.push_back(bi);
         slaveInterfaces.push_back(bi);
@@ -879,7 +879,7 @@ Bus::clearBlocked(int id)
 	if (findOldestRequest(addrBusRequests,grant_id,old_grant_id)) {
 	    nextAddrFree = nextBusClock(curTick,1);
 	    Tick time = addrBusRequests[grant_id].requestTime;
-	    if (time <= curTick) { 
+	    if (time <= curTick) {
 		addrArbiterEvent->schedule(nextBusClock(curTick,2));
 	    }
 	    else {
@@ -1003,13 +1003,13 @@ Bus::rangeChange()
 
 void
 Bus::resetAdaptiveStats(){
-    
+
     addrBusUseSamples[0] = 0;
     addrBusUseSamples[1] = 0;
-        
+
     dataBusUseSamples[0] = 0;
     dataBusUseSamples[1] = 0;
-    
+
     for(int i=0;i<perCPUAddressBusUse.size();i++) perCPUAddressBusUse[i] = 0;
     for(int i=0;i<perCPUAddressBusUseOverflow.size();i++) perCPUAddressBusUseOverflow[i] = 0;
     for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = 0;
@@ -1018,12 +1018,12 @@ Bus::resetAdaptiveStats(){
 
 void
 Bus::storeUseStats(bool data, int senderID){
-    
+
     int* array;
     vector<int>* useVector;
     vector<int>* overflowVector;
     Tick nextFree;
-    
+
     if(data){
         array = dataBusUseSamples;
         useVector = &perCPUDataBusUse;
@@ -1036,14 +1036,14 @@ Bus::storeUseStats(bool data, int senderID){
         overflowVector = &perCPUAddressBusUseOverflow;
         nextFree = nextAddrFree;
     }
-    
+
     if(adaptiveSampleSize >= 0){
-        
+
         // utilisation measurements
-        if((curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize 
-            && nextFree % (2 * adaptiveSampleSize) < adaptiveSampleSize) 
-            || (curTick % (2 * adaptiveSampleSize) >= adaptiveSampleSize 
-            && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize) 
+        if((curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize
+            && nextFree % (2 * adaptiveSampleSize) < adaptiveSampleSize)
+            || (curTick % (2 * adaptiveSampleSize) >= adaptiveSampleSize
+            && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize)
           ){
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
                 array[0] += (nextFree - curTick);
@@ -1055,7 +1055,7 @@ Bus::storeUseStats(bool data, int senderID){
         else{
             int firstCycles = adaptiveSampleSize - (curTick %  adaptiveSampleSize);
             int rest = nextFree % adaptiveSampleSize;
-        
+
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
                 array[0] += firstCycles;
                 array[1] += rest;
@@ -1065,7 +1065,7 @@ Bus::storeUseStats(bool data, int senderID){
                 array[0] += rest;
             }
         }
-        
+
         // per CPU use
         if(senderID != -1){
             if((curTick % adaptiveSampleSize) > (nextFree % adaptiveSampleSize)){
@@ -1079,42 +1079,42 @@ Bus::storeUseStats(bool data, int senderID){
         else{
             if(data) unknownSenderCycles += (nextFree - curTick);
         }
-        
-        
+
+
     }
 }
 
 
 double
 Bus::getAddressBusUtilisation(Tick sampleSize){
-    
+
     int useIndex = -1;
     if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
     else useIndex = 1;
-    
+
     int sample = addrBusUseSamples[useIndex];
     addrBusUseSamples[useIndex] = 0;
-    
+
     return (double) ((double) sample / (double) sampleSize);;
 }
 
 double
 Bus::getDataBusUtilisation(Tick sampleSize){
-    
+
     int useIndex = -1;
     if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
     else useIndex = 1;
-    
+
     int sample = dataBusUseSamples[useIndex];
     dataBusUseSamples[useIndex] = 0;
-    
+
     return (double) ((double) sample / (double) sampleSize);
-    
+
 }
 
 vector<int>
 Bus::getDataUsePerCPUId(){
-    
+
     vector<int> retval = perCPUDataBusUse;
     assert(perCPUDataBusUse.size() == perCPUDataBusUseOverflow.size());
     for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = perCPUDataBusUseOverflow[i];
@@ -1135,7 +1135,7 @@ Bus::getAddressUsePerCPUId(){
 void
 Bus::writeTraceFileLine(Addr address, string message){
     ofstream file("busAccessTrace.txt", ofstream::app);
-    file << curTick << ": " << message << " " << address << "\n"; 
+    file << curTick << ": " << message << " " << address << "\n";
     file.flush();
     file.close();
 }
