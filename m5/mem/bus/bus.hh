@@ -410,8 +410,8 @@ class Bus : public BaseHier
     
     int getFairNextInterface(int & counter, std::vector<BusRequestRecord> & requests);
     
-    int getNFQNextInterface(std::vector<BusRequestRecord> & requests, std::vector<Tick> & finishTags);
-    void resetVirtualClock(bool found, std::vector<BusRequestRecord> & requests, Tick & clock, std::vector<Tick> & tags, Tick curStartTag, Tick oldest);
+    int getNFQNextInterface(std::vector<BusRequestRecord> & requests, std::vector<Tick> & finishTags, bool addr);
+    void resetVirtualClock(bool found, std::vector<BusRequestRecord> & requests, Tick & clock, std::vector<Tick> & tags, Tick curStartTag, Tick oldest, bool addr);
     
     void storeUseStats(bool data, int senderID);
     

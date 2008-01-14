@@ -145,7 +145,9 @@ baseFlags = [
     'CommitRate',
     'OoOCPU',
     'HWPrefetch',
-    'UniformPartitioning'
+    'UniformPartitioning',
+    'AddrBusVerify',
+    'DataBusVerify',
     ]
 
 #

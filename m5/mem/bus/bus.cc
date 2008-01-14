@@ -281,6 +281,7 @@ Bus::requestDataBus(int id, Tick time)
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
+    
     if (dataBusRequests[id].requested) {
 	return;
     }
@@ -298,6 +299,7 @@ Bus::requestAddrBus(int id, Tick time)
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
+    DPRINTF(AddrBusVerify, "Requesting Address Bus for cycle, %d, %d, %d\n", id, time, virtualAddrClock);
     if (addrBusRequests[id].requested) {
 	return; // already requested
     }
@@ -362,7 +364,7 @@ Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
 }
 
 int
-Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags){
+Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags, bool addr){
 
     Tick lowestVirtClock = TICK_T_MAX;
     Tick lowestReqTime = TICK_T_MAX;
@@ -383,6 +385,8 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
 
             Tick startStamp = requests[i].startTag > finishTags[internalSenderID] ? requests[i].startTag : finishTags[internalSenderID];
 
+            if(addr) DPRINTF(AddrBusVerify, "Checking for request from interface, %d, %d, %d\n", i, internalSenderID, startStamp);
+            
             if(startStamp <= lowestVirtClock &&
                requests[i].requestTime < lowestReqTime){
                 // policy: first prioritize start tag, then actual request time, then lower interface ID
@@ -400,20 +404,26 @@ Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & fin
     assert(lowestInternalID != -1);
     assert(lowestStartStamp != -1);
 
+    if(addr) DPRINTF(AddrBusVerify, "Granting access to interface, %d, %d, %d\n", grantID, lowestInternalID, lowestStartStamp);
+    
     // update finish time
     finishTags[lowestInternalID] = lowestStartStamp + (clockRate * (busCPUCount + busBankCount));
+    
+    if(addr) DPRINTF(AddrBusVerify, "Setting new finish tag, %d\n", finishTags[lowestInternalID]);
 
     return grantID;
 }
 
 void
-Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest){
+Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest, bool addr){
 
     if(!found){
+        if(addr) DPRINTF(AddrBusVerify, "Resetting clock and start tags (1), %d\n", curTick);
         clock = 0;
         for(int i=0;i<tags.size();i++) tags[i] = 0;
     }
     else if(requests[oldest].requestTime > nextAddrFree){
+        if(addr)  DPRINTF(AddrBusVerify, "Resetting clock and start tags (2), %d\n", curTick);
         clock = 0;
         for(int i=0;i<tags.size();i++) tags[i] = 0;
     }
@@ -425,8 +435,10 @@ Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & c
 void
 Bus::arbitrateNFQAddrBus(){
 
-    int grantID = getNFQNextInterface(addrBusRequests, lastAddrFinishTag);
+    int grantID = getNFQNextInterface(addrBusRequests, lastAddrFinishTag, true);
     Tick curStartTag = addrBusRequests[grantID].startTag;
+    
+    DPRINTF(AddrBusVerify, "Arbitrating address bus at tick, %d\n", curTick);
 
     // grant interface access
     DPRINTF(Bus, "NFQ addr bus granted to id %d\n", grantID);
@@ -438,6 +450,7 @@ Bus::arbitrateNFQAddrBus(){
         addrBusRequests[grantID].requested = true;
         addrBusRequests[grantID].requestTime = curTick;
         DPRINTF(Bus, "NFQ addr bus re-request from %d\n", grantID);
+        
     }
 
     // schedule next arb event
@@ -448,7 +461,8 @@ Bus::arbitrateNFQAddrBus(){
         bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
 
         // update virtual clock (reset to zero if there will be an idle period)
-        resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID);
+        DPRINTF(AddrBusVerify, "Updating virtual clock, %s, %d, %d\n", (found ? "True" : "False"), oldestID, curTick);
+        resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID, true);
 
 
         if(found){
@@ -467,6 +481,7 @@ Bus::arbitrateNFQAddrBus(){
     if(do_request){
         // safer to issue this after the vc update
         addrBusRequests[grantID].startTag = virtualAddrClock;
+        DPRINTF(AddrBusVerify, "Re-Requesting Address Bus, %d, %d, %d\n", grantID, curTick, virtualAddrClock);
     }
 }
 
@@ -575,7 +590,7 @@ Bus::arbitrateNFQDataBus(){
     runDataLast = curTick;
     assert(doEvents());
 
-    int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag);
+    int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag, false);
     Tick curStartTag = dataBusRequests[grantID].startTag;
 
     if(grantID != -1){
@@ -587,7 +602,7 @@ Bus::arbitrateNFQDataBus(){
     int oldestID = -1;
     int secondOldestID = -1;
     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-    resetVirtualClock(found, dataBusRequests, virtualDataClock, lastDataFinishTag, curStartTag, oldestID);
+    resetVirtualClock(found, dataBusRequests, virtualDataClock, lastDataFinishTag, curStartTag, oldestID, false);
 
     if(found){
         scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
