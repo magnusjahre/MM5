@@ -109,13 +109,11 @@ useUniformCachePartitioning = False
 if "UNIFORM-CACHE-PARTITIONING" in env:
     useUniformCachePartitioning = True
 
-useUniformMemBusPartitioning = False
-if "UNIFORM-MEMORY-BUS-PARTITIONING" in env:
-    useUniformMemBusPartitioning = True
-    
-useNetworkFairQueuing = False
-if "NETWORK-FAIR-QUEUING" in env:
-    useNetworkFairQueuing = True
+if "MEMORY-BUS" in env:
+    if env["MEMORY-BUS"] == "NFQ" or env["MEMORY-BUS"] == "TimeMultiplexed" or env["MEMORY-BUS"] == "Conventional":
+        pass
+    else:
+        panic("Only NFQ, TimeMultiplexed or Conventional memory bus architectures are supported")
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -181,7 +179,6 @@ if l1mshrsInst != -1:
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
 root.adaptiveMHA.sampleFrequency = 100000
-root.setBusAdaptiveMHA(root.adaptiveMHA)
     
 for l1 in root.L1dcaches:
     l1.adaptive_mha = root.adaptiveMHA
@@ -315,11 +312,13 @@ if useUniformCachePartitioning:
     for bank in root.l2:
         bank.use_static_partitioning = True
 
-if useUniformMemBusPartitioning:
-    root.toMemBus.uniform_partitioning = True
-
-if useNetworkFairQueuing:
-    root.toMemBus.use_network_fair_queuing = True
+if env["MEMORY-BUS"] == "NFQ":
+    root.toMemBus = NFQMemBus()
+elif env["MEMORY-BUS"] == "TimeMultiplexed":
+    root.toMemBus = TimeMultiplexedMemBus()
+else:
+    root.toMemBus = ConventionalMemBus()
+root.toMemBus.adaptive_mha = root.adaptiveMHA
 
 ###############################################################################
 # Workloads

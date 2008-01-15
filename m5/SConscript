@@ -175,6 +175,8 @@ base_sources = Split('''
 	mem/memory_interface.cc
 	mem/bus/base_interface.cc
 	mem/bus/bus.cc
+	mem/bus/NFQBus.cc
+	mem/bus/timeMultiplexedBus.cc
 	mem/bus/bus_bridge.cc
 	mem/bus/bus_bridge_master.cc
 	mem/bus/bus_bridge_slave.cc

@@ -45,7 +45,6 @@
 #include "base/callback.hh"
 #include "cpu/smt.hh"
 #include "mem/bus/bus.hh"
-#include "mem/bus/bus_interface.hh"
 #include "sim/builder.hh"
 #include "sim/host.hh"
 #include "sim/stats.hh"
@@ -53,9 +52,6 @@
 #include <fstream>
 
 using namespace std;
-
-/** The maximum value of type Tick. */
-#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
 // NOTE: all times are stored internally as cpu ticks
 //       A conversion is made from provided time to
@@ -67,26 +63,14 @@ Bus::Bus(const string &_name,
 	 int _width,
 	 int _clock,
          AdaptiveMHA* _adaptiveMHA,
-         bool _uniform_partitioning,
          int _busCPUCount,
-         int _busBankCount,
-         bool _useNetworkFairQueuing)
+         int _busBankCount)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
     busCPUCount = _busCPUCount;
     busBankCount = _busBankCount;
-
-    useUniformPartitioning = _uniform_partitioning;
-    useNetworkFairQueuing = _useNetworkFairQueuing;
-    curDataNum = 0;
-    curAddrNum = 0;
-
-    virtualAddrClock = 0;
-    virtualDataClock = 0;
-    lastAddrFinishTag.resize(_busCPUCount + _busBankCount, 0);
-    lastDataFinishTag.resize(_busCPUCount + _busBankCount, 0);
 
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -108,10 +92,9 @@ Bus::Bus(const string &_name,
 
     addrArbiterEvent = new AddrArbiterEvent(this);
     dataArbiterEvent = new DataArbiterEvent(this);
-
+    
     if(_adaptiveMHA != NULL){
-//         lastAddrBusIdleCycles = 0;
-//         lastDataBusIdleCycles = 0;
+        
         _adaptiveMHA->registerBus(this);
 
         int tmpCpuCount = _adaptiveMHA->getCPUCount();
@@ -277,10 +260,11 @@ Bus::resetStats()
 void
 Bus::requestDataBus(int id, Tick time)
 {
-
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
+    
+//     cout << curTick << ": Requesting data bus for cycle " << time << "\n";
     
     if (dataBusRequests[id].requested) {
 	return;
@@ -288,7 +272,6 @@ Bus::requestDataBus(int id, Tick time)
     dataBusRequests[id].requested = true;
     // fix this: should we set the time to bus cycle?
     dataBusRequests[id].requestTime = time;
-    dataBusRequests[id].startTag = virtualDataClock;
     scheduleArbitrationEvent(dataArbiterEvent,time,nextDataFree);
 }
 
@@ -296,237 +279,23 @@ void
 Bus::requestAddrBus(int id, Tick time)
 {
 
+    cout << curTick << ": Requesting addr bus for cycle " << time << "\n";
+    
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
-    DPRINTF(AddrBusVerify, "Requesting Address Bus for cycle, %d, %d, %d\n", id, time, virtualAddrClock);
     if (addrBusRequests[id].requested) {
 	return; // already requested
     }
+    
+    cout << curTick << ": Not returned, calling shd\n";
+    
     addrBusRequests[id].requested = true;
     addrBusRequests[id].requestTime = time;
-    addrBusRequests[id].startTag = virtualAddrClock;
     if (!isBlocked()) {
 	scheduleArbitrationEvent(addrArbiterEvent,time,nextAddrFree,2);
     }
 }
-
-int
-Bus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
-
-    int retID = -1;
-
-    // grant an interface
-    if(counter < busCPUCount){
-        // search through all master interfaces
-        // select the oldest request belonging to the given processor
-        assert(masterInterfaces.size() >= 1);
-        int smallestInterfaceID = -1;
-        Tick smallestReqTime = TICK_T_MAX;
-        for(int i=0;i<masterInterfaces.size();i++){
-
-            int fromCPU = masterInterfaces[i]->getCurrentReqSenderID();
-
-            if(fromCPU == counter){
-                if(requests[masterIndexToInterfaceIndex[i]].requested
-                   && requests[masterIndexToInterfaceIndex[i]].requestTime < smallestReqTime){
-                    smallestInterfaceID = masterIndexToInterfaceIndex[i];
-                    smallestReqTime = requests[masterIndexToInterfaceIndex[i]].requestTime;
-                   }
-            }
-        }
-
-        assert(slaveInterfaces.size() == 1);
-        if(requests[slaveIndexToInterfaceIndex[0]].requested
-           && requests[slaveIndexToInterfaceIndex[0]].requestTime < smallestReqTime){
-            smallestInterfaceID = slaveIndexToInterfaceIndex[0];
-            smallestReqTime = requests[slaveIndexToInterfaceIndex[0]].requestTime;
-        }
-
-        if(smallestInterfaceID > -1){
-            retID = smallestInterfaceID;
-        }
-    }
-    else{
-        // dedicated writeback slot for one cache bank
-        int tmpMasterID = counter - busCPUCount;
-        int fromCPUID = masterInterfaces[tmpMasterID]->getCurrentReqSenderID();
-        if(fromCPUID == BUS_WRITEBACK
-           && requests[masterIndexToInterfaceIndex[tmpMasterID]].requested){
-            DPRINTF(Bus, "Granting writeback slot to interface %d\n", tmpMasterID);
-            retID = masterIndexToInterfaceIndex[tmpMasterID];
-        }
-    }
-
-    counter = (counter + 1) % (busCPUCount + busBankCount);
-
-    return retID;
-}
-
-int
-Bus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags, bool addr){
-
-    Tick lowestVirtClock = TICK_T_MAX;
-    Tick lowestReqTime = TICK_T_MAX;
-    int lowestInternalID = -1;
-    Tick lowestStartStamp = -1;
-    int grantID = -1;
-
-    for(int i=0;i<interfaces.size();i++){
-        if(requests[i].requested){
-
-            int internalSenderID = interfaces[i]->getCurrentReqSenderID();
-
-			// if the sender is unknown (writeback or null request) the req is on the L2 bank's quota
-            if(internalSenderID == BUS_WRITEBACK || internalSenderID == BUS_NO_REQUEST){
-                assert(interfaceIndexToMasterIndex.find(i) != interfaceIndexToMasterIndex.end());
-                internalSenderID = interfaceIndexToMasterIndex[i] + busCPUCount;
-            }
-
-            Tick startStamp = requests[i].startTag > finishTags[internalSenderID] ? requests[i].startTag : finishTags[internalSenderID];
-
-            if(addr) DPRINTF(AddrBusVerify, "Checking for request from interface, %d, %d, %d\n", i, internalSenderID, startStamp);
-            
-            if(startStamp <= lowestVirtClock &&
-               requests[i].requestTime < lowestReqTime){
-                // policy: first prioritize start tag, then actual request time, then lower interface ID
-
-                lowestVirtClock = requests[i].startTag;
-                lowestReqTime = requests[i].requestTime;
-                grantID = i;
-                lowestInternalID = internalSenderID;
-                lowestStartStamp = startStamp;
-            }
-        }
-    }
-
-    assert(grantID != -1);
-    assert(lowestInternalID != -1);
-    assert(lowestStartStamp != -1);
-
-    if(addr) DPRINTF(AddrBusVerify, "Granting access to interface, %d, %d, %d\n", grantID, lowestInternalID, lowestStartStamp);
-    
-    // update finish time
-    finishTags[lowestInternalID] = lowestStartStamp + (clockRate * (busCPUCount + busBankCount));
-    
-    if(addr) DPRINTF(AddrBusVerify, "Setting new finish tag, %d\n", finishTags[lowestInternalID]);
-
-    return grantID;
-}
-
-void
-Bus::resetVirtualClock(bool found, vector<BusRequestRecord> & requests, Tick & clock, vector<Tick> & tags, Tick startTag, Tick oldest, bool addr){
-
-    if(!found){
-        if(addr) DPRINTF(AddrBusVerify, "Resetting clock and start tags (1), %d\n", curTick);
-        clock = 0;
-        for(int i=0;i<tags.size();i++) tags[i] = 0;
-    }
-    else if(requests[oldest].requestTime > nextAddrFree){
-        if(addr)  DPRINTF(AddrBusVerify, "Resetting clock and start tags (2), %d\n", curTick);
-        clock = 0;
-        for(int i=0;i<tags.size();i++) tags[i] = 0;
-    }
-    else{
-        clock = startTag;
-    }
-}
-
-void
-Bus::arbitrateNFQAddrBus(){
-
-    int grantID = getNFQNextInterface(addrBusRequests, lastAddrFinishTag, true);
-    Tick curStartTag = addrBusRequests[grantID].startTag;
-    
-    DPRINTF(AddrBusVerify, "Arbitrating address bus at tick, %d\n", curTick);
-
-    // grant interface access
-    DPRINTF(Bus, "NFQ addr bus granted to id %d\n", grantID);
-
-    addrBusRequests[grantID].requested = false;
-    bool do_request = interfaces[grantID]->grantAddr();
-
-    if (do_request) {
-        addrBusRequests[grantID].requested = true;
-        addrBusRequests[grantID].requestTime = curTick;
-        DPRINTF(Bus, "NFQ addr bus re-request from %d\n", grantID);
-        
-    }
-
-    // schedule next arb event
-    if(!blocked){
-
-        int oldestID = -1;
-        int secondOldestID = -1;
-        bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
-
-        // update virtual clock (reset to zero if there will be an idle period)
-        DPRINTF(AddrBusVerify, "Updating virtual clock, %s, %d, %d\n", (found ? "True" : "False"), oldestID, curTick);
-        resetVirtualClock(found, addrBusRequests, virtualAddrClock, lastAddrFinishTag, curStartTag, oldestID, true);
-
-
-        if(found){
-            if(!addrArbiterEvent->scheduled()){
-                scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
-            }
-        }
-    }
-    else{
-        if(useNetworkFairQueuing) fatal("Bus blocking not tested with STFQ");
-        if (addrArbiterEvent->scheduled()) {
-            addrArbiterEvent->deschedule();
-        }
-    }
-
-    if(do_request){
-        // safer to issue this after the vc update
-        addrBusRequests[grantID].startTag = virtualAddrClock;
-        DPRINTF(AddrBusVerify, "Re-Requesting Address Bus, %d, %d, %d\n", grantID, curTick, virtualAddrClock);
-    }
-}
-
-void
-Bus::arbitrateFairAddrBus(){
-
-    assert(transmitInterfaces.size() - 1 == busBankCount);
-    assert(masterInterfaces.size() == busBankCount);
-    assert(slaveInterfaces.size() == 1);
-
-    int grantID = getFairNextInterface(curAddrNum, addrBusRequests);
-
-    if(grantID != -1){
-
-        DPRINTF(Bus, "Fair addr bus granted to id %d\n", grantID);
-
-        addrBusRequests[grantID].requested = false;
-        bool do_request = interfaces[grantID]->grantAddr();
-
-        if (do_request) {
-            addrBusRequests[grantID].requested = true;
-            addrBusRequests[grantID].requestTime = curTick;
-        }
-    }
-
-    if(!blocked){
-
-        int oldestID = -1;
-        int secondOldestID = -1;
-        bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
-
-        if(found){
-            if(!addrArbiterEvent->scheduled()){
-                scheduleArbitrationEvent(addrArbiterEvent, addrBusRequests[oldestID].requestTime, nextAddrFree, 2);
-            }
-        }
-    }
-    else{
-        if (addrArbiterEvent->scheduled()) {
-            addrArbiterEvent->deschedule();
-        }
-    }
-
-}
-
 
 void
 Bus::arbitrateAddrBus()
@@ -546,6 +315,7 @@ Bus::arbitrateAddrBus()
     DPRINTF(Bus, "addr bus granted to id %d\n", grant_id);
 
     addrBusRequests[grant_id].requested = false; // clear request bit
+    assert(addrBusRequests[grant_id].requestTime < curTick);
     bool do_request = interfaces[grant_id]->grantAddr();
 
 
@@ -585,55 +355,6 @@ Bus::arbitrateAddrBus()
 }
 
 void
-Bus::arbitrateNFQDataBus(){
-    assert(curTick>runDataLast);
-    runDataLast = curTick;
-    assert(doEvents());
-
-    int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag, false);
-    Tick curStartTag = dataBusRequests[grantID].startTag;
-
-    if(grantID != -1){
-        DPRINTF(Bus, "NFQ data bus granted to id %d\n", grantID);
-        assert(grantID >= 0 && grantID < dataBusRequests.size());
-        dataBusRequests[grantID].requested = false;
-        interfaces[grantID]->grantData();
-    }
-    int oldestID = -1;
-    int secondOldestID = -1;
-    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-    resetVirtualClock(found, dataBusRequests, virtualDataClock, lastDataFinishTag, curStartTag, oldestID, false);
-
-    if(found){
-        scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
-    }
-}
-
-void
-Bus::arbitrateFairDataBus(){
-    assert(curTick>runDataLast);
-    runDataLast = curTick;
-    assert(doEvents());
-
-    int grantID = getFairNextInterface(curDataNum, dataBusRequests);
-
-    if(grantID != -1){
-        DPRINTF(Bus, "Fair data bus granted to id %d\n", grantID);
-        assert(grantID >= 0 && grantID < dataBusRequests.size());
-        dataBusRequests[grantID].requested = false;
-        interfaces[grantID]->grantData();
-    }
-    int oldestID = -1;
-    int secondOldestID = -1;
-    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-
-    if(found){
-        scheduleArbitrationEvent(dataArbiterEvent,oldestID,nextDataFree);
-    }
-
-}
-
-void
 Bus::arbitrateDataBus()
 {
     assert(curTick>runDataLast);
@@ -649,6 +370,7 @@ Bus::arbitrateDataBus()
     DPRINTF(Bus, "Data bus granted to id %d\n", grant_id);
 
     dataBusRequests[grant_id].requested = false; // clear request bit
+    assert(dataBusRequests[grant_id].requestTime < curTick);
     interfaces[grant_id]->grantData();
 
     Tick grant_time;
@@ -1161,15 +883,7 @@ void
 AddrArbiterEvent::process()
 {
     DPRINTF(Bus, "Addr Arb processing event\n");
-    if(bus->useUniformPartitioning){
-        bus->arbitrateFairAddrBus();
-    }
-    else if(bus->useNetworkFairQueuing){
-        bus->arbitrateNFQAddrBus();
-    }
-    else{
-        bus->arbitrateAddrBus();
-    }
+    bus->arbitrateAddrBus();
 }
 
 const char *
@@ -1183,15 +897,7 @@ void
 DataArbiterEvent::process()
 {
     DPRINTF(Bus, "Data Arb processing event\n");
-    if(bus->useUniformPartitioning){
-        bus->arbitrateFairDataBus();
-    }
-    else if(bus->useNetworkFairQueuing){
-        bus->arbitrateNFQDataBus();
-    }
-    else{
-        bus->arbitrateDataBus();
-    }
+    bus->arbitrateDataBus();
 }
 
 const char *
@@ -1222,10 +928,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<int> clock;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
-    Param<bool> uniform_partitioning;
     Param<int> cpu_count;
     Param<int> bank_count;
-    Param<bool> use_network_fair_queuing;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1238,10 +942,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
 		    "Hierarchy global variables",
 		    &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
-    INIT_PARAM_DFLT(uniform_partitioning, "Partition bus bandwidth uniformly between cores", false),
     INIT_PARAM(cpu_count, "The number of CPUs in the system"),
-    INIT_PARAM(bank_count, "The number of L2 cache banks in the system"),
-    INIT_PARAM_DFLT(use_network_fair_queuing, "Unused bandwidth is distributed fairly among requests", false)
+    INIT_PARAM(bank_count, "The number of L2 cache banks in the system")
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1249,7 +951,7 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 CREATE_SIM_OBJECT(Bus)
 {
     return new Bus(getInstanceName(), hier,
-                   width, clock, adaptive_mha, uniform_partitioning, cpu_count, bank_count, use_network_fair_queuing);
+                   width, clock, adaptive_mha, cpu_count, bank_count);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

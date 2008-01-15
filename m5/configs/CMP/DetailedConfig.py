@@ -64,12 +64,9 @@ class DetailedStandAlone(Root):
 
     #clock = '3Hz'
     clock = '3200MHz'
-    toMemBus = ToMemBus()
+    toMemBus = ConventionalMemBus()
     ram = SDRAM(in_bus=Parent.toMemBus)
     l2 = []
-    
-    def setBusAdaptiveMHA(self, adMHA):
-        self.toMemBus.adaptive_mha = adMHA
     
     def setCPU(self, inCPU):
         self.cpu = inCPU

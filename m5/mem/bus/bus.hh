@@ -47,7 +47,12 @@
 #include "base/range.hh"
 #include "sim/eventq.hh"
 
+#include "mem/bus/bus_interface.hh"
+
 #include "mem/cache/miss/adaptive_mha.hh"
+
+/** The maximum value of type Tick. */
+#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
 // #define DO_BUS_TRACE 1
 
@@ -71,9 +76,6 @@ class Bus : public BaseHier
     /** Clock rate (clock period in ticks). */
     int clockRate;
     
-    bool useUniformPartitioning;
-    bool useNetworkFairQueuing;
-
   protected:
     // statistics
     /** Total number of cycles the address portion of this bus is idle. */
@@ -136,10 +138,8 @@ class Bus : public BaseHier
 	int width,
 	int clockRate,
         AdaptiveMHA* _adaptiveMHA,
-        bool _uniform_partitioning,
         int _busCPUCount,
-        int _busBankCount,
-        bool _useNetworkFairQueuing);
+        int _busBankCount);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -168,21 +168,13 @@ class Bus : public BaseHier
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
-    void arbitrateAddrBus();
-    
-    void arbitrateFairAddrBus();
-    
-    void arbitrateNFQAddrBus();
+    virtual void arbitrateAddrBus();
 
     /**
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
-    void arbitrateDataBus();
-    
-    void arbitrateFairDataBus();
-    
-    void arbitrateNFQDataBus();
+    virtual void arbitrateDataBus();
 
     /**
      * Sends the request to the attached interfaces via the address bus.
@@ -227,13 +219,13 @@ class Bus : public BaseHier
      * Announces to the bus the bus interface is now unblocked.
      * @param id The bus interface id that just unblocked.
      */
-    void clearBlocked(int id);
+    virtual void clearBlocked(int id);
 
     /**
      * Announces to the bus the bus interface is now blocked.
      * @param id The bus interface id that just unblocked.
      */
-    void setBlocked(int id);
+    virtual void setBlocked(int id);
 
     /**
      * Probe the attached interfaces for the given request.
@@ -261,7 +253,7 @@ class Bus : public BaseHier
     void resetAdaptiveStats();
     
 
-  private:
+  protected:
     
     int busCPUCount;
     int busBankCount;
@@ -275,14 +267,6 @@ class Bus : public BaseHier
     int dataBusUseSamples[2];
     
     int adaptiveSampleSize;
-    
-    int curAddrNum;
-    int curDataNum;
-    
-    Tick virtualAddrClock;
-    Tick virtualDataClock;
-    std::vector<Tick> lastAddrFinishTag;
-    std::vector<Tick> lastDataFinishTag;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
@@ -378,8 +362,9 @@ class Bus : public BaseHier
      * @param nextFreeCycle the time of the next bus free cycle
      * @param idleAdvance the number of bus cycle to skip when it is idle.
      */
-    void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-				  Tick nextFreeCycle, Tick idleAdvance = 1);
+    virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
+                                          Tick nextFreeCycle, Tick idleAdvance = 1);
+    
 
     /**
      * Find the global simulation time (curTick) corresponding to
@@ -407,11 +392,6 @@ class Bus : public BaseHier
 	// Convert back to global cycles & return.
 	return busCycle * clockRate;
     }
-    
-    int getFairNextInterface(int & counter, std::vector<BusRequestRecord> & requests);
-    
-    int getNFQNextInterface(std::vector<BusRequestRecord> & requests, std::vector<Tick> & finishTags, bool addr);
-    void resetVirtualClock(bool found, std::vector<BusRequestRecord> & requests, Tick & clock, std::vector<Tick> & tags, Tick curStartTag, Tick oldest, bool addr);
     
     void storeUseStats(bool data, int senderID);
     
