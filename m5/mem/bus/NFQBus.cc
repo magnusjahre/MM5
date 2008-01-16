@@ -13,8 +13,8 @@ NFQBus::NFQBus(const std::string &name,
                int _busBankCount)
     : Bus(name, hier_params, width, clockRate, _adaptiveMHA, _busCPUCount, _busBankCount){
     
-    cout << "Creating a NFQ bus\n";
-    
+    fatal("NFQ implementation is not finished");
+            
     virtualAddrClock = 0;
     virtualDataClock = 0;
     lastAddrFinishTag.resize(_busCPUCount + _busBankCount, 0);

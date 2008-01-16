@@ -268,6 +268,8 @@ class Bus : public BaseHier
     
     int adaptiveSampleSize;
     
+    int lastTransferCycles;
+    
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
     /** The next curTick that the data bus is free. */

@@ -10,6 +10,11 @@ class TimeMultiplexedBus : public Bus
         
         int curAddrNum;
         int curDataNum;
+        
+        Tick lastAddrArb;
+        Tick lastDataArb;
+        
+        static const int NO_REQ_DELAY = 1;
     
     public:
 
@@ -33,9 +38,9 @@ class TimeMultiplexedBus : public Bus
             fatal("Time Multiplexed bus blocking not implemented");
         }
         
-    protected:
-        virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-                                              Tick nextFreeCycle, Tick idleAdvance = 1);
+//     protected:
+//         virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
+//                                               Tick nextFreeCycle, Tick idleAdvance = 1);
         
     private:
         int getFairNextInterface(int & counter, std::vector<BusRequestRecord> & requests);

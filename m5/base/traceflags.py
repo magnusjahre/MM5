@@ -148,6 +148,7 @@ baseFlags = [
     'UniformPartitioning',
     'AddrBusVerify',
     'DataBusVerify',
+    'TimeMultiplexedBus',
     ]
 
 #

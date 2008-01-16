@@ -13,7 +13,8 @@ TimeMultiplexedBus::TimeMultiplexedBus(const std::string &name,
                                        int _busBankCount)
     : Bus(name, hier_params, width, clockRate, _adaptiveMHA, _busCPUCount, _busBankCount){
     
-    cout << "Creating a Time multiplexed bus\n";
+    lastAddrArb = 0;
+    lastDataArb = 0;
     
     curDataNum = 0;
     curAddrNum = 0;
@@ -27,13 +28,17 @@ TimeMultiplexedBus::arbitrateAddrBus(){
     assert(masterInterfaces.size() == busBankCount);
     assert(slaveInterfaces.size() == 1);
 
-    cout << curTick << ": arbitrating at tick " << curTick << "\n";
+    // update time-multiplex counter
+    assert(curTick % clockRate == 0);
+    Tick busCyclesSinceLast = ((curTick - lastAddrArb) / clockRate);
+    curAddrNum = (curAddrNum + busCyclesSinceLast) % (busCPUCount + busBankCount);
     
     int grantID = getFairNextInterface(curAddrNum, addrBusRequests);
 
+
     if(grantID != -1){
 
-        DPRINTF(Bus, "Fair addr bus granted to id %d\n", grantID);
+        DPRINTF(TimeMultiplexedBus, "Fair addr bus granted to id %d\n", grantID);
 
         assert(addrBusRequests[grantID].requestTime < curTick);
         addrBusRequests[grantID].requested = false;
@@ -44,12 +49,22 @@ TimeMultiplexedBus::arbitrateAddrBus(){
             addrBusRequests[grantID].requestTime = curTick;
         }
     }
+    else{
+        // advance bus clock due to empty slot
+        nextAddrFree = nextBusClock(curTick, NO_REQ_DELAY);
+        DPRINTF(TimeMultiplexedBus, "Next addr free is now %d\n", nextAddrFree);
+    }
 
     if(!blocked){
 
         int oldestID = -1;
         int secondOldestID = -1;
         bool found = findOldestRequest(addrBusRequests, oldestID, secondOldestID);
+        
+        DPRINTF(TimeMultiplexedBus, "Addr checking next schedule, oldest=%d, nextFree=%d, idleAdvance=%d\n",
+                (found ? addrBusRequests[oldestID].requestTime : -1),
+                nextAddrFree,
+                2);
 
         if(found){
             if(!addrArbiterEvent->scheduled()){
@@ -62,6 +77,8 @@ TimeMultiplexedBus::arbitrateAddrBus(){
             addrArbiterEvent->deschedule();
         }
     }
+    
+    lastAddrArb = curTick;
 }
 
 
@@ -70,72 +87,60 @@ TimeMultiplexedBus::arbitrateDataBus(){
     assert(curTick>runDataLast);
     runDataLast = curTick;
     assert(doEvents());
-
+    
+    // update time-multiplex counter
+    assert(curTick % clockRate == 0);
+    if(lastDataArb != 0){
+        assert(lastTransferCycles != -1);
+        Tick increment = ((curTick - lastDataArb) / clockRate);
+        increment = increment - (lastTransferCycles > 0 ? lastTransferCycles - 1 : 0);
+        curDataNum = (curDataNum + increment) % (busCPUCount + busBankCount);
+    }
+    else{
+        assert(curDataNum == 0);
+    }
+    
+    lastTransferCycles = -1;
+    
     int grantID = getFairNextInterface(curDataNum, dataBusRequests);
 
     if(grantID != -1){
-        DPRINTF(Bus, "Fair data bus granted to id %d\n", grantID);
+        DPRINTF(TimeMultiplexedBus, "Fair data bus granted to id %d\n", grantID);
         assert(grantID >= 0 && grantID < dataBusRequests.size());
         assert(dataBusRequests[grantID].requestTime < curTick);
         dataBusRequests[grantID].requested = false;
         interfaces[grantID]->grantData();
     }
+    else{
+        lastTransferCycles = 0;
+        nextDataFree = nextBusClock(curTick,NO_REQ_DELAY);
+        DPRINTF(TimeMultiplexedBus, "Next data free is now %d\n", nextDataFree);
+    }
+    
+    
     int oldestID = -1;
     int secondOldestID = -1;
     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
 
+    DPRINTF(TimeMultiplexedBus, "Data checking next schedule, oldest=%d, nextFree=%d, idleAdvance=%d\n",
+            (found ? dataBusRequests[oldestID].requestTime : -1),
+            nextDataFree,
+            1);
+    
     if(found){
         scheduleArbitrationEvent(dataArbiterEvent,dataBusRequests[oldestID].requestTime,nextDataFree);
     }
 
+    lastDataArb = curTick;
 }
-
-void
-TimeMultiplexedBus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-                                             Tick nextFreeCycle, Tick idleAdvance)
-{
-    
-    bool bus_idle = (nextFreeCycle <= curTick);
-    Tick next_schedule_time;
-    if (bus_idle) {
-        if (reqTime < curTick) {
-            cout << curTick << ": Shed at next bus clock after curTick\n";
-            next_schedule_time = nextBusClock(curTick,idleAdvance);
-        } else {
-            cout << curTick << ": Shed at next bus clock after request time\n";
-            next_schedule_time = nextBusClock(reqTime,idleAdvance);
-        }
-    } else {
-        if (reqTime < nextFreeCycle) {
-            next_schedule_time = nextFreeCycle;
-            cout << curTick << ": Shed at next free cycle, " << next_schedule_time << "\n";
-        } else {
-            
-            next_schedule_time = nextBusClock(reqTime,idleAdvance);
-            cout << curTick << ": Shed at next bus clock, " << next_schedule_time << "\n";
-        }
-    }
-
-    if (arbiterEvent->scheduled()) {
-        if (arbiterEvent->when() > next_schedule_time) {
-            arbiterEvent->reschedule(next_schedule_time);
-            cout << curTick << ": " << (arbiterEvent == dataArbiterEvent ? "data bus" : "addr bus" ) << " rescheduling for tick " << next_schedule_time << "\n";
-        }
-        else{
-            cout << curTick << ": not updated, quitting\n";
-        }
-    } else {
-        arbiterEvent->schedule(next_schedule_time);
-        cout << curTick << ": " << (arbiterEvent == dataArbiterEvent ? "data bus" : "addr bus" ) << " scheduling for tick " << next_schedule_time << "\n";
-    }
-}
-
 
 int
 TimeMultiplexedBus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
 
     int retID = -1;
 
+    DPRINTF(TimeMultiplexedBus, "Retrieving interface, counter is %d\n", counter);
+    
     // grant an interface
     if(counter < busCPUCount){
         // search through all master interfaces
@@ -160,7 +165,8 @@ TimeMultiplexedBus::getFairNextInterface(int & counter, vector<BusRequestRecord>
         assert(slaveInterfaces.size() == 1);
         if(requests[slaveIndexToInterfaceIndex[0]].requested
            && requests[slaveIndexToInterfaceIndex[0]].requestTime < smallestReqTime
-           && requests[masterIndexToInterfaceIndex[0]].requestTime < curTick){
+           && requests[slaveIndexToInterfaceIndex[0]].requestTime < curTick){
+            
             smallestInterfaceID = slaveIndexToInterfaceIndex[0];
             smallestReqTime = requests[slaveIndexToInterfaceIndex[0]].requestTime;
         }
@@ -176,12 +182,10 @@ TimeMultiplexedBus::getFairNextInterface(int & counter, vector<BusRequestRecord>
         if(fromCPUID == BUS_WRITEBACK
            && requests[masterIndexToInterfaceIndex[tmpMasterID]].requested
            && requests[masterIndexToInterfaceIndex[tmpMasterID]].requestTime < curTick){
-            DPRINTF(Bus, "Granting writeback slot to interface %d\n", tmpMasterID);
+            DPRINTF(TimeMultiplexedBus, "Granting writeback slot to interface %d\n", tmpMasterID);
             retID = masterIndexToInterfaceIndex[tmpMasterID];
         }
     }
-
-    counter = (counter + 1) % (busCPUCount + busBankCount);
 
     return retID;
 }

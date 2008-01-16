@@ -89,6 +89,8 @@ Bus::Bus(const string &_name,
     numInterfaces = 0;
     blocked = false;
     waitingFor = -1;
+    
+    lastTransferCycles = -1;
 
     addrArbiterEvent = new AddrArbiterEvent(this);
     dataArbiterEvent = new DataArbiterEvent(this);
@@ -263,12 +265,9 @@ Bus::requestDataBus(int id, Tick time)
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
+
+    if (dataBusRequests[id].requested && time > dataBusRequests[id].requestTime) return;
     
-//     cout << curTick << ": Requesting data bus for cycle " << time << "\n";
-    
-    if (dataBusRequests[id].requested) {
-	return;
-    }
     dataBusRequests[id].requested = true;
     // fix this: should we set the time to bus cycle?
     dataBusRequests[id].requestTime = time;
@@ -278,17 +277,11 @@ Bus::requestDataBus(int id, Tick time)
 void
 Bus::requestAddrBus(int id, Tick time)
 {
-
-    cout << curTick << ": Requesting addr bus for cycle " << time << "\n";
     
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
-    if (addrBusRequests[id].requested) {
-	return; // already requested
-    }
-    
-    cout << curTick << ": Not returned, calling shd\n";
+    if (addrBusRequests[id].requested && time > addrBusRequests[id].requestTime) return;
     
     addrBusRequests[id].requested = true;
     addrBusRequests[id].requestTime = time;
@@ -501,6 +494,9 @@ Bus::delayData(int size, int senderID, MemCmdEnum cmd)
 {
 
     int transfer_cycles = DivCeil(size, width);
+    assert(lastTransferCycles == -1);
+    lastTransferCycles = transfer_cycles;
+    
     //int transfer_time = transfer_cycles * clockRate;
     assert(curTick >= nextDataFree);
     dataIdleCycles += (curTick - nextDataFree);
@@ -531,6 +527,8 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
 
     assert(doEvents());
     int transfer_cycles = DivCeil(req->size, width);
+    assert(lastTransferCycles == -1);
+    lastTransferCycles = transfer_cycles;
 
     assert(curTick >= nextDataFree);
     dataQdly[req->thread_num] += curTick - origReqTime;
@@ -560,6 +558,9 @@ Bus::sendAck(MemReqPtr &req, Tick origReqTime)
     addrIdleCycles += curTick - nextAddrFree;
     // Advance nextAddrFree to next clock cycle
     nextAddrFree = nextBusClock(curTick);
+    
+    assert(lastTransferCycles == -1);
+    lastTransferCycles = 1;
 
     storeUseStats(false, req->adaptiveMHASenderID);
 
