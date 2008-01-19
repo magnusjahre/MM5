@@ -313,8 +313,6 @@ class Bus : public BaseHier
 	bool requested;
 	/** The time when the bus was requested. */
 	Tick requestTime;
-        
-        Tick startTag;
     };
 
     /** A list of the connected interfaces, accessed by bus id. */

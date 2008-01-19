@@ -8,8 +8,6 @@ class NFQBus : public Bus
 {
     private:
         
-        Tick virtualAddrClock;
-        Tick virtualDataClock;
         std::vector<Tick> lastAddrFinishTag;
         std::vector<Tick> lastDataFinishTag;
     
@@ -35,15 +33,13 @@ class NFQBus : public Bus
             fatal("NFQ Bus blocking not implemented");
         }
         
-    protected:
-        virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-                                              Tick nextFreeCycle, Tick idleAdvance = 1);
+//     protected:
+//         virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
+//                                               Tick nextFreeCycle, Tick idleAdvance = 1);
         
     private:
         
         int getNFQNextInterface(std::vector<BusRequestRecord> & requests, std::vector<Tick> & finishTags, bool addr);
-        
-        void resetVirtualClock(bool found, std::vector<BusRequestRecord> & requests, Tick & clock, std::vector<Tick> & tags, Tick curStartTag, Tick oldest, bool addr);
 
 };
 

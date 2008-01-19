@@ -149,6 +149,7 @@ baseFlags = [
     'AddrBusVerify',
     'DataBusVerify',
     'TimeMultiplexedBus',
+    'NFQBus'
     ]
 
 #
