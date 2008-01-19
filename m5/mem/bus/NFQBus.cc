@@ -25,6 +25,7 @@ NFQBus::arbitrateAddrBus(){
     // grant interface access
     DPRINTF(NFQBus, "NFQ addr bus granted to id %d\n", grantID);
 
+    assert(addrBusRequests[grantID].requestTime < curTick);
     addrBusRequests[grantID].requested = false;
     bool do_request = interfaces[grantID]->grantAddr();
 
@@ -68,6 +69,7 @@ NFQBus::arbitrateDataBus(){
 
     DPRINTF(NFQBus, "NFQ data bus granted to id %d\n", grantID);
     assert(grantID >= 0 && grantID < dataBusRequests.size());
+    assert(dataBusRequests[grantID].requestTime < curTick);
     dataBusRequests[grantID].requested = false;
     interfaces[grantID]->grantData();
     
