@@ -28,7 +28,7 @@ class TimeMultiplexedBus : public Bus
         
         virtual void arbitrateAddrBus();
         
-        virtual void arbitrateDataBus();
+//         virtual void arbitrateDataBus();
         
         virtual void setBlocked(int id){
             fatal("Time Multiplexed bus blocking not implemented");

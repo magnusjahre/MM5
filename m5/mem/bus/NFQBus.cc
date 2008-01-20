@@ -57,30 +57,30 @@ NFQBus::arbitrateAddrBus(){
 }
 
 
-void
-NFQBus::arbitrateDataBus(){
-    assert(curTick>runDataLast);
-    runDataLast = curTick;
-    assert(doEvents());
-    
-    lastTransferCycles = -1;
-    
-    int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag, false);
-
-    DPRINTF(NFQBus, "NFQ data bus granted to id %d\n", grantID);
-    assert(grantID >= 0 && grantID < dataBusRequests.size());
-    assert(dataBusRequests[grantID].requestTime < curTick);
-    dataBusRequests[grantID].requested = false;
-    interfaces[grantID]->grantData();
-    
-    int oldestID = -1;
-    int secondOldestID = -1;
-    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-
-    if(found){
-        scheduleArbitrationEvent(dataArbiterEvent,dataBusRequests[oldestID].requestTime,nextDataFree);
-    }
-}
+// void
+// NFQBus::arbitrateDataBus(){
+//     assert(curTick>runDataLast);
+//     runDataLast = curTick;
+//     assert(doEvents());
+//     
+//     lastTransferCycles = -1;
+//     
+//     int grantID = getNFQNextInterface(dataBusRequests, lastDataFinishTag, false);
+// 
+//     DPRINTF(NFQBus, "NFQ data bus granted to id %d\n", grantID);
+//     assert(grantID >= 0 && grantID < dataBusRequests.size());
+//     assert(dataBusRequests[grantID].requestTime < curTick);
+//     dataBusRequests[grantID].requested = false;
+//     interfaces[grantID]->grantData();
+//     
+//     int oldestID = -1;
+//     int secondOldestID = -1;
+//     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
+// 
+//     if(found){
+//         scheduleArbitrationEvent(dataArbiterEvent,dataBusRequests[oldestID].requestTime,nextDataFree);
+//     }
+// }
 
 int
 NFQBus::getNFQNextInterface(vector<BusRequestRecord> & requests, vector<Tick> & finishTags, bool addr){

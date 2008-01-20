@@ -82,57 +82,57 @@ TimeMultiplexedBus::arbitrateAddrBus(){
 }
 
 
-void
-TimeMultiplexedBus::arbitrateDataBus(){
-    assert(curTick>runDataLast);
-    runDataLast = curTick;
-    assert(doEvents());
-    
-    // update time-multiplex counter
-    assert(curTick % clockRate == 0);
-    if(lastDataArb != 0){
-        assert(lastTransferCycles != -1);
-        Tick increment = ((curTick - lastDataArb) / clockRate);
-        increment = increment - (lastTransferCycles > 0 ? lastTransferCycles - 1 : 0);
-        curDataNum = (curDataNum + increment) % (busCPUCount + busBankCount);
-    }
-    else{
-        assert(curDataNum == 0);
-    }
-    
-    lastTransferCycles = -1;
-    
-    int grantID = getFairNextInterface(curDataNum, dataBusRequests);
-
-    if(grantID != -1){
-        DPRINTF(TimeMultiplexedBus, "Fair data bus granted to id %d\n", grantID);
-        assert(grantID >= 0 && grantID < dataBusRequests.size());
-        assert(dataBusRequests[grantID].requestTime < curTick);
-        dataBusRequests[grantID].requested = false;
-        interfaces[grantID]->grantData();
-    }
-    else{
-        lastTransferCycles = 0;
-        nextDataFree = nextBusClock(curTick,NO_REQ_DELAY);
-        DPRINTF(TimeMultiplexedBus, "Next data free is now %d\n", nextDataFree);
-    }
-    
-    
-    int oldestID = -1;
-    int secondOldestID = -1;
-    bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
-
-    DPRINTF(TimeMultiplexedBus, "Data checking next schedule, oldest=%d, nextFree=%d, idleAdvance=%d\n",
-            (found ? dataBusRequests[oldestID].requestTime : -1),
-            nextDataFree,
-            1);
-    
-    if(found){
-        scheduleArbitrationEvent(dataArbiterEvent,dataBusRequests[oldestID].requestTime,nextDataFree);
-    }
-
-    lastDataArb = curTick;
-}
+// void
+// TimeMultiplexedBus::arbitrateDataBus(){
+//     assert(curTick>runDataLast);
+//     runDataLast = curTick;
+//     assert(doEvents());
+//     
+//     // update time-multiplex counter
+//     assert(curTick % clockRate == 0);
+//     if(lastDataArb != 0){
+//         assert(lastTransferCycles != -1);
+//         Tick increment = ((curTick - lastDataArb) / clockRate);
+//         increment = increment - (lastTransferCycles > 0 ? lastTransferCycles - 1 : 0);
+//         curDataNum = (curDataNum + increment) % (busCPUCount + busBankCount);
+//     }
+//     else{
+//         assert(curDataNum == 0);
+//     }
+//     
+//     lastTransferCycles = -1;
+//     
+//     int grantID = getFairNextInterface(curDataNum, dataBusRequests);
+// 
+//     if(grantID != -1){
+//         DPRINTF(TimeMultiplexedBus, "Fair data bus granted to id %d\n", grantID);
+//         assert(grantID >= 0 && grantID < dataBusRequests.size());
+//         assert(dataBusRequests[grantID].requestTime < curTick);
+//         dataBusRequests[grantID].requested = false;
+//         interfaces[grantID]->grantData();
+//     }
+//     else{
+//         lastTransferCycles = 0;
+//         nextDataFree = nextBusClock(curTick,NO_REQ_DELAY);
+//         DPRINTF(TimeMultiplexedBus, "Next data free is now %d\n", nextDataFree);
+//     }
+//     
+//     
+//     int oldestID = -1;
+//     int secondOldestID = -1;
+//     bool found = findOldestRequest(dataBusRequests, oldestID, secondOldestID);
+// 
+//     DPRINTF(TimeMultiplexedBus, "Data checking next schedule, oldest=%d, nextFree=%d, idleAdvance=%d\n",
+//             (found ? dataBusRequests[oldestID].requestTime : -1),
+//             nextDataFree,
+//             1);
+//     
+//     if(found){
+//         scheduleArbitrationEvent(dataArbiterEvent,dataBusRequests[oldestID].requestTime,nextDataFree);
+//     }
+// 
+//     lastDataArb = curTick;
+// }
 
 int
 TimeMultiplexedBus::getFairNextInterface(int & counter, vector<BusRequestRecord> & requests){
