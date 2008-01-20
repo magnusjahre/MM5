@@ -17,15 +17,17 @@ cpuArg = "-ENP="
 interconArg = "-EINTERCONNECT="
 args = "-EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=5000000 -EFASTFORWARDTICKS=10000000"
 #mshrargs = "-EMSHRSL1D=16 -EMSHRSL1I=16 -EMSHRL1TARGETS=4 -EMSHRSL2=4 -EMSHRL2TARGETS=4 -EUSE-ADAPTIVE-MHA -EADAPTIVE-MHA-LOW-THRESHOLD=0.7 -EADAPTIVE-MHA-HIGH-THRESHOLD=0.9 -EADAPTIVE-REPEATS=1"
-mshrargs = "-EMEMORY-BUS=TimeMultiplexed"
-mshrargs = "-EMEMORY-BUS=NFQ"
+#mshrargs = "-EMEMORY-BUS=TimeMultiplexed"
+#mshrargs = "-EMEMORY-BUS=NFQ"
+mshrargs = ""
 configFile = "../configs/CMP/run.py"
 
 REPORTFILE = "testreport.txt"
 report = open(REPORTFILE, 'w')
 
 cpus = [4] #[2, 4, 8]
-interconnects = ['crossbar'] #['myBus', 'crossbar', 'idealwdelay'] #['myBus'] #, 'pipeBus'] #, 'ideal', 'crossbar', 'idealwdelay']
+interconnect = 'crossbar'
+buses = ['NFQ', 'TimeMultiplexed']
 
 #benchmarks = ['hello', 'gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
 
@@ -44,13 +46,13 @@ testnum = 1
 correctCount = 0
 
 for cpu in cpus:
-    for interconnect in interconnects:
-        output = "Doing tests with "+str(cpu)+" cpus and "+interconnect+" interconnect:"
+    for bus in buses:
+        output = "Doing tests with "+str(cpu)+" cpus and "+bus+" bus:"
         print output
         report.write("\n"+output+"\n")
         for benchmark in benchmarks:
             #print binary+" "+bmArg+str(benchmark)+" "+args+" "+configFile
-            res = popen2.popen4("nice "+binary+" "+cpuArg+str(cpu)+" "+bmArg+str(benchmark)+" "+interconArg+interconnect+" "+args+" "+mshrargs+" "+configFile)
+            res = popen2.popen4("nice "+binary+" "+cpuArg+str(cpu)+" "+bmArg+str(benchmark)+" "+interconArg+interconnect+" "+args+" "+mshrargs+" "+"-EMEMORY-BUS="+bus+" "+configFile)
             
             out = ""
             for line in res[0]:
@@ -84,7 +86,7 @@ for cpu in cpus:
 
 print
 output = ""
-if correctCount == (len(benchmarks)*len(cpus)*len(interconnects)):
+if correctCount == (len(benchmarks)*len(cpus)*len(buses)):
     output = "All tests completed successfully!"
 else:
     output = "One or more tests failed..."
