@@ -105,9 +105,12 @@ if "USE-ADAPTIVE-MHA" in env:
     if 'ADAPTIVE-REPEATS' not in env:
         panic("The number of repeats to make a desicion must be given (-EADAPTIVE-REPEATS)")
 
-useUniformCachePartitioning = False
-if "UNIFORM-CACHE-PARTITIONING" in env:
-    useUniformCachePartitioning = True
+
+if "CACHE-PARTITIONING" in env:
+    if env["CACHE-PARTITIONING"] == "Conventional" or env["CACHE-PARTITIONING"] == "StaticUniform":
+        pass
+    else:
+        panic("Only Conventional and StaticUniform cache partitioning are available")
 
 if "MEMORY-BUS" in env:
     if env["MEMORY-BUS"] == "NFQ" or env["MEMORY-BUS"] == "TimeMultiplexed" or env["MEMORY-BUS"] == "Conventional":
@@ -308,7 +311,7 @@ if l2mshrs != -1:
         bank.mshrs = l2mshrs
         bank.tgts_per_mshr = l2mshrTargets
 
-if useUniformCachePartitioning:
+if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
         bank.use_static_partitioning = True
 
