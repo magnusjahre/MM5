@@ -66,6 +66,7 @@ class Cache : public BaseCache
 {
   private:
     bool idIsSet;
+    std::string profileFileName;
     
   public:
     /** Define the type of cache block to use. */
@@ -324,6 +325,8 @@ class Cache : public BaseCache
     int getBankCount(){
         return bankCount;
     }
+    
+    virtual void handleProfileEvent();
     
     virtual int getCacheCPUid(){
         return cacheCpuID;

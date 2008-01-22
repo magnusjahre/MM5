@@ -355,17 +355,13 @@ Bus::arbitrateDataBus()
     assert(doEvents());
     int grant_id;
     int old_grant_id;
-
-    //FIXME: this implementation does not take request lenght into account
-    // the easiest fix is to just to grant in request order since this order
-    // is decided by the address bus
     lastTransferCycles = -1;
 
     bool found  = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
     assert(found);
 
     DPRINTF(Bus, "Data bus granted to id %d\n", grant_id);
-
+    
     dataBusRequests[grant_id].requested = false; // clear request bit
     assert(dataBusRequests[grant_id].requestTime < curTick);
     interfaces[grant_id]->grantData();

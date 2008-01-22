@@ -139,19 +139,6 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     
     assert(dataUsers.size() == addressUsers.size());
     
-    // This test fails for fma3d, a better check is implemented in BaseCache
-//     for(int i=0;i<dataUsers.size();i++){
-//         if(dataUsers[i] == 0 && addressUsers[i] == 0) zeroCount[i]++;
-//         else zeroCount[i] = 0;
-//     }
-//     for(int i=0;i<dataUsers.size();i++){
-// //         cout << curTick << ": zero count for cpu " << i << " is " << zeroCount[i] << "\n";
-//         if(zeroCount[i] == FATAL_ZERO_NUM){
-//             fatal("We have not seen a single memory access for the last 100 mill clock cycles from cpu %d", i);
-//         }
-//     }
-    
-    
     //write bus use trace
     ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
     memTraceFile << time;
@@ -168,19 +155,15 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     if(!onlyTraceBus){
     
         bool decreaseCalled = false;
-//         if((addrBusUtil > dataBusUtil ? addrBusUtil : dataBusUtil) >= highThreshold){
         if(dataBusUtil >= highThreshold){
-//             decreaseNumMSHRs(addrBusUtil > dataBusUtil ? addressUsers : dataUsers);
             decreaseNumMSHRs(dataUsers);
             decreaseCalled = true;
         }
         if(dataBusUtil <= lowThreshold){
-//         if((addrBusUtil > dataBusUtil ? addrBusUtil : dataBusUtil) <= lowThreshold){
             increaseNumMSHRs();
         }
         
         if(!decreaseCalled){
-//             cout << curTick << "no decrease, repeats are zero\n";
             numRepeatDecisions = 0;
             currentCandidate = -1;
         }
@@ -202,8 +185,6 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 void
 AdaptiveMHA::decreaseNumMSHRs(vector<int> currentVector){
     
-//     cout << curTick << ": calling decrease MSHRs\n";
-    
     int index = -1;
     int largest = 0;
     for(int i=0;i<currentVector.size();i++){
@@ -221,52 +202,35 @@ AdaptiveMHA::decreaseNumMSHRs(vector<int> currentVector){
     
     assert(index > -1);
 
-        
-    
-    
     if(index == currentCandidate){
         
         numRepeatDecisions++;
-        
-
-        
         if(numRepeatDecisions >= neededRepeatDecisions){
             dataCaches[index]->decrementNumMSHRs();
-            
             numRepeatDecisions = 0;
         }
     }
     else{
-        
-        
+
         currentCandidate = index;
         numRepeatDecisions = 1;
         
         if(neededRepeatDecisions == 1){
             dataCaches[index]->decrementNumMSHRs();
-            
             numRepeatDecisions = 0;
         }
-        
 
     }
-    
     return;
-        
 }
 
 void
 AdaptiveMHA::increaseNumMSHRs(){
     
-//     cout << curTick << ": calling increase MSHRs\n";
-    
     int smallest = 100;
     int index = -1;
     
     for(int i=0;i<adaptiveMHAcpuCount;i++){
-//         assert(dataCaches[i]->getCurrentMSHRCount() 
-//                 == instructionCaches[i]->getCurrentMSHRCount());
-        
         if(dataCaches[i]->getCurrentMSHRCount() < smallest){
             smallest = dataCaches[i]->getCurrentMSHRCount();
             index = i;
@@ -282,19 +246,12 @@ AdaptiveMHA::increaseNumMSHRs(){
     
     // no filtering here, we should increase quickly
     dataCaches[index]->incrementNumMSHRs();
-//     instructionCaches[index]->incrementNumMSHRs();
     
     // Unblock the cache if it is blocked due to too few MSHRs
     if(dataCaches[index]->isBlockedNoMSHRs()){
         assert(dataCaches[index]->isBlocked());
         dataCaches[index]->clearBlocked(Blocked_NoMSHRs);
     }
-        
-//     if(instructionCaches[index]->isBlockedNoMSHRs()){
-//         assert(instructionCaches[index]->isBlocked());
-//         instructionCaches[index]->clearBlocked(Blocked_NoMSHRs);
-//     }
-
 }
 
 

@@ -300,11 +300,6 @@ BaseCache::setBlocked(BlockedCause cause)
     DPRINTF(Cache,"Blocking for cause %s\n", cause);
     si->setBlocked();
     
-//     if(name() == "L1dcaches3" && curTick >= 1082099355){
-//         std::cout << curTick << ": The cache is blocking on cause " << cause << "\n";
-//         printBlockedState();
-//     }
-    
 }
 
 void
@@ -313,10 +308,6 @@ BaseCache::clearBlocked(BlockedCause cause)
     
     uint8_t flag = 1 << cause;
     
-    
-//     if((blocked & flag) == 0){
-//         cout << curTick << " " << name() << ": unblocking on cause " << cause << ", will fail\n";
-//     }
     assert((blocked & flag) > 0);
     
     blocked &= ~flag;
@@ -331,20 +322,6 @@ BaseCache::clearBlocked(BlockedCause cause)
     if (!isBlockedForSnoop()) {
         mi->clearBlocked();
     }
-        
-//     if(name() == "L1dcaches0" && curTick > 1049000000){
-//         if(!isBlocked()){
-//             std::cout << curTick << ": We actually unblocked\n";
-//         }
-//         else{
-//             std::cout << curTick << ": We are still blocked\n";
-//         }
-//     }
-
-//     if(name() == "L1dcaches3" && curTick >= 1082099355){
-//         cout << curTick << ": The cache is unblocking on cause " << cause << "\n";
-//         printBlockedState();
-//     }
 }
 
 void
@@ -361,7 +338,6 @@ BaseCache::printBlockedState(){
 
 void
 BaseCache::checkIfCacheAlive(){
-//     cout << curTick << ": checking if cache " << name() << " is alive\n";
     
     if(isBlocked()){
         if(blockedAt < (curTick - CACHE_CHECK_INTERVAL)){
@@ -373,3 +349,5 @@ BaseCache::checkIfCacheAlive(){
     
     checkEvent->schedule(curTick + CACHE_CHECK_INTERVAL);
 }
+
+

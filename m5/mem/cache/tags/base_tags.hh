@@ -130,6 +130,11 @@ class BaseTags
      * exits.
      */
     virtual void cleanupRefs() {}
+    
+    virtual std::vector<int> perCoreOccupancy() {
+        std::vector<int> tmp;
+        return tmp; 
+    }
 };
 
 class BaseTagsCallback : public Callback

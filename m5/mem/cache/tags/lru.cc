@@ -387,3 +387,31 @@ LRU::cleanupRefs()
 	}
     }
 }
+
+
+std::vector<int>
+LRU::perCoreOccupancy(){
+    vector<int> ret(cache->cpuCount, 0);
+    int notTouched = 0;
+    
+    for(int i=0;i<numSets;i++){
+        for(int j=0;j<assoc;j++){
+            LRUBlk* blk = sets[i].blks[j];
+            assert(blk->origRequestingCpuID < cache->cpuCount);
+            if(blk->origRequestingCpuID != -1) ret[blk->origRequestingCpuID]++;
+            else{
+                assert(!blk->isTouched);
+                notTouched++;
+            }
+        }
+    }
+    
+    ret.push_back(notTouched);
+    ret.push_back(numSets * assoc);
+    
+    int sum = 0;
+    for(int i=0;i<cache->cpuCount+1;i++) sum += ret[i];
+    assert(sum == numSets * assoc);
+    
+    return ret;
+}

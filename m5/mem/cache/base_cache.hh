@@ -55,7 +55,7 @@
 class Bus;
 class Crossbar;
 class CacheAliveCheckEvent;
-// class DirectoryProtocol;
+class CacheProfileEvent;
 
 /**
  * Reasons for Caches to be Blocked.
@@ -136,6 +136,8 @@ class BaseCache : public BaseMem {
     bool isReadOnly;
     bool useAdaptiveMHA;
     bool useUniformPartitioning;
+    
+    CacheProfileEvent* profileEvent;
     
 #ifdef CACHE_DEBUG
     std::map<Addr, std::pair<int, Tick> > pendingRequests;
@@ -465,6 +467,8 @@ class BaseCache : public BaseMem {
     
     void checkIfCacheAlive();
     
+    virtual void handleProfileEvent() = 0;
+    
 //     virtual DirectoryProtocol* getDirectoryProtocol() = 0;
     
     virtual int getCacheCPUid() = 0;
@@ -506,5 +510,27 @@ class CacheAliveCheckEvent : public Event
             return "Cache Alive Check Event";
         }
 };
+
+class CacheProfileEvent : public Event
+{
+
+    public:
+        
+        BaseCache* cache;
+        
+        CacheProfileEvent(BaseCache* _cache)
+        : Event(&mainEventQueue), cache(_cache)
+        {
+        }
+        
+        void process(){
+            cache->handleProfileEvent();
+        }
+
+        virtual const char *description(){
+            return "Cache Profiling Event";
+        }
+};
+
 
 #endif //__BASE_CACHE_HH__

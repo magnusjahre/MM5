@@ -329,7 +329,9 @@ class CacheTags
      * @param blk The block to writeback.
      * @return The writeback request for the block.
      */
-    MemReqPtr writebackBlk(BlkType *blk);  
+    MemReqPtr writebackBlk(BlkType *blk);
+    
+    std::vector<int> perCoreOccupancy();
 };
 
 

@@ -60,6 +60,8 @@
 #include "mem/mem_debug.hh"
 
 #include "sim/sim_events.hh" // for SimExitEvent
+
+#define CACHE_PROFILE_INTERVAL 100000
         
 using namespace std;
 
@@ -76,6 +78,19 @@ Cache(const std::string &_name, HierParams *hier_params,
     
     idIsSet = false;
     cacheCpuID = params.cpu_id;
+    
+    if(params.isShared){
+        profileFileName = name() + "CapacityProfile.txt";
+        ofstream file(profileFileName.c_str());
+        file << "Tick";
+        for(int i=0;i<params.cpu_count;i++) file << ";CPU " << i;
+        file << ";Not touched\n";
+        file.flush();
+        file.close();
+        
+        profileEvent = new CacheProfileEvent(this);
+        profileEvent->schedule(CACHE_PROFILE_INTERVAL);
+    }
     
     useAdaptiveMHA = false;
     if (params.in == NULL) {
@@ -1292,6 +1307,23 @@ void
 Cache<TagStore,Buffering,Coherence>::respond(MemReqPtr &req, Tick time)
 {
     si->respond(req,time);
+}
+
+template<class TagStore, class Buffering, class Coherence>
+void
+Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
+
+    vector<int> ownedBlocks = tags->perCoreOccupancy();
+    assert(ownedBlocks.size() == cpuCount + 2);
+    
+    ofstream file(profileFileName.c_str(), ofstream::app);
+    file << curTick;
+    for(int i=0;i<cpuCount+1;i++) file << ";" << (double) ((double) ownedBlocks[i] / (double) ownedBlocks[cpuCount+1]);
+    file << "\n";
+    file.flush();
+    file.close();
+    
+    profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 
 #ifdef CACHE_DEBUG

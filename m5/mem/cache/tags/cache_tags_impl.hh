@@ -885,3 +885,10 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
     
     return blk;
 }
+
+template <class Tags, class Compression>
+std::vector<int>
+CacheTags<Tags,Compression>::perCoreOccupancy(){
+    return ct->perCoreOccupancy();
+}
+
