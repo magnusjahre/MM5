@@ -25,6 +25,8 @@ class AdaptiveMHA : public SimObject{
         std::vector<BaseCache* > dataCaches;
         std::vector<BaseCache* > instructionCaches;
         
+        std::vector<int> staticAsymmetricMHAs;
+        
         int currentCandidate;
         int numRepeatDecisions;
         
@@ -53,7 +55,8 @@ class AdaptiveMHA : public SimObject{
                     Tick _sampleFrequency,
                     Tick _startTick,
                     bool _onlyTraceBus,
-                    int _neededRepeatDecisions);
+                    int _neededRepeatDecisions,
+                    std::vector<int> & _staticAsymmetricMHA);
         
         ~AdaptiveMHA();
         

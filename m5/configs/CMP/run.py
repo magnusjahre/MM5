@@ -200,6 +200,17 @@ else:
     root.adaptiveMHA.neededRepeats = 1 # not used
     root.adaptiveMHA.onlyTraceBus = True
 
+if "STATICASYMMETRICMHA" in env:
+    tmpSAMList = env["STATICASYMMETRICMHA"].split(',')
+    for i in range(env["NP"]):
+        tmpSAMList[i] = int(tmpSAMList[i])
+    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
+else:
+    tmpSAMList = []
+    for i in range(env["NP"]):
+        tmpSAMList.append(-1)
+    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
+
 
 ###############################################################################
 # Fast-forwarding

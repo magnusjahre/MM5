@@ -15,7 +15,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          Tick _sampleFrequency,
                          Tick _startTick,
                          bool _onlyTraceBus,
-                         int _neededRepeatDecisions)
+                         int _neededRepeatDecisions,
+                         vector<int> & _staticAsymmetricMHA)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -39,6 +40,13 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     firstSample = true;
             
     maxMshrs = -1;
+    
+    assert(_staticAsymmetricMHA.size() == cpu_count);
+    bool allStaticM1 = true;
+    for(int i=0;i<_staticAsymmetricMHA.size();i++) if(_staticAsymmetricMHA[i] != -1) allStaticM1 = false;
+    
+    if(!allStaticM1) staticAsymmetricMHAs = _staticAsymmetricMHA;
+
     
     dataCaches.resize(adaptiveMHAcpuCount, NULL);
     instructionCaches.resize(adaptiveMHAcpuCount, NULL);
@@ -108,9 +116,20 @@ AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache){
 void
 AdaptiveMHA::handleSampleEvent(Tick time){
     
+    
     if(firstSample){
         bus->resetAdaptiveStats();
         firstSample = false;
+        
+        if(staticAsymmetricMHAs.size() != 0){
+            assert(onlyTraceBus);
+            for(int i=0;i<staticAsymmetricMHAs.size();i++){
+                for(int j=0;j<staticAsymmetricMHAs[i];j++){
+                    dataCaches[i]->decrementNumMSHRs();
+                }
+                cout << curTick << ": The MSHR count of cache " << i << " has been reduced to " << dataCaches[i]->getCurrentMSHRCount() << "\n";
+            }
+        }
     }
     
     
@@ -265,6 +284,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<Tick> startTick;
     Param<bool> onlyTraceBus;
     Param<int> neededRepeats;
+    VectorParam<int> staticAsymmetricMHA;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -274,7 +294,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM(sampleFrequency, "The number of clock cycles between each sample"),
     INIT_PARAM(startTick, "The tick where the scheme is started"),
     INIT_PARAM(onlyTraceBus, "Only create the bus trace, adaptiveMHA is turned off"),
-    INIT_PARAM(neededRepeats, "Number of repeated desicions to change config")
+    INIT_PARAM(neededRepeats, "Number of repeated desicions to change config"),
+    INIT_PARAM(staticAsymmetricMHA, "The number of times each caches mshrcount should be reduced")
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
@@ -286,7 +307,8 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            sampleFrequency,
                            startTick,
                            onlyTraceBus,
-                           neededRepeats);
+                           neededRepeats,
+                           staticAsymmetricMHA);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

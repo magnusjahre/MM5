@@ -9,3 +9,4 @@ class AdaptiveMHA(SimObject):
     startTick = Param.Tick("The tick where the scheme is started")
     onlyTraceBus = Param.Bool("Only create the bus trace, adaptiveMHA is turned off")
     neededRepeats = Param.Int("Number of repeated desicions to change config")
+    staticAsymmetricMHA = VectorParam.Int("The number of times each caches mshrcount should be reduced")
