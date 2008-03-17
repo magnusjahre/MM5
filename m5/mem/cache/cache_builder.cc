@@ -412,7 +412,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #if defined(USE_CACHE_LRU)
 #define BUILD_LRU_CACHE(b, c) do {				\
-	LRU *tags = new LRU(numSets, block_size, assoc, latency);	\
+        LRU *tags = new LRU(numSets, block_size, assoc, latency);	\
 	BUILD_COMPRESSED_CACHE(LRU, tags, b, c);			\
     } while (0)
 #else
@@ -481,6 +481,10 @@ CREATE_SIM_OBJECT(BaseCache)
     
     string name = getInstanceName();
     int numSets = size / (assoc * block_size);
+    
+    // recalculate block size to bits for use in address calculations
+    block_size *= 8; 
+    
     
     string pf_policy = prefetch_policy;
     if (subblock_size == 0) {

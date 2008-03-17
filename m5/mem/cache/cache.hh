@@ -87,11 +87,6 @@ class Cache : public BaseCache
     Coherence *coherence;
     DirectoryProtocol<TagStore> *directoryProtocol;
     int interfaceID;
-
-    /** Bank addressing scheme */
-    bool doModuloAddressing;
-    int bankID;
-    int bankCount;
     
     /** Prefetcher */
     Prefetcher<TagStore, Buffering> *prefetcher;
@@ -324,6 +319,10 @@ class Cache : public BaseCache
     
     int getBankCount(){
         return bankCount;
+    }
+    
+    int getNumSets(){
+        return tags->getNumSets();
     }
     
     virtual void handleProfileEvent();

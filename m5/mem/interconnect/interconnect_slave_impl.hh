@@ -120,10 +120,17 @@ InterconnectSlave<MemType>::inRange(Addr addr)
         assert(localBlkSize != 0);
         while((localBlkSize >>= 1) != 1) bitCnt++;
         
+        assert((thisCache->getBlockSize()-1 & addr) == 0);
+        
+        int localNumSets = thisCache->getNumSets();
+        int setBitCnt = 1;
+        assert(localNumSets !=0);
+        while((localNumSets >>= 1) != 1) setBitCnt++;
+        
         assert(bankID != -1);
         assert(bankCount != -1);
         
-        Addr effectiveAddr = addr >> bitCnt;
+        Addr effectiveAddr = addr >> (setBitCnt + bitCnt);
         
         if((effectiveAddr % bankCount) == bankID) return true;
         return false;

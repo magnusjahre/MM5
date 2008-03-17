@@ -131,6 +131,11 @@ class BaseCache : public BaseMem {
 
   public:
       
+    /** Bank addressing scheme */
+    bool doModuloAddressing;
+    int bankID;
+    int bankCount;
+      
     bool isShared;
     bool useDirectory;
     bool isReadOnly;

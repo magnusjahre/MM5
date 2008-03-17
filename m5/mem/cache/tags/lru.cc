@@ -81,9 +81,12 @@ CacheSet::moveToHead(LRUBlk *blk)
 
 
 // create and initialize a LRU/MRU cache structure
+//block size is configured in bytes
 LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency) :
     numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency)
 {
+    
+    cout << "sets="<< _numSets << " assoc=" << _assoc << " blk size is  " << _blkSize << " bits\n";
     
     // Check parameters
     if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
@@ -101,8 +104,8 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency) :
 
     LRUBlk  *blk;
     int i, j, blkIndex;
-
-    blkMask = blkSize - 1;
+    
+    blkMask = (blkSize) - 1;
     setShift = FloorLog2(blkSize);
     setMask = numSets - 1;
     tagShift = setShift + FloorLog2(numSets);
@@ -242,7 +245,8 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     
     // grab a replacement candidate
     LRUBlk *blk;
-    if(cache->useUniformPartitioning){
+    //FIXME: uniform partition start should be a parameter
+    if(cache->useUniformPartitioning && curTick >= 15000000){
         
         int fromProc = req->adaptiveMHASenderID;
         
@@ -268,14 +272,24 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         
         bool found = false;
         if(blkCnt[fromProc] < maxBlks){
+            
             // not using all blocks, LRU block is not touched
             DPRINTF(UniformPartitioning, "Set %d: Choosing block that has not been touched for replacement, request addr is %x, req from proc %d\n", 
                     set,
                     req->paddr, 
                     fromProc);
             blk = sets[set].blks[assoc-1];
-            assert(!blk->isTouched);
             found = true;
+            
+            // if the block is touched, one processor has more than its share of cache blocks
+            if(blk->isTouched){
+                // evict the lru block for the processor with the most cache blocks
+                fatal("oh yes");
+                for(int i=0;i<cache->cpuCount;i++){
+                    
+                }
+            }
+            
         }
         else{
             // replace the LRU block belonging to this cache

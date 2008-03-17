@@ -332,6 +332,10 @@ class CacheTags
     MemReqPtr writebackBlk(BlkType *blk);
     
     std::vector<int> perCoreOccupancy();
+    
+    int getNumSets(){
+        return ct->getNumSets();
+    }
 };
 
 

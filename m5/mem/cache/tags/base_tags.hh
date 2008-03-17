@@ -135,6 +135,10 @@ class BaseTags
         std::vector<int> tmp;
         return tmp; 
     }
+    
+    virtual int getNumSets(){
+        return 0;
+    }
 };
 
 class BaseTagsCallback : public Callback
