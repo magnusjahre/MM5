@@ -79,14 +79,20 @@ CacheSet::moveToHead(LRUBlk *blk)
     } while (next != blk);
 }
 
+/* New address layout with banked caches (Magnus):
+ MSB                                                     LSB
+|----------------------------------------------------------|
+| Tag         | Set index        | Bank | Block offset     |
+|----------------------------------------------------------|
+*/
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
-LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency) :
-    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency)
+LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count) :
+    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count)
 {
     
-    cout << "sets="<< _numSets << " assoc=" << _assoc << " blk size is  " << _blkSize << " bits\n";
+    // block size is converted to bits in cache_builder.cc and can be used directly
     
     // Check parameters
     if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
@@ -106,7 +112,9 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency) :
     int i, j, blkIndex;
     
     blkMask = (blkSize) - 1;
-    setShift = FloorLog2(blkSize);
+    
+    if(numBanks != -1) setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
+    else setShift = FloorLog2(blkSize);
     setMask = numSets - 1;
     tagShift = setShift + FloorLog2(numSets);
     warmedUp = false;
@@ -245,8 +253,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     
     // grab a replacement candidate
     LRUBlk *blk;
-    //FIXME: uniform partition start should be a parameter
-    if(cache->useUniformPartitioning && curTick >= 15000000){
+    if(cache->useUniformPartitioning){
         
         int fromProc = req->adaptiveMHASenderID;
         
@@ -284,10 +291,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             // if the block is touched, one processor has more than its share of cache blocks
             if(blk->isTouched){
                 // evict the lru block for the processor with the most cache blocks
-                fatal("oh yes");
-                for(int i=0;i<cache->cpuCount;i++){
-                    
-                }
+                fatal("not implemented");
             }
             
         }

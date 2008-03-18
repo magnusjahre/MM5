@@ -101,6 +101,8 @@ class LRU : public BaseTags
     const int assoc;
     /** The hit latency. */
     const int hitLatency;
+    
+    const int numBanks;
 
     /** The cache sets. */
     CacheSet *sets;
@@ -127,7 +129,7 @@ public:
      * @param _assoc The associativity of the cache.
      * @param _hit_latency The latency in cycles for a hit.
      */
-    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency);
+    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count);
 
     /**
      * Destructor
