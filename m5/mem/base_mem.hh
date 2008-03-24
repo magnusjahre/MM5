@@ -127,6 +127,26 @@ class BaseMem : public BaseHier
     virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;
     virtual void addPendingRequest(Addr address, MemReqPtr& req) = 0;
 #endif
+
+    virtual bool isActive(MemReqPtr &req) {
+      fatal("Not implemented");
+      return false;
+    }
+
+    virtual bool bankIsClosed(MemReqPtr &req) {
+      fatal("Not implemented");
+      return false;
+    }
+
+    virtual bool isReady(MemReqPtr &req) {
+      fatal("Not implemented");
+      return false;
+    }
+
+    virtual Tick calculateLatency(MemReqPtr &req) {
+      fatal("Not implemented");
+      return false;
+    }
     
 };
 

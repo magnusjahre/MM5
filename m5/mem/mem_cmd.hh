@@ -90,6 +90,9 @@ enum MemCmdEnum
     DirOwnerWriteback,
     DirSharerWriteback,
     DirNewOwnerMulticast,
+    Close,
+    Activate,
+    Prewrite,
     NUM_MEM_CMDS
 };
 

@@ -43,4 +43,4 @@ class NFQBus : public Bus
 
 };
 
-#endif // __NFQ_BUS_HH__
+#endif // __NFQ_BUS_HH__*/

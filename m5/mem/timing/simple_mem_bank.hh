@@ -39,6 +39,15 @@
 #include "mem/timing/base_memory.hh"
 #include "base/statistics.hh"
 
+    /* DDR2 states */
+
+enum DDR2State {
+        DDR2Idle,   
+        DDR2Active,
+        DDR2Written,
+        DDR2Read
+};
+
 /**
  * A simple main memory that can handle compression.
  */
@@ -63,6 +72,60 @@ class SimpleMemBank : public BaseMemory
     /** The number of compressed accesses per thread. */
     Stats::Vector<> compressedAccesses;
 
+    /** The number of reads */
+    Stats::Scalar<> number_of_reads;
+    /** The number of writes */
+    Stats::Scalar<> number_of_writes;
+    /** The number of reads that hit open page */
+    Stats::Scalar<> number_of_reads_hit;
+    /** The number of writes that hit open page */
+    Stats::Scalar<> number_of_writes_hit;
+
+    /** Read hit rate */
+    Stats::Formula read_hit_rate;
+    /** Write hit rate */
+    Stats::Formula write_hit_rate;
+    
+    /** Total latency */
+    Stats::Scalar<> total_latency;
+    /** Average latency */
+    Stats::Formula average_latency;
+
+    /* Slow read hits */
+    Stats::Scalar<> number_of_slow_read_hits;
+    /* Slow write hits */
+    Stats::Scalar<> number_of_slow_write_hits;
+
+    /* Non-overlapping activates */
+    Stats::Scalar<> number_of_non_overlap_activate;
+
+    /* DDR2 params */
+    int num_banks;
+    int RAS_latency;
+    int CAS_latency;
+    int precharge_latency;
+    int min_activate_to_precharge_latency;
+
+    int active_bank_count;
+
+    /* DDR2 constants */
+    int write_recovery_time;
+    int internal_write_to_read;
+    int internal_row_to_row;
+
+    int pagesize;
+    int internal_read_to_precharge;
+    int data_time;
+    int read_to_write_turnaround;
+    int bus_to_cpu_factor;
+
+    std::vector<DDR2State> Bankstate;
+    std::vector<Tick> activateTime;
+    std::vector<Tick> readyTime;
+    std::vector<Tick> lastCmdFinish;
+    std::vector<Tick> closeTime;
+    std::vector<Addr> openpage;
+
     /**
      * Constructs and initializes this memory.
      * @param name The name of this memory.
@@ -76,6 +139,9 @@ class SimpleMemBank : public BaseMemory
      * Register statistics
      */
     virtual void regStats();
+
+    Tick calculateLatency(MemReqPtr &req);
+
 
     /**
      * Perform the request on this memory.
@@ -93,6 +159,10 @@ class SimpleMemBank : public BaseMemory
      * @todo Change this when we need data.
      */
     Tick probe(MemReqPtr &req, bool update);
+
+    bool isActive(MemReqPtr &req);
+    bool bankIsClosed(MemReqPtr &req);
+    bool isReady(MemReqPtr &req);
     
 };
 

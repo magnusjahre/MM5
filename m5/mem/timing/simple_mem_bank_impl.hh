@@ -58,6 +58,46 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
 					  BaseMemory::Params params)
     : BaseMemory(name, hier, params)
 {
+
+    active_bank_count = 0;
+    num_banks = params.num_banks;
+    RAS_latency = params.RAS_latency;
+    CAS_latency = params.CAS_latency;
+    precharge_latency = params.precharge_latency;
+    min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
+
+    /* Constants */
+    write_recovery_time = 6;
+    internal_write_to_read = 3;
+
+    /* Build bank state */
+    Bankstate.resize(num_banks, DDR2Idle);
+    openpage.resize(num_banks, 0);
+    activateTime.resize(num_banks, 0);
+    closeTime.resize(num_banks, 0);
+    readyTime.resize(num_banks, 0);
+    lastCmdFinish.resize(num_banks, 0);
+
+    pagesize = 10; // 1kB = 2**10 from standard :-)
+    internal_read_to_precharge = 3;
+    // Single channel = 4, dual channel = 2
+    data_time = 2;
+    read_to_write_turnaround = 6; // for burstlength = 8 
+    internal_row_to_row = 3;
+
+    bus_to_cpu_factor = 8; // Multiply by this to get cpu - cycles :p
+
+    // Convert to CPU cycles :-)
+    RAS_latency *= bus_to_cpu_factor;
+    CAS_latency *= bus_to_cpu_factor;
+    precharge_latency *= bus_to_cpu_factor;
+    min_activate_to_precharge_latency *= bus_to_cpu_factor;
+    write_recovery_time *= bus_to_cpu_factor;
+    internal_write_to_read *= bus_to_cpu_factor;
+    internal_read_to_precharge *= bus_to_cpu_factor;
+    read_to_write_turnaround *= bus_to_cpu_factor;
+    data_time *= bus_to_cpu_factor;
+    internal_row_to_row *= bus_to_cpu_factor;
 }
 
 template <class Compression>
@@ -88,7 +128,206 @@ SimpleMemBank<Compression>::regStats()
 	.flags(total)
 	;
     
+    number_of_reads
+    .name(name() + ".number_of_reads")
+    .desc("Total number of reads")
+    ;
+
+    number_of_writes
+    .name(name() + ".number_of_writes")
+    .desc("Total number of writes")
+    ;
+
+    number_of_reads_hit
+    .name(name() + ".number_of_read_hits")
+    .desc("The number of reads that hit open page")
+    ;
+
+    number_of_writes_hit
+    .name(name() + ".number_of_write_hits")
+    .desc("The number of writes that hit open pages")
+    ;
+
+    total_latency
+    .name(name() + ".total_latency")
+    .desc("Total latency")
+    ;
+    
+    average_latency
+    .name(name() + ".average_latency")
+    .desc("Average latency")
+    ;
+
+    average_latency = total_latency / (number_of_reads + number_of_writes);
+
+    read_hit_rate 
+    .name(name() + ".read_hit_rate")
+    .desc("Rate of hitting open pages on read")
+    ;
+    
+    read_hit_rate = number_of_reads_hit / number_of_reads;
+
+    write_hit_rate
+    .name(name() + ".write_hit_rate")
+    .desc("Rate of hitting write pages on write")
+    ;
+
+    write_hit_rate = number_of_writes_hit / number_of_writes;
+
+    number_of_slow_read_hits
+    .name(name() + ".number_of_slow_read_hits")
+    .desc("Number of transitions from write to read")
+    ;
+
+    number_of_slow_write_hits
+    .name(name() + ".number_of_slow_write_hits")
+    .desc("Number of transitions from read to write")
+    ;
+
+    number_of_non_overlap_activate
+    .name(name() + ".number_of_non_overlap_activate")
+    .desc("Number of non overlapping activates")
+    ;
+    
 }
+
+/* Calculate latency for request */
+template <class Compression>
+Tick
+SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
+{
+
+
+    // Sanity checks! :D
+    assert (req->cmd == Read || req->cmd == Writeback || req->cmd == Close || req->cmd == Activate);
+
+    int bank = (req->paddr >> pagesize) % num_banks;
+    Addr page = (req->paddr >> pagesize);
+
+    if (req->cmd == Close) {
+        active_bank_count--;
+        Tick closelatency = 0;
+        assert (Bankstate[bank] != DDR2Idle);
+        assert (Bankstate[bank] != DDR2Active);
+        if (Bankstate[bank] == DDR2Read) {
+            closelatency = internal_read_to_precharge - 2*bus_to_cpu_factor;    
+        } 
+        if (Bankstate[bank] == DDR2Written) {
+            closelatency = write_recovery_time; 
+        }
+        
+        if (curTick - activateTime[bank] - closelatency < min_activate_to_precharge_latency) {
+           closelatency = min_activate_to_precharge_latency - (curTick - activateTime[bank]); 
+        }
+        closelatency += precharge_latency;
+        closeTime[bank] = closelatency + curTick;
+        Bankstate[bank] = DDR2Idle;
+        return 0;
+    }
+
+    if (req->cmd == Activate) {
+        active_bank_count++;
+        // Max 4 banks can be active at any time according to DDR2 spec.
+        assert(active_bank_count < 5);
+        Tick extra_latency = 0;
+        if (curTick < closeTime[bank]) {
+            extra_latency = closeTime[bank] - curTick;
+        }
+        assert(Bankstate[bank] == DDR2Idle);
+        Tick last_activate = 0;
+        for (int i=0; i < num_banks; i++) {
+            if (last_activate < activateTime[bank]) {
+                last_activate = activateTime[bank];
+            }
+        }
+        
+        if (last_activate  + internal_row_to_row > curTick) {
+            activateTime[bank] = (curTick - last_activate) + RAS_latency + curTick;
+        } else {
+            activateTime[bank] = RAS_latency + curTick;
+        }
+        activateTime[bank] += extra_latency;
+        readyTime[bank] = activateTime[bank] + CAS_latency;
+        Bankstate[bank] = DDR2Active;
+        openpage[bank] = page;
+        return 0;
+    }
+        
+
+    Tick latency = 0;
+
+    if (req->cmd == Read) {
+        number_of_reads++;
+        assert (page == openpage[bank]);
+        switch(Bankstate[bank]) {
+
+            case DDR2Read: 
+                latency = data_time;
+                number_of_reads_hit++;
+                break;
+            case DDR2Active :
+                Bankstate[bank] = DDR2Read;
+                latency = data_time;
+                break;
+            case DDR2Written:
+                if (curTick - lastCmdFinish[bank]  <= internal_write_to_read + CAS_latency) {
+                  latency = data_time + (curTick - lastCmdFinish[bank]);
+                } else {
+                  latency = data_time;
+                }
+                Bankstate[bank] = DDR2Read;
+                number_of_reads_hit++;
+                number_of_slow_write_hits++;
+                break;
+            default:
+                fatal("Unknown state!");
+        }
+    } 
+
+    if (req->cmd == Writeback) {
+        assert (page == openpage[bank]);
+        number_of_writes++;
+        switch (Bankstate[bank]) {
+            case DDR2Read: 
+                Bankstate[bank] = DDR2Written;
+                if (curTick - lastCmdFinish[bank]  <= read_to_write_turnaround) {
+                  latency = data_time + (curTick - lastCmdFinish[bank]);
+                } else {
+                  latency = data_time;
+                }
+                number_of_writes_hit++;
+                number_of_slow_read_hits++;
+                break;
+
+            case DDR2Active:
+                Bankstate[bank] = DDR2Written;
+                // Substract one to avoid subtracting write latency later.
+                latency = data_time - 1*bus_to_cpu_factor; 
+                break;
+    
+            case DDR2Written:
+                latency = data_time;
+                number_of_writes_hit++;
+                break;
+
+            default:
+                fatal("Unknown state!");
+        }
+    }
+
+    assert(req->cmd == Writeback || req->cmd == Read);
+    if (curTick < readyTime[bank]) {
+        // Wait until activation completes;
+        latency += readyTime[bank] - curTick;
+        number_of_non_overlap_activate++;
+    }
+
+    total_latency += latency;
+    lastCmdFinish[bank] = latency + curTick;
+    //cout << curTick << " : " << req->cmd << " for page " << page << " on bank " << bank << " took " << latency << endl;
+    return latency;
+}
+
 
 /* Handle memory bank access latencies */
 template <class Compression>
@@ -96,94 +335,12 @@ MemAccessResult
 SimpleMemBank<Compression>::access(MemReqPtr &req)
 {
     Tick response_time;
-    
-#if !FULL_SYSTEM
-    // For full system, there is just one funcMem that is a
-    // data member of the BaseMemory object.  For syscall
-    // emulation, the functional memory is per thread, so we
-    // have to get it from the request.
-    assert(req->xc != NULL);
-    FunctionalMemory *funcMem = req->xc->mem;
-#endif
 
-    assert(req->thread_num < SMT_MAX_THREADS);
-    accesses[req->thread_num]++;
+	response_time = calculateLatency(req) + curTick;
 
-    if (!req->isUncacheable()) {
-	response_time = hitLatency + curTick;
-    } else {
-	response_time = uncacheLatency + curTick;
-    }
+    req->flags |= SATISFIED;
+    si->respond(req, response_time);
 
-    if (!req->isSatisfied()) {
-	req->flags |= SATISFIED;
-	if (doData()) {
-	    // doing real data transfers: read or write data on
-	    // functional memory object
-	    /**
-	     * @todo
-	     * Need to remove this dummy untranslation once we unify the
-	     * memory objects.
-	     */
-	    Addr addr = (req->paddr & ULL(1) << 47) ?
-		(req->paddr | ULL(0xff) << 48) :
-		(req->paddr & ((ULL(1) << 48) - ULL(1)));
-
-	    if (req->cmd.isRead()) {
-		bytesRequested[req->thread_num] += req->size;
-		uint8_t tmp_data[req->size];
-		int data_size = req->size;
-		funcMem->access(Read, addr, req->data,
-					  data_size);
-		if (!(req->flags & UNCACHEABLE)){
-		    // Compress data to ship
-		    data_size = compress.compress(tmp_data, req->data, 
-						  data_size);
-		    if (data_size < req->size) {
-			req->flags |= COMPRESSED;
-			req->actualSize = req->size;
-			req->size = data_size;
-		    }
-		}
-		bytesSent[req->thread_num] += req->size;
-	    }
-	    else if (req->cmd.isWrite() && doWrites) {
-		if (req->isCompressed()) {
-		    funcMem->access(Write, addr, req->data,
-					 req->actualSize);
-		} else {
-		    funcMem->access(Write, addr, req->data,
-					 req->size);
-		}   
-	    }
-	}
-	if (!(req->cmd.isInvalidate() && !req->cmd.isRead()
-		&& !req->cmd.isWrite())) {
-	    //No response on upgrade/invalidates
-	    si->respond(req, response_time);
-	}
-    }
-    else if (snarfUpdates) {
-	// Memory request has been satisfied by another device (i.e.,
-	// a cache-to-cache transfer).  Update memory value from
-	// request.  This line should be removed if an ownerhsip-based
-	// coherence protocol is used.
-	if (doData() && doWrites && (req->cmd.isRead() || req->cmd.isWrite())){
-	    Addr addr = (req->paddr & ULL(1) << 47) ?
-	    	(req->paddr | ULL(0xff) << 48) :
-		(req->paddr & ((ULL(1) << 48) - ULL(1)));
-	    if (req->isCompressed()) {
-		funcMem->access(Write, addr, req->data,
-				     req->actualSize);
-	    } else {
-		funcMem->access(Write, addr, req->data,
-				     req->size);
-	    }   
-	}
-    }
-    if (req->flags & COMPRESSED) {
-	compressedAccesses[req->thread_num]++;
-    }
     return MA_HIT;
 }
 
@@ -191,70 +348,54 @@ template <class Compression>
 Tick
 SimpleMemBank<Compression>::probe(MemReqPtr &req, bool update)
 {
-    Tick response_time;
+    fatal("PROBE CALLED! YOU ARE NOT HOME!\n");
+    return 0;
+}
 
-#if !FULL_SYSTEM
-    // For full system, there is just one funcMem that is a
-    // data member of the BaseMemory object.  For syscall
-    // emulation, the functional memory is per thread, so we
-    // have to get it from the request.
-    assert(req->xc != NULL);
-    FunctionalMemory *funcMem = req->xc->mem;
-#endif
 
-    if (update) {
-	accesses[req->thread_num]++;
+// This function returns true if the request can be issued. Eg. The bank
+// is active and contains the right page.
+//
+template <class Compression>
+bool
+SimpleMemBank<Compression>::isActive(MemReqPtr &req)
+{
+  int bank = (req->paddr >> pagesize) % num_banks;
+  Addr page = (req->paddr >> pagesize);
+  if (Bankstate[bank] == DDR2Idle) {
+    return false;
+  }
+  if (page == openpage[bank]) {
+    return true;
+  }
+  return false;
+}
+
+// This function checks if a bank is closed
+template <class Compression>
+bool
+SimpleMemBank<Compression>::bankIsClosed(MemReqPtr &req)
+{
+  int bank = (req->paddr >> pagesize) % num_banks;
+  if (Bankstate[bank] == DDR2Idle) {
+    return true;
+  }
+  return false;
+}
+
+template <class Compression>
+bool
+SimpleMemBank<Compression>::isReady(MemReqPtr &req)
+{
+  int bank = (req->paddr >> pagesize) % num_banks;
+  Addr page = (req->paddr >> pagesize);
+  if (Bankstate[bank] == DDR2Idle) {
+    return false;
+  }
+  if (page == openpage[bank]) {
+    if (readyTime[bank] < curTick) {
+      return true;
     }
-
-    if (!req->isUncacheable()) {
-	response_time = hitLatency + curTick;
-    } else {
-	response_time = uncacheLatency + curTick;
-    }
-
-    if (!req->isSatisfied()) {
-	if (doData()) {
-	    // doing real data transfers: read or write data on
-	    // functional memory object
-	    /**
-	     * @todo
-	     * Need to remove this dummy untranslation once we unify the
-	     * memory objects.
-	     */
-	    Addr addr = (req->paddr & ULL(1) << 47) ?
-		(req->paddr | ULL(0xff) << 48) :
-		(req->paddr & ((ULL(1) << 48) - ULL(1)));
-
-
-	    if (req->cmd.isRead()) {
-		funcMem->access(Read, addr, req->data, req->size);
-	    }
-	    else if (req->cmd.isWrite() && doWrites) {
-		if (req->isCompressed()) {
-		    funcMem->access(Write, addr, req->data, 
-					 req->actualSize);
-		} else {
-		    funcMem->access(Write, addr, req->data, req->size);
-		}
-	    }
-	}
-	req->flags |= SATISFIED;
-    }
-    else if (snarfUpdates) {
-	// Memory request has been satisfied by another device (i.e.,
-	// a cache-to-cache transfer).  Update memory value from
-	// request.  This line should be removed if an ownerhsip-based
-	// coherence protocol is used.
-	if (doData() && doWrites && (req->cmd.isRead() || req->cmd.isWrite())){
-	    Addr addr = (req->paddr & ULL(1) << 47) ?
-	    	(req->paddr | ULL(0xff) << 48) :
-		(req->paddr & ((ULL(1) << 48) - ULL(1)));
-	    if (req->isCompressed()) {
-		funcMem->access(Write, addr, req->data, req->actualSize);
-	    } else {
-		funcMem->access(Write, addr, req->data, req->size);
-	    }
-	}
-    }
-    return response_time;
+  }
+  return false;
 }

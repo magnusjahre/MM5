@@ -38,6 +38,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <fstream>
 
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
@@ -45,6 +47,7 @@
 #include "base/callback.hh"
 #include "cpu/smt.hh"
 #include "mem/bus/bus.hh"
+#include "mem/bus/bus_interface.hh"
 #include "sim/builder.hh"
 #include "sim/host.hh"
 #include "sim/stats.hh"
@@ -52,6 +55,10 @@
 #include <fstream>
 
 using namespace std;
+
+/** The maximum value of type Tick. */
+#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
+
 
 // NOTE: all times are stored internally as cpu ticks
 //       A conversion is made from provided time to
@@ -62,15 +69,27 @@ Bus::Bus(const string &_name,
 	 HierParams *hier_params,
 	 int _width,
 	 int _clock,
-         AdaptiveMHA* _adaptiveMHA,
-         int _busCPUCount,
-         int _busBankCount)
+   AdaptiveMHA* _adaptiveMHA,
+   bool _infinite_writeback,
+   int _readqueue_size,
+   int _writequeue_size,
+   int _prewritequeue_size,
+   int _reserved_slots,
+   int _start_trace,
+   int _trace_interval)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
-    busCPUCount = _busCPUCount;
-    busBankCount = _busBankCount;
+
+    /* Memory controller */
+    infinite_writeback = _infinite_writeback;
+    readqueue_size = _readqueue_size;
+    writequeue_size = _writequeue_size;
+    prewritequeue_size = _prewritequeue_size;
+    reserved_slots = _reserved_slots;
+
+    cout << "Configuration : " << infinite_writeback << " : " << readqueue_size << " : " << writequeue_size << " : " << prewritequeue_size << " : " << reserved_slots << endl;
 
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -85,44 +104,43 @@ Bus::Bus(const string &_name,
     runDataLast = 0;
 
     busBlockedTime = 0;
+    
+    nextfree = 0;
+
+    livearbs = 0;
 
     numInterfaces = 0;
     blocked = false;
     waitingFor = -1;
-    
-    lastTransferCycles = -1;
 
-    addrArbiterEvent = new AddrArbiterEvent(this);
-    dataArbiterEvent = new DataArbiterEvent(this);
-    
-    if(_adaptiveMHA != NULL){
-        
-        _adaptiveMHA->registerBus(this);
+    lastarbevent = 0;
 
-        int tmpCpuCount = _adaptiveMHA->getCPUCount();
-        perCPUAddressBusUse.resize(tmpCpuCount, 0);
-        perCPUAddressBusUseOverflow.resize(tmpCpuCount, 0);
-        perCPUDataBusUse.resize(tmpCpuCount, 0);
-        perCPUDataBusUseOverflow.resize(tmpCpuCount, 0);
+    arbiter_scheduled_flag = false;
 
-        adaptiveSampleSize = _adaptiveMHA->getSampleSize();
+    need_to_sort = true;
 
-        addrBusUseSamples[0] = 0;
-        addrBusUseSamples[1] = 0;
+    memoryControllerEvent = new MemoryControllerEvent(this);
+    memoryController = new RDFCFSTimingMemoryController();
 
-        dataBusUseSamples[0] = 0;
-        dataBusUseSamples[1] = 0;
+    // Dirty parameterization
+    memoryController->readqueue_size = readqueue_size;
+    memoryController->writequeue_size = writequeue_size;
+    memoryController->prewritequeue_size = prewritequeue_size;
+    memoryController->reserved_slots = reserved_slots;
 
-    }
-    else{
-        adaptiveSampleSize = -1;
-    }
+    // Memory Trace file
+    traceFile.open("bustrace.txt");
+    memoryTraceEvent = new MemoryTraceEvent(this,_trace_interval);
+    memoryTraceEvent->schedule(_start_trace);
+
 }
 
 Bus::~Bus()
 {
-    delete addrArbiterEvent;
-    delete dataArbiterEvent;
+    delete memoryControllerEvent;
+    delete memoryController;
+    traceFile.flush();
+    traceFile.close();
 }
 
 /* register bus stats */
@@ -168,7 +186,7 @@ Bus::regStats()
 	.name(name() + ".data_idle_cycles")
 	.desc("number of cycles bus was idle")
 	;
-
+    
     dataUseCycles
         .name(name() + ".data_use_cycles")
         .desc("number of cycles bus was in use")
@@ -219,29 +237,28 @@ Bus::regStats()
 	;
     busBlockedFraction = busBlockedCycles / simTicks;
 
-
     writebackCycles
             .name(name() + ".data_writeback_cycles")
             .desc("number of bus cycles used for writebacks")
             ;
-
+    
     writebackFraction
             .name(name() + ".data_writeback_fraction")
             .desc("fraction of time used for writebacks")
             ;
-
+    
     writebackFraction = writebackCycles / simTicks;
-
+    
     unknownSenderCycles
             .name(name() + ".data_unknown_sender_cycles")
             .desc("number of bus cycles with req that is not from an L1 cache")
             ;
-
+    
     unknownSenderFraction
             .name(name() + ".data_unknown_sender_fraction")
             .desc("fraction of time bus used by req that is not from an L1 cache")
             ;
-
+    
     unknownSenderFraction = unknownSenderCycles / simTicks;
 
     nullGrants
@@ -256,259 +273,147 @@ Bus::resetStats()
 {
     nextDataFree = curTick;
     nextAddrFree = curTick;
-
+    
 }
 
 void
 Bus::requestDataBus(int id, Tick time)
 {
-    assert(doEvents());
-    assert(time>=curTick);
-    DPRINTF(Bus, "id:%d Requesting Data Bus for cycle: %d\n", id, time);
-
-    if (dataBusRequests[id].requested && time > dataBusRequests[id].requestTime) return;
-    
-    dataBusRequests[id].requested = true;
-    // fix this: should we set the time to bus cycle?
-    dataBusRequests[id].requestTime = time;
-    scheduleArbitrationEvent(dataArbiterEvent,time,nextDataFree);
+    requestAddrBus(id, time);
 }
 
 void
 Bus::requestAddrBus(int id, Tick time)
 {
-    
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
-    if (addrBusRequests[id].requested && time > addrBusRequests[id].requestTime) return;
+
+    AddrArbiterEvent *eventptr = new AddrArbiterEvent(this,id,time);
     
-    addrBusRequests[id].requested = true;
-    addrBusRequests[id].requestTime = time;
-    if (!isBlocked()) {
-	scheduleArbitrationEvent(addrArbiterEvent,time,nextAddrFree,2);
+    need_to_sort = true;
+
+    if (!arbiter_scheduled_flag) {
+       assert(arb_events.empty());
+       eventptr->schedule(time);
+       arbiter_scheduled_flag = true;
+       currently_scheduled = eventptr;
+    } else if (currently_scheduled->original_time > time) {
+      currently_scheduled->deschedule();
+      arb_events.push_back(currently_scheduled);
+      eventptr->schedule(time);
+      currently_scheduled = eventptr;
+      assert(arbiter_scheduled_flag);
+    } else {
+       arb_events.push_back(eventptr);
+    }
+
+    livearbs++;
+    
+    if (livearbs > 50) {
+       cout << curTick << " : livearbs = " << livearbs << endl;
     }
 }
 
 void
-Bus::arbitrateAddrBus()
+Bus::arbitrateAddrBus(int interfaceid)
 {
-    assert(curTick > runAddrLast);
-    runAddrLast = curTick;
-    assert(doEvents());
-    int grant_id;
-    int old_grant_id;; // used for rescheduling
-
-    bool found =  findOldestRequest(addrBusRequests,grant_id,old_grant_id);
-    assert(found);
-
-    // grant_id is earliest outstanding request
-    // old_grant_id is second earliest request
-
-    DPRINTF(Bus, "addr bus granted to id %d\n", grant_id);
-
-    addrBusRequests[grant_id].requested = false; // clear request bit
-    assert(addrBusRequests[grant_id].requestTime < curTick);
-    bool do_request = interfaces[grant_id]->grantAddr();
-
-
-    if (do_request) {
-	addrBusRequests[grant_id].requested = true;
-	addrBusRequests[grant_id].requestTime = curTick;
-    }
-
-    Tick grant_time;
-    Tick old_grant_time = (old_grant_id == -1) ? TICK_T_MAX :
-	addrBusRequests[old_grant_id].requestTime;
-
-    if (!isBlocked()) {
-	grant_time = old_grant_time;
-	// find earliest outstand request, need to re-search because could have
-	// rerequests in grantAddr()
-	if (addrBusRequests[grant_id].requested
-	    && addrBusRequests[grant_id].requestTime < old_grant_time) {
-	    grant_time = addrBusRequests[grant_id].requestTime;
-	}
-
-	if (grant_time != TICK_T_MAX) {
-	    if (!addrArbiterEvent->scheduled()) {
-		scheduleArbitrationEvent(addrArbiterEvent,grant_time,nextAddrFree,2);
-	    }
-	} else {
-	    // fix up any scheduling errors
-	    if (addrArbiterEvent->scheduled() && nextAddrFree > addrArbiterEvent->when()) {
-		addrArbiterEvent->reschedule(nextAddrFree);
-	    }
-	}
-    } else {
-	if (addrArbiterEvent->scheduled()) {
-	    addrArbiterEvent->deschedule();
-	}
-    }
+    DPRINTF(Bus, "addr bus granted to id %d\n", interfaceid);
+    livearbs--;
+    interfaces[interfaceid]->grantAddr();
 }
 
 void
 Bus::arbitrateDataBus()
 {
-    assert(curTick>runDataLast);
-    runDataLast = curTick;
-    assert(doEvents());
-    int grant_id;
-    int old_grant_id;
-    lastTransferCycles = -1;
-
-    bool found  = findOldestRequest(dataBusRequests,grant_id,old_grant_id);
-    assert(found);
-
-    DPRINTF(Bus, "Data bus granted to id %d\n", grant_id);
-    
-    dataBusRequests[grant_id].requested = false; // clear request bit
-    assert(dataBusRequests[grant_id].requestTime < curTick);
-    interfaces[grant_id]->grantData();
-
-    Tick grant_time;
-    Tick old_grant_time = (old_grant_id == -1) ? TICK_T_MAX :
-	dataBusRequests[old_grant_id].requestTime;
-
-    //reschedule arbiter here
-    grant_time = old_grant_time;
-    // find earliest outstand request, need to re-search because could have
-    // rerequests in grantData()
-    if (dataBusRequests[grant_id].requested
-	&& dataBusRequests[grant_id].requestTime < old_grant_time) {
-	grant_time = dataBusRequests[grant_id].requestTime;
-    }
-
-    if (grant_time != TICK_T_MAX) {
-	scheduleArbitrationEvent(dataArbiterEvent,grant_time,nextDataFree);
-    }
+    fatal("arbitrateDAtaBus() called!");
 }
-
 
 bool
 Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 {
-    // update statistics
-
-#ifdef DO_BUS_TRACE
-    writeTraceFileLine(req->paddr, "Address Bus sending address");
-#endif
-
     assert(doEvents());
     if (!req) {
-	// if the bus was granted in error
-	nullGrants++;
-	DPRINTF(Bus, "null request");
-	return false;
-    }
-
-    addrQdly[req->thread_num] += curTick - origReqTime;
-    addrIdleCycles += curTick - nextAddrFree;
-
-    // Advance nextAddrFree to next clock cycle
-    nextAddrFree = nextBusClock(curTick);
-
-    storeUseStats(false, req->adaptiveMHASenderID);
-
-    // put it here so we know requesting thread
-    addrRequests[req->thread_num]++;
-
-    int responding_interface_id = -1;
-    MemAccessResult retval = BA_NO_RESULT;
-    MemAccessResult tmp_retval = BA_NO_RESULT;
-
-    DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s, from cpu %d\n",
-	    req->cmd.toString(), req->paddr,
-	    req->busId, interfaces[req->busId]->name(), req->adaptiveMHASenderID);
-
-    for (int i = 0; i < numInterfaces; i++) {
-	if (interfaces[req->busId] != transmitInterfaces[i]) {
-	    tmp_retval = transmitInterfaces[i]->access(req);
-	} else {
-	    tmp_retval = BA_NO_RESULT;
-	}
-	if (req->isNacked()) {
-	    //Can only get a NACK if the block was owned, it won't satisfy
-	    assert(!req->isSatisfied());
-	    //Clear the flags before retrying request
-	    DPRINTF(Bus, "Blk: %x Nacked by id:%d\n",
-		    req->paddr & (((ULL(1))<<48)-1), i);
-	    req->flags &= ~NACKED_LINE;
+	    // if the bus was granted in error
+	    nullGrants++;
+	    DPRINTF(Bus, "null request");
 	    return false;
-	    //Signal failure, it will retry for bus
-	}
-	if (tmp_retval != BA_NO_RESULT) {
-	    if (retval != BA_NO_RESULT) {
-		fatal("Two suppliers for address %#x on bus %s", req->paddr,
-		      name());
-	    }
-	    retval = tmp_retval;
-	    responding_interface_id = transmitInterfaces[i]->getId();
-	}
     }
+    
 
-    if (retval == BA_NO_RESULT && (req->cmd.isRead() || req->cmd.isWrite())) {
-	fatal("No supplier for address %#x on bus %s", req->paddr, name());
+    DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
+	    req->cmd.toString(), req->paddr,
+	    req->busId, interfaces[req->busId]->name());
+
+    if (infinite_writeback && (req->cmd == Write || req->cmd == Prewrite)) {
+      return true;
     }
+    
+    // Insert request into memory controller
+    memoryController->insertRequest(req);
 
-    if (retval == BA_SUCCESS) {
-	DPRINTF(Bus, "request for blk %x from id:%d satisfied by id:%d\n",
-		req->paddr & (((ULL(1))<<48)-1), req->busId,
-		responding_interface_id);
+    // Schedule memory controller if not scheduled yet.
+    if (!memoryControllerEvent->scheduled()) {
+        memoryControllerEvent->schedule(curTick);
     }
-    // If any request if blocked by a memory interface, it blocks
-    // the whole bus because the request is still outstanding on
-    // the wire.  We cannot let _any_ other request go through.
-    switch (retval) {
-      case BA_BLOCKED:
-	  DPRINTF(Bus, "Bus Blocked, waiting for id:%d on blk_adr: %x\n",
-		  responding_interface_id, req->paddr & (((ULL(1))<<48)-1));
-	  blockedReq = req;
-	  blockSync = true; //This is a synchronus block
-	  return true;
-	  break;
-
-      case BA_SUCCESS:
-	  break;
-
-      case BA_NO_RESULT:
-	  break;
-
-      default:
-	panic("Illegal bus result %d\n", retval);
-	break;
-    };
-
-    assert(curTick % clockRate == 0);
-
-    //New callback function
-    //May want to use this to move some requests in front of a NACKED
-    //request (depending on consistency model
-    interfaces[req->busId]->snoopResponseCall(req);
 
     return true;
 }
 
 void
+Bus::handleMemoryController()
+{
+    if (memoryController->hasMoreRequests()) {
+        MemReqPtr &request = memoryController->getRequest();
+        //cout << curTick << " : issuing " << request->cmd << " for address " << request->paddr << endl;
+        assert(slaveInterfaces.size() == 1);
+	    slaveInterfaces[0]->access(request);
+    }
+}
+
+/* This tunction is called when the DRAM has calculated the latency */
+void Bus::latencyCalculated(MemReqPtr &req, Tick time) 
+{
+    assert(!memoryControllerEvent->scheduled());
+    memoryControllerEvent->schedule(time);
+    nextfree = time;
+    if (req->cmd == Read) { 
+        assert(req->busId < interfaces.size() && req->busId > -1);
+        DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
+        deliverevent->schedule(time);
+    }
+}
+
+void
+Bus::traceBus(void) 
+{
+  traceFile << curTick << " ";
+  traceFile << memoryController->dumpstats();
+  traceFile << endl;
+}
+
+void 
 Bus::delayData(int size, int senderID, MemCmdEnum cmd)
 {
-
-    int transfer_cycles = DivCeil(size, width);
-    assert(lastTransferCycles == -1);
-    lastTransferCycles = transfer_cycles;
+ 
     
+    int transfer_cycles = DivCeil(size, width);
     //int transfer_time = transfer_cycles * clockRate;
     assert(curTick >= nextDataFree);
     dataIdleCycles += (curTick - nextDataFree);
-
+    
     // assumes we are cycle aligned right now
     assert(curTick % clockRate == 0);
     nextDataFree = nextBusClock(curTick,transfer_cycles);
-
+    
     storeUseStats(true, senderID);
     if(cmd == Writeback){
         writebackCycles += (nextDataFree - curTick);
     }
+    
+//     if(perCPUDataBusUse.size() > 0 && senderID != -1){
+//         perCPUDataBusUse[senderID] += (nextDataFree - curTick);
+//     }
 }
 
 void
@@ -517,31 +422,30 @@ Bus::sendData(MemReqPtr &req, Tick origReqTime)
 #ifdef DO_BUS_TRACE
     writeTraceFileLine(req->paddr, "Data Bus sending address");
 #endif
-
-    DPRINTF(Bus, "sending req %s addr %x from id %d, name %s, from cpu %d\n",
-            req->cmd.toString(), req->paddr,
-            req->busId, interfaces[req->busId]->name(), req->adaptiveMHASenderID);
-
+    
+   
     // put it here so we know requesting thread
     dataRequests[req->thread_num]++;
-
+   
     assert(doEvents());
     int transfer_cycles = DivCeil(req->size, width);
-    assert(lastTransferCycles == -1);
-    lastTransferCycles = transfer_cycles;
-
+    
     assert(curTick >= nextDataFree);
     dataQdly[req->thread_num] += curTick - origReqTime;
     dataIdleCycles += (curTick - nextDataFree);
-
+    
     nextDataFree = nextBusClock(curTick,transfer_cycles);
-
+    
     storeUseStats(true, req->adaptiveMHASenderID);
-
+    
     if(req->cmd == Writeback){
         writebackCycles += (nextDataFree - curTick);
     }
-
+    
+//     if(perCPUDataBusUse.size() > 0 && req->adaptiveMHASenderID != -1){
+//         perCPUDataBusUse[req->adaptiveMHASenderID] += (nextDataFree - curTick);
+//     }
+    
     DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
     // let the cache figure out Critical word first
     // schedule event after first block delivered
@@ -552,22 +456,19 @@ void
 Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 {
     addrRequests[req->thread_num]++;
-
+   
     assert(doEvents());
     addrQdly[req->thread_num] += curTick - origReqTime;
     addrIdleCycles += curTick - nextAddrFree;
     // Advance nextAddrFree to next clock cycle
     nextAddrFree = nextBusClock(curTick);
     
-    assert(lastTransferCycles == -1);
-    lastTransferCycles = 1;
-
     storeUseStats(false, req->adaptiveMHASenderID);
-
+    
     if(adaptiveSampleSize >= 0){
         fatal("Adaptive MHA is not compatible with sendACK method");
     }
-
+    
     DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
     tmp->schedule(curTick + clockRate);
     DPRINTF(Bus, "sendAck: scheduling deliver for %x on id %d @ %d\n",
@@ -577,7 +478,6 @@ Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
-
     assert(numInterfaces == interfaces.size());
     interfaces.push_back(bi);
     addrBusRequests.push_back(BusRequestRecord());
@@ -587,17 +487,13 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 	    bi->name(), master ? "master" : "slave");
 
     if (master) {
-	transmitInterfaces.insert(transmitInterfaces.begin(),bi);
-        masterInterfaces.push_back(bi);
-        masterIndexToInterfaceIndex[masterInterfaces.size()-1] = interfaces.size()-1;
-        interfaceIndexToMasterIndex[interfaces.size()-1] = masterInterfaces.size()-1;
-
+	    transmitInterfaces.insert(transmitInterfaces.begin(),bi);
     } else {
-	transmitInterfaces.push_back(bi);
         slaveInterfaces.push_back(bi);
-        slaveIndexToInterfaceIndex[slaveInterfaces.size()-1] = interfaces.size()-1;
+        memoryController->registerInterface(bi);
+	    transmitInterfaces.push_back(bi);
     }
-
+    
     return numInterfaces++;
 }
 
@@ -617,7 +513,7 @@ Bus::clearBlocked(int id)
 	if (findOldestRequest(addrBusRequests,grant_id,old_grant_id)) {
 	    nextAddrFree = nextBusClock(curTick,1);
 	    Tick time = addrBusRequests[grant_id].requestTime;
-	    if (time <= curTick) {
+	    if (time <= curTick) { 
 		addrArbiterEvent->schedule(nextBusClock(curTick,2));
 	    }
 	    else {
@@ -675,33 +571,7 @@ void
 Bus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
 			      Tick nextFreeCycle, Tick idleAdvance)
 {
-    bool bus_idle = (nextFreeCycle <= curTick);
-    Tick next_schedule_time;
-    if (bus_idle) {
-	if (reqTime < curTick) {
-	    next_schedule_time = nextBusClock(curTick,idleAdvance);
-	} else {
-	    next_schedule_time = nextBusClock(reqTime,idleAdvance);
-	}
-    } else {
-	if (reqTime < nextFreeCycle) {
-	    next_schedule_time = nextFreeCycle;
-	} else {
-	    next_schedule_time = nextBusClock(reqTime,idleAdvance);
-	}
-    }
-
-    if (arbiterEvent->scheduled()) {
-	if (arbiterEvent->when() > next_schedule_time) {
-	    arbiterEvent->reschedule(next_schedule_time);
-            DPRINTF(Bus, "Rescheduling arbiter event for cycle %d\n",
-                    next_schedule_time);
-	}
-    } else {
-	arbiterEvent->schedule(next_schedule_time);
-        DPRINTF(Bus, "scheduling arbiter event for cycle %d\n",
-                next_schedule_time);
-    }
+    fatal("Should not be here!");
 }
 
 Tick
@@ -741,27 +611,16 @@ Bus::rangeChange()
 
 void
 Bus::resetAdaptiveStats(){
-
-    addrBusUseSamples[0] = 0;
-    addrBusUseSamples[1] = 0;
-
-    dataBusUseSamples[0] = 0;
-    dataBusUseSamples[1] = 0;
-
-    for(int i=0;i<perCPUAddressBusUse.size();i++) perCPUAddressBusUse[i] = 0;
-    for(int i=0;i<perCPUAddressBusUseOverflow.size();i++) perCPUAddressBusUseOverflow[i] = 0;
-    for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = 0;
-    for(int i=0;i<perCPUDataBusUseOverflow.size();i++) perCPUDataBusUseOverflow[i] = 0;
 }
 
 void
 Bus::storeUseStats(bool data, int senderID){
-
+    
     int* array;
     vector<int>* useVector;
     vector<int>* overflowVector;
     Tick nextFree;
-
+    
     if(data){
         array = dataBusUseSamples;
         useVector = &perCPUDataBusUse;
@@ -774,14 +633,14 @@ Bus::storeUseStats(bool data, int senderID){
         overflowVector = &perCPUAddressBusUseOverflow;
         nextFree = nextAddrFree;
     }
-
+    
     if(adaptiveSampleSize >= 0){
-
+        
         // utilisation measurements
-        if((curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize
-            && nextFree % (2 * adaptiveSampleSize) < adaptiveSampleSize)
-            || (curTick % (2 * adaptiveSampleSize) >= adaptiveSampleSize
-            && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize)
+        if((curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize 
+            && nextFree % (2 * adaptiveSampleSize) < adaptiveSampleSize) 
+            || (curTick % (2 * adaptiveSampleSize) >= adaptiveSampleSize 
+            && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize) 
           ){
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
                 array[0] += (nextFree - curTick);
@@ -793,17 +652,21 @@ Bus::storeUseStats(bool data, int senderID){
         else{
             int firstCycles = adaptiveSampleSize - (curTick %  adaptiveSampleSize);
             int rest = nextFree % adaptiveSampleSize;
-
+        
             if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
+                
+                
                 array[0] += firstCycles;
                 array[1] += rest;
             }
             else{
+                
+                
                 array[1] += firstCycles;
                 array[0] += rest;
             }
         }
-
+        
         // per CPU use
         if(senderID != -1){
             if((curTick % adaptiveSampleSize) > (nextFree % adaptiveSampleSize)){
@@ -817,42 +680,42 @@ Bus::storeUseStats(bool data, int senderID){
         else{
             if(data) unknownSenderCycles += (nextFree - curTick);
         }
-
-
+        
+        
     }
 }
 
 
 double
 Bus::getAddressBusUtilisation(Tick sampleSize){
-
+    
     int useIndex = -1;
     if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
     else useIndex = 1;
-
+    
     int sample = addrBusUseSamples[useIndex];
     addrBusUseSamples[useIndex] = 0;
-
+    
     return (double) ((double) sample / (double) sampleSize);;
 }
 
 double
 Bus::getDataBusUtilisation(Tick sampleSize){
-
+    
     int useIndex = -1;
     if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
     else useIndex = 1;
-
+    
     int sample = dataBusUseSamples[useIndex];
     dataBusUseSamples[useIndex] = 0;
-
+    
     return (double) ((double) sample / (double) sampleSize);
-
+    
 }
 
 vector<int>
 Bus::getDataUsePerCPUId(){
-
+    
     vector<int> retval = perCPUDataBusUse;
     assert(perCPUDataBusUse.size() == perCPUDataBusUseOverflow.size());
     for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = perCPUDataBusUseOverflow[i];
@@ -873,7 +736,7 @@ Bus::getAddressUsePerCPUId(){
 void
 Bus::writeTraceFileLine(Addr address, string message){
     ofstream file("busAccessTrace.txt", ofstream::app);
-    file << curTick << ": " << message << " " << address << "\n";
+    file << curTick << ": " << message << " " << address << "\n"; 
     file.flush();
     file.close();
 }
@@ -883,8 +746,35 @@ Bus::writeTraceFileLine(Addr address, string message){
 void
 AddrArbiterEvent::process()
 {
-    DPRINTF(Bus, "Addr Arb processing event\n");
-    bus->arbitrateAddrBus();
+    assert(bus->lastarbevent <= this->original_time);
+    assert(this->original_time <= curTick);
+    bus->lastarbevent = this->original_time;
+
+    if (bus->memoryController->isBlocked()) { 
+      this->setpriority(Resched_Arb_Pri);
+      this->schedule(bus->nextfree);
+    } else {
+      bus->arbitrateAddrBus(interfaceid);
+      if (!bus->arb_events.empty()) {
+        if (bus->need_to_sort) {
+            bus->arb_events.sort(event_compare());
+            bus->need_to_sort = false;
+        } 
+
+        // Find next arb event and schedule it.
+        AddrArbiterEvent *tmp = bus->arb_events.front();
+        if (curTick > tmp->original_time) {
+           tmp->schedule(curTick);
+        } else {
+           tmp->schedule(tmp->original_time);
+        }
+        bus->arb_events.pop_front();
+        bus->currently_scheduled = tmp;
+      } else {
+        bus->arbiter_scheduled_flag = false;
+      }
+      delete this;
+    }
 }
 
 const char *
@@ -921,6 +811,30 @@ DeliverEvent::description()
     return "bus deliver";
 }
 
+void
+MemoryTraceEvent::process()
+{
+  bus->traceBus();
+  this->schedule(curTick + rescheduleTime);
+}
+
+const char *
+MemoryTraceEvent::description()
+{
+    return "Memory Tracing point";
+}
+
+void
+MemoryControllerEvent::process()
+{
+    bus->handleMemoryController();
+}
+
+const char *
+MemoryControllerEvent::description()
+{
+    return "memory controller invocation";
+}
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
@@ -929,8 +843,13 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<int> clock;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
-    Param<int> cpu_count;
-    Param<int> bank_count;
+    Param<bool> infinite_writeback;
+    Param<int> readqueue_size;
+    Param<int> writequeue_size;
+    Param<int> prewritequeue_size;
+    Param<int> reserved_slots;
+    Param<int> start_trace;
+    Param<int> trace_interval;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -943,8 +862,13 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
 		    "Hierarchy global variables",
 		    &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
-    INIT_PARAM(cpu_count, "The number of CPUs in the system"),
-    INIT_PARAM(bank_count, "The number of L2 cache banks in the system")
+    INIT_PARAM_DFLT(infinite_writeback, "Infinite Writeback Queue", false),
+    INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
+    INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
+    INIT_PARAM_DFLT(prewritequeue_size, "Max size of prewriteback queue", 64),
+    INIT_PARAM_DFLT(reserved_slots, "Numer of activations reserved for reads", 2),
+    INIT_PARAM_DFLT(start_trace, "Point to start tracing", 0),
+    INIT_PARAM_DFLT(trace_interval, "How often to trace", 100000)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -952,7 +876,7 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 CREATE_SIM_OBJECT(Bus)
 {
     return new Bus(getInstanceName(), hier,
-                   width, clock, adaptive_mha, cpu_count, bank_count);
+		   width, clock, adaptive_mha,infinite_writeback,readqueue_size,writequeue_size,prewritequeue_size,reserved_slots,start_trace,trace_interval);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

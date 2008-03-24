@@ -130,7 +130,9 @@ MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
 {
 #ifdef CACHE_DEBUG
     if(mem->isCache()){
-        mem->removePendingRequest(req->paddr, req);
+        if (!req->prefetched) {
+            mem->removePendingRequest(req->paddr, req);
+      }
     }
 #endif
     

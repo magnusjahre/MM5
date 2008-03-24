@@ -106,6 +106,14 @@ class BaseMemory : public BaseMem
 	bool do_writes;
 	/** List of address ranges for this memory. */
 	std::vector<Range<Addr> > addrRange;
+
+    /* DDR2 params */
+    int num_banks;
+    int RAS_latency;
+    int CAS_latency;
+    int precharge_latency;
+    int min_activate_to_precharge_latency;
+
     };
     
     /**

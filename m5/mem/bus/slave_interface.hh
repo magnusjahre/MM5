@@ -49,10 +49,11 @@ class MemTraceWriter;
 template <class MemType, class BusType>
 class SlaveInterface : public BusInterface<BusType>
 {
-  protected:
+  public:
     /** The memory that uses this interface. */
     MemType *mem;
 
+  protected:
     /** A memory trace writer. */
     MemTraceWriter *memTrace;
     
@@ -145,13 +146,15 @@ class SlaveInterface : public BusInterface<BusType>
     }
 
     virtual void snoopResponseCall(MemReqPtr &req);
-    
-    virtual int getCurrentReqSenderID(){
-        MemReqPtr req = this->responseQueue.front().req;
-        if(!req) return BUS_NO_REQUEST;
-        assert(req->cmd != Writeback);
-        return req->adaptiveMHASenderID;
-    }
+    //virtual void addPrewrite(MemReqPtr &req) {
+    //    fatal("Not implemented!");
+    //}
+
+    virtual bool isActive(MemReqPtr &req);
+    virtual bool bankIsClosed(MemReqPtr &req);
+    virtual bool isReady(MemReqPtr &req);
+
+    virtual Tick calculateLatency(MemReqPtr &req);
 };
 
 #endif // __MEM_BUS_SLAVE_INTERFACE_HH__

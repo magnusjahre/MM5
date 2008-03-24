@@ -40,6 +40,8 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <iostream>
+#include <fstream>
 
 #include "mem/mem_req.hh"
 #include "mem/base_hier.hh"
@@ -47,12 +49,12 @@
 #include "base/range.hh"
 #include "sim/eventq.hh"
 
-#include "mem/bus/bus_interface.hh"
-
 #include "mem/cache/miss/adaptive_mha.hh"
-
-/** The maximum value of type Tick. */
-#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
+#include "mem/bus/memory_controller.hh"
+#include "mem/bus/fcfs_memory_controller.hh"
+#include "mem/bus/fcfspri_memory_controller.hh"
+#include "mem/bus/fcfsrw_memory_controller.hh"
+#include "mem/bus/rdfcfs_memory_controller.hh"
 
 // #define DO_BUS_TRACE 1
 
@@ -61,9 +63,13 @@ class AddrArbiterEvent;
 class DataArbiterEvent;
 class ForwardEvent;
 class DeliverEvent;
+class MemoryControllerEvent;
+class MemoryTraceEvent;
 
 template <class BusType> class BusInterface;
 class AdaptiveMHA;
+
+using namespace std;
 
 /**
  * A arbitrated split transaction bus model.
@@ -75,7 +81,34 @@ class Bus : public BaseHier
     int width;
     /** Clock rate (clock period in ticks). */
     int clockRate;
-    
+
+    /* Memory Controller parameters */
+    bool infinite_writeback;
+    int readqueue_size;
+    int writequeue_size;
+    int prewritequeue_size;
+    int reserved_slots;
+
+    Tick nextfree;
+    Tick lastarbevent;
+
+    int livearbs;
+
+    std::list<AddrArbiterEvent*> arb_events;
+
+    bool arbiter_scheduled_flag; 
+ 
+    bool need_to_sort;
+
+    AddrArbiterEvent* currently_scheduled;
+
+    MemoryTraceEvent* memoryTraceEvent;
+
+    /* Memory Controller */
+    TimingMemoryController *memoryController;
+
+    std::ofstream traceFile;    
+
   protected:
     // statistics
     /** Total number of cycles the address portion of this bus is idle. */
@@ -137,9 +170,15 @@ class Bus : public BaseHier
 	HierParams *hier_params,
 	int width,
 	int clockRate,
-        AdaptiveMHA* _adaptiveMHA,
-        int _busCPUCount,
-        int _busBankCount);
+  AdaptiveMHA* _adaptiveMHA,
+  bool infinite_writeback,
+  int readqueue_size,
+  int writequeue_size,
+  int prewritequeue_size,
+  int reserved_slots,
+  int start_trace,
+  int trace_interval
+        );
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -168,13 +207,13 @@ class Bus : public BaseHier
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
-    virtual void arbitrateAddrBus();
+    void arbitrateAddrBus(int interfaceid);
 
     /**
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
-    virtual void arbitrateDataBus();
+    void arbitrateDataBus();
 
     /**
      * Sends the request to the attached interfaces via the address bus.
@@ -219,13 +258,13 @@ class Bus : public BaseHier
      * Announces to the bus the bus interface is now unblocked.
      * @param id The bus interface id that just unblocked.
      */
-    virtual void clearBlocked(int id);
+    void clearBlocked(int id);
 
     /**
      * Announces to the bus the bus interface is now blocked.
      * @param id The bus interface id that just unblocked.
      */
-    virtual void setBlocked(int id);
+    void setBlocked(int id);
 
     /**
      * Probe the attached interfaces for the given request.
@@ -235,6 +274,7 @@ class Bus : public BaseHier
      */
     Tick probe(MemReqPtr &req, bool update);
 
+    void addPrewrite(MemReqPtr &req);
     /**
      * Collect the ranges from the attached interfaces into the provide list.
      */
@@ -244,6 +284,12 @@ class Bus : public BaseHier
      * Notify all the attached interfaces that there has been a range change.
      */
     void rangeChange();
+
+    void handleMemoryController(void);
+
+    void latencyCalculated(MemReqPtr &req, Tick time);
+
+    void traceBus(void);
     
     // Adaptive MHA methods
     double getAddressBusUtilisation(Tick sampleSize);
@@ -253,11 +299,8 @@ class Bus : public BaseHier
     void resetAdaptiveStats();
     
 
-  protected:
+  private:
     
-    int busCPUCount;
-    int busBankCount;
-      
     std::vector<int> perCPUAddressBusUse;
     std::vector<int> perCPUAddressBusUseOverflow;
     int addrBusUseSamples[2];
@@ -268,7 +311,6 @@ class Bus : public BaseHier
     
     int adaptiveSampleSize;
     
-    int lastTransferCycles;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
@@ -283,6 +325,7 @@ class Bus : public BaseHier
 
     /** is the reason we blocked a Syncronus block, which req caused it. */
     bool blockSync;
+
 
     /** Returns the blocekd status */
     bool isBlocked() const
@@ -299,6 +342,9 @@ class Bus : public BaseHier
     AddrArbiterEvent *addrArbiterEvent;
     /** Event used to run the data arbiter at the proper time. */
     DataArbiterEvent *dataArbiterEvent;
+
+    /** Event used to control the memory controller */
+    MemoryControllerEvent *memoryControllerEvent;
 
     /** The number of interfaces attached to this bus. */
     int numInterfaces;
@@ -328,22 +374,8 @@ class Bus : public BaseHier
      */
     std::vector<BusInterface<Bus> *> transmitInterfaces;
 
-    /**
-     * A vector containing only masters (for convenience)
-     * Hack by Magnus
-     */
-    std::vector<BusInterface<Bus> *> masterInterfaces;
-    
-    std::map<int, int> masterIndexToInterfaceIndex;
-    std::map<int, int> interfaceIndexToMasterIndex;
-    std::map<int, int> slaveIndexToInterfaceIndex;
-    
-    /**
-     * A vector containing only slave (for convenience)
-     * Hack by Magnus
-     */
     std::vector<BusInterface<Bus> *> slaveInterfaces;
-    
+
     /**
      * Find the oldest and next to oldest outstanding requests
      * @param requests The list of requests to process.
@@ -362,9 +394,8 @@ class Bus : public BaseHier
      * @param nextFreeCycle the time of the next bus free cycle
      * @param idleAdvance the number of bus cycle to skip when it is idle.
      */
-    virtual void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-                                          Tick nextFreeCycle, Tick idleAdvance = 1);
-    
+    void scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
+				  Tick nextFreeCycle, Tick idleAdvance = 1);
 
     /**
      * Find the global simulation time (curTick) corresponding to
@@ -394,6 +425,7 @@ class Bus : public BaseHier
     }
     
     void storeUseStats(bool data, int senderID);
+
     
 #ifdef DO_BUS_TRACE
     void writeTraceFileLine(Addr address, std::string message);
@@ -405,16 +437,33 @@ class Bus : public BaseHier
  */
 class AddrArbiterEvent : public Event
 {
+  public:
     // event data fields
     /** The bus to run the arbiter on. */
     Bus *bus;
 
+    int interfaceid;
+
+    Tick original_time;
+
   public:
     // constructor
     /** Simple Constructor */
-    AddrArbiterEvent(Bus *_bus)
+    AddrArbiterEvent(Bus *_bus, int _interfaceid, Tick _originaltime)
 	: Event(&mainEventQueue), bus(_bus) {
+        interfaceid = _interfaceid;
+        original_time = _originaltime;
     }
+
+    class event_compare :
+    public std::binary_function<AddrArbiterEvent *, AddrArbiterEvent*, bool>
+    {
+      public:
+       bool operator()(const AddrArbiterEvent *l, const AddrArbiterEvent *r) const {
+         return (l->original_time < r->original_time);
+       }
+    };
+
 
     /** Calls Bus::arbiterAddr(). */
     void process();
@@ -483,5 +532,47 @@ class DeliverEvent : public Event
     virtual const char *description();
 };
 
+/**
+ * Memory controller event
+ */
+class MemoryControllerEvent : public Event
+{
+    Bus *bus;
+  public:
+    // constructor
+    /** A simple constructor. */
+    MemoryControllerEvent(Bus *_bus)
+	: Event(&mainEventQueue, Memory_Controller_Pri), bus(_bus)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process();
+    /**
+     * Returns the string description of this event.
+     * @return The description of this event.
+     */
+    virtual const char *description();
+};
+
+/**
+ * Memory Trace Event
+ */
+class MemoryTraceEvent : public Event
+{
+  public:
+    Bus *bus;
+    Tick rescheduleTime;
+
+    MemoryTraceEvent(Bus *_bus, Tick _rescheduleTime) 
+      : Event(&mainEventQueue), bus(_bus), rescheduleTime(_rescheduleTime)
+      {
+      }
+
+    void process();
+
+    virtual const char *description();
+};
 
 #endif // __BUS_HH__

@@ -42,13 +42,13 @@ MemCmd::strings[NUM_MEM_CMDS] = {
     "badMemCmd", "read", "write", "swpf", "hwpf", "writeback",
     "invalidate", "readEx", "writeInv", "upgrade", "copy", "squash",
     "directory writeback", "directory redirected read", "directory owner transfer",
-    "directory owner writeback", "directory sharer writeback", "new owner multicast"
+    "directory owner writeback", "directory sharer writeback", "new owner multicast", "Close memory page", "Activate memory page", "Prewrite cache block"
 };
 
 int
 MemCmd::behaviors[NUM_MEM_CMDS] = {
     0, rd, wr, rd|pf, rd|pf, wr|nr, in|nr, rd|in, wr|in, in, nr, nr|hw,
-    rd|nr|directory, rd|directory, rd|directory, rd|directory, rd|directory, rd|directory
+    rd|nr|directory, rd|directory, rd|directory, rd|directory, rd|directory, rd|directory, wr, wr, wr
 };
 
 

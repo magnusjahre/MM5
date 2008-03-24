@@ -358,16 +358,6 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
     
     MSHR* mshr = mq.allocate(req, size);
     
-//    if(req->paddr == 13835058060651984384ull){
-//        cout << curTick << " " << cache->name() << " allocating with new MSHR\n";
-//    }
-    
-//     if(curTick >= 25100000 && cache->name() == "L1icaches3"){
-//         cout << curTick << "After:\n";
-//         mq.printShortStatus();
-//     }
-    
-    
     if(cache->isDirectoryAndL1DataCache()){
         assert(mshr->directoryOriginalCmd == InvalidCmd);
         mshr->directoryOriginalCmd = req->cmd;
@@ -379,9 +369,6 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	mshr->req->flags |= CACHE_LINE_FILL;
     }
     if (mq.isFull()) {
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": SetBlocked called from allocateMiss\n";
-//         }
 	cache->setBlocked(Blocked_NoMSHRs);
     }
     if (req->cmd != Hard_Prefetch) {
@@ -414,15 +401,6 @@ MissQueue::allocateWrite(MemReqPtr &req, int size, Tick time)
     // set blocked if it is not already
     // FIXME: a response can cause a writeback while we are blocked, not ideal
     if (wb.isFull() && !cache->isBlockedNoWBBuffers()) {
-        
-//         if(curTick == 1086049 && cache->name() == "L2Bank2"){
-//             cout << "Sweet breakpoint\n";
-//         }
-        
-        
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": SetBlocked called from allocateWrite\n";
-//         }
 	cache->setBlocked(Blocked_NoWBBuffers);
     }
 
@@ -439,12 +417,6 @@ void
 MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 {
     
-//     if(cache->name() == "L1dcaches3" && req->oldAddr == 4831407968){
-//         cout << curTick << "Block seen in handle miss, status is ";
-//         mq.printShortStatus();
-//     }
-    
-//    if (!cache->isTopLevel())
     if (prefetchMiss) prefetcher->handleMiss(req, time);
 
     int size = blkSize;
@@ -472,11 +444,6 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
             assert(mshr->getNumTargets() <= numTarget);
             if (mshr->getNumTargets() == numTarget) {
                 noTargetMSHR = mshr;
-                
-//                 if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//                     cout << curTick << ": SetBlocked called from handleMiss\n";
-//                 }
-                
                 cache->setBlocked(Blocked_NoTargets);
                 mq.moveToFront(mshr);
             }
@@ -501,10 +468,6 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 	 * @todo Add write merging here.
 	 */
         
-//         if(cache->name() == "L2Bank2" && curTick >= 1086000){
-//             cout << "calling allocateWrite from handleMiss\n";
-//         }
-        
 	mshr = allocateWrite(req, req->size, time);
 	return;
     }
@@ -525,15 +488,9 @@ MissQueue::fetchBlock(Addr addr, int asid, int blk_size, Tick time,
     mshr->req->flags |= CACHE_LINE_FILL;
     if (mq.isFull()) {
         
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": SetBlocked called from fetchBlock\n";
-//         }
 	cache->setBlocked(Blocked_NoMSHRs);
     }
     
-//     if(cache->getMasterInterfaceType() == CROSSBAR){
-//         cache->setMasterRequestAddr(blkAddr);
-//     }
     cache->setMasterRequest(Request_MSHR, time);
     return mshr;
 }
@@ -546,36 +503,38 @@ MissQueue::getMemReq()
     MemReqPtr wbReq = wb.getReq();
     
     changeQueue = false;
-    
-//     cout << curTick << " " << cache->name() << ": Get MemReq called, " << req << " mqreq "<< mqReq << " wbReq "<< wbReq << "\n";
-    
-    if(mqReq && mqReq->time < curTick 
-       && wbReq && wbReq->time < curTick){
-        
-//         if(cache->name() == "L1dcaches1") cout << curTick << " Round Robin\n";
+    if(mqReq && mqReq->time <= curTick 
+       && wbReq && wbReq->time <= curTick){
         
         if(mqWasPrevQueue){
-//             if(cache->name() == "L1dcaches1") cout << curTick << " Choosing writeback\n";
             req = wbReq;
         }
         else{
-//             if(cache->name() == "L1dcaches1") cout << curTick << " Choosing miss queue\n";
             req = mqReq;
         }
         changeQueue = true;
     }
-    else if(mqReq && mqReq->time < curTick){
-//         if(cache->name() == "L1dcaches1") cout << curTick << " Choosing miss queue, rr not needed\n";
+    else if(mqReq && mqReq->time <= curTick){
         req = mqReq;
     }
-    else if(wbReq && wbReq->time < curTick){
-//         if(cache->name() == "L1dcaches1") cout << curTick << " Choosing writeback, rr not needed\n";
+    else if(wbReq && wbReq->time <= curTick){
         req = wbReq;
     }
-    
-//     cout << "returning " << req << "\n";
-    
-    //TODO: Removed call to prefetcher if req is NULL, might break prefetch code
+
+    if (!mq.isFull()){
+
+      if (!req) {
+        req = prefetcher->getMemReq();
+        if (req) {
+          //Update statistic on number of prefetches issued (hwpf_mshr_misses)
+          mshr_misses[req->cmd.toIndex()][req->thread_num]++;
+          //It will request the bus for the future, but should clear that immedieatley
+          allocateMiss(req, req->size, curTick);
+          req = mq.getReq();
+          assert(req); //We should get back a req b/c we just put one in
+        }
+      }
+    }
     
     return req;
     
@@ -679,14 +638,6 @@ MissQueue::restoreOrigCmd(MemReqPtr &req)
 void
 MissQueue::markInService(MemReqPtr &req)
 {
-//     if(cache->name() == "L1dcaches2" && curTick >= 1086000){
-//         cout << curTick << "Mark in service is called\n";
-//     }
-    
-//     if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//         std::cout << curTick << ": markInService is called, miss queue is " << (mq.isFull() ? "full" : "not full") << "\n";
-//     }
-    
     if(changeQueue) mqWasPrevQueue = !mqWasPrevQueue;
     
     assert(req->mshr != 0);
@@ -701,10 +652,6 @@ MissQueue::markInService(MemReqPtr &req)
 	// Forwarding a write/ writeback, don't need to change
 	// the command
 	unblock = wb.isFull();
-        
-//         if(unblock && cache->name() == "L1dcaches2" && curTick >= 1086000){
-//             cout << curTick << "Attempting to unblock in markInService\n";
-//         }
         
 	wb.markInService(req->mshr);
 	if (!wb.havePending()){

@@ -144,6 +144,5 @@ class BusBridgeMaster : public BusInterface<Bus>
     {
 	//We do nothing on request responses for now
     }
-
 };
 #endif //__BUS_BRIDGE_MASTER_HH__

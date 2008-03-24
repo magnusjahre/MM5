@@ -114,20 +114,27 @@ class InterconnectButterfly(Butterfly):
 class ConventionalMemBus(Bus):
     width = 8
     clock = 4 * Parent.clock.period
-    cpu_count = int(env['NP'])
-    bank_count = 4
+    #cpu_count = int(env['NP'])
+    #bank_count = 4
+    infinite_writeback = False
+    readqueue_size = 64
+    writequeue_size = 64
+    prewritequeue_size = 0
+    reserved_slots = 0
+    trace_interval = 100000 
+    start_trace = 0
     
-class NFQMemBus(NFQBus):
-    width = 8
-    clock = 4 * Parent.clock.period
-    cpu_count = int(env['NP'])
-    bank_count = 4
+#class NFQMemBus(NFQBus):
+    #width = 8
+    #clock = 4 * Parent.clock.period
+    #cpu_count = int(env['NP'])
+    #bank_count = 4
     
-class TimeMultiplexedMemBus(TimeMultiplexedBus):
-    width = 8
-    clock = 4 * Parent.clock.period
-    cpu_count = int(env['NP'])
-    bank_count = 4
+#class TimeMultiplexedMemBus(TimeMultiplexedBus):
+    #width = 8
+    #clock = 4 * Parent.clock.period
+    #cpu_count = int(env['NP'])
+    #bank_count = 4
 
 class SDRAM(BaseMemory):
     #latency = 200 * Parent.clock.period

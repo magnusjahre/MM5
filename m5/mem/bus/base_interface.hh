@@ -197,7 +197,36 @@ class BaseInterface : public BaseHier
 	}
 	return false;
     }
+
+    virtual void addPrewrite(MemReqPtr &req) {
+        fatal("ARGLE!");
+    }
     
+    virtual bool canPrewrite() {
+        fatal("ARGLE!");
+        return false;
+    }
+
+    virtual bool isActive(MemReqPtr &req) {
+      fatal("Should not be called");
+      return false;
+    }
+
+    virtual bool bankIsClosed(MemReqPtr &req) {
+      fatal("Should not be called");
+      return false;
+    }
+
+    virtual bool isReady(MemReqPtr &req) {
+      fatal("Should not be called");
+      return false;
+    }
+
+    virtual Tick calculateLatency(MemReqPtr &req) {
+      fatal("Should not be called");
+      return 0;
+    }
+
 //     virtual InterfaceType getInterfaceType() = 0;
     
 //     virtual void setCurrentRequestAddr(Addr address) = 0;

@@ -39,10 +39,6 @@
 
 #include "mem/bus/base_interface.hh"
 
-/* Constants used for static bus sharing */
-const int BUS_NO_REQUEST = -100;
-const int BUS_WRITEBACK = -1;
-
 /**
  * A templatized base class for bus interface objects. Takes the type of bus
  * as a template parameter and implements basic shared functions
@@ -93,7 +89,6 @@ class BusInterface : public BaseInterface
     std::list<DataResponseEntry> responseQueue;
 
   public:
-      
     /**
      * Construct and initialize this interface.
      * @param name The name of this interface.
@@ -225,11 +220,6 @@ class BusInterface : public BaseInterface
      * Notify this interface of a range change on the bus.
      */
     virtual void rangeChange();
-    
-    virtual int getCurrentReqSenderID(){
-        fatal("getCurrentReqSenderID cannot be called on a BusInterface object");
-        return 0;
-    }
     
     InterfaceType getInterfaceType(){
         return BUS;

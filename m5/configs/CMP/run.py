@@ -112,11 +112,11 @@ if "CACHE-PARTITIONING" in env:
     else:
         panic("Only Conventional and StaticUniform cache partitioning are available")
 
-if "MEMORY-BUS" in env:
-    if env["MEMORY-BUS"] == "NFQ" or env["MEMORY-BUS"] == "TimeMultiplexed" or env["MEMORY-BUS"] == "Conventional":
-        pass
-    else:
-        panic("Only NFQ, TimeMultiplexed or Conventional memory bus architectures are supported")
+#if "MEMORY-BUS" in env:
+    #if env["MEMORY-BUS"] == "NFQ" or env["MEMORY-BUS"] == "TimeMultiplexed" or env["MEMORY-BUS"] == "Conventional":
+        #pass
+    #else:
+        #panic("Only NFQ, TimeMultiplexed or Conventional memory bus architectures are supported")
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -326,12 +326,12 @@ if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
         bank.use_static_partitioning = True
 
-if env["MEMORY-BUS"] == "NFQ":
-    root.toMemBus = NFQMemBus()
-elif env["MEMORY-BUS"] == "TimeMultiplexed":
-    root.toMemBus = TimeMultiplexedMemBus()
-else:
-    root.toMemBus = ConventionalMemBus()
+#if env["MEMORY-BUS"] == "NFQ":
+    #root.toMemBus = NFQMemBus()
+#elif env["MEMORY-BUS"] == "TimeMultiplexed":
+    #root.toMemBus = TimeMultiplexedMemBus()
+#else:
+root.toMemBus = ConventionalMemBus()
 root.toMemBus.adaptive_mha = root.adaptiveMHA
 
 ###############################################################################

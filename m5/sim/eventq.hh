@@ -84,6 +84,7 @@ class Event : public Serializable, public FastAlloc
     int _priority;	//!< event priority
     char _flags;
 
+
   protected:
     enum Flags {
 	None = 0x0,
@@ -129,6 +130,11 @@ class Event : public Serializable, public FastAlloc
 
 	/// Default is zero for historical reasons.
 	Default_Pri		=    0,
+
+      Memory_Controller_Pri = 15,
+      
+      Resched_Arb_Pri = 16,
+      
 
 	/// CPU switches schedule the new CPU's tick event for the
 	/// same cycle (after unscheduling the old CPU's tick event).
@@ -219,6 +225,8 @@ class Event : public Serializable, public FastAlloc
 
     /// Get the event priority
     int priority() const { return _priority; }
+ 
+    void setpriority(int a) { _priority = a; }
 
     struct priority_compare :
     public std::binary_function<Event *, Event *, bool>

@@ -128,11 +128,7 @@ template <class MemType, class BusType>
 void
 SlaveInterface<MemType, BusType>::respond(MemReqPtr &req, Tick time)
 {
-    if (!req->cmd.isNoResponse()) {
-        typename BusInterface<BusType>::DataResponseEntry dre(req, time);
-	this->responseQueue.push_back(dre);
-	this->bus->requestDataBus(this->id, time);
-    }
+	this->bus->latencyCalculated(req, time);
 }
 
 template <class MemType, class BusType>
@@ -154,4 +150,33 @@ SlaveInterface<Mem, Bus>::snoopResponseCall(MemReqPtr &req)
 {
     //We do nothing on coherence requests for now they are just invalidates
     //being passed up from a lower level (DMA)
+}
+
+
+template<class Mem, class Bus>
+bool 
+SlaveInterface<Mem, Bus>::isActive(MemReqPtr &req) 
+{
+  return mem->isActive(req);
+}
+
+template<class Mem, class Bus>
+bool 
+SlaveInterface<Mem, Bus>::bankIsClosed(MemReqPtr &req) 
+{
+  return mem->bankIsClosed(req);
+}
+
+template<class Mem, class Bus>
+bool 
+SlaveInterface<Mem, Bus>::isReady(MemReqPtr &req) 
+{
+  return mem->isReady(req);
+}
+
+template<class Mem, class Bus>
+Tick
+SlaveInterface<Mem, Bus>::calculateLatency(MemReqPtr &req)
+{
+  return mem->calculateLatency(req);
 }

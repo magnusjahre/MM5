@@ -141,8 +141,6 @@ class MemReq : public FastAlloc, public RefCounted
     int toProcessorID;
     int toInterfaceID;
     int fromInterfaceID;
-
-//     int senderProcessorID;
     
     /** Adaptive MHA sender cache identification **/
     int adaptiveMHASenderID;
@@ -186,6 +184,8 @@ class MemReq : public FastAlloc, public RefCounted
     /** The time this request was started. Used to calculate latencies. */
     Tick time;
 
+    Tick inserted_into_memory_controller;
+
     /** program counter of initiating access; for tracing/debugging */
     Addr pc;
 
@@ -220,7 +220,6 @@ class MemReq : public FastAlloc, public RefCounted
           toProcessorID(-1),
           toInterfaceID(-1),
           fromInterfaceID(-1),
-//           senderProcessorID(-1),
           adaptiveMHASenderID(-1),
           readOnlyCache(false),
           owner(-1),
@@ -260,7 +259,6 @@ class MemReq : public FastAlloc, public RefCounted
         toProcessorID = r.toProcessorID;
         toInterfaceID = r.toInterfaceID;
         fromInterfaceID = r.fromInterfaceID;
-//         senderProcessorID = r.senderProcessorID;
         adaptiveMHASenderID = r.adaptiveMHASenderID;
         firstSendTime = r.firstSendTime;
         readOnlyCache = r.readOnlyCache;

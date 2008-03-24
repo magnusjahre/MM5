@@ -70,6 +70,12 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     SimObjectParam<HierParams *> hier;
     Param<bool> compressed;
     SimObjectParam<MemTraceWriter *> mem_trace;
+    /* Lagt til av oss */
+    Param<int> num_banks;
+    Param<int> RAS_latency;
+    Param<int> CAS_latency;
+    Param<int> precharge_latency;
+    Param<int> min_activate_to_precharge_latency;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
 
@@ -88,7 +94,12 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
 		    vector<Range<Addr> >(1, RangeIn(0, MaxAddr))),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(compressed, "This memory stores compressed data.", false),
-    INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL)
+    INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),
+    INIT_PARAM_DFLT(num_banks, "Number of banks", 8),
+    INIT_PARAM_DFLT(RAS_latency, "RAS-to-CAS latency (bus cycles)", 4),
+    INIT_PARAM_DFLT(CAS_latency, "CAS latency (bus cycles)", 4),
+    INIT_PARAM_DFLT(precharge_latency, "precharge latency (bus cycles)", 4),
+    INIT_PARAM_DFLT(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)", 12)
 
 END_INIT_SIM_OBJECT_PARAMS(BaseMemory)
 
@@ -104,6 +115,11 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.snarf_updates = snarf_updates;
     params.do_writes = do_writes;
     params.addrRange = addr_range;
+    params.num_banks = num_banks;
+    params.RAS_latency = RAS_latency;
+    params.CAS_latency = CAS_latency;
+    params.precharge_latency = precharge_latency;
+    params.min_activate_to_precharge_latency = min_activate_to_precharge_latency;
     
     if (compressed) {
 #if defined(USE_LZSS_COMPRESSION)

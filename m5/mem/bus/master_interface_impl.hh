@@ -55,18 +55,10 @@ bool
 MasterInterface<MemType, BusType>::grantAddr()
 {
     MemReqPtr req = mem->getMemReq();
-    Tick req_time = curTick;
     if (req) {
-	req->busId = this->id;
-	req_time = req->time;
-	if (req->cmd.isWrite()) {
-  	    typename BusInterface<BusType>::DataResponseEntry 
-                dre(req->size, curTick, req->adaptiveMHASenderID, req->cmd);
-	    this->responseQueue.push_back(dre);
-	    this->bus->requestDataBus(this->id, curTick);
-	}
+        req->busId = this->id;
     }
-    bool successful = this->bus->sendAddr(req, req_time);
+    bool successful = this->bus->sendAddr(req, curTick);
     mem->sendResult(req, successful);
     return mem->doMasterRequest();
 }
@@ -75,6 +67,9 @@ template<class MemType, class BusType>
 void
 MasterInterface<MemType, BusType>::deliver(MemReqPtr &req)
 {
+    if (curTick - req->time > 10000) {
+      cout << curTick << " : Request for " << req->paddr << " took " << curTick - req->time << endl;
+    }
     mem->handleResponse(req);
 }
 
@@ -111,7 +106,7 @@ MasterInterface<MemType, BusType>::grantData()
 {	
     typename BusInterface<BusType>::DataResponseEntry entry = 
 	this->responseQueue.front();
-    
+
     if (entry.size > 0) {
 	this->bus->delayData(entry.size, entry.senderID, entry.cmd);
     } else {
@@ -145,4 +140,19 @@ MasterInterface<MemType, BusType>::respond(MemReqPtr &req, Tick time)
     typename BusInterface<BusType>::DataResponseEntry dre(req,time);
     this->responseQueue.push_back(dre);
     this->bus->requestDataBus(this->id, time);
+}
+
+template<class MemType, class BusType>
+void 
+MasterInterface<MemType, BusType>::addPrewrite(MemReqPtr &req)
+{
+    // DEtte kommer vi aldri til aa huske :p
+    this->bus->sendAddr(req,curTick+3);
+}
+
+template<class MemType, class BusType>
+bool
+MasterInterface<MemType, BusType>::canPrewrite()
+{
+   return (this->bus->memoryController->isPrewriteBlocked());
 }
