@@ -99,7 +99,8 @@ class AdaptiveMHASampleEvent : public Event
         }
         
         void process(){
-            adaptiveMHA->handleSampleEvent(this->when());
+          //FIXME: this call causes a segfault, update needed
+          //adaptiveMHA->handleSampleEvent(this->when());
         }
 
         virtual const char *description(){
