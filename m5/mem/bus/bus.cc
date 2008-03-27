@@ -271,9 +271,7 @@ Bus::regStats()
 void
 Bus::resetStats()
 {
-    nextDataFree = curTick;
-    nextAddrFree = curTick;
-    
+
 }
 
 void
@@ -309,10 +307,6 @@ Bus::requestAddrBus(int id, Tick time)
     }
 
     livearbs++;
-    
-    if (livearbs > 50) {
-       cout << curTick << " : livearbs = " << livearbs << endl;
-    }
 }
 
 void
@@ -365,9 +359,9 @@ Bus::handleMemoryController()
 {
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
-        //cout << curTick << " : issuing " << request->cmd << " for address " << request->paddr << endl;
+
         assert(slaveInterfaces.size() == 1);
-	    slaveInterfaces[0]->access(request);
+        slaveInterfaces[0]->access(request);
     }
 }
 
@@ -395,84 +389,19 @@ Bus::traceBus(void)
 void 
 Bus::delayData(int size, int senderID, MemCmdEnum cmd)
 {
- 
-    
-    int transfer_cycles = DivCeil(size, width);
-    //int transfer_time = transfer_cycles * clockRate;
-    assert(curTick >= nextDataFree);
-    dataIdleCycles += (curTick - nextDataFree);
-    
-    // assumes we are cycle aligned right now
-    assert(curTick % clockRate == 0);
-    nextDataFree = nextBusClock(curTick,transfer_cycles);
-    
-    storeUseStats(true, senderID);
-    if(cmd == Writeback){
-        writebackCycles += (nextDataFree - curTick);
-    }
-    
-//     if(perCPUDataBusUse.size() > 0 && senderID != -1){
-//         perCPUDataBusUse[senderID] += (nextDataFree - curTick);
-//     }
+    fatal("delayData() not used in new bus implementation");
 }
 
 void
 Bus::sendData(MemReqPtr &req, Tick origReqTime)
 {
-#ifdef DO_BUS_TRACE
-    writeTraceFileLine(req->paddr, "Data Bus sending address");
-#endif
-    
-   
-    // put it here so we know requesting thread
-    dataRequests[req->thread_num]++;
-   
-    assert(doEvents());
-    int transfer_cycles = DivCeil(req->size, width);
-    
-    assert(curTick >= nextDataFree);
-    dataQdly[req->thread_num] += curTick - origReqTime;
-    dataIdleCycles += (curTick - nextDataFree);
-    
-    nextDataFree = nextBusClock(curTick,transfer_cycles);
-    
-    storeUseStats(true, req->adaptiveMHASenderID);
-    
-    if(req->cmd == Writeback){
-        writebackCycles += (nextDataFree - curTick);
-    }
-    
-//     if(perCPUDataBusUse.size() > 0 && req->adaptiveMHASenderID != -1){
-//         perCPUDataBusUse[req->adaptiveMHASenderID] += (nextDataFree - curTick);
-//     }
-    
-    DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
-    // let the cache figure out Critical word first
-    // schedule event after first block delivered
-    tmp->schedule(curTick + clockRate);
+    fatal("sendData not used in new bus implementation");
 }
 
 void
 Bus::sendAck(MemReqPtr &req, Tick origReqTime)
 {
-    addrRequests[req->thread_num]++;
-   
-    assert(doEvents());
-    addrQdly[req->thread_num] += curTick - origReqTime;
-    addrIdleCycles += curTick - nextAddrFree;
-    // Advance nextAddrFree to next clock cycle
-    nextAddrFree = nextBusClock(curTick);
-    
-    storeUseStats(false, req->adaptiveMHASenderID);
-    
-    if(adaptiveSampleSize >= 0){
-        fatal("Adaptive MHA is not compatible with sendACK method");
-    }
-    
-    DeliverEvent *tmp = new DeliverEvent(interfaces[req->busId], req);
-    tmp->schedule(curTick + clockRate);
-    DPRINTF(Bus, "sendAck: scheduling deliver for %x on id %d @ %d\n",
-            req->paddr, req->busId, curTick + clockRate);
+    fatal("sendAck not used in new bus implementation");
 }
 
 int
@@ -484,14 +413,14 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
     dataBusRequests.push_back(BusRequestRecord());
 
     DPRINTF(Bus, "registering interface %s as %s\n",
-	    bi->name(), master ? "master" : "slave");
+            bi->name(), master ? "master" : "slave");
 
     if (master) {
-	    transmitInterfaces.insert(transmitInterfaces.begin(),bi);
+        transmitInterfaces.insert(transmitInterfaces.begin(),bi);
     } else {
         slaveInterfaces.push_back(bi);
         memoryController->registerInterface(bi);
-	    transmitInterfaces.push_back(bi);
+        transmitInterfaces.push_back(bi);
     }
     
     return numInterfaces++;
@@ -500,97 +429,35 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 void
 Bus::clearBlocked(int id)
 {
-    assert(!isBlocked() || doEvents());
-    if (isBlocked() && waitingFor == id) {
-	DPRINTF(Bus, "Unblocking\n");
-	if (blockSync) {
-	    DPRINTF(Bus, "Bus UnBlocked, waiting for id:%d on blk_adr: %x\n",
-		    id, blockedReq->paddr & (((ULL(1))<<48)-1));
-	}
-	//Only arbitrate if request exists
-	//Need to make sure it wasn't requested for later time
-	int grant_id, old_grant_id; // used for rescheduling
-	if (findOldestRequest(addrBusRequests,grant_id,old_grant_id)) {
-	    nextAddrFree = nextBusClock(curTick,1);
-	    Tick time = addrBusRequests[grant_id].requestTime;
-	    if (time <= curTick) { 
-		addrArbiterEvent->schedule(nextBusClock(curTick,2));
-	    }
-	    else {
-		scheduleArbitrationEvent(addrArbiterEvent,time,nextAddrFree,2);
-	    }
-	}
-	blocked = false;
-	waitingFor = -1;
-	busBlockedCycles += curTick - busBlockedTime;
-    }
+    fatal("clearBlocked is not used in new bus implementation");
 }
 
 void
 Bus::setBlocked(int id)
 {
-    if (blocked) warn("Blocking on a second cause???\n");
-    DPRINTF(Bus, "Blocked, waiting for id:%d\n", id);
-    blocked = true;
-    waitingFor = id;
-    busBlockedTime = curTick;
-    busBlocked++;
-    blockSync = false;
-    if (addrArbiterEvent->scheduled()) {
-	addrArbiterEvent->deschedule();
-    }
-
+    fatal("setBlocked is not used in the new bus implementation");
 }
 
 bool
 Bus::findOldestRequest(std::vector<BusRequestRecord> & requests,
-			   int & grant_id, int & old_grant_id)
+                       int & grant_id, int & old_grant_id)
 {
-    grant_id = -1;
-    old_grant_id = -1;
-    Tick grant_time = TICK_T_MAX; // set to arbitrarily large number
-    Tick old_grant_time = TICK_T_MAX;
-    for (int i=0; i<numInterfaces; i++) {
-	if (requests[i].requested) {
-	    if (requests[i].requestTime < grant_time) {
-		old_grant_time = grant_time;
-		grant_time = requests[i].requestTime;
-		old_grant_id = grant_id;
-		grant_id = i;
-	    }
-	    else if (requests[i].requestTime < old_grant_time) {
-		old_grant_time = requests[i].requestTime;
-		old_grant_id = i;
-	    }
-	}
-    }
-    return (grant_id != -1);
+    fatal("findOldestRequest is not used in the new bus implementation");
+    return false;
 }
 
 void
 Bus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-			      Tick nextFreeCycle, Tick idleAdvance)
+                              Tick nextFreeCycle, Tick idleAdvance)
 {
-    fatal("Should not be here!");
+    fatal("scheduleArbitrationEvent is not used in the new bus implementation");
 }
 
 Tick
 Bus::probe(MemReqPtr &req, bool update)
 {
-    bool satisfied = req->isSatisfied();
-    Tick time_sat = 0;
-    for (int i = 0; i < numInterfaces; i++) {
-	if (interfaces[req->busId] != transmitInterfaces[i]) {
-	    if (!satisfied) {
-		time_sat = transmitInterfaces[i]->probe(req, update);
-		satisfied = req->isSatisfied();
-	    } else {
-		transmitInterfaces[i]->probe(req, update);
-	    }
-	}
-    }
-    assert(satisfied);
-    return time_sat;
+    fatal("probe is not used in the new bus implementation");
+    return 0;
 }
 
 void
@@ -611,124 +478,43 @@ Bus::rangeChange()
 
 void
 Bus::resetAdaptiveStats(){
+    fatal("reset adaptive stats is not implemented");
 }
 
 void
 Bus::storeUseStats(bool data, int senderID){
     
-    int* array;
-    vector<int>* useVector;
-    vector<int>* overflowVector;
-    Tick nextFree;
-    
-    if(data){
-        array = dataBusUseSamples;
-        useVector = &perCPUDataBusUse;
-        overflowVector = &perCPUDataBusUseOverflow;
-        nextFree = nextDataFree;
-    }
-    else{
-        array = addrBusUseSamples;
-        useVector = &perCPUAddressBusUse;
-        overflowVector = &perCPUAddressBusUseOverflow;
-        nextFree = nextAddrFree;
-    }
-    
-    if(adaptiveSampleSize >= 0){
-        
-        // utilisation measurements
-        if((curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize 
-            && nextFree % (2 * adaptiveSampleSize) < adaptiveSampleSize) 
-            || (curTick % (2 * adaptiveSampleSize) >= adaptiveSampleSize 
-            && nextFree % (2 * adaptiveSampleSize) >= adaptiveSampleSize) 
-          ){
-            if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
-                array[0] += (nextFree - curTick);
-            }
-            else{
-                array[1] += (nextFree - curTick);
-            }
-        }
-        else{
-            int firstCycles = adaptiveSampleSize - (curTick %  adaptiveSampleSize);
-            int rest = nextFree % adaptiveSampleSize;
-        
-            if(curTick % (2 * adaptiveSampleSize) < adaptiveSampleSize){
-                
-                
-                array[0] += firstCycles;
-                array[1] += rest;
-            }
-            else{
-                
-                
-                array[1] += firstCycles;
-                array[0] += rest;
-            }
-        }
-        
-        // per CPU use
-        if(senderID != -1){
-            if((curTick % adaptiveSampleSize) > (nextFree % adaptiveSampleSize)){
-                (*useVector)[senderID] += (adaptiveSampleSize - (curTick % adaptiveSampleSize));
-                (*overflowVector)[senderID] += (nextFree % adaptiveSampleSize);
-            }
-            else{
-                (*useVector)[senderID] += (nextFree - curTick);
-            }
-        }
-        else{
-            if(data) unknownSenderCycles += (nextFree - curTick);
-        }
-        
-        
-    }
+    fatal("storeUseStats is not implemented");
 }
 
 
 double
 Bus::getAddressBusUtilisation(Tick sampleSize){
     
-    int useIndex = -1;
-    if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
-    else useIndex = 1;
-    
-    int sample = addrBusUseSamples[useIndex];
-    addrBusUseSamples[useIndex] = 0;
-    
-    return (double) ((double) sample / (double) sampleSize);;
+    fatal("getAddressBusUtil is not implemented");
+    return 0.0;
 }
 
 double
 Bus::getDataBusUtilisation(Tick sampleSize){
     
-    int useIndex = -1;
-    if(curTick % (2 * adaptiveSampleSize) == adaptiveSampleSize) useIndex = 0;
-    else useIndex = 1;
-    
-    int sample = dataBusUseSamples[useIndex];
-    dataBusUseSamples[useIndex] = 0;
-    
-    return (double) ((double) sample / (double) sampleSize);
+    fatal("getDataBusUtil is not implemented");
+    return 0.0;
     
 }
 
 vector<int>
 Bus::getDataUsePerCPUId(){
     
-    vector<int> retval = perCPUDataBusUse;
-    assert(perCPUDataBusUse.size() == perCPUDataBusUseOverflow.size());
-    for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = perCPUDataBusUseOverflow[i];
-    for(int i=0;i<perCPUDataBusUseOverflow.size();i++) perCPUDataBusUseOverflow[i] = 0;
+    vector<int> retval;
+    fatal("getDataUsePerCPUId not implemented");
     return retval;
 }
 
 vector<int>
 Bus::getAddressUsePerCPUId(){
     vector<int> retval = perCPUAddressBusUse;
-    assert(perCPUAddressBusUse.size() == perCPUAddressBusUseOverflow.size());
-    for(int i=0;i<perCPUAddressBusUse.size();i++) perCPUAddressBusUse[i] = perCPUAddressBusUseOverflow[i];
-    for(int i=0;i<perCPUAddressBusUseOverflow.size();i++) perCPUAddressBusUseOverflow[i] = 0;
+    fatal("getAddrUsePerCPUId not implemented");
     return retval;
 }
 
@@ -751,29 +537,29 @@ AddrArbiterEvent::process()
     bus->lastarbevent = this->original_time;
 
     if (bus->memoryController->isBlocked()) { 
-      this->setpriority(Resched_Arb_Pri);
-      this->schedule(bus->nextfree);
+        this->setpriority(Resched_Arb_Pri);
+        this->schedule(bus->nextfree);
     } else {
-      bus->arbitrateAddrBus(interfaceid);
-      if (!bus->arb_events.empty()) {
-        if (bus->need_to_sort) {
-            bus->arb_events.sort(event_compare());
-            bus->need_to_sort = false;
-        } 
+        bus->arbitrateAddrBus(interfaceid);
+        if (!bus->arb_events.empty()) {
+            if (bus->need_to_sort) {
+                bus->arb_events.sort(event_compare());
+                bus->need_to_sort = false;
+            } 
 
-        // Find next arb event and schedule it.
-        AddrArbiterEvent *tmp = bus->arb_events.front();
-        if (curTick > tmp->original_time) {
-           tmp->schedule(curTick);
+            // Find next arb event and schedule it.
+            AddrArbiterEvent *tmp = bus->arb_events.front();
+            if (curTick > tmp->original_time) {
+                tmp->schedule(curTick);
+            } else {
+                tmp->schedule(tmp->original_time);
+            }
+            bus->arb_events.pop_front();
+            bus->currently_scheduled = tmp;
         } else {
-           tmp->schedule(tmp->original_time);
+            bus->arbiter_scheduled_flag = false;
         }
-        bus->arb_events.pop_front();
-        bus->currently_scheduled = tmp;
-      } else {
-        bus->arbiter_scheduled_flag = false;
-      }
-      delete this;
+        delete this;
     }
 }
 
@@ -875,8 +661,18 @@ END_INIT_SIM_OBJECT_PARAMS(Bus)
 
 CREATE_SIM_OBJECT(Bus)
 {
-    return new Bus(getInstanceName(), hier,
-		   width, clock, adaptive_mha,infinite_writeback,readqueue_size,writequeue_size,prewritequeue_size,reserved_slots,start_trace,trace_interval);
+    return new Bus(getInstanceName(),
+                   hier,
+                   width,
+                   clock,
+                   adaptive_mha,
+                   infinite_writeback,
+                   readqueue_size,
+                   writequeue_size,
+                   prewritequeue_size,
+                   reserved_slots,
+                   start_trace,
+                   trace_interval);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)
