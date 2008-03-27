@@ -21,6 +21,7 @@ void
 TimingMemoryController::setBlocked()
 {
   assert(!isBlockedFlag);
+  cout << curTick << ": blocking\n";
   startBlocking = curTick;
   isBlockedFlag = true;
 }
@@ -29,7 +30,9 @@ void
 TimingMemoryController::setUnBlocked()
 {
   assert(isBlockedFlag);
-  totalBlocktime += (startBlocking - curTick);
+  cout << curTick << ": unblocking\n";
+  totalBlocktime += (curTick - startBlocking);
+  bus->incrementBlockedCycles(curTick - startBlocking);
   isBlockedFlag = false;
 }
 

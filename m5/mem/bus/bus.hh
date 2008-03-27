@@ -51,10 +51,7 @@
 
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/bus/memory_controller.hh"
-#include "mem/bus/fcfs_memory_controller.hh"
-#include "mem/bus/fcfspri_memory_controller.hh"
-#include "mem/bus/fcfsrw_memory_controller.hh"
-#include "mem/bus/rdfcfs_memory_controller.hh"
+
 
 // #define DO_BUS_TRACE 1
 
@@ -68,6 +65,7 @@ class MemoryTraceEvent;
 
 template <class BusType> class BusInterface;
 class AdaptiveMHA;
+class TimingMemoryController;
 
 using namespace std;
 
@@ -107,51 +105,20 @@ class Bus : public BaseHier
     /* Memory Controller */
     TimingMemoryController *memoryController;
 
-    std::ofstream traceFile;    
+    std::ofstream traceFile;
 
   protected:
+    
     // statistics
-    /** Total number of cycles the address portion of this bus is idle. */
-    Stats::Scalar<> addrIdleCycles;
-    /** Fraction of total time the address bus was blocked. */
-    Stats::Formula addrIdleFraction;
+    Stats::Scalar<> busUseCycles;
+    Stats::Formula busUtilization;
 
-    /** Total number of cycles of the queueing delay on the address bus. */
-    Stats::Vector<> addrQdly;
-    /** Total number of requests for the address bus. */
-    Stats::Vector<> addrRequests;
-    /** The average queueing delay of the address bus. */
-    Stats::Formula addrQueued;
-
-    /** Total number of cycles the data portion of this bus is idle. */
-    Stats::Scalar<> dataIdleCycles;
-    /** Fraction of total time the data bus was blocked. */
-    Stats::Formula dataIdleFraction;
+    Stats::Scalar<> totalQueueCycles;
+    Stats::Scalar<> totalRequests;
+    Stats::Formula avgQueueCycles;
     
-    Stats::Formula dataUseCycles;
-
-    /** Total number of cycles of the queueing delay on the data bus. */
-    Stats::Vector<> dataQdly;
-    /** Total number of requests for the data bus. */
-    Stats::Vector<> dataRequests;
-    /** The average queueing delay of the data bus. */
-    Stats::Formula dataQueued;
-
-    /** The number of times this bus blocked. */
-    Stats::Scalar<> busBlocked;
-    /** The total number of cycles this bus is blocked. */
-    Stats::Scalar<> busBlockedCycles;
-    /** The fraction of total time that the bus was blocked. */
-    Stats::Formula busBlockedFraction;
+    Stats::Scalar<> blockedCycles;
     
-    Stats::Scalar<> writebackCycles;
-    Stats::Formula writebackFraction;
-    
-    Stats::Scalar<> unknownSenderCycles;
-    Stats::Formula unknownSenderFraction;
-    
-
-    /** The number of times the address bus was granted in error. */
     Stats::Scalar<> nullGrants;
 
     /** The last cycle the data arbiter was run, used for debugging. */
@@ -284,6 +251,8 @@ class Bus : public BaseHier
      * Notify all the attached interfaces that there has been a range change.
      */
     void rangeChange();
+    
+    void incrementBlockedCycles(Tick cycles);
 
     void handleMemoryController(void);
 

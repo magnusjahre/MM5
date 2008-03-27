@@ -62,8 +62,7 @@ class CPU(SimpleCPU):
 
 class DetailedStandAlone(Root):
 
-    #clock = '3Hz'
-    clock = '3200MHz'
+    clock = '4000MHz'
     toMemBus = ConventionalMemBus()
     ram = SDRAM(in_bus=Parent.toMemBus)
     l2 = []

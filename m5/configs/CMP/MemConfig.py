@@ -120,9 +120,8 @@ class ConventionalMemBus(Bus):
     readqueue_size = 64
     writequeue_size = 64
     prewritequeue_size = 0
-    reserved_slots = 0
-    trace_interval = 100000 
-    start_trace = 0
+    reserved_slots = 2
+    trace_interval = 100000
     
 #class NFQMemBus(NFQBus):
     #width = 8
@@ -138,5 +137,5 @@ class ConventionalMemBus(Bus):
 
 class SDRAM(BaseMemory):
     #latency = 200 * Parent.clock.period
-    latency = 112 * Parent.clock.period
-    uncacheable_latency = 1000 * Parent.clock.period
+    latency = 112 * Parent.clock.period #ignored
+    uncacheable_latency = 1000 * Parent.clock.period #ignored

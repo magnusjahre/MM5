@@ -267,6 +267,7 @@ else:
     simulateStart = max(fwCycles)
     
     root.adaptiveMHA.startTick = simulateStart
+    Bus.start_trace = simulateStart
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]

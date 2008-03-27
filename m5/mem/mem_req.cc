@@ -120,6 +120,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->completionEvent = r->completionEvent;
     req->thread_num = r->thread_num;
     req->time = r->time;
+    req->inserted_into_memory_controller = r->inserted_into_memory_controller;
     req->pc = r->pc;
     req->offset = r->offset;
     req->writeMiss = r->writeMiss;
@@ -175,6 +176,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->completionEvent = from->completionEvent;
     to->thread_num = from->thread_num;
     to->time = from->time;
+    to->inserted_into_memory_controller = from->inserted_into_memory_controller;
     to->pc = from->pc;
     to->offset = from->offset;
     to->cmd = from->cmd;

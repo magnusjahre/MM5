@@ -180,3 +180,9 @@ SlaveInterface<Mem, Bus>::calculateLatency(MemReqPtr &req)
 {
   return mem->calculateLatency(req);
 }
+
+template<class Mem, class Bus>
+Tick
+SlaveInterface<Mem, Bus>::getDataTransTime(){
+    return mem->getDataTransTime();
+}

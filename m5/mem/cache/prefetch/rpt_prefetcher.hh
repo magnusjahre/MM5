@@ -89,7 +89,6 @@ class RPTPrefetcher : public Prefetcher<TagStore, Buffering>
 					 cacheCheckPush, onlyData), 
 	 latency(latency), degree(degree)
     {
-         std::cout <<  "Constructed RPT: " << degree <<"\n";
     }
 
     ~RPTPrefetcher() {}
@@ -103,7 +102,7 @@ class RPTPrefetcher : public Prefetcher<TagStore, Buffering>
       Tick oldest;
       Addr newAddr;
 	Addr blkAddr = req->paddr & ~(Addr)(this->blkSize-1);
-
+        
       DPRINTF(HWPrefetch, "Calculate prefetch\n");
       
       int index = -1;

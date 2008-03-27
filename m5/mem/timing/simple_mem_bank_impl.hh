@@ -80,12 +80,12 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
 
     pagesize = 10; // 1kB = 2**10 from standard :-)
     internal_read_to_precharge = 3;
-    // Single channel = 4, dual channel = 2
-    data_time = 2;
+    data_time = 4; // Single channel = 4, dual channel = 2
     read_to_write_turnaround = 6; // for burstlength = 8 
     internal_row_to_row = 3;
 
-    bus_to_cpu_factor = 8; // Multiply by this to get cpu - cycles :p
+    //Clock frequency is 4GHz, bus freq 400MHz
+    bus_to_cpu_factor = 10; // Multiply by this to get cpu - cycles :p
 
     // Convert to CPU cycles :-)
     RAS_latency *= bus_to_cpu_factor;

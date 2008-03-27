@@ -236,6 +236,7 @@ class MemReq : public FastAlloc, public RefCounted
 	  //cpu_num(0), 
 	  thread_num(0),
 	  time(0),
+          inserted_into_memory_controller(0),
 	  pc(0),
 	  offset(0),
 	  data(NULL),
@@ -276,6 +277,7 @@ class MemReq : public FastAlloc, public RefCounted
         completionEvent = r.completionEvent;
         thread_num = r.thread_num;
         time = r.time;
+        inserted_into_memory_controller = r.inserted_into_memory_controller;
         pc = r.pc;
         offset = r.offset;
         data = r.data;

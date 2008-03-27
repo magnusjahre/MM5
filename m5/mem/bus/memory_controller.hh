@@ -10,19 +10,25 @@
 #include <list>
 #include <string>
 
+
 #include "mem/mem_req.hh"
-#include "mem/base_hier.hh"
-#include "base/statistics.hh"
-#include "base/range.hh"
-#include "sim/eventq.hh"
+// #include "mem/base_hier.hh"
+// #include "base/statistics.hh"
+// #include "base/range.hh"
+// #include "sim/eventq.hh"
 #include "mem/bus/base_interface.hh"
+#include "mem/bus/bus.hh"
+
 
 /**
  * A Memory controller.
  */
-class TimingMemoryController 
+class TimingMemoryController
 {
   public:
+      
+    Bus* bus;
+      
     Tick totalBlocktime;
     int readqueue_size;
     int writequeue_size;
@@ -41,6 +47,8 @@ class TimingMemoryController
     /** Frees locally allocated memory. */
     virtual ~TimingMemoryController();
 
+    void registerBus(Bus* _bus) { bus = _bus; }
+    
     virtual int insertRequest(MemReqPtr &req) = 0;
 
     virtual bool hasMoreRequests() = 0;

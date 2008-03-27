@@ -155,6 +155,8 @@ class SlaveInterface : public BusInterface<BusType>
     virtual bool isReady(MemReqPtr &req);
 
     virtual Tick calculateLatency(MemReqPtr &req);
+    
+    virtual Tick getDataTransTime();
 };
 
 #endif // __MEM_BUS_SLAVE_INTERFACE_HH__

@@ -67,9 +67,6 @@ template<class MemType, class BusType>
 void
 MasterInterface<MemType, BusType>::deliver(MemReqPtr &req)
 {
-    if (curTick - req->time > 10000) {
-      cout << curTick << " : Request for " << req->paddr << " took " << curTick - req->time << endl;
-    }
     mem->handleResponse(req);
 }
 

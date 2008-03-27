@@ -52,6 +52,11 @@
 #include "sim/host.hh"
 #include "sim/stats.hh"
 
+#include "mem/bus/fcfs_memory_controller.hh"
+#include "mem/bus/fcfspri_memory_controller.hh"
+#include "mem/bus/fcfsrw_memory_controller.hh"
+#include "mem/bus/rdfcfs_memory_controller.hh"
+
 #include <fstream>
 
 using namespace std;
@@ -89,8 +94,6 @@ Bus::Bus(const string &_name,
     prewritequeue_size = _prewritequeue_size;
     reserved_slots = _reserved_slots;
 
-    cout << "Configuration : " << infinite_writeback << " : " << readqueue_size << " : " << writequeue_size << " : " << prewritequeue_size << " : " << reserved_slots << endl;
-
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
 
@@ -121,6 +124,7 @@ Bus::Bus(const string &_name,
 
     memoryControllerEvent = new MemoryControllerEvent(this);
     memoryController = new RDFCFSTimingMemoryController();
+    memoryController->registerBus(this);
 
     // Dirty parameterization
     memoryController->readqueue_size = readqueue_size;
@@ -149,122 +153,44 @@ Bus::regStats()
 {
     using namespace Stats;
 
-    addrIdleCycles
-	.name(name() + ".addr_idle_cycles")
-	.desc("number of cycles bus was idle")
-	;
-
-    addrIdleFraction
-	.name(name() + ".addr_idle_fraction")
-	.desc("fraction of time addr bus was idle")
-	;
-
-    addrIdleFraction = addrIdleCycles / simTicks;
-
-    addrQdly
-	.init(maxThreadsPerCPU)
-	.name(name() + ".addr_queued_cycles")
-	.desc("total number of queued cycles for all requests")
-	.flags(total)
-	;
-
-    addrRequests
-	.init(maxThreadsPerCPU)
-	.name(name() + ".addr_requests")
-	.desc("number of transmissions on bus")
-	.flags(total)
-	;
-
-    addrQueued
-	.name(name() + ".addr_queued")
-	.desc("average queueing delay seen by bus request")
-	.flags(total)
-	;
-    addrQueued = addrQdly / addrRequests;
-
-    dataIdleCycles
-	.name(name() + ".data_idle_cycles")
-	.desc("number of cycles bus was idle")
-	;
-    
-    dataUseCycles
-        .name(name() + ".data_use_cycles")
-        .desc("number of cycles bus was in use")
+    busUseCycles
+        .name(name() + ".bus_use_cycles")
+        .desc("Number of cycles the data bus is in use")
         ;
-    dataUseCycles = (simTicks - dataIdleCycles);
 
-    dataIdleFraction
-	.name(name() + ".data_idle_fraction")
-	.desc("fraction of time data bus was idle")
-	;
-    dataIdleFraction = dataIdleCycles / simTicks;
+    busUtilization
+        .name(name() + ".bus_utilization")
+        .desc("Data bus utilization")
+        ;
 
-
-    dataQdly
-	.init(maxThreadsPerCPU)
-	.name(name() + ".data_queued_cycles")
-	.desc("total number of queued cycles for all requests")
-	.flags(total)
-	;
-
-    dataRequests
-	.init(maxThreadsPerCPU)
-	.name(name() + ".data_requests")
-	.desc("number of transmissions on bus")
-	.flags(total)
-	;
-
-    dataQueued
-	.name(name() + ".data_queued")
-	.desc("average queueing delay seen by bus request")
-	.flags(total)
-	;
-    dataQueued = dataQdly / dataRequests;
-
-    busBlocked
-	.name(name() + ".bus_blocked")
-	.desc("number of times bus was blocked")
-	;
-
-    busBlockedCycles
-	.name(name() + ".bus_blocked_cycles")
-	.desc("number of cycles bus was blocked")
-	;
-
-    busBlockedFraction
-	.name(name() + ".bus_blocked_fraction")
-	.desc("fraction of time bus was blocked")
-	;
-    busBlockedFraction = busBlockedCycles / simTicks;
-
-    writebackCycles
-            .name(name() + ".data_writeback_cycles")
-            .desc("number of bus cycles used for writebacks")
+    busUtilization = busUseCycles / simTicks;
+    
+    totalQueueCycles
+            .name(name() + ".total_queue_cycles")
+            .desc("Total number of cycles spent in memory controller queue")
             ;
     
-    writebackFraction
-            .name(name() + ".data_writeback_fraction")
-            .desc("fraction of time used for writebacks")
+    totalRequests
+            .name(name() + ".total_requests")
+            .desc("Total number of requests to memory controller")
             ;
-    
-    writebackFraction = writebackCycles / simTicks;
-    
-    unknownSenderCycles
-            .name(name() + ".data_unknown_sender_cycles")
-            .desc("number of bus cycles with req that is not from an L1 cache")
-            ;
-    
-    unknownSenderFraction
-            .name(name() + ".data_unknown_sender_fraction")
-            .desc("fraction of time bus used by req that is not from an L1 cache")
-            ;
-    
-    unknownSenderFraction = unknownSenderCycles / simTicks;
 
+    avgQueueCycles
+            .name(name() + ".avg_queue_cycles")
+            .desc("Average number of cycles each request spent in queue (not counting blocked cycles)")
+            ;
+
+    avgQueueCycles = totalQueueCycles / totalRequests;
+    
+    blockedCycles
+            .name(name() + ".blocked_cycles")
+            .desc("Number of cycles the memory controller was blocked")
+            ;
+    
     nullGrants
-	.name(name() + ".null_grants")
-	.desc("number of null grants (wasted cycles)")
-	;
+            .name(name() + ".null_grants")
+            .desc("Number of times the bus was granted in error")
+            ;
 }
 
 
@@ -328,12 +254,11 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 {
     assert(doEvents());
     if (!req) {
-	    // if the bus was granted in error
-	    nullGrants++;
-	    DPRINTF(Bus, "null request");
-	    return false;
+        // if the bus was granted in error
+        nullGrants++;
+        DPRINTF(Bus, "null request");
+        return false;
     }
-    
 
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
@@ -345,6 +270,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     // Insert request into memory controller
     memoryController->insertRequest(req);
+    totalRequests++;
 
     // Schedule memory controller if not scheduled yet.
     if (!memoryControllerEvent->scheduled()) {
@@ -360,17 +286,27 @@ Bus::handleMemoryController()
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
 
+        if(request->cmd != Activate && request->cmd != Close){
+            totalQueueCycles += curTick - request->inserted_into_memory_controller;
+        }
+        
         assert(slaveInterfaces.size() == 1);
         slaveInterfaces[0]->access(request);
     }
 }
 
-/* This tunction is called when the DRAM has calculated the latency */
+/* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time) 
 {
     assert(!memoryControllerEvent->scheduled());
     memoryControllerEvent->schedule(time);
     nextfree = time;
+    
+    if(req->cmd != Activate && req->cmd != Close){
+        assert(slaveInterfaces.size() == 1);
+        busUseCycles += slaveInterfaces[0]->getDataTransTime();
+    }
+    
     if (req->cmd == Read) { 
         assert(req->busId < interfaces.size() && req->busId > -1);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
@@ -477,6 +413,11 @@ Bus::rangeChange()
 }
 
 void
+Bus::incrementBlockedCycles(Tick cycles){
+    blockedCycles += cycles;
+}
+
+void
 Bus::resetAdaptiveStats(){
     fatal("reset adaptive stats is not implemented");
 }
@@ -536,7 +477,8 @@ AddrArbiterEvent::process()
     assert(this->original_time <= curTick);
     bus->lastarbevent = this->original_time;
 
-    if (bus->memoryController->isBlocked()) { 
+    if (bus->memoryController->isBlocked()) {
+        fatal("Current blocking impl will result in infinite loop");
         this->setpriority(Resched_Arb_Pri);
         this->schedule(bus->nextfree);
     } else {

@@ -10,7 +10,6 @@
 using namespace std;
 
 RDFCFSTimingMemoryController::RDFCFSTimingMemoryController() { 
-  cout << "RD-FCFS memory controller created" << endl;
   num_active_pages = 0;
   max_active_pages = 4;
 

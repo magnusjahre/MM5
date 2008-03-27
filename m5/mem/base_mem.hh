@@ -144,8 +144,13 @@ class BaseMem : public BaseHier
     }
 
     virtual Tick calculateLatency(MemReqPtr &req) {
-      fatal("Not implemented");
-      return false;
+        fatal("Not implemented");
+        return 0;
+    }
+    
+    virtual Tick getDataTransTime(){
+        fatal("Not implemented");
+        return 0;
     }
     
 };
