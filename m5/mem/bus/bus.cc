@@ -219,12 +219,14 @@ Bus::requestAddrBus(int id, Tick time)
 
     if (!arbiter_scheduled_flag) {
        assert(arb_events.empty());
+       assert(time >= curTick);
        eventptr->schedule(time);
        arbiter_scheduled_flag = true;
        currently_scheduled = eventptr;
     } else if (currently_scheduled->original_time > time) {
       currently_scheduled->deschedule();
       arb_events.push_back(currently_scheduled);
+      assert(time >= curTick);
       eventptr->schedule(time);
       currently_scheduled = eventptr;
       assert(arbiter_scheduled_flag);
@@ -299,6 +301,7 @@ Bus::handleMemoryController()
 void Bus::latencyCalculated(MemReqPtr &req, Tick time) 
 {
     assert(!memoryControllerEvent->scheduled());
+    assert(time >= curTick);
     memoryControllerEvent->schedule(time);
     nextfree = time;
     
@@ -322,24 +325,6 @@ Bus::traceBus(void)
   traceFile << endl;
 }
 
-void 
-Bus::delayData(int size, int senderID, MemCmdEnum cmd)
-{
-    fatal("delayData() not used in new bus implementation");
-}
-
-void
-Bus::sendData(MemReqPtr &req, Tick origReqTime)
-{
-    fatal("sendData not used in new bus implementation");
-}
-
-void
-Bus::sendAck(MemReqPtr &req, Tick origReqTime)
-{
-    fatal("sendAck not used in new bus implementation");
-}
-
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
@@ -361,41 +346,6 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
     
     return numInterfaces++;
 }
-
-void
-Bus::clearBlocked(int id)
-{
-    fatal("clearBlocked is not used in new bus implementation");
-}
-
-void
-Bus::setBlocked(int id)
-{
-    fatal("setBlocked is not used in the new bus implementation");
-}
-
-bool
-Bus::findOldestRequest(std::vector<BusRequestRecord> & requests,
-                       int & grant_id, int & old_grant_id)
-{
-    fatal("findOldestRequest is not used in the new bus implementation");
-    return false;
-}
-
-void
-Bus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
-                              Tick nextFreeCycle, Tick idleAdvance)
-{
-    fatal("scheduleArbitrationEvent is not used in the new bus implementation");
-}
-
-Tick
-Bus::probe(MemReqPtr &req, bool update)
-{
-    fatal("probe is not used in the new bus implementation");
-    return 0;
-}
-
 void
 Bus::collectRanges(list<Range<Addr> > &range_list)
 {
@@ -478,9 +428,10 @@ AddrArbiterEvent::process()
     bus->lastarbevent = this->original_time;
 
     if (bus->memoryController->isBlocked()) {
-        fatal("Current blocking impl will result in infinite loop");
         this->setpriority(Resched_Arb_Pri);
-        this->schedule(bus->nextfree);
+        //high priority gives infinite loop if sched in the same cycle
+        if(bus->nextfree <= curTick) this->schedule(curTick);
+        else this->schedule(bus->nextfree);
     } else {
         bus->arbitrateAddrBus(interfaceid);
         if (!bus->arb_events.empty()) {
@@ -494,6 +445,7 @@ AddrArbiterEvent::process()
             if (curTick > tmp->original_time) {
                 tmp->schedule(curTick);
             } else {
+                assert(tmp->original_time >= curTick);
                 tmp->schedule(tmp->original_time);
             }
             bus->arb_events.pop_front();
@@ -563,6 +515,62 @@ MemoryControllerEvent::description()
 {
     return "memory controller invocation";
 }
+
+// Unused methods
+
+void 
+Bus::delayData(int size, int senderID, MemCmdEnum cmd)
+{
+    fatal("delayData() not used in new bus implementation");
+}
+
+void
+Bus::sendData(MemReqPtr &req, Tick origReqTime)
+{
+    fatal("sendData not used in new bus implementation");
+}
+
+void
+Bus::sendAck(MemReqPtr &req, Tick origReqTime)
+{
+    fatal("sendAck not used in new bus implementation");
+}
+
+void
+Bus::clearBlocked(int id)
+{
+    fatal("clearBlocked is not used in new bus implementation");
+}
+
+void
+Bus::setBlocked(int id)
+{
+    fatal("setBlocked is not used in the new bus implementation");
+}
+
+bool
+Bus::findOldestRequest(std::vector<BusRequestRecord> & requests,
+                       int & grant_id, int & old_grant_id)
+{
+    fatal("findOldestRequest is not used in the new bus implementation");
+    return false;
+}
+
+void
+Bus::scheduleArbitrationEvent(Event * arbiterEvent, Tick reqTime,
+                              Tick nextFreeCycle, Tick idleAdvance)
+{
+    fatal("scheduleArbitrationEvent is not used in the new bus implementation");
+}
+
+Tick
+Bus::probe(MemReqPtr &req, bool update)
+{
+    fatal("probe is not used in the new bus implementation");
+    return 0;
+}
+
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)

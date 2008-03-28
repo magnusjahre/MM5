@@ -117,8 +117,8 @@ class ConventionalMemBus(Bus):
     #cpu_count = int(env['NP'])
     #bank_count = 4
     infinite_writeback = False
-    readqueue_size = 64
-    writequeue_size = 64
+    readqueue_size = 1
+    writequeue_size = 1
     prewritequeue_size = 0
     reserved_slots = 2
     trace_interval = 100000

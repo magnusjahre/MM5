@@ -51,20 +51,20 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
   req->inserted_into_memory_controller = curTick;
   if (req->cmd == Read) {
     readQueue.push_back(req);
-    if (readQueue.size() > readqueue_size) {
+    if (readQueue.size() >= readqueue_size) {
       setBlocked();
     }
   }
   if (req->cmd == Write) {
     writeQueue.push_back(req);
-    if (writeQueue.size() > writequeue_size) {
+    if (writeQueue.size() >= writequeue_size) {
       setBlocked();
     }
   }
   if (req->cmd == Prewrite) {
     req->cmd = Writeback;
     prewritebackQueue.push_back(req);
-    if (prewritebackQueue.size() > prewritequeue_size) {
+    if (prewritebackQueue.size() >= prewritequeue_size) {
       setPrewriteBlocked();
     }
   }
@@ -96,7 +96,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
   //workQueue.splice(workQueue.end(), readQueue);
   //workQueue.splice(workQueue.end(), writeQueue);
   //workQueue.splice(workQueue.end(), prewritebackQueue);
-
+    
   avg_read_size += readQueue.size() * (curTick - last_invoke);
   avg_write_size += writeQueue.size() * (curTick - last_invoke);
   avg_prewrite_size += prewritebackQueue.size() * (curTick - last_invoke);
@@ -180,6 +180,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         // Remove it
         reads++;
         total_read_wait += curTick - tmp->inserted_into_memory_controller;
+        if(isBlocked() && readQueue.size() == readqueue_size) setUnBlocked();
         readQueue.erase(queueIterator);
         return tmp;
       }
@@ -190,6 +191,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         // Remove it
         writes ++;
         total_write_wait += curTick - tmp->inserted_into_memory_controller;
+        if(isBlocked() && writeQueue.size() == writequeue_size) setUnBlocked();
         writeQueue.erase(queueIterator);
         return tmp;
       }
@@ -200,6 +202,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         // Remove it
         prewrites++;
         total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
+        if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size); setPrewriteUnBlocked();
         prewritebackQueue.erase(queueIterator);
         return tmp;
       }
@@ -211,6 +214,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     if (isActive(tmp)) {
       reads++;
       total_read_wait += curTick - tmp->inserted_into_memory_controller;
+      if(isBlocked() && readQueue.size() == readqueue_size) setUnBlocked();
       readQueue.erase(queueIterator);
       return tmp;
     }
@@ -220,6 +224,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     if (isActive(tmp)) {
       writes ++;
       total_write_wait += curTick - tmp->inserted_into_memory_controller;
+      if(isBlocked() && writeQueue.size() == writequeue_size) setUnBlocked();
       writeQueue.erase(queueIterator);
       return tmp;
     }
@@ -229,12 +234,13 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     if (isActive(tmp)) {
       prewrites++;
       total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
+      if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size); setPrewriteUnBlocked();
       prewritebackQueue.erase(queueIterator);
       return tmp;
     }
   }
 
-  fatal("This shuold never happen!");
+  fatal("This should never happen!");
   return close;
 }
 
