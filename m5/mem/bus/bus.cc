@@ -429,7 +429,6 @@ AddrArbiterEvent::process()
 
     if (bus->memoryController->isBlocked()) {
         this->setpriority(Resched_Arb_Pri);
-        //high priority gives infinite loop if sched in the same cycle
         if(bus->nextfree <= curTick) this->schedule(curTick);
         else this->schedule(bus->nextfree);
     } else {

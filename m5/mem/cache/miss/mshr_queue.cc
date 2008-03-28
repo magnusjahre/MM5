@@ -42,14 +42,11 @@ MSHRQueue::MSHRQueue(int num_mshrs, int reserve)
     : numMSHRs(num_mshrs + reserve - 1), numReserve(reserve)
 {
     
-//     cout << "MSHR queue allocated with " << num_mshrs << " MSHRs\n";
-    
     allocated = 0;
     inServiceMSHRs = 0;
     allocatedTargets = 0;
     registers = new MSHR[numMSHRs];
     for (int i = 0; i < numMSHRs; ++i) {
-//         cerr << "mshr " << i << " has addr " << &registers[i] << "\n";
 	freeList.push_back(&registers[i]);
     }
     
@@ -66,26 +63,17 @@ MemReqPtr
 MSHRQueue::getReq() const
 {
     if (pendingList.empty()) {
-//         if(cache->name() == "L1dcaches2" && curTick >= 1086000){
-//             std::cout << "list is empty, returning null\n";
-//         }
         return NULL;
     }
     MSHR* mshr = pendingList.front();
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     
-//     if(cache->name() == "L2Bank2" && curTick >= 1086000){
-//         std::cout << "returning from front, num req pending: " << pendingList.size() << "\n";
-//     }
-        
     return mshr->req;
 }
 
 MSHR*
 MSHRQueue::findMatch(Addr addr, int asid) const
 {
-    
-//     cout << "findMatch (1) called\n";
     
     MSHR::ConstIterator i = allocatedList.begin();
     MSHR::ConstIterator end = allocatedList.end();

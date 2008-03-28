@@ -56,6 +56,7 @@ class MissQueue
   private:
     bool mqWasPrevQueue;
     bool changeQueue;
+    Tick prevTime;
     
   protected:
     /** The MSHRs. */

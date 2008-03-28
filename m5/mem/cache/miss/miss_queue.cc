@@ -57,6 +57,7 @@ MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
     
     mqWasPrevQueue = false;
     changeQueue = false;
+    prevTime = 0;
     
     if(numTargets == 1){
         fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
@@ -502,17 +503,16 @@ MissQueue::getMemReq()
     MemReqPtr mqReq = mq.getReq();
     MemReqPtr wbReq = wb.getReq();
     
-    changeQueue = false;
     if(mqReq && mqReq->time <= curTick 
        && wbReq && wbReq->time <= curTick){
         
-        if(mqWasPrevQueue){
-            req = wbReq;
-        }
-        else{
-            req = mqReq;
-        }
-        changeQueue = true;
+        // POLICY: in allocation order in each queue, oldest first intra queue
+        if(mqReq->time <= wbReq->time) req = mqReq;
+        else req = wbReq;
+        
+        assert(prevTime <= req->time);
+        prevTime = req->time;
+
     }
     else if(mqReq && mqReq->time <= curTick){
         req = mqReq;
@@ -537,84 +537,6 @@ MissQueue::getMemReq()
     }
     
     return req;
-    
-    
-// Old Code (M5 standard follows)
-    
-//     if(cache->name() == "L2Bank2" && curTick >= 1086000){
-//         cout << curTick << ": calling mq getMemReq, checking mq first\n";
-//     }
-    
-//     MemReqPtr req = mq.getReq();
-//     
-//     if (((wb.isFull() && wb.inServiceMSHRs == 0) || !req || 
-// 	 req->time > curTick) && wb.havePending()) {
-// 	
-// //         if(cache->name() == "L2Bank2" && curTick >= 1086000){
-// //             if(!req) cout << "wb is full, selecting from wb\n";
-// //         }
-//         
-// //         if(cache->name() == "L2Bank0" && curTick >= 1127305){
-// //             cout << curTick << " " << cache->name() << " retrieving from writeback\n";
-// //         }
-//         req = wb.getReq();
-// 	// Need to search for earlier miss.
-// 	MSHR *mshr = mq.findPending(req);
-// 	if (mshr && mshr->order < req->mshr->order) {
-// 	    // Service misses in order until conflict is cleared.
-//             
-// //             if(cache->name() == "L1dcaches2" && curTick >= 1086000){
-// //                 if(!req) cout << "wb got canceled, sending from mq instead\n";
-// //             }
-//             
-//             if(cache->name() == "L2Bank0" && curTick >= 1127305){
-//                 cout << curTick << " " << cache->name() << " retrieved from miss queue on second go\n";
-//             }
-//             
-// 	    return mq.getReq();
-// 	}
-//     }
-//     else if (req) { //HACK by Magnus, was: if(req)
-// 	MSHR* mshr = wb.findPending(req);
-// 	if (mshr /*&& mshr->order < req->mshr->order*/) {
-// 	    // The only way this happens is if we are
-// 	    // doing a write and we didn't have permissions
-// 	    // then subsequently saw a writeback(owned got evicted)
-// 	    // We need to make sure to perform the writeback first
-// 	    // To preserve the dirty data, then we can issue the write
-//             
-//             if(cache->name() == "L2Bank0" && curTick >= 1127305){
-//                 cout << curTick << " " << cache->name() << " wierd code (1)\n";
-//             }
-//             
-// 	    return wb.getReq();
-// 	}
-//     }
-//     else if (!mq.isFull()){
-// 	//If we have a miss queue slot, we can try a prefetch
-//         if(cache->name() == "L2Bank0" && curTick >= 1127305){
-//             cout << curTick << " " << cache->name() << " wierd code (2)\n";
-//         }
-// 	req = prefetcher->getMemReq();
-// 	if (req) {
-// 	    //Update statistic on number of prefetches issued (hwpf_mshr_misses)
-// 	    mshr_misses[req->cmd.toIndex()][req->thread_num]++;
-// 	    //It will request the bus for the future, but should clear that immedieatley
-// 	    allocateMiss(req, req->size, curTick);
-// 	    req = mq.getReq();
-// 	    assert(req); //We should get back a req b/c we just put one in
-// 	}
-//     }
-//     
-// //     if(cache->name() == "L1dcaches2" && curTick >= 1086000){
-// //         if(!req) cout << "Request is NULL!\n";
-// //     }
-//     
-// //     if(cache->name() == "L2Bank0" && curTick >= 1127305){
-// //         cout << curTick << " " << cache->name() << " fell through, unclear which queue got serviced\n";
-// //     }
-//     
-//     return req;
 }
 
 void
