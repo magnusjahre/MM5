@@ -510,7 +510,7 @@ MissQueue::getMemReq()
         if(mqReq->time <= wbReq->time) req = mqReq;
         else req = wbReq;
         
-        assert(prevTime <= req->time);
+        //assert(prevTime <= req->time);
         prevTime = req->time;
 
     }
