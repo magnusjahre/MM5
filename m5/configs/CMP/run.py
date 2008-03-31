@@ -3,6 +3,7 @@ import Splash2
 import TestPrograms
 import Spec2000
 import workloads
+import hog_workloads
 from DetailedConfig import *
 
 ###############################################################################
@@ -39,7 +40,7 @@ if 'BENCHMARK' not in env:
 # from a config file
 # Splash benchmarks can read from config file
 if not ((env['BENCHMARK'].isdigit()) or (env['BENCHMARK'] 
-        in Splash2.benchmarkNames)):
+        in Splash2.benchmarkNames) or env['BENCHMARK'].startswith("hog")):
     if 'FASTFORWARDTICKS' not in env:
         panic("The FASTFORWARDTICKS environment variable must be set!\n\
         e.g. -EFASTFORWARDTICKS=10000\n")
@@ -243,7 +244,7 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
         root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
             
     root.setCPU(root.simpleCPU)
-elif not env['BENCHMARK'].isdigit():
+elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog")):
     # Simulator test workloads
     root.sampler = Sampler()
     root.sampler.phase0_cpus = Parent.simpleCPU
@@ -257,8 +258,13 @@ else:
     root.samplers = [ Sampler() for i in xrange(int(env['NP'])) ]
 
     if 'ISEXPERIMENT' in env:
-        fwCycles = \
-            workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
+        if env['BENCHMARK'].startswith("hog"):
+            tmpBM = env['BENCHMARK'].replace("hog","")
+            fwCycles = hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][1]
+            fwCycles.append(1000000000) # the bw hog is fastforwarded 1 billion clock cycles
+        else:
+            fwCycles = \
+                workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
     else:
         fwCycles = [int(env['FASTFORWARDTICKS']) 
                     for i in xrange(int(env['NP']))]
@@ -463,6 +469,17 @@ elif env['BENCHMARK'].isdigit():
                workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][0])
 
 ###############################################################################
+# Multi-programmed workloads with memory hog
+###############################################################################
+
+elif env['BENCHMARK'].startswith("hog"):
+    tmpBM = env['BENCHMARK'].replace("hog","")
+    prog = Spec2000.createWorkload(
+               hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][0])
+    prog.append(TestPrograms.ThrashCache())
+
+
+###############################################################################
 # Testprograms
 ###############################################################################
 
@@ -470,6 +487,9 @@ elif env['BENCHMARK'] == 'hello':
     root.workload = TestPrograms.HelloWorld()
 elif env['BENCHMARK'] == 'thrashCache':
     root.workload = TestPrograms.ThrashCache()
+elif env['BENCHMARK'] == 'thrashCacheAll':
+    for i in range(int(env['NP'])):
+        prog.append(TestPrograms.ThrashCache())
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")
 
