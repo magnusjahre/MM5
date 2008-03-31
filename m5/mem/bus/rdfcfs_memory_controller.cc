@@ -202,7 +202,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         // Remove it
         prewrites++;
         total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size); setPrewriteUnBlocked();
+        if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size) setPrewriteUnBlocked();
         prewritebackQueue.erase(queueIterator);
         return tmp;
       }
@@ -234,7 +234,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     if (isActive(tmp)) {
       prewrites++;
       total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
-      if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size); setPrewriteUnBlocked();
+      if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size) setPrewriteUnBlocked();
       prewritebackQueue.erase(queueIterator);
       return tmp;
     }

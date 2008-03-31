@@ -80,10 +80,11 @@ CacheSet::moveToHead(LRUBlk *blk)
 }
 
 /* New address layout with banked caches (Magnus):
- MSB                                                     LSB
-|----------------------------------------------------------|
-| Tag         | Set index        | Bank | Block offset     |
-|----------------------------------------------------------|
+   Remember that all addresses are byte-addresses
+ MSB                                                                 LSB
+|----------------------------------------------------------------------|
+| Tag         | Set index        | Bank | Block offset | Byte offset   |
+|----------------------------------------------------------------------|
 */
 
 // create and initialize a LRU/MRU cache structure
@@ -92,7 +93,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count)
 {
     
-    // block size is converted to bits in cache_builder.cc and can be used directly
+    // the provided addresses are byte addresses, so the provided block address can be used directly
     
     // Check parameters
     if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {

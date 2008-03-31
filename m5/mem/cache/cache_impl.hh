@@ -280,6 +280,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	    respond(req, curTick+lat);
         }
 
+//         if(name() == "L1dcaches0") cout << curTick << ": req for addr " << hex << req->paddr << " hit in cache\n";
+        
 	return MA_HIT;
     }
     
@@ -301,6 +303,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
     }
 
+//     if(name() == "L1dcaches0") cout << curTick << ": req for addr " << hex << req->paddr << " missed in cache\n";
     missQueue->handleMiss(req, size, curTick + hitLatency);
     return MA_CACHE_MISS;
 }

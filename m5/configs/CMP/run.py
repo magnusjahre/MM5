@@ -468,7 +468,8 @@ elif env['BENCHMARK'].isdigit():
 
 elif env['BENCHMARK'] == 'hello':
     root.workload = TestPrograms.HelloWorld()
-    
+elif env['BENCHMARK'] == 'thrashCache':
+    root.workload = TestPrograms.ThrashCache()
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")
 

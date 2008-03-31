@@ -482,10 +482,6 @@ CREATE_SIM_OBJECT(BaseCache)
     string name = getInstanceName();
     int numSets = size / (assoc * block_size);
     
-    // recalculate block size to bits for use in address calculations
-    block_size *= 8; 
-    
-    
     string pf_policy = prefetch_policy;
     if (subblock_size == 0) {
 	subblock_size = block_size;

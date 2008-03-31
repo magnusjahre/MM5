@@ -43,6 +43,7 @@
 #ifdef __CYGWIN32__
 #include <sys/fcntl.h>	// for O_BINARY
 #endif
+#include <sys/uio.h>
 
 #include "base/intmath.hh"	// for RoundUp
 #include "mem/functional/functional.hh"
@@ -229,6 +230,19 @@ SyscallReturn ftruncateFunc(SyscallDesc *desc, int num,
 			    Process *p, ExecContext *xc);
 
 
+/// Target chown() handler.
+SyscallReturn chownFunc(SyscallDesc *desc, int num,
+			Process *p, ExecContext *xc);
+
+
+/// Target fchown() handler.
+SyscallReturn fchownFunc(SyscallDesc *desc, int num,
+			 Process *p, ExecContext *xc);
+
+/// Target access() handler.
+SyscallReturn accessFunc(SyscallDesc *desc, int num,
+			 Process *p, ExecContext *xc);
+
 /// This struct is used to build an target-OS-dependent table that
 /// maps the target's open() flags to the host open() flags.
 struct OpenFlagTransTable {
@@ -346,6 +360,59 @@ openFunc(SyscallDesc *desc, int callnum, Process *process,
 }
 
 
+/// Target chmod() handler.
+template <class OS>
+SyscallReturn
+chmodFunc(SyscallDesc *desc, int callnum, Process *process,
+	  ExecContext *xc)
+{
+    std::string path;
+
+    if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault)
+	return -EFAULT;
+
+    uint32_t mode = xc->getSyscallArg(1);
+    mode_t hostMode = 0;
+
+    // XXX translate mode flags via OS::something???
+    hostMode = mode;
+
+    // do the chmod
+    int result = chmod(path.c_str(), hostMode);
+    if (result < 0)
+	return -errno;
+
+    return 0;
+}
+
+
+/// Target fchmod() handler.
+template <class OS>
+SyscallReturn
+fchmodFunc(SyscallDesc *desc, int callnum, Process *process,
+	   ExecContext *xc)
+{
+    int fd = xc->getSyscallArg(0);
+    if (fd < 0 || process->sim_fd(fd) < 0) {
+	// doesn't map to any simulator fd: not a valid target fd
+	return -EBADF;
+    }
+
+    uint32_t mode = xc->getSyscallArg(1);
+    mode_t hostMode = 0;
+
+    // XXX translate mode flags via OS::someting???
+    hostMode = mode;
+
+    // do the fchmod
+    int result = fchmod(process->sim_fd(fd), hostMode);
+    if (result < 0)
+	return -errno;
+
+    return 0;
+}
+
+
 /// Target stat() handler.
 template <class OS>
 SyscallReturn
@@ -361,9 +428,54 @@ statFunc(SyscallDesc *desc, int callnum, Process *process,
     int result = stat(path.c_str(), &hostBuf);
 
     if (result < 0)
-	return errno;
+	return -errno;
 
     OS::copyOutStatBuf(xc->mem, xc->getSyscallArg(1), &hostBuf);
+
+    return 0;
+}
+
+
+/// Target stat64() handler.
+template <class OS>
+SyscallReturn
+stat64Func(SyscallDesc *desc, int callnum, Process *process,
+	   ExecContext *xc)
+{
+    std::string path;
+
+    if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault)
+	return -EFAULT;
+
+    struct stat64 hostBuf;
+    int result = stat64(path.c_str(), &hostBuf);
+
+    if (result < 0)
+	return -errno;
+
+    OS::copyOutStat64Buf(xc->mem, xc->getSyscallArg(1), &hostBuf);
+
+    return 0;
+}
+/// Target fstat64() handler.
+template <class OS>
+SyscallReturn
+fstat64Func(SyscallDesc *desc, int callnum, Process *process,
+	    ExecContext *xc)
+{
+    int fd = xc->getSyscallArg(0);
+    if (fd < 0 || process->sim_fd(fd) < 0) {
+	// doesn't map to any simulator fd: not a valid target fd
+	return -EBADF;
+    }
+
+    struct stat64 hostBuf;
+    int result = fstat64(process->sim_fd(fd), &hostBuf);
+
+    if (result < 0)
+	return -errno;
+
+    OS::copyOutStat64Buf(xc->mem, xc->getSyscallArg(1), &hostBuf);
 
     return 0;
 }
@@ -387,6 +499,28 @@ lstatFunc(SyscallDesc *desc, int callnum, Process *process,
 	return -errno;
 
     OS::copyOutStatBuf(xc->mem, xc->getSyscallArg(1), &hostBuf);
+
+    return 0;
+}
+
+/// Target lstat64() handler.
+template <class OS>
+SyscallReturn
+lstat64Func(SyscallDesc *desc, int callnum, Process *process,
+	    ExecContext *xc)
+{
+    std::string path;
+
+    if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault)
+	return -EFAULT;
+
+    struct stat64 hostBuf;
+    int result = lstat64(path.c_str(), &hostBuf);
+
+    if (result < 0)
+	return -errno;
+
+    OS::copyOutStat64Buf(xc->mem, xc->getSyscallArg(1), &hostBuf);
 
     return 0;
 }
@@ -431,7 +565,7 @@ statfsFunc(SyscallDesc *desc, int callnum, Process *process,
     int result = statfs(path.c_str(), &hostBuf);
 
     if (result < 0)
-	return errno;
+	return -errno;
 
     OS::copyOutStatfsBuf(xc->mem, xc->getSyscallArg(1), &hostBuf);
 
@@ -454,9 +588,49 @@ fstatfsFunc(SyscallDesc *desc, int callnum, Process *process,
     int result = fstatfs(fd, &hostBuf);
 
     if (result < 0)
-	return errno;
+	return -errno;
 
     OS::copyOutStatfsBuf(xc->mem, xc->getSyscallArg(1), &hostBuf);
+
+    return 0;
+}
+
+
+/// Target writev() handler.
+template <class OS>
+SyscallReturn
+writevFunc(SyscallDesc *desc, int callnum, Process *process,
+	   ExecContext *xc)
+{
+    int fd = xc->getSyscallArg(0);
+    if (fd < 0 || process->sim_fd(fd) < 0) {
+	// doesn't map to any simulator fd: not a valid target fd
+	return -EBADF;
+    }
+
+    uint64_t tiov_base = xc->getSyscallArg(1);
+    size_t count = xc->getSyscallArg(2);
+    struct iovec hiov[count];
+    for (int i = 0; i < count; ++i)
+    {
+	typename OS::tgt_iovec tiov;
+	xc->mem->access(Read, tiov_base + i*sizeof(typename OS::tgt_iovec),
+			&tiov, sizeof(typename OS::tgt_iovec));
+	hiov[i].iov_len = tiov.iov_len;
+	hiov[i].iov_base = new char [hiov[i].iov_len];
+	xc->mem->access(Read, tiov.iov_base,
+			hiov[i].iov_base, hiov[i].iov_len);
+    }
+
+    int result = writev(process->sim_fd(fd), hiov, count);
+
+    for (int i = 0; i < count; ++i)
+    {
+	delete [] (char *)hiov[i].iov_base;
+    }
+
+    if (result < 0)
+	return -errno;
 
     return 0;
 }
@@ -513,6 +687,18 @@ getrlimitFunc(SyscallDesc *desc, int callnum, Process *process,
     TypedBufferArg<typename OS::rlimit> rlp(xc->getSyscallArg(1));
 
     switch (resource) {
+      case OS::RLIMIT_DATA:
+	// max data segment size RLIM_INFINITY == 0x7ffffffffffffffful
+	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
+	break;
+      case OS::RLIMIT_RSS:
+	// max number of pages
+	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
+	break;
+      case OS::RLIMIT_AS:
+	// max address space in bytes
+	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
+	break;
       case OS::RLIMIT_STACK:
 	// max stack size in bytes: make up a number (2MB for now)
 	rlp->rlim_cur = rlp->rlim_max = 8 * 1024 * 1024;
@@ -545,6 +731,34 @@ gettimeofdayFunc(SyscallDesc *desc, int callnum, Process *process,
     return 0;
 }
 
+
+/// Target utimes() handler.
+template <class OS>
+SyscallReturn
+utimesFunc(SyscallDesc *desc, int callnum, Process *process,
+	   ExecContext *xc)
+{
+    std::string path;
+
+    if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault)
+	return -EFAULT;
+
+    TypedBufferArg<typename OS::timeval [2]> tp(xc->getSyscallArg(1));
+    tp.copyIn(xc->mem);
+
+    struct timeval hostTimeval[2];
+    for (int i = 0; i < 2; ++i)
+    {
+	hostTimeval[i].tv_sec = (*tp)[i].tv_sec;
+	hostTimeval[i].tv_usec = (*tp)[i].tv_usec;
+    }
+    int result = utimes(path.c_str(), hostTimeval);
+
+    if (result < 0)
+	return -errno;
+
+    return 0;
+}
 
 /// Target getrusage() function.
 template <class OS>

@@ -10,3 +10,6 @@ rootpath = rootdir+"/"
 
 class HelloWorld(LiveProcess):
     cmd = rootpath +"hello/hello"
+    
+class ThrashCache(LiveProcess):
+    cmd = rootpath +"thrash_cache/thrash_cache_alpha"
