@@ -53,11 +53,11 @@ class L2Bank(BaseCache):
 ###############################################################################
 
 class ToL2Bus(Bus):
-    width = 512
+    width = 64
     clock = Parent.clock.period
     
 class InterconnectBus(SplitTransBus):
-    width = 512
+    width = 64
     clock = 1 * Parent.clock.period
     transferDelay = 4
     arbitrationDelay = 5
@@ -67,25 +67,25 @@ class PipelinedBus(InterconnectBus):
     pipelined = True
 
 class InterconnectIdeal(IdealInterconnect):
-    width = 512 # the cache needs finite width
+    width = 64 # the cache needs finite width
     clock = 1 * Parent.clock.period
     transferDelay = 0
     arbitrationDelay = 0
     
 class InterconnectIdealWithDelay(IdealInterconnect):
-    width = 512 # the cache needs finite width
+    width = 64 # the cache needs finite width
     clock = 1 * Parent.clock.period
     transferDelay = 4
     arbitrationDelay = 5
 
 class InterconnectCrossbar(Crossbar):
-    width = 512
+    width = 64
     clock = 1 * Parent.clock.period
     transferDelay = 4
     arbitrationDelay = 5
     
 class InterconnectButterfly(Butterfly):
-    width = 512
+    width = 64
     clock = 1 * Parent.clock.period
     radix = 2
     banks = 4
