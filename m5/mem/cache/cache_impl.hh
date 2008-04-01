@@ -258,6 +258,15 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
     }
     
+    if(isShared){
+        assert(req->adaptiveMHASenderID != -1);
+        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+        accessesPerCPU[req->adaptiveMHASenderID]++;
+    }
+    else{
+        accessesPerCPU[cacheCpuID]++;
+    }
+    
     if (blk) {
         
         if(isDirectoryAndL2Cache()){
@@ -280,8 +289,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	    respond(req, curTick+lat);
         }
 
-//         if(name() == "L1dcaches0") cout << curTick << ": req for addr " << hex << req->paddr << " hit in cache\n";
-        
 	return MA_HIT;
     }
     
@@ -302,8 +309,16 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
             return res;
         }
     }
+    
+    if(isShared){
+        assert(req->adaptiveMHASenderID != -1);
+        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+        missesPerCPU[req->adaptiveMHASenderID]++;
+    }
+    else{
+        missesPerCPU[cacheCpuID]++;
+    }
 
-//     if(name() == "L1dcaches0") cout << curTick << ": req for addr " << hex << req->paddr << " missed in cache\n";
     missQueue->handleMiss(req, size, curTick + hitLatency);
     return MA_CACHE_MISS;
 }

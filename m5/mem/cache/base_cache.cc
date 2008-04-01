@@ -280,6 +280,19 @@ BaseCache::regStats()
       .desc("Number of good prefetches")
       ;
 
+    missesPerCPU
+        .init(cpuCount)
+        .name(name() + ".misses_per_cpu")
+        .desc("number of misses for each CPU")
+        .flags(total)
+        ;
+    
+    accessesPerCPU
+        .init(cpuCount)
+        .name(name() + ".accesses_per_cpu")
+        .desc("number of accesses for each CPU")
+        .flags(total)
+        ;
 }
 
 void

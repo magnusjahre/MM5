@@ -215,6 +215,11 @@ class BaseCache : public BaseMem {
 
     /** The number of good prefetches */
     Stats::Scalar<> goodprefetches;
+    
+    /** Per cpu cache miss statistics */
+    Stats::Vector<> missesPerCPU;
+    /** Per cpu cache access statistics */
+    Stats::Vector<> accessesPerCPU;
 
     /**
      * @}
