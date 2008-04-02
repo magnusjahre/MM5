@@ -50,8 +50,6 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     dataCaches.resize(adaptiveMHAcpuCount, NULL);
     instructionCaches.resize(adaptiveMHAcpuCount, NULL);
-    
-//     zeroCount.resize(adaptiveMHAcpuCount, 0);
             
     sampleEvent = new AdaptiveMHASampleEvent(this);
     sampleEvent->schedule(start);
@@ -69,9 +67,10 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     memTraceFileName = "memoryBusTrace.txt";
     ofstream memfile(memTraceFileName.c_str());
-    memfile << "Tick;Address Util;DataUtil";
-    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " addr";
-    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " data";
+    memfile << "Tick;DataUtil";
+    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Data";
+    memfile << ";Avg Queue";
+    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Avg Queue";
     memfile << "\n";
     memfile.flush();
     memfile.close();
@@ -127,44 +126,32 @@ AdaptiveMHA::handleSampleEvent(Tick time){
                 for(int j=0;j<staticAsymmetricMHAs[i];j++){
                     dataCaches[i]->decrementNumMSHRs();
                 }
-                cout << curTick << ": The MSHR count of cache " << i << " has been reduced to " << dataCaches[i]->getCurrentMSHRCount() << "\n";
             }
         }
     }
     
     
     // gather information
-    double addrBusUtil = bus->getAddressBusUtilisation(sampleFrequency);
     double dataBusUtil = bus->getDataBusUtilisation(sampleFrequency);
-    
     vector<int> dataUsers = bus->getDataUsePerCPUId();
+    double avgQueueDelay = bus->getAverageQueue(sampleFrequency);
+    vector<double> avgQueueDelayPerUser = bus->getAverageQueuePerCPU();
+    bus->resetAdaptiveStats();
     assert(dataUsers.size() == adaptiveMHAcpuCount);
-    vector<int> addressUsers = bus->getAddressUsePerCPUId();
-    assert(addressUsers.size() == adaptiveMHAcpuCount);
     
-    // Writeback requests are not initiated by the CPU
     int dataSum=0;
     for(int i=0;i<dataUsers.size();i++) dataSum += dataUsers[i];
-//     cout << curTick << ": assert " << dataSum << " / " << sampleFrequency << " <= " << dataBusUtil << "\n";
     if((double) ((double) dataSum / (double) sampleFrequency) > dataBusUtil){
         dataSampleTooLarge++;
     }
     
-    int addrSum=0;
-    for(int i=0;i<addressUsers.size();i++) addrSum += addressUsers[i];
-    if((double) ((double) addrSum / (double) sampleFrequency) > addrBusUtil){
-        addrSampleTooLarge++;
-    }
-    
-    assert(dataUsers.size() == addressUsers.size());
-    
     //write bus use trace
     ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
     memTraceFile << time;
-    memTraceFile << ";" << addrBusUtil;
     memTraceFile << ";" << dataBusUtil;
-    for(int i=0;i<addressUsers.size();i++) memTraceFile << ";" << addressUsers[i];
     for(int i=0;i<dataUsers.size();i++) memTraceFile << ";" << dataUsers[i];
+    memTraceFile << ";" << avgQueueDelay;
+    for(int i=0;i<avgQueueDelayPerUser.size();i++) memTraceFile << ";" << avgQueueDelayPerUser[i];
     memTraceFile << "\n";
     
     memTraceFile.flush();

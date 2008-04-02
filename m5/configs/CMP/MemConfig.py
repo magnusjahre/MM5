@@ -114,8 +114,8 @@ class InterconnectButterfly(Butterfly):
 class ConventionalMemBus(Bus):
     width = 8
     clock = 4 * Parent.clock.period
-    #cpu_count = int(env['NP'])
-    #bank_count = 4
+    cpu_count = int(env['NP'])
+    bank_count = 4
     infinite_writeback = False
     readqueue_size = 16
     writequeue_size = 16

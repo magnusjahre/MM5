@@ -269,8 +269,15 @@ else:
         fwCycles = [int(env['FASTFORWARDTICKS']) 
                     for i in xrange(int(env['NP']))]
     
-    simulateCycles = int(env['SIMULATETICKS'])
     simulateStart = max(fwCycles)
+    if 'ISEXPERIMENT' in env:
+        # add 10M cycles warm-up to avoid startup effects (and to make sure that stats are reset only once)
+        warmup = 10000000
+        simulateCycles = int(env['SIMULATETICKS'] + warmup)
+        Statistics.dump_reset = True
+        Statistics.dump_cycle = simulateStart + warmup
+    else:
+        simulateCycles = int(env['SIMULATETICKS'])
     
     root.adaptiveMHA.startTick = simulateStart
     Bus.start_trace = simulateStart

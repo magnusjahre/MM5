@@ -71,21 +71,25 @@ using namespace std;
 
 // bus constructor
 Bus::Bus(const string &_name,
-	 HierParams *hier_params,
-	 int _width,
-	 int _clock,
-   AdaptiveMHA* _adaptiveMHA,
-   bool _infinite_writeback,
-   int _readqueue_size,
-   int _writequeue_size,
-   int _prewritequeue_size,
-   int _reserved_slots,
-   int _start_trace,
-   int _trace_interval)
+         HierParams *hier_params,
+         int _width,
+         int _clock,
+         AdaptiveMHA* _adaptiveMHA,
+         bool _infinite_writeback,
+         int _readqueue_size,
+         int _writequeue_size,
+         int _prewritequeue_size,
+         int _reserved_slots,
+         int _start_trace,
+         int _trace_interval,
+         int _cpu_count,
+         int _bank_count)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
+    cpu_count = _cpu_count;
+    bank_count = _bank_count;
 
     /* Memory controller */
     infinite_writeback = _infinite_writeback;
@@ -136,6 +140,11 @@ Bus::Bus(const string &_name,
     traceFile.open("bustrace.txt");
     memoryTraceEvent = new MemoryTraceEvent(this,_trace_interval);
     memoryTraceEvent->schedule(_start_trace);
+    
+    perCPUDataBusUse.resize(cpu_count, 0);
+    perCPUQueueCycles.resize(cpu_count, 0);
+    perCPURequests.resize(cpu_count, 0);
+    if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
 
 }
 
@@ -162,8 +171,32 @@ Bus::regStats()
         .name(name() + ".bus_utilization")
         .desc("Data bus utilization")
         ;
-
+    
     busUtilization = busUseCycles / simTicks;
+    
+    unknownSenderCycles
+        .name(name() + ".unknown_sender_bus_use_cycles")
+        .desc("Number of cycles the bus was used by an unknown sender")
+        ;
+    
+    unknownSenderUtilization
+        .name(name() + ".unknown_sender_utilization")
+        .desc("Bus utilization by unknown sender requests")
+        ;
+
+    unknownSenderUtilization = unknownSenderCycles / simTicks;
+    
+    unknownSenderRequests
+        .name(name() + ".unknown_sender_requests")
+        .desc("Number of requests with unknown sender")
+        ;
+    
+    unknownSenderFraction
+        .name(name() + ".unknown_sender_fraction")
+        .desc("Percentage of requests that have an unknown origin")
+        ;
+    
+    unknownSenderFraction = unknownSenderRequests / totalRequests;
     
     totalQueueCycles
             .name(name() + ".total_queue_cycles")
@@ -197,7 +230,7 @@ Bus::regStats()
 void
 Bus::resetStats()
 {
-
+    cout << curTick << ": reset stats called\n";
 }
 
 void
@@ -248,7 +281,7 @@ Bus::arbitrateAddrBus(int interfaceid)
 void
 Bus::arbitrateDataBus()
 {
-    fatal("arbitrateDAtaBus() called!");
+    fatal("arbitrateDataBus() called!");
 }
 
 bool
@@ -289,7 +322,16 @@ Bus::handleMemoryController()
         MemReqPtr &request = memoryController->getRequest();
 
         if(request->cmd != Activate && request->cmd != Close){
-            totalQueueCycles += curTick - request->inserted_into_memory_controller;
+            int queue_lat = curTick - request->inserted_into_memory_controller;
+            totalQueueCycles += queue_lat;
+            if(request->adaptiveMHASenderID != -1){
+                perCPUQueueCycles[request->adaptiveMHASenderID] += queue_lat;
+                perCPURequests[request->adaptiveMHASenderID] += 1;
+                int sum = 0;
+                for(int i=0;i<perCPURequests.size();i++) {
+                    sum += perCPURequests[i];
+                }
+            }
         }
         
         assert(slaveInterfaces.size() == 1);
@@ -308,6 +350,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time)
     if(req->cmd != Activate && req->cmd != Close){
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
+        if(req->adaptiveMHASenderID != -1){
+            perCPUDataBusUse[req->adaptiveMHASenderID] += slaveInterfaces[0]->getDataTransTime();
+        }
+        else{
+            unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
+        }
     }
     
     if (req->cmd == Read) { 
@@ -369,43 +417,47 @@ Bus::incrementBlockedCycles(Tick cycles){
 
 void
 Bus::resetAdaptiveStats(){
-    fatal("reset adaptive stats is not implemented");
+    for(int i=0;i<perCPUDataBusUse.size();i++) perCPUDataBusUse[i] = 0;
+    for(int i=0;i<perCPUQueueCycles.size();i++) perCPUQueueCycles[i] = 0;
+    for(int i=0;i<perCPURequests.size();i++) perCPURequests[i] = 0;
 }
-
-void
-Bus::storeUseStats(bool data, int senderID){
-    
-    fatal("storeUseStats is not implemented");
-}
-
 
 double
-Bus::getAddressBusUtilisation(Tick sampleSize){
+Bus::getAverageQueue(Tick sampleSize){
     
-    fatal("getAddressBusUtil is not implemented");
-    return 0.0;
+    int sum = 0;
+    int reqs = 0;
+    for(int i=0;i<perCPUQueueCycles.size();i++) sum += perCPUQueueCycles[i];
+    for(int i=0;i<perCPURequests.size();i++) reqs += perCPURequests[i];
+    if(reqs == 0) return 0;
+    return (double) ((double) sum / (double) reqs);
 }
 
 double
 Bus::getDataBusUtilisation(Tick sampleSize){
     
-    fatal("getDataBusUtil is not implemented");
-    return 0.0;
-    
+    int sum = 0;
+    for(int i=0;i<cpu_count;i++) sum += perCPUDataBusUse[i];
+    return (double) ((double) sum / (double) sampleSize);
 }
 
 vector<int>
 Bus::getDataUsePerCPUId(){
     
-    vector<int> retval;
-    fatal("getDataUsePerCPUId not implemented");
+    vector<int> retval= perCPUDataBusUse;
     return retval;
 }
 
-vector<int>
-Bus::getAddressUsePerCPUId(){
-    vector<int> retval = perCPUAddressBusUse;
-    fatal("getAddrUsePerCPUId not implemented");
+vector<double>
+Bus::getAverageQueuePerCPU(){
+    
+    vector<double> retval;
+    retval.resize(perCPUQueueCycles.size(), 0);
+    assert(perCPUQueueCycles.size() == perCPURequests.size());
+    for(int i=0;i<perCPUQueueCycles.size();i++){
+        if(perCPURequests[i] == 0) retval[i] = 0;
+        else retval[i] = (double) ((double) perCPUQueueCycles[i] / (double) perCPURequests[i]);
+    }
     return retval;
 }
 
@@ -585,6 +637,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<int> reserved_slots;
     Param<int> start_trace;
     Param<int> trace_interval;
+    Param<int> cpu_count;
+    Param<int> bank_count;
+    
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -603,7 +658,10 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(prewritequeue_size, "Max size of prewriteback queue", 64),
     INIT_PARAM_DFLT(reserved_slots, "Numer of activations reserved for reads", 2),
     INIT_PARAM_DFLT(start_trace, "Point to start tracing", 0),
-    INIT_PARAM_DFLT(trace_interval, "How often to trace", 100000)
+    INIT_PARAM_DFLT(trace_interval, "How often to trace", 100000),
+    INIT_PARAM(cpu_count, "Number of CPUs"),
+    INIT_PARAM(bank_count, "Number of L2 cache banks")
+                    
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -621,7 +679,9 @@ CREATE_SIM_OBJECT(Bus)
                    prewritequeue_size,
                    reserved_slots,
                    start_trace,
-                   trace_interval);
+                   trace_interval,
+                   cpu_count,
+                   bank_count);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

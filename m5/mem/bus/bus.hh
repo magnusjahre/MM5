@@ -112,6 +112,12 @@ class Bus : public BaseHier
     // statistics
     Stats::Scalar<> busUseCycles;
     Stats::Formula busUtilization;
+    
+    Stats::Scalar<> unknownSenderCycles;
+    Stats::Formula unknownSenderUtilization;
+    
+    Stats::Scalar<> unknownSenderRequests;
+    Stats::Formula unknownSenderFraction;
 
     Stats::Scalar<> totalQueueCycles;
     Stats::Scalar<> totalRequests;
@@ -134,17 +140,19 @@ class Bus : public BaseHier
     // constructor
     /** Constructs a Bus object. */
     Bus(const std::string &name,
-	HierParams *hier_params,
-	int width,
-	int clockRate,
-  AdaptiveMHA* _adaptiveMHA,
-  bool infinite_writeback,
-  int readqueue_size,
-  int writequeue_size,
-  int prewritequeue_size,
-  int reserved_slots,
-  int start_trace,
-  int trace_interval
+        HierParams *hier_params,
+        int width,
+        int clockRate,
+        AdaptiveMHA* _adaptiveMHA,
+        bool infinite_writeback,
+        int readqueue_size,
+        int writequeue_size,
+        int prewritequeue_size,
+        int reserved_slots,
+        int start_trace,
+        int trace_interval,
+        int cpu_count,
+        int bank_count
         );
 
     /** Frees locally allocated memory. */
@@ -261,25 +269,21 @@ class Bus : public BaseHier
     void traceBus(void);
     
     // Adaptive MHA methods
-    double getAddressBusUtilisation(Tick sampleSize);
-    std::vector<int> getAddressUsePerCPUId();
+    double getAverageQueue(Tick sampleSize);
+    std::vector<double> getAverageQueuePerCPU();
     double getDataBusUtilisation(Tick sampleSize);
     std::vector<int> getDataUsePerCPUId();
     void resetAdaptiveStats();
     
 
   private:
-    
-    std::vector<int> perCPUAddressBusUse;
-    std::vector<int> perCPUAddressBusUseOverflow;
-    int addrBusUseSamples[2];
-
     std::vector<int> perCPUDataBusUse;
-    std::vector<int> perCPUDataBusUseOverflow;
-    int dataBusUseSamples[2];
-    
+    std::vector<int> perCPUQueueCycles;
+    std::vector<int> perCPURequests;
     int adaptiveSampleSize;
     
+    int cpu_count;
+    int bank_count;
     
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
@@ -392,8 +396,6 @@ class Bus : public BaseHier
 	// Convert back to global cycles & return.
 	return busCycle * clockRate;
     }
-    
-    void storeUseStats(bool data, int senderID);
 
     
 #ifdef DO_BUS_TRACE
