@@ -4,6 +4,7 @@ import TestPrograms
 import Spec2000
 import workloads
 import hog_workloads
+import bw_workloads
 from DetailedConfig import *
 
 ###############################################################################
@@ -40,7 +41,7 @@ if 'BENCHMARK' not in env:
 # from a config file
 # Splash benchmarks can read from config file
 if not ((env['BENCHMARK'].isdigit()) or (env['BENCHMARK'] 
-        in Splash2.benchmarkNames) or env['BENCHMARK'].startswith("hog")):
+        in Splash2.benchmarkNames) or env['BENCHMARK'].startswith("hog") or env['BENCHMARK'].startswith("bw")):
     if 'FASTFORWARDTICKS' not in env:
         panic("The FASTFORWARDTICKS environment variable must be set!\n\
         e.g. -EFASTFORWARDTICKS=10000\n")
@@ -244,7 +245,7 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
         root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
             
     root.setCPU(root.simpleCPU)
-elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog")):
+elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog") or env['BENCHMARK'].startswith("bw")):
     # Simulator test workloads
     root.sampler = Sampler()
     root.sampler.phase0_cpus = Parent.simpleCPU
@@ -262,6 +263,9 @@ else:
             tmpBM = env['BENCHMARK'].replace("hog","")
             fwCycles = hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][1]
             fwCycles.append(1000000000) # the bw hog is fastforwarded 1 billion clock cycles
+        elif env['BENCHMARK'].startswith("bw"):
+            tmpBM = env['BENCHMARK'].replace("bw","")
+            fwCycles = bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][1]
         else:
             fwCycles = \
                 workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
@@ -277,10 +281,11 @@ else:
         Statistics.dump_reset = True
         Statistics.dump_cycle = simulateStart + warmup
     else:
+        warmup = 0
         simulateCycles = int(env['SIMULATETICKS'])
     
-    root.adaptiveMHA.startTick = simulateStart
-    Bus.start_trace = simulateStart
+    root.adaptiveMHA.startTick = simulateStart + warmup
+    Bus.start_trace = simulateStart + warmup
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
@@ -474,6 +479,15 @@ elif env['BENCHMARK'] == 'apsi':
 elif env['BENCHMARK'].isdigit():
     prog = Spec2000.createWorkload(
                workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][0])
+
+###############################################################################
+# Multi-programmed bw intensive workloads
+###############################################################################
+
+elif env['BENCHMARK'].startswith("bw"):
+    tmpBM = env['BENCHMARK'].replace("bw","")
+    prog = Spec2000.createWorkload(
+               bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][0])
 
 ###############################################################################
 # Multi-programmed workloads with memory hog

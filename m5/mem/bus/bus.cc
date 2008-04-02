@@ -230,7 +230,6 @@ Bus::regStats()
 void
 Bus::resetStats()
 {
-    cout << curTick << ": reset stats called\n";
 }
 
 void
