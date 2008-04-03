@@ -182,8 +182,9 @@ StatEvent::description()
 void
 StatEvent::process()
 {
-    if (flags & Stats::Dump)
-	DumpNow();
+    //HACK: disable dump of stats (generates duplicate results with warm up method)
+//     if (flags & Stats::Dump)
+// 	DumpNow();
 	
     if (flags & Stats::Reset)
 	reset();
