@@ -80,16 +80,17 @@ if 'PROGRESS' in env:
     progressInterval = int(env['PROGRESS'])
 
 # MSHR parameters
-l1mshrTargets = -1
+l1dmshrTargets = -1
 l1mshrsData = -1
-if 'MSHRSL1D' in env and 'MSHRL1TARGETS' in env:
+if 'MSHRSL1D' in env and 'MSHRL1DTARGETS' in env:
     l1mshrsData = int(env['MSHRSL1D'])
-    l1mshrTargets = int(env['MSHRL1TARGETS'])
+    l1dmshrTargets = int(env['MSHRL1DTARGETS'])
 
 l1mshrsInst = -1
-if 'MSHRSL1I' in env and 'MSHRL1TARGETS' in env:
+l1imshrTargets = -1
+if 'MSHRSL1I' in env and 'MSHRL1ITARGETS' in env:
     l1mshrsInst = int(env['MSHRSL1I'])
-    l1mshrTargets = int(env['MSHRL1TARGETS'])
+    l1imshrTargets = int(env['MSHRL1ITARGETS'])
 
 l2mshrTargets = -1
 l2mshrs = -1
@@ -171,12 +172,12 @@ for i in xrange(int(env['NP'])):
 if l1mshrsData != -1:
     for l1 in root.L1dcaches:
         l1.mshrs = l1mshrsData
-        l1.tgts_per_mshr = l1mshrTargets
+        l1.tgts_per_mshr = l1dmshrTargets
 
 if l1mshrsInst != -1:
     for l1 in root.L1icaches:
         l1.mshrs = l1mshrsInst
-        l1.tgts_per_mshr = l1mshrTargets
+        l1.tgts_per_mshr = l1imshrTargets
 
 
 # create the adaptiveMHA
