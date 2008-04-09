@@ -219,7 +219,7 @@ else:
 # Fast-forwarding
 ###############################################################################
 
-
+uniformPartStart = -1
 if env['BENCHMARK'] in Splash2.benchmarkNames:
     # Scientific workloads
     root.sampler = Sampler()
@@ -240,10 +240,12 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
         fwticks, simticks = Splash2.fastforward[env['BENCHMARK']]
         root.sampler.periods = [fwticks, simticks]
         root.adaptiveMHA.startTick = fwticks
+        uniformPartStart = fwticks
     else:
         root.sampler.periods = [env['FASTFORWARDTICKS'], 
                                 int(env['SIMULATETICKS'])]
         root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
+        uniformPartStart = int(env['FASTFORWARDTICKS'])
             
     root.setCPU(root.simpleCPU)
 elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog") or env['BENCHMARK'].startswith("bw")):
@@ -254,6 +256,7 @@ elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog") or en
     root.sampler.periods = [int(env['FASTFORWARDTICKS']),
                             int(env['SIMULATETICKS'])] 
     root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
+    uniformPartStart = int(env['FASTFORWARDTICKS'])
     root.setCPU(root.simpleCPU)
 else:
     # Multi-programmed workload
@@ -287,6 +290,7 @@ else:
     
     root.adaptiveMHA.startTick = simulateStart + warmup
     Bus.start_trace = simulateStart + warmup
+    uniformPartStart = simulateStart #use warm-up to converge on static cache alloc
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
@@ -316,10 +320,6 @@ if env['BENCHMARK'].isdigit() and 'ISEXPERIMENT' in env:
     fwCycles = workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
     icProfileStart = max(fwCycles)
 
-#moduloAddr = False
-#if env['BENCHMARK'] in Splash2.benchmarkNames:
-#    moduloAddr = True
-
 # All runs use modulo based L2 bank selection
 moduloAddr = True
 
@@ -334,6 +334,7 @@ if env['PROTOCOL'] in directory_protocols:
     for bank in root.l2:
         bank.dirProtocolName = env['PROTOCOL']
         bank.dirProtocolDoTrace = coherenceTrace
+        
         if coherenceTraceStart != 0:
             bank.dirProtocolTraceStart = coherenceTraceStart
 
@@ -345,6 +346,7 @@ if l2mshrs != -1:
 if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
         bank.use_static_partitioning = True
+        bank.static_part_start_tick = uniformPartStart
 
 #if env["MEMORY-BUS"] == "NFQ":
     #root.toMemBus = NFQMemBus()

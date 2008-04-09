@@ -35,6 +35,7 @@
  */
 
 #include <string>
+#include <cstdlib>
 
 #include "mem/cache/base_cache.hh"
 #include "base/intmath.hh"
@@ -126,6 +127,9 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     blks = new LRUBlk[numSets * assoc];
     // allocate data storage in one big chunk
     dataBlks = new uint8_t[numSets*assoc*blkSize];
+    
+    // seed random generator
+    srand(345);
 
     blkIndex = 0;	// index into blks array
     for (i = 0; i < numSets; ++i) {
@@ -254,7 +258,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     
     // grab a replacement candidate
     LRUBlk *blk;
-    if(cache->useUniformPartitioning){
+    if(cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick){
         
         int fromProc = req->adaptiveMHASenderID;
         
@@ -273,7 +277,6 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         tmp << "Set " << set <<":";
         for(int i=0;i<cache->cpuCount;i++){
             tmp << " p" << i << "=" << blkCnt[i];
-            assert(blkCnt[i] <= maxBlks);
         }
         DPRINTF(UniformPartitioning, "%s\n", tmp.str().c_str());
         
@@ -292,7 +295,42 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             // if the block is touched, one processor has more than its share of cache blocks
             if(blk->isTouched){
                 // evict the lru block for the processor with the most cache blocks
-                fatal("not implemented");
+                int mostUser = -1;
+                int mostCount = -1;
+                for(int i = 0;i < cache->cpuCount;i++){
+                    if(blkCnt[i] > mostCount){
+                        mostCount = blkCnt[i];
+                        mostUser = i;
+                    }
+                }
+                assert(mostUser > -1);
+                
+                vector<int> mostUsers;
+                assert(cache->cpuCount < sizeof(int)*8);
+                for(int i=0;i<cache->cpuCount;i++){
+                    if(blkCnt[i] == mostCount){
+                        mostUsers.push_back(i);
+                    }
+                }
+                
+                int evictID = -1;
+                if(mostUsers.size() == 1){
+                    evictID = mostUser;
+                }
+                else{
+                    double curRand = ((double) rand() / (double) (RAND_MAX));
+                    int evictIndex = (int) (curRand * mostUsers.size());
+                    assert(evictIndex < mostUsers.size());
+                    evictID = mostUsers[evictIndex];
+                }
+                
+                for(int i = assoc-1;i>=0;i--){
+                    blk = sets[set].blks[i];
+                    if(blk->origRequestingCpuID == evictID){
+                        found = true;
+                        break;
+                    }
+                }
             }
             
         }

@@ -69,7 +69,7 @@ template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::
 Cache(const std::string &_name, HierParams *hier_params, 
       Cache<TagStore,Buffering,Coherence>::Params &params)
-    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning),
+    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning, params.uniformPartitioningStart),
       prefetchAccess(params.prefetchAccess), 
       tags(params.tags), missQueue(params.missQueue),
       coherence(params.coherence), prefetcher(params.prefetcher),

@@ -25,12 +25,13 @@ spec_root = rootdir+'/spec2000/SPEC_2000_REDUCED'
 # Location of SPEC binaries
 spec_bin  = rootdir+'/spec2000/'
 
-
+# Create symlink to input files
+# NOTE: suppresses error messages to avoid flooding output with messages if the link exists
 def copysym(fra, til):
-  os.system("ln -s " + fra + " " + til)
+  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
 
 def copysymtree(fra, til):
-  os.system("ln -s " + fra + " " + til)
+  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
 
 
 # String to benchmark mappings

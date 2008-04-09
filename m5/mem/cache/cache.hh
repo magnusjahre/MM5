@@ -157,6 +157,7 @@ class Cache : public BaseCache
         int bankCount;
         AdaptiveMHA* adaptiveMHA;
         bool useUniformPartitioning;
+        Tick uniformPartitioningStart;
 
 	Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 	       bool do_copy, BaseCache::Params params,
@@ -165,7 +166,7 @@ class Cache : public BaseCache
                Interconnect* _inInterconnect, Interconnect* _outInterconnect,
                Prefetcher<TagStore, Buffering> *_prefetcher,
                bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning) 
+               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, Tick _uniformPartitioningStart) 
 	    : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
               ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
               inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -173,7 +174,8 @@ class Cache : public BaseCache
               cpu_count(_cpu_count), cpu_id(_cpu_id), multiprog_workload(_multiprog_workload), 
               isShared(_isShared), isReadOnly(_isReadOnly), 
               doModuloBankAddr(_doModAddr), bankID(_bankID), bankCount(_bankCount),
-              adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning)
+              adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
+              uniformPartitioningStart(_uniformPartitioningStart)
 	{
 	}
     };

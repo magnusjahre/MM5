@@ -141,6 +141,7 @@ class BaseCache : public BaseMem {
     bool isReadOnly;
     bool useAdaptiveMHA;
     bool useUniformPartitioning;
+    Tick uniformPartitioningStartTick;
     
     CacheProfileEvent* profileEvent;
     
@@ -265,7 +266,7 @@ class BaseCache : public BaseMem {
      * of this cache.
      * @param params The parameter object for this BaseCache.
      */
-    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning);
+    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning, Tick _uniformPartitioningStart);
     
     /**
      * Set the master interface for this cache to the one provided.

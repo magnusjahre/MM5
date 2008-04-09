@@ -145,6 +145,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> is_read_only;
     
     Param<bool> use_static_partitioning;
+    Param<Tick> static_part_start_tick;
     
     Param<bool> do_modulo_addr;
     Param<int> bank_id;
@@ -219,6 +220,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(is_shared, "is this a shared cache?", false),
     INIT_PARAM_DFLT(is_read_only, "is this an instruction cache?", false),
     INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
+    INIT_PARAM_DFLT(static_part_start_tick, "the tick where cache part. enforcement will start", -1),
     
     INIT_PARAM_DFLT(do_modulo_addr, "use modulo operator to choose bank", false),
     INIT_PARAM_DFLT(bank_id, "the bank ID of this cache bank", -1),
@@ -323,7 +325,8 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        prefetch_access, cpu_count, cpu_id, \
                                                        multiprog_workload, is_shared, is_read_only,\
                                                        do_modulo_addr, bank_id,\
-                                                       bank_count, adaptive_mha, use_static_partitioning); \
+                                                       bank_count, adaptive_mha,\
+                                                       use_static_partitioning, static_part_start_tick); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
