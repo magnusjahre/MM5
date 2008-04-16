@@ -66,6 +66,7 @@ BaseCache::BaseCache(const std::string &name,
     checkEvent = new CacheAliveCheckEvent(this);
     checkEvent->schedule(CACHE_CHECK_INTERVAL);
     blockedAt = 0;
+    
 }
 
 void
@@ -283,15 +284,15 @@ BaseCache::regStats()
       .desc("Number of good prefetches")
       ;
 
+    missesPerCPU.init(cpuCount);
     missesPerCPU
-        .init(cpuCount)
         .name(name() + ".misses_per_cpu")
         .desc("number of misses for each CPU")
         .flags(total)
         ;
     
+    accessesPerCPU.init(cpuCount);
     accessesPerCPU
-        .init(cpuCount)
         .name(name() + ".accesses_per_cpu")
         .desc("number of accesses for each CPU")
         .flags(total)

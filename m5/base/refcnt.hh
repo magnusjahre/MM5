@@ -34,7 +34,7 @@
 
 class RefCounted
 {
-  private:
+  public:
     int count;
 
   private:

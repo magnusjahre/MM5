@@ -20,18 +20,18 @@ TimingMemoryController::~TimingMemoryController(){
 void
 TimingMemoryController::setBlocked()
 {
-  assert(!isBlockedFlag);
-  startBlocking = curTick;
-  isBlockedFlag = true;
+    assert(!isBlockedFlag);
+    startBlocking = curTick;
+    isBlockedFlag = true;
 }
 
 void
 TimingMemoryController::setUnBlocked()
 {
-  assert(isBlockedFlag);
-  totalBlocktime += (curTick - startBlocking);
-  bus->incrementBlockedCycles(curTick - startBlocking);
-  isBlockedFlag = false;
+    assert(isBlockedFlag);
+    totalBlocktime += (curTick - startBlocking);
+    bus->incrementBlockedCycles(curTick - startBlocking);
+    isBlockedFlag = false;
 }
 
 void

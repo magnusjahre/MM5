@@ -33,6 +33,8 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController() {
   avg_prewrite_size = 0;
 
   last_invoke = 0;
+  
+  lastIsWrite = false;
 
 }
 
@@ -41,50 +43,55 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 }
 
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
-  // Stats
-  avg_read_size += readQueue.size() * (curTick - last_invoke);
-  avg_write_size += writeQueue.size() * (curTick - last_invoke);
-  avg_prewrite_size += prewritebackQueue.size() * (curTick - last_invoke);
-
-  last_invoke = curTick;
-
-  req->inserted_into_memory_controller = curTick;
-  if (req->cmd == Read) {
-    readQueue.push_back(req);
-    if (readQueue.size() >= readqueue_size) {
-      setBlocked();
+    // Stats
+    avg_read_size += readQueue.size() * (curTick - last_invoke);
+    avg_write_size += writeQueue.size() * (curTick - last_invoke);
+    
+    last_invoke = curTick;
+    
+    req->inserted_into_memory_controller = curTick;
+    if (req->cmd == Read) {
+        readQueue.push_back(req);
+        if (readQueue.size() > readqueue_size) { // full queue + one in progress
+            setBlocked();
+        }
     }
-  }
-  if (req->cmd == Write) {
-    writeQueue.push_back(req);
-    if (writeQueue.size() >= writequeue_size) {
-      setBlocked();
+    if (req->cmd == Writeback) {
+        writeQueue.push_back(req);
+        if (writeQueue.size() > writequeue_size) { // full queue + one in progress
+            setBlocked();
+        }
     }
-  }
-  if (req->cmd == Prewrite) {
-    req->cmd = Writeback;
-    prewritebackQueue.push_back(req);
-    if (prewritebackQueue.size() >= prewritequeue_size) {
-      setPrewriteBlocked();
-    }
-  }
-  // Early activation of reads
-  if ((req->cmd == Read) && (num_active_pages < max_active_pages)) {
-    if (!isActive(req) && bankIsClosed(req)) {
-      // Activate that page
-      activate->paddr = req->paddr;
-      activate->flags &= ~SATISFIED;
-      activePages.push_back(getPage(req));
-      num_active_pages++;
-      assert(mem_interface->calculateLatency(activate) == 0);
-    }
-  }
+    
+    assert(req->cmd == Read || req->cmd == Writeback);
   
-  return 0;
+    // Early activation of reads
+    if ((req->cmd == Read) && (num_active_pages < max_active_pages)) {
+        if (!isActive(req) && bankIsClosed(req)) {
+            // Activate that page
+            activate->paddr = req->paddr;
+            activate->flags &= ~SATISFIED;
+            activePages.push_back(getPage(req));
+            num_active_pages++;
+            assert(mem_interface->calculateLatency(activate) == 0);
+        }
+    }
+    
+    return 0;
 }
 
 bool RDFCFSTimingMemoryController::hasMoreRequests() {
-    if (readQueue.empty() && writeQueue.empty() && prewritebackQueue.empty() && (num_active_pages == 0)) {
+    
+    if(lastIssuedReq){
+        if(lastIsWrite){
+            writeQueue.remove(lastIssuedReq);
+        }
+        else{
+            readQueue.remove(lastIssuedReq);
+        }
+    }
+    
+    if (readQueue.empty() && writeQueue.empty() && (num_active_pages == 0)) {
       return false;
     } else {
       return true;
@@ -92,156 +99,139 @@ bool RDFCFSTimingMemoryController::hasMoreRequests() {
 }
 
 MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
-  //workQueue.clear();
-  //workQueue.splice(workQueue.end(), readQueue);
-  //workQueue.splice(workQueue.end(), writeQueue);
-  //workQueue.splice(workQueue.end(), prewritebackQueue);
     
-  avg_read_size += readQueue.size() * (curTick - last_invoke);
-  avg_write_size += writeQueue.size() * (curTick - last_invoke);
-  avg_prewrite_size += prewritebackQueue.size() * (curTick - last_invoke);
-  last_invoke = curTick;
+    avg_read_size += readQueue.size() * (curTick - last_invoke);
+    avg_write_size += writeQueue.size() * (curTick - last_invoke);
+    last_invoke = curTick;
 
-  if (num_active_pages < max_active_pages) { 
-    // Go through all lists to see if we can activate anything
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (!isActive(tmp) && bankIsClosed(tmp)) {
-        //Request is not active and bank is closed. Activate it
-        activate->paddr = tmp->paddr;
-        activate->flags &= ~SATISFIED;
-        activePages.push_back(getPage(tmp));
-        num_active_pages++;
-        return (activate);
-      }
-    }        
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (!isActive(tmp) && bankIsClosed(tmp)) {
-        //Request is not active and bank is closed. Activate it
-        activate->paddr = tmp->paddr;
-        activate->flags &= ~SATISFIED;
-        activePages.push_back(getPage(tmp));
-        num_active_pages++;
-        return (activate);
-      }
-    }        
-  }
-  if (num_active_pages < reserved_slots) { // Very careful activation of prewritebacks.
-    for (queueIterator = prewritebackQueue.begin(); queueIterator != prewritebackQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (!isActive(tmp) && bankIsClosed(tmp)) {
-        //Request is not active and bank is closed. Activate it
-        activate->paddr = tmp->paddr;
-        activate->flags &= ~SATISFIED;
-        activePages.push_back(getPage(tmp));
-        num_active_pages++;
-        return (activate);
-      }
-    }        
-  }
-  // Check if we can close the first page (eg, there is no active requests to this page
-  for (pageIterator = activePages.begin(); pageIterator != activePages.end(); pageIterator++) {
-    Addr Active = *pageIterator;
-    bool canClose = true;
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (getPage(tmp) == Active) {
-        canClose = false; 
-      }
-    }
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (getPage(tmp) == Active) {
-        canClose = false;
-      }
-    }
-    for (queueIterator = prewritebackQueue.begin(); queueIterator != prewritebackQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (getPage(tmp) == Active) {
-        canClose = false;
-      }
+    if (num_active_pages < max_active_pages) { 
+        // Go through all lists to see if we can activate anything
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (!isActive(tmp) && bankIsClosed(tmp)) {
+                //Request is not active and bank is closed. Activate it
+                activate->paddr = tmp->paddr;
+                activate->flags &= ~SATISFIED;
+                activePages.push_back(getPage(tmp));
+                num_active_pages++;
+                return (activate);
+            }
+        } 
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (!isActive(tmp) && bankIsClosed(tmp)) {
+                //Request is not active and bank is closed. Activate it
+                activate->paddr = tmp->paddr;
+                activate->flags &= ~SATISFIED;
+                activePages.push_back(getPage(tmp));
+                num_active_pages++;
+                return (activate);
+            }
+        }        
     }
 
-    if (canClose) {
-      close->paddr = Active << 10;
-      close->flags &= ~SATISFIED;
-      activePages.erase(pageIterator);
-      num_active_pages--;
-      return close;
+    // Check if we can close the first page (eg, there is no active requests to this page
+    for (pageIterator = activePages.begin(); pageIterator != activePages.end(); pageIterator++) {
+        Addr Active = *pageIterator;
+        bool canClose = true;
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (getPage(tmp) == Active) {
+                canClose = false; 
+            }
+        }
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (getPage(tmp) == Active) {
+                canClose = false;
+            }
+        }
+
+        if (canClose) {
+            close->paddr = Active << 10;
+            close->flags &= ~SATISFIED;
+            activePages.erase(pageIterator);
+            num_active_pages--;
+            return close;
+        }
     }
-  }
   
-  // Go through the active pages and find a ready operation
-  for (pageIterator = activePages.begin(); pageIterator != activePages.end() ; pageIterator++) {
+    // Go through the active pages and find a ready operation
+    for (pageIterator = activePages.begin(); pageIterator != activePages.end() ; pageIterator++) {
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isReady(tmp)) {
+                // Remove it
+                reads++;
+                total_read_wait += curTick - tmp->inserted_into_memory_controller;
+                if(isBlocked() && 
+                    readQueue.size() <= readqueue_size && 
+                    writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+        
+                lastIssuedReq = tmp;
+                lastIsWrite = false;
+                
+                return tmp;
+            }
+        }
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isReady(tmp)) {
+                // Remove it
+                writes ++;
+                total_write_wait += curTick - tmp->inserted_into_memory_controller;
+                if(isBlocked() &&
+                    readQueue.size() <= readqueue_size && 
+                    writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+        
+                lastIssuedReq = tmp;
+                lastIsWrite = true;
+                return tmp;
+            }
+        }
+    }
+  
+    // No ready operation, issue any active operation 
     for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (isReady(tmp)) {
-        // Remove it
+        MemReqPtr& tmp = *queueIterator;
+        if (isActive(tmp)) {
         reads++;
+        
         total_read_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isBlocked() && readQueue.size() == readqueue_size) setUnBlocked();
-        readQueue.erase(queueIterator);
+        if(isBlocked() && 
+            readQueue.size() <= readqueue_size && 
+            writeQueue.size() <= writequeue_size){
+            setUnBlocked();
+        }
+        
+        lastIssuedReq = tmp;
+        lastIsWrite = false;
         return tmp;
-      }
+        }
     }
     for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (isReady(tmp)) {
-        // Remove it
+        MemReqPtr& tmp = *queueIterator;
+        if (isActive(tmp)) {
         writes ++;
         total_write_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isBlocked() && writeQueue.size() == writequeue_size) setUnBlocked();
-        writeQueue.erase(queueIterator);
+        if(isBlocked() &&
+            readQueue.size() <= readqueue_size && 
+            writeQueue.size() <= writequeue_size){
+            setUnBlocked();
+        }
+        
+        lastIssuedReq = tmp;
+        lastIsWrite = true;
         return tmp;
-      }
+        }
     }
-    for (queueIterator = prewritebackQueue.begin(); queueIterator != prewritebackQueue.end(); queueIterator++) {
-      MemReqPtr& tmp = *queueIterator;
-      if (isReady(tmp)) {
-        // Remove it
-        prewrites++;
-        total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size) setPrewriteUnBlocked();
-        prewritebackQueue.erase(queueIterator);
-        return tmp;
-      }
-    }
-  }
-  // No ready operation, issue any active operation 
-  for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-    MemReqPtr& tmp = *queueIterator;
-    if (isActive(tmp)) {
-      reads++;
-      total_read_wait += curTick - tmp->inserted_into_memory_controller;
-      if(isBlocked() && readQueue.size() == readqueue_size) setUnBlocked();
-      readQueue.erase(queueIterator);
-      return tmp;
-    }
-  }
-  for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-    MemReqPtr& tmp = *queueIterator;
-    if (isActive(tmp)) {
-      writes ++;
-      total_write_wait += curTick - tmp->inserted_into_memory_controller;
-      if(isBlocked() && writeQueue.size() == writequeue_size) setUnBlocked();
-      writeQueue.erase(queueIterator);
-      return tmp;
-    }
-  }
-  for (queueIterator = prewritebackQueue.begin(); queueIterator != prewritebackQueue.end(); queueIterator++) {
-    MemReqPtr& tmp = *queueIterator;
-    if (isActive(tmp)) {
-      prewrites++;
-      total_prewrite_wait += curTick - tmp->inserted_into_memory_controller;
-      if(isPrewriteBlocked() && prewritebackQueue.size() == prewritequeue_size) setPrewriteUnBlocked();
-      prewritebackQueue.erase(queueIterator);
-      return tmp;
-    }
-  }
 
-  fatal("This should never happen!");
-  return close;
+    fatal("This should never happen!");
+    return close;
 }
 
 std::string RDFCFSTimingMemoryController::dumpstats()

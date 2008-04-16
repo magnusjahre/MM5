@@ -571,7 +571,7 @@ Text::visit(const VectorData &data)
 
     int size = data.size();
     VectorPrint print;
-
+    
     print.name = data.name;
     print.desc = data.desc;
     print.flags = data.flags;

@@ -266,8 +266,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
         assert(maxBlks > 1);
         
-        int* blkCnt = new int[cache->cpuCount];
-        for(int i=0;i<cache->cpuCount;i++) blkCnt[i] = 0;
+        vector<int> blkCnt(cache->cpuCount, 0);
         for(int i=0;i<assoc;i++){
             int tmpID = sets[set].blks[i]->origRequestingCpuID;
             if(tmpID >= 0) blkCnt[tmpID]++;
@@ -351,8 +350,6 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             }
         }
         assert(found);
-        
-        delete blkCnt;
     }
     else{
         blk = sets[set].blks[assoc-1];

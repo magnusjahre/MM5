@@ -232,6 +232,7 @@ class MemReq : public FastAlloc, public RefCounted
 	  asid(0),
 	  xc(ec),
 	  size(_size), flags(_flags),
+          prefetched(0),
 	  completionEvent(NULL),
 	  //cpu_num(0), 
 	  thread_num(0),

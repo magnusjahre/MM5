@@ -317,6 +317,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 void
 Bus::handleMemoryController()
 {
+    
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
 

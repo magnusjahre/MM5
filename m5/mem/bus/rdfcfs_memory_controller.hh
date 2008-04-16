@@ -15,8 +15,9 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 {
   private:
     std::list<MemReqPtr> readQueue; 
-    std::list<MemReqPtr> writeQueue; 
-    std::list<MemReqPtr> prewritebackQueue; 
+    std::list<MemReqPtr> writeQueue;
+    MemReqPtr lastIssuedReq;
+    bool lastIsWrite;
 
     std::list<MemReqPtr> workQueue; 
 
