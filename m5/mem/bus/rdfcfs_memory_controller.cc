@@ -18,22 +18,6 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController() {
   activate = new MemReq();
   activate->cmd = Activate;
 
-  total_read_wait = 0;
-  total_write_wait = 0;
-  total_prewrite_wait = 0;
-
-  reads = 0;
-  writes = 0;
-  prewrites = 0;
-
-  invoked = false;
-
-  avg_read_size = 0;
-  avg_write_size = 0;
-  avg_prewrite_size = 0;
-
-  last_invoke = 0;
-  
   lastIsWrite = false;
 
 }
@@ -43,12 +27,7 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 }
 
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
-    // Stats
-    avg_read_size += readQueue.size() * (curTick - last_invoke);
-    avg_write_size += writeQueue.size() * (curTick - last_invoke);
-    
-    last_invoke = curTick;
-    
+
     req->inserted_into_memory_controller = curTick;
     if (req->cmd == Read) {
         readQueue.push_back(req);
@@ -99,12 +78,9 @@ bool RDFCFSTimingMemoryController::hasMoreRequests() {
 }
 
 MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
-    
-    avg_read_size += readQueue.size() * (curTick - last_invoke);
-    avg_write_size += writeQueue.size() * (curTick - last_invoke);
-    last_invoke = curTick;
 
     if (num_active_pages < max_active_pages) { 
+        
         // Go through all lists to see if we can activate anything
         for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
@@ -114,6 +90,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
                 activate->flags &= ~SATISFIED;
                 activePages.push_back(getPage(tmp));
                 num_active_pages++;
+                
                 return (activate);
             }
         } 
@@ -125,6 +102,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
                 activate->flags &= ~SATISFIED;
                 activePages.push_back(getPage(tmp));
                 num_active_pages++;
+                
                 return (activate);
             }
         }        
@@ -148,7 +126,8 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         }
 
         if (canClose) {
-            close->paddr = Active << 10;
+            close->paddr = getPageAddr(Active);
+            assert(Active << 10 == getPageAddr(Active));
             close->flags &= ~SATISFIED;
             activePages.erase(pageIterator);
             num_active_pages--;
@@ -161,9 +140,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
             if (isReady(tmp)) {
-                // Remove it
-                reads++;
-                total_read_wait += curTick - tmp->inserted_into_memory_controller;
+
                 if(isBlocked() && 
                     readQueue.size() <= readqueue_size && 
                     writeQueue.size() <= writequeue_size){
@@ -179,9 +156,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
             if (isReady(tmp)) {
-                // Remove it
-                writes ++;
-                total_write_wait += curTick - tmp->inserted_into_memory_controller;
+
                 if(isBlocked() &&
                     readQueue.size() <= readqueue_size && 
                     writeQueue.size() <= writequeue_size){
@@ -199,34 +174,31 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
         MemReqPtr& tmp = *queueIterator;
         if (isActive(tmp)) {
-        reads++;
+
+            if(isBlocked() && 
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                setUnBlocked();
+            }
         
-        total_read_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isBlocked() && 
-            readQueue.size() <= readqueue_size && 
-            writeQueue.size() <= writequeue_size){
-            setUnBlocked();
-        }
-        
-        lastIssuedReq = tmp;
-        lastIsWrite = false;
-        return tmp;
+            lastIssuedReq = tmp;
+            lastIsWrite = false;
+            return tmp;
         }
     }
     for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
         MemReqPtr& tmp = *queueIterator;
         if (isActive(tmp)) {
-        writes ++;
-        total_write_wait += curTick - tmp->inserted_into_memory_controller;
-        if(isBlocked() &&
-            readQueue.size() <= readqueue_size && 
-            writeQueue.size() <= writequeue_size){
-            setUnBlocked();
-        }
+
+            if(isBlocked() &&
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                setUnBlocked();
+            }
         
-        lastIssuedReq = tmp;
-        lastIsWrite = true;
-        return tmp;
+            lastIssuedReq = tmp;
+            lastIsWrite = true;
+            return tmp;
         }
     }
 
@@ -234,61 +206,3 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     return close;
 }
 
-std::string RDFCFSTimingMemoryController::dumpstats()
-{
-  // Drop first stat. Fastfwd will corrupt this one
-
-  if (!invoked) {
-    invoked = true;
-    return ("");
-  }
-
-  
-  int avg, avg_read, avg_writes, avg_prewrites;
-  
-  if (reads+writes+prewrites >0) {
-    avg = (total_read_wait+total_write_wait+total_prewrite_wait)/(reads+writes+prewrites);
-  } else {
-    avg = 0;
-  }
-  
-  if (reads >0) {
-    avg_read = total_read_wait/reads;
-  } else {
-    avg_read = 0;
-  }
-
-  if (writes >0) {
-    avg_writes = total_write_wait/writes;
-  } else {
-    avg_writes = 0;
-  }
-
-  if (prewrites > 0 ) {
-    avg_prewrites = total_prewrite_wait / prewrites;
-  } else {
-    avg_prewrites = 0;
-  }
-  
-  
-
-  Tick time = curTick - last_invoke_internal;
-
-  std::stringstream out;
-  
-  out << avg << " " << avg_read << " " << avg_writes << " " << avg_prewrites;
-  out << " " << avg_read_size / time << " " << avg_write_size/time << " " << avg_prewrite_size / time;
-  out << " " << reads << " " << writes << " " << prewrites;
-  // Reset for next time
-  reads = 0;
-  writes = 0;
-  prewrites = 0;
-  total_read_wait = 0;
-  total_write_wait = 0;
-  total_prewrite_wait = 0;
-  avg_read_size = 0;
-  avg_write_size = 0;
-  avg_prewrite_size = 0;
-  last_invoke_internal = curTick;
-  return out.str();
-}

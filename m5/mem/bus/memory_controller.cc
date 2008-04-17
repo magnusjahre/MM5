@@ -51,6 +51,14 @@ TimingMemoryController::setPrewriteUnBlocked()
 Addr
 TimingMemoryController::getPage(MemReqPtr &req)
 {
-  return (req->paddr >> 10);
+    return (req->paddr >> mem_interface->getPageSize());
 }
+
+
+Addr
+TimingMemoryController::getPageAddr(Addr addr)
+{
+    return (addr << mem_interface->getPageSize());
+}
+
 

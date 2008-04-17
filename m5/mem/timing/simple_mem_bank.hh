@@ -164,6 +164,10 @@ class SimpleMemBank : public BaseMemory
     bool bankIsClosed(MemReqPtr &req);
     bool isReady(MemReqPtr &req);
     
+    int getPageSize(){
+        return pagesize;
+    }
+    
     Tick getDataTransTime(){
         return data_time; //converted to CPU cycles in the constructor
     }

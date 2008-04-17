@@ -19,8 +19,6 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     MemReqPtr lastIssuedReq;
     bool lastIsWrite;
 
-    std::list<MemReqPtr> workQueue; 
-
     std::list<MemReqPtr>::iterator queueIterator;
 
     std::list<Addr> activePages;
@@ -29,30 +27,11 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int num_active_pages;
     int max_active_pages;
 
-    Tick total_read_wait;
-    Tick total_write_wait;
-    Tick total_prewrite_wait;
-
-    int avg_read_size;
-    int avg_write_size;
-    int avg_prewrite_size;
-
-    Tick last_invoke;
-    Tick last_invoke_internal;
-
-    int reads;
-    int writes;
-    int prewrites;
-
-    bool invoked;
-
   public:
 
     // Memory Request currently being issued
     MemReqPtr activate;
     MemReqPtr close;
-
-    MemReqPtr current;
 
     // constructor
     /** Constructs a Memory Controller object. */
@@ -66,7 +45,5 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     bool hasMoreRequests();
 
     MemReqPtr& getRequest();
-
-    std::string dumpstats();
 
 };

@@ -135,11 +135,6 @@ Bus::Bus(const string &_name,
     memoryController->writequeue_size = writequeue_size;
     memoryController->prewritequeue_size = prewritequeue_size;
     memoryController->reserved_slots = reserved_slots;
-
-    // Memory Trace file
-    traceFile.open("bustrace.txt");
-    memoryTraceEvent = new MemoryTraceEvent(this,_trace_interval);
-    memoryTraceEvent->schedule(_start_trace);
     
     perCPUDataBusUse.resize(cpu_count, 0);
     perCPUQueueCycles.resize(cpu_count, 0);
@@ -365,14 +360,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time)
     }
 }
 
-void
-Bus::traceBus(void) 
-{
-  traceFile << curTick << " ";
-  traceFile << memoryController->dumpstats();
-  traceFile << endl;
-}
-
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
@@ -540,19 +527,6 @@ const char *
 DeliverEvent::description()
 {
     return "bus deliver";
-}
-
-void
-MemoryTraceEvent::process()
-{
-  bus->traceBus();
-  this->schedule(curTick + rescheduleTime);
-}
-
-const char *
-MemoryTraceEvent::description()
-{
-    return "Memory Tracing point";
 }
 
 void

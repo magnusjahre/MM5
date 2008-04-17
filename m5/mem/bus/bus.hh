@@ -100,8 +100,6 @@ class Bus : public BaseHier
 
     AddrArbiterEvent* currently_scheduled;
 
-    MemoryTraceEvent* memoryTraceEvent;
-
     /* Memory Controller */
     TimingMemoryController *memoryController;
 
@@ -265,8 +263,6 @@ class Bus : public BaseHier
     void handleMemoryController(void);
 
     void latencyCalculated(MemReqPtr &req, Tick time);
-
-    void traceBus(void);
     
     // Adaptive MHA methods
     double getAverageQueue(Tick sampleSize);

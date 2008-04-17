@@ -73,6 +73,7 @@ class TimingMemoryController
 
     // Get the corresponding page to a memory request
     Addr getPage(MemReqPtr &req); 
+    Addr getPageAddr(Addr addr);
 
     // Check if the request is contacting an active page
     bool isActive(MemReqPtr &req) {
@@ -92,8 +93,6 @@ class TimingMemoryController
     void registerInterface(BaseInterface *interface) {
       mem_interface = interface;
     }
-
-    virtual std::string dumpstats() = 0;
    
 };
 

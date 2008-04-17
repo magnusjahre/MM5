@@ -186,3 +186,9 @@ Tick
 SlaveInterface<Mem, Bus>::getDataTransTime(){
     return mem->getDataTransTime();
 }
+
+template<class Mem, class Bus>
+int
+SlaveInterface<Mem, Bus>::getPageSize(){
+    return mem->getPageSize();
+}

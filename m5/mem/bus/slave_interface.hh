@@ -153,6 +153,7 @@ class SlaveInterface : public BusInterface<BusType>
     virtual bool isActive(MemReqPtr &req);
     virtual bool bankIsClosed(MemReqPtr &req);
     virtual bool isReady(MemReqPtr &req);
+    virtual int getPageSize();
 
     virtual Tick calculateLatency(MemReqPtr &req);
     
