@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-#include "mem/bus/rdfcfs_memory_controller.hh"
+#include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
 using namespace std;
 

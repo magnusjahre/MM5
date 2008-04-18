@@ -50,7 +50,7 @@
 #include "sim/eventq.hh"
 
 #include "mem/cache/miss/adaptive_mha.hh"
-#include "mem/bus/memory_controller.hh"
+#include "mem/bus/controller/memory_controller.hh"
 
 
 // #define DO_BUS_TRACE 1

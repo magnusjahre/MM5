@@ -4,7 +4,7 @@
  */
 
 
-#include "mem/bus/fcfspri_memory_controller.hh"
+#include "mem/bus/controller/fcfspri_memory_controller.hh"
 
 using namespace std;
 

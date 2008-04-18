@@ -4,25 +4,22 @@
  *
  */
 
-#include "mem/bus/memory_controller.hh"
+#include "mem/bus/controller/memory_controller.hh"
 
 /**
  * A Memory controller.
  */
-class FCFSPRITimingMemoryController : public TimingMemoryController
+class FCFSTimingMemoryController : public TimingMemoryController
 {
-  private:
-    bool startedprewrite;
   public:
     std::list<MemReqPtr> memoryRequestQueue; 
-    std::list<MemReqPtr> prewritebackQueue; 
     
     // constructor
     /** Constructs a Memory Controller object. */
-    FCFSPRITimingMemoryController();
+    FCFSTimingMemoryController();
 
     /** Frees locally allocated memory. */
-    ~FCFSPRITimingMemoryController();
+    ~FCFSTimingMemoryController();
 
     int insertRequest(MemReqPtr &req);
 
@@ -31,3 +28,4 @@ class FCFSPRITimingMemoryController : public TimingMemoryController
     MemReqPtr& getRequest();
 
 };
+

@@ -4,7 +4,7 @@
  */
 
 
-#include "mem/bus/fcfsrw_memory_controller.hh"
+#include "mem/bus/controller/fcfsrw_memory_controller.hh"
 
 using namespace std;
 

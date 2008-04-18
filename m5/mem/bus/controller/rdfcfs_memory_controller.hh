@@ -4,7 +4,7 @@
  *
  */
 
-#include "mem/bus/memory_controller.hh"
+#include "mem/bus/controller/memory_controller.hh"
 
 
 using namespace std;
