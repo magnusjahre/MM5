@@ -53,8 +53,6 @@
 #include "sim/stats.hh"
 
 #include "mem/bus/controller/fcfs_memory_controller.hh"
-#include "mem/bus/controller/fcfspri_memory_controller.hh"
-#include "mem/bus/controller/fcfsrw_memory_controller.hh"
 #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
 #include <fstream>
