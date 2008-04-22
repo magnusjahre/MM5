@@ -52,8 +52,8 @@
 #include "sim/host.hh"
 #include "sim/stats.hh"
 
-#include "mem/bus/controller/fcfs_memory_controller.hh"
-#include "mem/bus/controller/rdfcfs_memory_controller.hh"
+// #include "mem/bus/controller/fcfs_memory_controller.hh"
+// #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
 #include <fstream>
 
@@ -73,15 +73,9 @@ Bus::Bus(const string &_name,
          int _width,
          int _clock,
          AdaptiveMHA* _adaptiveMHA,
-         bool _infinite_writeback,
-         int _readqueue_size,
-         int _writequeue_size,
-         int _prewritequeue_size,
-         int _reserved_slots,
-         int _start_trace,
-         int _trace_interval,
          int _cpu_count,
-         int _bank_count)
+         int _bank_count,
+         TimingMemoryController* _memoryController)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -89,13 +83,10 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
 
-    /* Memory controller */
-    infinite_writeback = _infinite_writeback;
-    readqueue_size = _readqueue_size;
-    writequeue_size = _writequeue_size;
-    prewritequeue_size = _prewritequeue_size;
-    reserved_slots = _reserved_slots;
+    if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
 
+    fatal("impl mem ctrl registration");
+    
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
 
@@ -123,16 +114,6 @@ Bus::Bus(const string &_name,
     arbiter_scheduled_flag = false;
 
     need_to_sort = true;
-
-    memoryControllerEvent = new MemoryControllerEvent(this);
-    memoryController = new RDFCFSTimingMemoryController();
-    memoryController->registerBus(this);
-
-    // Dirty parameterization
-    memoryController->readqueue_size = readqueue_size;
-    memoryController->writequeue_size = writequeue_size;
-    memoryController->prewritequeue_size = prewritequeue_size;
-    memoryController->reserved_slots = reserved_slots;
     
     perCPUDataBusUse.resize(cpu_count, 0);
     perCPUQueueCycles.resize(cpu_count, 0);
@@ -602,15 +583,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<int> clock;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
-    Param<bool> infinite_writeback;
-    Param<int> readqueue_size;
-    Param<int> writequeue_size;
-    Param<int> prewritequeue_size;
-    Param<int> reserved_slots;
-    Param<int> start_trace;
-    Param<int> trace_interval;
     Param<int> cpu_count;
     Param<int> bank_count;
+    SimObjectParam<TimingMemoryController *> memory_controller;
     
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
@@ -624,15 +599,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
 		    "Hierarchy global variables",
 		    &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
-    INIT_PARAM_DFLT(infinite_writeback, "Infinite Writeback Queue", false),
-    INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
-    INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
-    INIT_PARAM_DFLT(prewritequeue_size, "Max size of prewriteback queue", 64),
-    INIT_PARAM_DFLT(reserved_slots, "Numer of activations reserved for reads", 2),
-    INIT_PARAM_DFLT(start_trace, "Point to start tracing", 0),
-    INIT_PARAM_DFLT(trace_interval, "How often to trace", 100000),
     INIT_PARAM(cpu_count, "Number of CPUs"),
-    INIT_PARAM(bank_count, "Number of L2 cache banks")
+    INIT_PARAM(bank_count, "Number of L2 cache banks"),
+    INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL)
                     
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
@@ -645,15 +614,9 @@ CREATE_SIM_OBJECT(Bus)
                    width,
                    clock,
                    adaptive_mha,
-                   infinite_writeback,
-                   readqueue_size,
-                   writequeue_size,
-                   prewritequeue_size,
-                   reserved_slots,
-                   start_trace,
-                   trace_interval,
                    cpu_count,
-                   bank_count);
+                   bank_count,
+                   memory_controller);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

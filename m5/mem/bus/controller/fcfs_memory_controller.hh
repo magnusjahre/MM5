@@ -16,7 +16,7 @@ class FCFSTimingMemoryController : public TimingMemoryController
     
     // constructor
     /** Constructs a Memory Controller object. */
-    FCFSTimingMemoryController();
+    FCFSTimingMemoryController(std::string _name, int _queueLength);
 
     /** Frees locally allocated memory. */
     ~FCFSTimingMemoryController();

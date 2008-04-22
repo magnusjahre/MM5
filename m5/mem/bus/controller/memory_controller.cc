@@ -8,7 +8,8 @@
 
 using namespace std;
 
-TimingMemoryController::TimingMemoryController() {
+TimingMemoryController::TimingMemoryController(std::string _name)
+    : SimObject(_name) {
   isBlockedFlag = false;
   isPrewriteBlockedFlag = false;
 }
@@ -60,5 +61,11 @@ TimingMemoryController::getPageAddr(Addr addr)
 {
     return (addr << mem_interface->getPageSize());
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+DEFINE_SIM_OBJECT_CLASS_NAME("TimingMemoryController", TimingMemoryController);
+
+#endif
 
 

@@ -9,16 +9,22 @@
 
 using namespace std;
 
-RDFCFSTimingMemoryController::RDFCFSTimingMemoryController() { 
-  num_active_pages = 0;
-  max_active_pages = 4;
+RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
+                                                           int _readqueue_size,
+                                                           int _writequeue_size,
+                                                           int _reserved_slots)
+    : TimingMemoryController(_name) { 
+    
+    fatal("parameter parsing not impl");
+    num_active_pages = 0;
+    max_active_pages = 4;
 
-  close = new MemReq();
-  close->cmd = Close;
-  activate = new MemReq();
-  activate->cmd = Activate;
+    close = new MemReq();
+    close->cmd = Close;
+    activate = new MemReq();
+    activate->cmd = Activate;
 
-  lastIsWrite = false;
+    lastIsWrite = false;
 
 }
 
@@ -205,4 +211,36 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     fatal("This should never happen!");
     return close;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
+
+    Param<int> readqueue_size;
+    Param<int> writequeue_size;
+    Param<int> reserved_slots;
+
+END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
+
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
+
+    INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
+    INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
+    INIT_PARAM_DFLT(reserved_slots, "Numer of activations reserved for reads", 2)
+
+END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
+
+
+CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
+{
+    return new RDFCFSTimingMemoryController(getInstanceName(),
+                                            readqueue_size,
+                                            writequeue_size,
+                                            reserved_slots);
+}
+
+REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)
+
+#endif //DOXYGEN_SHOULD_SKIP_THIS
 

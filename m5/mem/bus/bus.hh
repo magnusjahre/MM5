@@ -142,16 +142,9 @@ class Bus : public BaseHier
         int width,
         int clockRate,
         AdaptiveMHA* _adaptiveMHA,
-        bool infinite_writeback,
-        int readqueue_size,
-        int writequeue_size,
-        int prewritequeue_size,
-        int reserved_slots,
-        int start_trace,
-        int trace_interval,
         int cpu_count,
-        int bank_count
-        );
+        int bank_count,
+        TimingMemoryController* _memoryController);
 
     /** Frees locally allocated memory. */
     ~Bus();

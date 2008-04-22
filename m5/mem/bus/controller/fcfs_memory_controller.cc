@@ -8,8 +8,11 @@
 
 using namespace std;
 
-FCFSTimingMemoryController::FCFSTimingMemoryController() { 
-  cout << "FCFS memory controller created" << endl;
+FCFSTimingMemoryController::FCFSTimingMemoryController(std::string _name, int _queueLength)
+    : TimingMemoryController(_name) {
+    cout << "sweet FCFS mem-ctrl " << _name << " with length " << _queueLength << "\n";
+    //FIXME: blocking code must be improved
+    fatal("FCFS blocking does not work");
 }
 
 /** Frees locally allocated memory. */
@@ -66,5 +69,27 @@ MemReqPtr& FCFSTimingMemoryController::getRequest() {
     }
     return tmp;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(FCFSTimingMemoryController)
+    Param<int> queue_size;
+END_DECLARE_SIM_OBJECT_PARAMS(FCFSTimingMemoryController)
+
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(FCFSTimingMemoryController)
+    INIT_PARAM_DFLT(queue_size, "Max queue size", 64)
+END_INIT_SIM_OBJECT_PARAMS(FCFSTimingMemoryController)
+
+
+CREATE_SIM_OBJECT(FCFSTimingMemoryController)
+{
+    return new FCFSTimingMemoryController(getInstanceName(),
+                                          queue_size);
+}
+
+REGISTER_SIM_OBJECT("FCFSTimingMemoryController", FCFSTimingMemoryController)
+
+#endif //DOXYGEN_SHOULD_SKIP_THIS
 
 

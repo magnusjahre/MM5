@@ -10,7 +10,8 @@
 #include <list>
 #include <string>
 
-
+#include "sim/sim_object.hh"
+#include "sim/builder.hh"
 #include "mem/mem_req.hh"
 // #include "mem/base_hier.hh"
 // #include "base/statistics.hh"
@@ -23,7 +24,7 @@
 /**
  * A Memory controller.
  */
-class TimingMemoryController
+class TimingMemoryController : public SimObject
 {
   public:
       
@@ -42,7 +43,7 @@ class TimingMemoryController
   public:
     // constructor
     /** Constructs a Memory Controller object. */
-    TimingMemoryController();
+    TimingMemoryController(std::string _name);
 
     /** Frees locally allocated memory. */
     virtual ~TimingMemoryController();

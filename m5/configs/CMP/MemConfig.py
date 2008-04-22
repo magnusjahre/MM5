@@ -116,26 +116,15 @@ class ConventionalMemBus(Bus):
     clock = 4 * Parent.clock.period
     cpu_count = int(env['NP'])
     bank_count = 4
-    infinite_writeback = False
+
+class ReadyFirstMemoryController(RDFCFSMemoryController):
     readqueue_size = 16
     writequeue_size = 16
-    prewritequeue_size = 0
     reserved_slots = 2
-    trace_interval = 100000
     
-#class NFQMemBus(NFQBus):
-    #width = 8
-    #clock = 4 * Parent.clock.period
-    #cpu_count = int(env['NP'])
-    #bank_count = 4
-    
-#class TimeMultiplexedMemBus(TimeMultiplexedBus):
-    #width = 8
-    #clock = 4 * Parent.clock.period
-    #cpu_count = int(env['NP'])
-    #bank_count = 4
+class InOrderMemoryController(FCFSMemoryController):
+    queue_size = 16
 
 class SDRAM(BaseMemory):
-    #latency = 200 * Parent.clock.period
     latency = 112 * Parent.clock.period #ignored
     uncacheable_latency = 1000 * Parent.clock.period #ignored

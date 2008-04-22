@@ -35,7 +35,10 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     // constructor
     /** Constructs a Memory Controller object. */
-    RDFCFSTimingMemoryController();
+    RDFCFSTimingMemoryController(std::string _name,
+                                 int _readqueue_size,
+                                 int _writequeue_size,
+                                 int _reserved_slots);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();

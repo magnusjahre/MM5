@@ -115,11 +115,11 @@ if "CACHE-PARTITIONING" in env:
     else:
         panic("Only Conventional and StaticUniform cache partitioning are available")
 
-#if "MEMORY-BUS" in env:
-    #if env["MEMORY-BUS"] == "NFQ" or env["MEMORY-BUS"] == "TimeMultiplexed" or env["MEMORY-BUS"] == "Conventional":
-        #pass
-    #else:
-        #panic("Only NFQ, TimeMultiplexed or Conventional memory bus architectures are supported")
+if "MEMORY-BUS-SCHEDULER" in env:
+    if env["MEMORY-BUS-SCHEDULER"] == "FCFS" or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        pass
+    else:
+        panic("Only FCFS and RD-FCFS memory bus schedulers are supported")
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -289,7 +289,6 @@ else:
         simulateCycles = int(env['SIMULATETICKS'])
     
     root.adaptiveMHA.startTick = simulateStart + warmup
-    Bus.start_trace = simulateStart + warmup
     uniformPartStart = simulateStart #use warm-up to converge on static cache alloc
 
     for i in xrange(int(env['NP'])):
@@ -348,13 +347,17 @@ if env["CACHE-PARTITIONING"] == "StaticUniform":
         bank.use_static_partitioning = True
         bank.static_part_start_tick = uniformPartStart
 
-#if env["MEMORY-BUS"] == "NFQ":
-    #root.toMemBus = NFQMemBus()
-#elif env["MEMORY-BUS"] == "TimeMultiplexed":
-    #root.toMemBus = TimeMultiplexedMemBus()
-#else:
+# set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()
 root.toMemBus.adaptive_mha = root.adaptiveMHA
+
+if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+    root.toMemBus.memory_controller = ReadyFirstMemoryController()
+elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
+    root.toMemBus.memory_controller = InOrderMemoryController()
+else:
+    # default is RDFCFS
+    root.toMemBus.memory_controller = ReadyFirstMemoryController()
 
 ###############################################################################
 # Workloads
