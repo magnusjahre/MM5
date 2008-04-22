@@ -13,11 +13,14 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
                                                            int _readqueue_size,
                                                            int _writequeue_size,
                                                            int _reserved_slots)
-    : TimingMemoryController(_name) { 
+    : TimingMemoryController(_name) {
     
-    fatal("parameter parsing not impl");
     num_active_pages = 0;
     max_active_pages = 4;
+    
+    readqueue_size = _readqueue_size;
+    writequeue_size = _writequeue_size;
+    reserved_slots = _reserved_slots;
 
     close = new MemReq();
     close->cmd = Close;

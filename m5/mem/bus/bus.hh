@@ -61,7 +61,6 @@ class DataArbiterEvent;
 class ForwardEvent;
 class DeliverEvent;
 class MemoryControllerEvent;
-class MemoryTraceEvent;
 
 template <class BusType> class BusInterface;
 class AdaptiveMHA;
@@ -80,13 +79,6 @@ class Bus : public BaseHier
     /** Clock rate (clock period in ticks). */
     int clockRate;
 
-    /* Memory Controller parameters */
-    bool infinite_writeback;
-    int readqueue_size;
-    int writequeue_size;
-    int prewritequeue_size;
-    int reserved_slots;
-
     Tick nextfree;
     Tick lastarbevent;
 
@@ -100,10 +92,7 @@ class Bus : public BaseHier
 
     AddrArbiterEvent* currently_scheduled;
 
-    /* Memory Controller */
     TimingMemoryController *memoryController;
-
-    std::ofstream traceFile;
 
   protected:
     
@@ -513,25 +502,6 @@ class MemoryControllerEvent : public Event
      * Returns the string description of this event.
      * @return The description of this event.
      */
-    virtual const char *description();
-};
-
-/**
- * Memory Trace Event
- */
-class MemoryTraceEvent : public Event
-{
-  public:
-    Bus *bus;
-    Tick rescheduleTime;
-
-    MemoryTraceEvent(Bus *_bus, Tick _rescheduleTime) 
-      : Event(&mainEventQueue), bus(_bus), rescheduleTime(_rescheduleTime)
-      {
-      }
-
-    void process();
-
     virtual const char *description();
 };
 

@@ -82,10 +82,6 @@ Bus::Bus(const string &_name,
     clockRate = _clock;
     cpu_count = _cpu_count;
     bank_count = _bank_count;
-
-    if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
-
-    fatal("impl mem ctrl registration");
     
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -119,15 +115,17 @@ Bus::Bus(const string &_name,
     perCPUQueueCycles.resize(cpu_count, 0);
     perCPURequests.resize(cpu_count, 0);
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
+    
+    if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
+    _memoryController->registerBus(this);
+    memoryController = _memoryController;
+    memoryControllerEvent = new MemoryControllerEvent(this);
 
 }
 
 Bus::~Bus()
 {
     delete memoryControllerEvent;
-    delete memoryController;
-    traceFile.flush();
-    traceFile.close();
 }
 
 /* register bus stats */
@@ -271,10 +269,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
-
-    if (infinite_writeback && (req->cmd == Write || req->cmd == Prewrite)) {
-      return true;
-    }
     
     // Insert request into memory controller
     memoryController->insertRequest(req);

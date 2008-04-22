@@ -26,6 +26,10 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     int num_active_pages;
     int max_active_pages;
+    
+    int readqueue_size;
+    int writequeue_size;
+    int reserved_slots;
 
   public:
 

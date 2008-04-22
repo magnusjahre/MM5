@@ -26,15 +26,12 @@
  */
 class TimingMemoryController : public SimObject
 {
-  public:
+  private:
       
     Bus* bus;
       
     Tick totalBlocktime;
-    int readqueue_size;
-    int writequeue_size;
-    int prewritequeue_size;
-    int reserved_slots;
+    
   protected:
     bool isBlockedFlag;
     Tick startBlocking;
@@ -48,7 +45,9 @@ class TimingMemoryController : public SimObject
     /** Frees locally allocated memory. */
     virtual ~TimingMemoryController();
 
-    void registerBus(Bus* _bus) { bus = _bus; }
+    void registerBus(Bus* _bus) { 
+        bus = _bus; 
+    }
     
     virtual int insertRequest(MemReqPtr &req) = 0;
 
@@ -94,7 +93,6 @@ class TimingMemoryController : public SimObject
     void registerInterface(BaseInterface *interface) {
       mem_interface = interface;
     }
-   
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

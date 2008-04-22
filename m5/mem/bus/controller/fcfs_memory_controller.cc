@@ -10,9 +10,18 @@ using namespace std;
 
 FCFSTimingMemoryController::FCFSTimingMemoryController(std::string _name, int _queueLength)
     : TimingMemoryController(_name) {
-    cout << "sweet FCFS mem-ctrl " << _name << " with length " << _queueLength << "\n";
-    //FIXME: blocking code must be improved
-    fatal("FCFS blocking does not work");
+    
+    queueLength = _queueLength;
+    
+    activePage = 0;
+    pageActivated = false;
+    
+    activate = new MemReq();
+    activate->cmd = Activate;
+    activate->paddr = 0;
+    close = new MemReq();
+    close->cmd = Close;
+    close->paddr = 0;
 }
 
 /** Frees locally allocated memory. */
@@ -20,36 +29,10 @@ FCFSTimingMemoryController::~FCFSTimingMemoryController(){
 }
 
 int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
-    MemReqPtr activate = new MemReq();
-    activate->paddr = req->paddr;
-    activate->cmd = Activate;
-    MemReqPtr close = new MemReq();
-    close->paddr = req->paddr;
-    close->cmd = Close;
-    if (req->cmd == Prewrite) {
-        req->cmd = Writeback;
-    }
 
-    if (!memoryRequestQueue.empty()) {
-        MemReqPtr& lastrequest = memoryRequestQueue.back();
-        assert(lastrequest->cmd == Close);
-        if (req->paddr >> 10 == lastrequest->paddr >> 10) {
-            //Same page
-            memoryRequestQueue.pop_back();
-            memoryRequestQueue.push_back(req);
-            memoryRequestQueue.push_back(close);
-        } else {
-            memoryRequestQueue.push_back(activate);
-            memoryRequestQueue.push_back(req);
-            memoryRequestQueue.push_back(close);
-        }
-    } else {
-        memoryRequestQueue.push_back(activate);
-        memoryRequestQueue.push_back(req);
-        memoryRequestQueue.push_back(close);
-    }
+    memoryRequestQueue.push_back(req);
 
-    if (memoryRequestQueue.size() > 192) {
+    if (!isBlocked() && memoryRequestQueue.size() >= queueLength) {
        setBlocked();
     }
 
@@ -61,13 +44,45 @@ bool FCFSTimingMemoryController::hasMoreRequests() {
 }
 
 MemReqPtr& FCFSTimingMemoryController::getRequest() {
-    assert(!memoryRequestQueue.empty());
-    MemReqPtr& tmp = memoryRequestQueue.front();
-    memoryRequestQueue.pop_front();
-    if (isBlocked() && memoryRequestQueue.size() < 60) {
-       setUnBlocked();
+    
+    MemReqPtr& retval = activate; // dummy initialization
+    
+    if(pageActivated){
+        if(isActive(memoryRequestQueue.front())){
+            retval = memoryRequestQueue.front();
+            memoryRequestQueue.pop_front();
+            cout << curTick << ": sending req for addr " << retval->paddr << "\n";
+        }
+        else{
+            close->paddr = getPageAddr(activePage);
+            cout << curTick << ": closing page addr " << activePage << "\n";
+            close->flags &= ~SATISFIED;
+            retval = close;
+            pageActivated = false;
+            activePage = 0;
+            
+        }
     }
-    return tmp;
+    else{
+        // update internals
+        assert(activePage == 0);
+        activePage = getPage(memoryRequestQueue.front());
+        pageActivated = true;
+        
+        cout << curTick << ": opening page addr " << activePage << "\n";
+        
+        // issue an activate
+        activate->paddr = getPageAddr(activePage);
+        activate->flags &= ~SATISFIED;
+        retval = activate;
+    }
+    
+    if(isBlocked() && memoryRequestQueue.size() < queueLength){
+        setUnBlocked();
+    }
+    
+    cout << curTick << " returning\n";
+    return retval;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
