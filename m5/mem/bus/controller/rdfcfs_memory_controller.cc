@@ -136,7 +136,6 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
 
         if (canClose) {
             close->paddr = getPageAddr(Active);
-            assert(Active << 10 == getPageAddr(Active));
             close->flags &= ~SATISFIED;
             activePages.erase(pageIterator);
             num_active_pages--;

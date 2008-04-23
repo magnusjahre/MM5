@@ -70,19 +70,43 @@ class BaseMemory : public BaseMem
      * True if this memory should copy data into functional memory.
      */
     const bool doWrites;
-
-  public:
-
+    
     // statistics
     /**
-     * @addtogroup MemoryStatistics
+     * @addtogroup MemoryStatistics Memory Statistics
      * @{
      */
-    /** The number of accesses per thread. */
-    Stats::Vector<> accesses;
-    /**
-     * @}
-     */
+
+    /** The number of reads */
+    Stats::Scalar<> number_of_reads;
+    /** The number of writes */
+    Stats::Scalar<> number_of_writes;
+    /** The number of reads that hit open page */
+    Stats::Scalar<> number_of_reads_hit;
+    /** The number of writes that hit open page */
+    Stats::Scalar<> number_of_writes_hit;
+
+    /** Read hit rate */
+    Stats::Formula read_hit_rate;
+    /** Write hit rate */
+    Stats::Formula write_hit_rate;
+    
+    Stats::Formula overall_hit_rate;
+    
+    /** Total latency */
+    Stats::Scalar<> total_latency;
+    /** Average latency */
+    Stats::Formula average_latency;
+
+    /* Slow read hits */
+    Stats::Scalar<> number_of_slow_read_hits;
+    /* Slow write hits */
+    Stats::Scalar<> number_of_slow_write_hits;
+
+    /* Non-overlapping activates */
+    Stats::Scalar<> number_of_non_overlap_activate;
+
+  public:
     
     /**
      * Collection of parameters for a BaseMemory.
@@ -127,7 +151,7 @@ class BaseMemory : public BaseMem
     /**
      * Register statistics
      */
-    virtual void regStats();
+    void regStats();
     
     /**
      * Dummy implementation.

@@ -37,6 +37,16 @@ class TimingMemoryController : public SimObject
     Tick startBlocking;
     bool isPrewriteBlockedFlag;
     BaseInterface *mem_interface;
+    
+    Stats::Scalar<> pageHits;
+    Stats::Formula pageHitRate;
+    
+    Stats::Scalar<> pageMisses;
+    Stats::Formula pageMissRate;
+    
+    Stats::Scalar<> sentRequests;
+    
+    
   public:
     // constructor
     /** Constructs a Memory Controller object. */

@@ -126,5 +126,8 @@ class InOrderMemoryController(FCFSMemoryController):
     queue_size = 16
 
 class SDRAM(BaseMemory):
-    latency = 112 * Parent.clock.period #ignored
-    uncacheable_latency = 1000 * Parent.clock.period #ignored
+    num_banks = 8
+    RAS_latency = 4
+    CAS_latency = 4
+    precharge_latency = 4
+    min_activate_to_precharge_latency = 12

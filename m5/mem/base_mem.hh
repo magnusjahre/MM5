@@ -158,6 +158,11 @@ class BaseMem : public BaseHier
         return 0;
     }
     
+    virtual int getMemoryBankID(Addr addr){
+        fatal("Not implemented");
+        return 0;
+    }
+    
 };
 
 #endif //__BASE_MEM_HH__

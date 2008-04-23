@@ -37,6 +37,8 @@
 #include "mem/timing/base_memory.hh"
 #include "cpu/smt.hh"
 
+using namespace std;
+
 BaseMemory::BaseMemory(const std::string &name, HierParams *hier, 
 		       Params &params)
     : BaseMem(name, hier, params.access_lat, params.addrRange), 
@@ -52,11 +54,72 @@ void
 BaseMemory::regStats()
 {
     using namespace Stats;
+
+    number_of_reads
+            .name(name() + ".number_of_reads")
+            .desc("Total number of reads")
+            ;
+
+    number_of_writes
+            .name(name() + ".number_of_writes")
+            .desc("Total number of writes")
+            ;
+
+    number_of_reads_hit
+            .name(name() + ".number_of_read_hits")
+            .desc("The number of reads that hit open page")
+            ;
+
+    number_of_writes_hit
+            .name(name() + ".number_of_write_hits")
+            .desc("The number of writes that hit open pages")
+            ;
+
+    total_latency
+            .name(name() + ".total_latency")
+            .desc("Total latency")
+            ;
     
-    accesses
-	.init(maxThreadsPerCPU)
-	.name(name() + ".accesses")
-	.desc("total number of accesses")
-	.flags(total)
-	;
+    average_latency
+            .name(name() + ".average_latency")
+            .desc("Average latency")
+            ;
+
+    average_latency = total_latency / (number_of_reads + number_of_writes);
+
+    read_hit_rate 
+            .name(name() + ".read_hit_rate")
+            .desc("Rate of hitting open pages on read")
+            ;
+    
+    read_hit_rate = number_of_reads_hit / number_of_reads;
+
+    write_hit_rate
+            .name(name() + ".write_hit_rate")
+            .desc("Rate of hitting write pages on write")
+            ;
+
+    write_hit_rate = number_of_writes_hit / number_of_writes;
+
+    overall_hit_rate
+            .name(name() + ".overall_hit_rate")
+            .desc("Overall page hit rate")
+            ;
+    
+    overall_hit_rate = (number_of_reads_hit + number_of_writes_hit) / (number_of_reads + number_of_writes);
+    
+    number_of_slow_read_hits
+            .name(name() + ".number_of_slow_read_hits")
+            .desc("Number of transitions from write to read")
+            ;
+
+    number_of_slow_write_hits
+            .name(name() + ".number_of_slow_write_hits")
+            .desc("Number of transitions from read to write")
+            ;
+
+    number_of_non_overlap_activate
+            .name(name() + ".number_of_non_overlap_activate")
+            .desc("Number of non overlapping activates")
+            ;
 }

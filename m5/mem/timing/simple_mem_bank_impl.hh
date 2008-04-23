@@ -65,7 +65,7 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     CAS_latency = params.CAS_latency;
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
-
+    
     /* Constants */
     write_recovery_time = 6;
     internal_write_to_read = 3;
@@ -100,97 +100,6 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     internal_row_to_row *= bus_to_cpu_factor;
 }
 
-template <class Compression>
-void
-SimpleMemBank<Compression>::regStats()
-{
-    using namespace Stats;
-    BaseMemory::regStats();
-
-    bytesRequested
-	.init(maxThreadsPerCPU)
-	.name(name() + ".bytes_requested")
-	.desc("total number of bytes requested")
-	.flags(total)
-	;
-
-    bytesSent
-	.init(maxThreadsPerCPU)
-	.name(name() + ".bytes_sent")
-	.desc("total number of bytes sent")
-	.flags(total)
-	;
-
-    compressedAccesses
-	.init(maxThreadsPerCPU)
-	.name(name() + ".compressed_responses")
-	.desc("total number of accesses that are compressed")
-	.flags(total)
-	;
-    
-    number_of_reads
-    .name(name() + ".number_of_reads")
-    .desc("Total number of reads")
-    ;
-
-    number_of_writes
-    .name(name() + ".number_of_writes")
-    .desc("Total number of writes")
-    ;
-
-    number_of_reads_hit
-    .name(name() + ".number_of_read_hits")
-    .desc("The number of reads that hit open page")
-    ;
-
-    number_of_writes_hit
-    .name(name() + ".number_of_write_hits")
-    .desc("The number of writes that hit open pages")
-    ;
-
-    total_latency
-    .name(name() + ".total_latency")
-    .desc("Total latency")
-    ;
-    
-    average_latency
-    .name(name() + ".average_latency")
-    .desc("Average latency")
-    ;
-
-    average_latency = total_latency / (number_of_reads + number_of_writes);
-
-    read_hit_rate 
-    .name(name() + ".read_hit_rate")
-    .desc("Rate of hitting open pages on read")
-    ;
-    
-    read_hit_rate = number_of_reads_hit / number_of_reads;
-
-    write_hit_rate
-    .name(name() + ".write_hit_rate")
-    .desc("Rate of hitting write pages on write")
-    ;
-
-    write_hit_rate = number_of_writes_hit / number_of_writes;
-
-    number_of_slow_read_hits
-    .name(name() + ".number_of_slow_read_hits")
-    .desc("Number of transitions from write to read")
-    ;
-
-    number_of_slow_write_hits
-    .name(name() + ".number_of_slow_write_hits")
-    .desc("Number of transitions from read to write")
-    ;
-
-    number_of_non_overlap_activate
-    .name(name() + ".number_of_non_overlap_activate")
-    .desc("Number of non overlapping activates")
-    ;
-    
-}
-
 /* Calculate latency for request */
 template <class Compression>
 Tick
@@ -201,7 +110,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     // Sanity checks! :D
     assert (req->cmd == Read || req->cmd == Writeback || req->cmd == Close || req->cmd == Activate);
 
-    int bank = (req->paddr >> pagesize) % num_banks;
+    int bank = getMemoryBankID(req->paddr);
     Addr page = (req->paddr >> pagesize);
 
     if (req->cmd == Close) {
@@ -210,7 +119,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         assert (Bankstate[bank] != DDR2Idle);
         assert (Bankstate[bank] != DDR2Active);
         if (Bankstate[bank] == DDR2Read) {
-            closelatency = internal_read_to_precharge - 2*bus_to_cpu_factor;    
+            closelatency = internal_read_to_precharge - 2*bus_to_cpu_factor;
         } 
         if (Bankstate[bank] == DDR2Written) {
             closelatency = write_recovery_time; 
@@ -277,7 +186,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 }
                 Bankstate[bank] = DDR2Read;
                 number_of_reads_hit++;
-                number_of_slow_write_hits++;
+                number_of_slow_read_hits++;
                 break;
             default:
                 fatal("Unknown state!");
@@ -296,7 +205,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                   latency = data_time;
                 }
                 number_of_writes_hit++;
-                number_of_slow_read_hits++;
+                number_of_slow_write_hits++;
                 break;
 
             case DDR2Active:
@@ -324,7 +233,6 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 
     total_latency += latency;
     lastCmdFinish[bank] = latency + curTick;
-    //cout << curTick << " : " << req->cmd << " for page " << page << " on bank " << bank << " took " << latency << endl;
     return latency;
 }
 

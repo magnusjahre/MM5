@@ -54,51 +54,7 @@ enum DDR2State {
 template <class Compression>
 class SimpleMemBank : public BaseMemory
 {
-  protected:
-    /** The compression algorithm. */
-    Compression compress;
-
-  public:
-
-    // statistics
-    /**
-     * @addtogroup MemoryStatistics Memory Statistics
-     * @{
-     */
-    /** The number of bytes requested per thread. */
-    Stats::Vector<> bytesRequested;
-    /** The number of bytes sent per thread. */
-    Stats::Vector<> bytesSent;
-    /** The number of compressed accesses per thread. */
-    Stats::Vector<> compressedAccesses;
-
-    /** The number of reads */
-    Stats::Scalar<> number_of_reads;
-    /** The number of writes */
-    Stats::Scalar<> number_of_writes;
-    /** The number of reads that hit open page */
-    Stats::Scalar<> number_of_reads_hit;
-    /** The number of writes that hit open page */
-    Stats::Scalar<> number_of_writes_hit;
-
-    /** Read hit rate */
-    Stats::Formula read_hit_rate;
-    /** Write hit rate */
-    Stats::Formula write_hit_rate;
-    
-    /** Total latency */
-    Stats::Scalar<> total_latency;
-    /** Average latency */
-    Stats::Formula average_latency;
-
-    /* Slow read hits */
-    Stats::Scalar<> number_of_slow_read_hits;
-    /* Slow write hits */
-    Stats::Scalar<> number_of_slow_write_hits;
-
-    /* Non-overlapping activates */
-    Stats::Scalar<> number_of_non_overlap_activate;
-
+  private:
     /* DDR2 params */
     int num_banks;
     int RAS_latency;
@@ -125,20 +81,19 @@ class SimpleMemBank : public BaseMemory
     std::vector<Tick> lastCmdFinish;
     std::vector<Tick> closeTime;
     std::vector<Addr> openpage;
+    
+  protected:
+    /** The compression algorithm. */
+    Compression compress;
 
+    public:
     /**
      * Constructs and initializes this memory.
      * @param name The name of this memory.
      * @param hier Pointer to the hierarchy wide parameters.
      * @param params The BaseMemory parameters.
      */
-    SimpleMemBank(const std::string &name, HierParams *hier, 
-		  BaseMemory::Params params);
-
-    /**
-     * Register statistics
-     */
-    virtual void regStats();
+    SimpleMemBank(const std::string &name, HierParams *hier, BaseMemory::Params params);
 
     Tick calculateLatency(MemReqPtr &req);
 
@@ -163,6 +118,10 @@ class SimpleMemBank : public BaseMemory
     bool isActive(MemReqPtr &req);
     bool bankIsClosed(MemReqPtr &req);
     bool isReady(MemReqPtr &req);
+    
+    int getMemoryBankID(Addr addr){
+        return (addr >> pagesize) % num_banks;
+    }
     
     int getPageSize(){
         return pagesize;

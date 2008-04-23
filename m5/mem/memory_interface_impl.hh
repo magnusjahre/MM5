@@ -59,10 +59,7 @@ template<class Mem>
 MemAccessResult
 MemoryInterface<Mem>::access(MemReqPtr &req)
 {
-//     if(req->paddr == 5368991752 || req->paddr == (5368991752 & ~(Addr(mem->getBlockSize()-1)))){
-//         cout << curTick << " " << name() << ": block ssen, blk addr is " << (req->paddr & ~(Addr(mem->getBlockSize()-1))) << "\n";
-//     }
-    
+
     if (memTrace) {
 	memTrace->writeReq(req);
     }
@@ -84,14 +81,10 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
 	}
     }
     
-//     if(req->paddr == 4832456296ull && mem->cacheCpuID == 0){
-//         cout << curTick << ": block seen at entry to memory system\n";
-//     }
     
     if(mem->isMultiprogWorkload && mem->isCache()){
         
         /* move each application into its separate address space */
-//         int cpuId = req->xc->cpu->params->cpu_id;
         int cpuId = mem->cacheCpuID;
         int cpu_count = mem->cpuCount;
         

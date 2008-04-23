@@ -15,13 +15,11 @@ FCFSTimingMemoryController::FCFSTimingMemoryController(std::string _name, int _q
     
     activePage = 0;
     pageActivated = false;
+    prevActivate = false;
     
-    activate = new MemReq();
-    activate->cmd = Activate;
-    activate->paddr = 0;
-    close = new MemReq();
-    close->cmd = Close;
-    close->paddr = 0;
+    pageCmd = new MemReq();
+    pageCmd->cmd = Activate;
+    pageCmd->paddr = 0;
 }
 
 /** Frees locally allocated memory. */
@@ -30,6 +28,7 @@ FCFSTimingMemoryController::~FCFSTimingMemoryController(){
 
 int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
+    req->inserted_into_memory_controller = curTick;
     memoryRequestQueue.push_back(req);
 
     if (!isBlocked() && memoryRequestQueue.size() >= queueLength) {
@@ -45,19 +44,18 @@ bool FCFSTimingMemoryController::hasMoreRequests() {
 
 MemReqPtr& FCFSTimingMemoryController::getRequest() {
     
-    MemReqPtr& retval = activate; // dummy initialization
+    MemReqPtr& retval = pageCmd; // dummy initialization
     
     if(pageActivated){
         if(isActive(memoryRequestQueue.front())){
             retval = memoryRequestQueue.front();
             memoryRequestQueue.pop_front();
-            cout << curTick << ": sending req for addr " << retval->paddr << "\n";
         }
         else{
-            close->paddr = getPageAddr(activePage);
-            cout << curTick << ": closing page addr " << activePage << "\n";
-            close->flags &= ~SATISFIED;
-            retval = close;
+            pageCmd->cmd = Close;
+            pageCmd->paddr = getPageAddr(activePage);
+            pageCmd->flags &= ~SATISFIED;
+            retval = pageCmd;
             pageActivated = false;
             activePage = 0;
             
@@ -68,20 +66,19 @@ MemReqPtr& FCFSTimingMemoryController::getRequest() {
         assert(activePage == 0);
         activePage = getPage(memoryRequestQueue.front());
         pageActivated = true;
-        
-        cout << curTick << ": opening page addr " << activePage << "\n";
+        prevActivate = true;
         
         // issue an activate
-        activate->paddr = getPageAddr(activePage);
-        activate->flags &= ~SATISFIED;
-        retval = activate;
+        pageCmd->cmd = Activate;
+        pageCmd->paddr = getPageAddr(activePage);
+        pageCmd->flags &= ~SATISFIED;
+        retval = pageCmd;
     }
     
     if(isBlocked() && memoryRequestQueue.size() < queueLength){
         setUnBlocked();
     }
     
-    cout << curTick << " returning\n";
     return retval;
 }
 

@@ -14,8 +14,8 @@ class FCFSTimingMemoryController : public TimingMemoryController
     
     private:
         int queueLength;
-        MemReqPtr activate;
-        MemReqPtr close;
+        MemReqPtr pageCmd;
+        bool prevActivate;
         
         Addr activePage;
         bool pageActivated;

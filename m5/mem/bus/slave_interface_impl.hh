@@ -192,3 +192,9 @@ int
 SlaveInterface<Mem, Bus>::getPageSize(){
     return mem->getPageSize();
 }
+
+template<class Mem, class Bus>
+int
+SlaveInterface<Mem, Bus>::getMemoryBankID(Addr addr){
+    return mem->getMemoryBankID(addr);
+}
