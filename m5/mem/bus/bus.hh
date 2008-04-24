@@ -52,8 +52,7 @@
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/bus/controller/memory_controller.hh"
 
-
-// #define DO_BUS_TRACE 1
+#define DO_BUS_TRACE 1
 
 // Forward definition of events
 class AddrArbiterEvent;
@@ -377,7 +376,7 @@ class Bus : public BaseHier
 
     
 #ifdef DO_BUS_TRACE
-    void writeTraceFileLine(Addr address, std::string message);
+    void writeTraceFileLine(Addr address, int bank, Addr page, Tick latency, MemCmd cmd, std::string message);
 #endif
 };
 

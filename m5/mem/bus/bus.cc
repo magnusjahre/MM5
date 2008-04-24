@@ -52,9 +52,6 @@
 #include "sim/host.hh"
 #include "sim/stats.hh"
 
-// #include "mem/bus/controller/fcfs_memory_controller.hh"
-// #include "mem/bus/controller/rdfcfs_memory_controller.hh"
-
 #include <fstream>
 
 using namespace std;
@@ -120,6 +117,13 @@ Bus::Bus(const string &_name,
     _memoryController->registerBus(this);
     memoryController = _memoryController;
     memoryControllerEvent = new MemoryControllerEvent(this);
+    
+#ifdef DO_BUS_TRACE
+    ofstream file("busAccessTrace.txt");
+    file << "";
+    file.flush();
+    file.close();
+#endif
 
 }
 
@@ -274,6 +278,16 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     memoryController->insertRequest(req);
     totalRequests++;
 
+#ifdef DO_BUS_TRACE
+    assert(slaveInterfaces.size() == 1);
+    writeTraceFileLine(req->paddr, 
+                       slaveInterfaces[0]->getMemoryBankID(req->paddr),
+                       (req->paddr >> slaveInterfaces[0]->getPageSize()),
+                       -1,
+                       req->cmd,
+                       "Request");
+#endif
+    
     // Schedule memory controller if not scheduled yet.
     if (!memoryControllerEvent->scheduled()) {
         memoryControllerEvent->schedule(curTick);
@@ -288,6 +302,16 @@ Bus::handleMemoryController()
     
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
+        
+#ifdef DO_BUS_TRACE
+        assert(slaveInterfaces.size() == 1);
+        writeTraceFileLine(request->paddr, 
+                           slaveInterfaces[0]->getMemoryBankID(request->paddr),
+                           (request->paddr >> slaveInterfaces[0]->getPageSize()),
+                           -1,
+                           request->cmd,
+                           "Send");
+#endif
 
         if(request->cmd != Activate && request->cmd != Close){
             int queue_lat = curTick - request->inserted_into_memory_controller;
@@ -314,6 +338,17 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time)
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
     nextfree = time;
+    
+#ifdef DO_BUS_TRACE
+    assert(slaveInterfaces.size() == 1);
+    writeTraceFileLine(req->paddr, 
+                       slaveInterfaces[0]->getMemoryBankID(req->paddr),
+                       (req->paddr >> slaveInterfaces[0]->getPageSize()),
+                       time - curTick,
+                       req->cmd,
+                       "Latency");
+#endif
+    
     
     if(req->cmd != Activate && req->cmd != Close){
         assert(slaveInterfaces.size() == 1);
@@ -423,9 +458,15 @@ Bus::getAverageQueuePerCPU(){
 
 #ifdef DO_BUS_TRACE
 void
-Bus::writeTraceFileLine(Addr address, string message){
+Bus::writeTraceFileLine(Addr address, int bank, Addr page, Tick latency, MemCmd cmd, std::string message){
     ofstream file("busAccessTrace.txt", ofstream::app);
-    file << curTick << ": " << message << " " << address << "\n"; 
+    file << curTick << ","
+         << address << ","
+         << bank << ","
+         << page << ","
+         << latency << ","
+         << cmd << ","
+         << message << "\n";
     file.flush();
     file.close();
 }
