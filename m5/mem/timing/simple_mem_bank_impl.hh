@@ -153,7 +153,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             }
         }
         
-        if (last_activate  + internal_row_to_row > curTick) {
+        if (last_activate + internal_row_to_row > curTick && last_activate > 0) {
             activateTime[bank] = (curTick - last_activate) + RAS_latency + curTick;
         } else {
             activateTime[bank] = RAS_latency + curTick;
