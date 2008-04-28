@@ -37,7 +37,7 @@ fullCoverage = 'All state machine edges have been covered'
 
 binary = rootdir+'/branch/fairMHA/m5/build/ALPHA_SE/m5.opt'
 fwticks = 25000000
-simticks = 10000000
+simticks = 5000000
 bmArg = "-EBENCHMARK=" 
 args  = "-ENP=4 -EPROTOCOL=none -EINTERCONNECT=crossbar -EFASTFORWARDTICKS="+str(fwticks)+" -ESIMULATETICKS="+str(simticks)+"  -ESTATSFILE=test.txt -EMEMORY-BUS-SCHEDULER=FCFS"
 configFile = "../configs/CMP/run.py"
