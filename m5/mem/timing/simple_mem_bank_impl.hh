@@ -116,7 +116,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     int bank = getMemoryBankID(req->paddr);
     Addr page = (req->paddr >> pagesize);
     DDR2State oldState = Bankstate[bank];
-
+    
     if (req->cmd == Close) {
         active_bank_count--;
         Tick closelatency = 0;
@@ -187,14 +187,16 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 readyTime[bank] = activateTime[bank] + CAS_latency;
                 break;
             case DDR2Written:
-                if (curTick - lastCmdFinish[bank]  <= internal_write_to_read + CAS_latency) {
-                  latency = data_time + (curTick - lastCmdFinish[bank]);
-                } else {
-                  latency = data_time;
-                }
                 Bankstate[bank] = DDR2Read;
+                if (curTick - lastCmdFinish[bank]  <= internal_write_to_read + CAS_latency) {
+                    latency = data_time + (internal_write_to_read + CAS_latency - (curTick - lastCmdFinish[bank]));
+                } else {
+                    latency = data_time;
+                }
+                
                 number_of_reads_hit++;
                 number_of_slow_read_hits++;
+                
                 break;
             default:
                 fatal("Unknown state!");
@@ -207,11 +209,14 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         switch (Bankstate[bank]) {
             case DDR2Read: 
                 Bankstate[bank] = DDR2Written;
-                if (curTick - lastCmdFinish[bank]  <= read_to_write_turnaround) {
-                  latency = data_time + (curTick - lastCmdFinish[bank]);
+                int readCmdToWriteStartLat = read_to_write_turnaround + CAS_latency - 1*bus_to_cpu_factor;
+                int curOffset = curTick - readyTime[bank];
+                if (curOffset <= readCmdToWriteStartLat) {
+                    latency = data_time + (readCmdToWriteStartLat - curOffset);
                 } else {
-                  latency = data_time;
+                    latency = data_time;
                 }
+                
                 number_of_writes_hit++;
                 number_of_slow_write_hits++;
                 break;
@@ -240,19 +245,20 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         number_of_non_overlap_activate++;
     }
     
-    // update the ready time to be able to correctly calculate when the bank reaches the idle state
     DDR2State curState = Bankstate[bank];
     if((oldState == DDR2Read && curState == DDR2Read)
-       || (oldState == DDR2Written && curState == DDR2Written)){
+        || (oldState == DDR2Written && curState == DDR2Written)){
         readyTime[bank] += data_time;
     }
-    else if((oldState == DDR2Read && curState == DDR2Written)
-             || (oldState == DDR2Written && curState == DDR2Read) ){
-        fatal("readyTime updates on read to write or write to read switches not implemented");
+    else if(oldState == DDR2Read && curState == DDR2Written
+            || oldState == DDR2Written && curState == DDR2Read){
+        readyTime[bank] = curTick + (latency - data_time);
     }
+
 
     total_latency += latency;
     lastCmdFinish[bank] = latency + curTick;
+    
     return latency;
 }
 

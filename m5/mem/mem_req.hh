@@ -195,6 +195,7 @@ class MemReq : public FastAlloc, public RefCounted
     uint8_t *data;
     
     bool expectCompletionEvent;
+    bool isDDRTestReq;
 	  
     /**
      * Contruct and initialize a memory request.
@@ -241,7 +242,8 @@ class MemReq : public FastAlloc, public RefCounted
 	  pc(0),
 	  offset(0),
 	  data(NULL),
-          expectCompletionEvent(false)
+          expectCompletionEvent(false),
+          isDDRTestReq(false)
     {
     }
 
@@ -283,6 +285,7 @@ class MemReq : public FastAlloc, public RefCounted
         offset = r.offset;
         data = r.data;
         expectCompletionEvent = r.expectCompletionEvent;
+        isDDRTestReq = r.isDDRTestReq;
     }
 
     /**

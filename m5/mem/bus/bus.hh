@@ -52,7 +52,9 @@
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/bus/controller/memory_controller.hh"
 
-#define DO_BUS_TRACE 1
+//NOTE: these should _never_ be defined when running experiments!
+// #define DO_BUS_TRACE 1
+// #define INJECT_TEST_REQUESTS 1
 
 // Forward definition of events
 class AddrArbiterEvent;
@@ -262,6 +264,10 @@ class Bus : public BaseHier
     int cpu_count;
     int bank_count;
     
+#ifdef INJECT_TEST_REQUESTS
+    std::list<MemReqPtr> testRequests;
+#endif
+    
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
     /** The next curTick that the data bus is free. */
@@ -373,6 +379,10 @@ class Bus : public BaseHier
 	// Convert back to global cycles & return.
 	return busCycle * clockRate;
     }
+    
+#ifdef INJECT_TEST_REQUESTS
+    void generateRequests();
+#endif
 
     
 #ifdef DO_BUS_TRACE

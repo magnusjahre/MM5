@@ -128,6 +128,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->ownerWroteBack = r->ownerWroteBack;
     req->oldCmd = r->oldCmd;
     req->expectCompletionEvent = r->expectCompletionEvent;
+    req->isDDRTestReq = r->isDDRTestReq;
     
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
@@ -185,6 +186,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->ownerWroteBack = from->ownerWroteBack;
     to->oldCmd = from->oldCmd;
     to->expectCompletionEvent = from->expectCompletionEvent;
+    to->isDDRTestReq = from->isDDRTestReq;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     

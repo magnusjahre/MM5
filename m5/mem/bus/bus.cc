@@ -125,6 +125,10 @@ Bus::Bus(const string &_name,
     file.close();
 #endif
 
+#ifdef INJECT_TEST_REQUESTS
+    generateRequests();
+#endif
+    
 }
 
 Bus::~Bus()
@@ -273,12 +277,20 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
+
+#ifdef INJECT_TEST_REQUESTS
+    while(!testRequests.empty()){
+        memoryController->insertRequest(testRequests.front());
+        testRequests.pop_front();
+    }
+#endif
     
     // Insert request into memory controller
     memoryController->insertRequest(req);
     totalRequests++;
 
 #ifdef DO_BUS_TRACE
+#ifndef INJECT_TEST_REQUESTS
     assert(slaveInterfaces.size() == 1);
     writeTraceFileLine(req->paddr, 
                        slaveInterfaces[0]->getMemoryBankID(req->paddr),
@@ -286,6 +298,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
                        -1,
                        req->cmd,
                        "Request");
+#endif
 #endif
     
     // Schedule memory controller if not scheduled yet.
@@ -303,14 +316,20 @@ Bus::handleMemoryController()
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
         
+#ifdef INJECT_TEST_REQUESTS
+        if(!request->isDDRTestReq && (request->cmd == Read || request->cmd == Writeback)){
+            fatal("Testing is finished, stopping execution");
+        }
+#endif
+        
 #ifdef DO_BUS_TRACE
         assert(slaveInterfaces.size() == 1);
         writeTraceFileLine(request->paddr, 
-                           slaveInterfaces[0]->getMemoryBankID(request->paddr),
-                           (request->paddr >> slaveInterfaces[0]->getPageSize()),
-                           -1,
-                           request->cmd,
-                           "Send");
+                        slaveInterfaces[0]->getMemoryBankID(request->paddr),
+                        (request->paddr >> slaveInterfaces[0]->getPageSize()),
+                        -1,
+                        request->cmd,
+                        "Send");
 #endif
 
         if(request->cmd != Activate && request->cmd != Close){
@@ -360,6 +379,11 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time)
             unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
         }
     }
+    
+#ifdef INJECT_TEST_REQUESTS
+    // the DDR Test Requests are generated in the bus, so we don't want to return them
+    if(req->isDDRTestReq) return;
+#endif
     
     if (req->cmd == Read) { 
         assert(req->busId < interfaces.size() && req->busId > -1);
@@ -455,6 +479,117 @@ Bus::getAverageQueuePerCPU(){
     }
     return retval;
 }
+
+#ifdef INJECT_TEST_REQUESTS
+void
+Bus::generateRequests(){
+    
+    // TEST 1: Simple read and write page hits tests
+    int numTests = 10;
+    Addr address = 0x1000000;
+    bool wb = false;
+    
+    for(int i=0;i<numTests;i++){
+        MemReqPtr tmp = new MemReq();
+        tmp->paddr = address;
+        tmp->isDDRTestReq = true;
+        if(wb) tmp->cmd = Writeback;
+        else tmp->cmd = Read;
+        wb = !wb;
+        testRequests.push_back(tmp);
+    }
+    
+    // TEST 2: Read and write page hit bursts
+    numTests = 10;
+    address = 0x1000000;
+    int reads = 5;
+    int writes = 5;
+    
+    for(int i=0;i<numTests;i++){
+        
+        for(int j=0;j<reads;j++){
+            MemReqPtr tmp = new MemReq();
+            tmp->paddr = address;
+            tmp->isDDRTestReq = true;
+            tmp->cmd = Read;
+            testRequests.push_back(tmp);
+        }
+        
+        for(int j=0;j<writes;j++){
+            MemReqPtr tmp = new MemReq();
+            tmp->paddr = address;
+            tmp->isDDRTestReq = true;
+            tmp->cmd = Writeback;
+            testRequests.push_back(tmp);
+        }
+    }
+    
+    // TEST 3: Page conflicts
+    numTests = 10;
+    Addr pageA = 0x2000000;
+    Addr pageB = 0x3000000;
+    bool usePageA = true;
+    
+    for(int i=0;i<numTests;i++){
+        MemReqPtr tmp = new MemReq();
+        tmp->isDDRTestReq = true;
+        tmp->cmd = Read;
+        
+        if(usePageA) tmp->paddr = pageA;
+        else tmp->paddr = pageB;
+        usePageA = !usePageA;
+        
+        testRequests.push_back(tmp);
+    }
+           
+    
+    // TEST 4: Overlapped read and write page accesses
+    // memory controller closes pages between reads and writes
+    numTests = 10;
+    int numReads = 8;
+    int numWrites = 8;
+    address = 0x1000000;
+    int pagesize = 10;
+    
+    for(int i=0;i<numTests;i++){
+        
+        for(int j=0;j<numReads;j++){
+            
+            Addr curAddr = address | (j << pagesize);
+            
+            MemReqPtr tmp = new MemReq();
+            tmp->paddr = curAddr;
+            tmp->isDDRTestReq = true;
+            tmp->cmd = Read;
+            testRequests.push_back(tmp);
+        }
+        
+        for(int j=0;j<numWrites;j++){
+            
+            Addr curAddr = address | (j << pagesize);
+            
+            MemReqPtr tmp = new MemReq();
+            tmp->paddr = curAddr;
+            tmp->isDDRTestReq = true;
+            tmp->cmd = Writeback;
+            testRequests.push_back(tmp);
+        }
+    }
+    
+#ifdef DO_BUS_TRACE
+    list<MemReqPtr>::iterator it;
+    for(it = testRequests.begin(); it != testRequests.end(); it++){
+        MemReqPtr tmp = *it;
+        writeTraceFileLine(tmp->paddr, 
+                          (tmp->paddr >> 10) % 8,
+                          (tmp->paddr >> 10),
+                          -1,
+                           tmp->cmd,
+                          "Request");
+    }
+#endif
+}
+#endif
 
 #ifdef DO_BUS_TRACE
 void
