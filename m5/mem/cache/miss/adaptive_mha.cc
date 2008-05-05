@@ -26,6 +26,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     onlyTraceBus = _onlyTraceBus;
     
+    cpus.resize(cpu_count, 0);
+    
     neededRepeatDecisions = _neededRepeatDecisions;
     
     currentCandidate = -1;
@@ -74,6 +76,15 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     memfile << "\n";
     memfile.flush();
     memfile.close();
+    
+    ipcTraceFileName = "ipcTrace.txt";
+    ofstream ipcfile(ipcTraceFileName.c_str());
+    ipcfile << "Tick";
+    for(int i=0;i<cpu_count;i++) ipcfile << ";CPU " << i;
+    ipcfile << "\n";
+    ipcfile.flush();
+    ipcfile.close();
+    
 }
         
 AdaptiveMHA::~AdaptiveMHA(){
@@ -130,6 +141,11 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         }
     }
     
+    // sanity check
+    assert(cpus.size() == dataCaches.size());
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        assert(cpus[i]->CPUParamsCpuID == dataCaches[i]->cacheCpuID);
+    }
     
     // gather information
     double dataBusUtil = bus->getDataBusUtilisation(sampleFrequency);
@@ -145,6 +161,12 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         dataSampleTooLarge++;
     }
     
+    vector<double> IPCs(adaptiveMHAcpuCount, 0);
+    for(int i=0;i<cpus.size();i++){
+        IPCs[i] = cpus[i]->getCommittedInstructionSample(sampleFrequency);
+        cpus[i]->resetCommittedInstructionSample();
+    }
+    
     //write bus use trace
     ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
     memTraceFile << time;
@@ -156,6 +178,15 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     
     memTraceFile.flush();
     memTraceFile.close();
+    
+    // write IPC trace
+    ipcTraceFileName = "ipcTrace.txt";
+    ofstream ipcfile(ipcTraceFileName.c_str(), ofstream::app);
+    ipcfile << curTick;
+    for(int i=0;i<IPCs.size();i++) ipcfile << ";" << IPCs[i];
+    ipcfile << "\n";
+    ipcfile.flush();
+    ipcfile.close();
     
     
     if(!onlyTraceBus){
@@ -287,6 +318,7 @@ END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
 {
+    
     return new AdaptiveMHA(getInstanceName(),
                            lowThreshold,
                            highThreshold,

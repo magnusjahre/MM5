@@ -836,9 +836,13 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 	stat_com_swp[thread]++;
     } else {
 	com_inst[thread]++;
+        // profiling only supports one thread per core
+        assert(thread == 0);
+        commitedInstructionSample++;
 	stat_com_inst[thread]++;
     }
 #else
+    fatal("IPC profiling for non-alpha not implemented");
     com_inst[thread]++;
     stat_com_inst[thread]++;
 #endif

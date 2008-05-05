@@ -118,3 +118,4 @@ class FullCPU(BaseCPU):
     use_lat_predictor = Param.Bool(False, "enable latency predictor")
     use_lr_predictor = Param.Bool(True, "enable left/right predictor")
     width = Param.Int(4, "default machine width")
+    adaptiveMHA = Param.AdaptiveMHA("Adaptive MHA object")

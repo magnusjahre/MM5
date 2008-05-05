@@ -131,9 +131,9 @@ if progressInterval > 0:
 
 # Create CPUs
 BaseCPU.workload = Parent.workload
-root.simpleCPU = [ CPU(defer_registration=True, cpu_id=i) 
+root.simpleCPU = [ CPU(defer_registration=True,)
                    for i in xrange(int(env['NP'])) ]
-root.detailedCPU = [ DetailedCPU(defer_registration=True, cpu_id=i) 
+root.detailedCPU = [ DetailedCPU(defer_registration=True) 
                      for i in xrange(int(env['NP'])) ]
 
 # Create L1 caches
@@ -166,6 +166,8 @@ for i in xrange(int(env['NP'])):
     root.simpleCPU[i].icache = root.L1icaches[i]
     root.detailedCPU[i].dcache = root.L1dcaches[i]
     root.detailedCPU[i].icache = root.L1icaches[i]
+    root.simpleCPU[i].cpu_id = i
+    root.detailedCPU[i].cpu_id = i
     root.L1dcaches[i].cpu_id = i
     root.L1icaches[i].cpu_id = i
 
@@ -185,6 +187,9 @@ if l1mshrsInst != -1:
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
 root.adaptiveMHA.sampleFrequency = 100000
+    
+for cpu in root.detailedCPU:
+    cpu.adaptiveMHA = root.adaptiveMHA
     
 for l1 in root.L1dcaches:
     l1.adaptive_mha = root.adaptiveMHA

@@ -54,6 +54,8 @@
 #include "encumbered/cpu/full/thread.hh"
 #include "encumbered/cpu/full/writeback.hh"
 
+#include "mem/cache/miss/adaptive_mha.hh"
+
 class BaseIQ;
 class Process;
 
@@ -65,6 +67,8 @@ struct ClusterSharedInfo;
 
 class IntervalStats;
 class MemInterface;
+
+class AdaptiveMHA;
 
 class FullCPU : public BaseCPU
 {
@@ -242,7 +246,9 @@ class FullCPU : public BaseCPU
 	    //  Other
 	    //
 	    int _pc_sample_interval,
-	    PipeTrace *pt
+	    PipeTrace *pt,
+     
+            AdaptiveMHA* _amha
 	);
 
 

@@ -371,7 +371,8 @@ FullCPU::FullCPU(Params *p,
 		 //  Other
 		 //
 		 int _pc_sample_interval,
-		 PipeTrace *_ptrace)
+		 PipeTrace *_ptrace,
+                 AdaptiveMHA* _amha)
     : BaseCPU(p), 
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -651,6 +652,10 @@ FullCPU::FullCPU(Params *p,
 	Callback *cb =
 	    new MakeCallback<FullCPU, &FullCPU::dumpPCSampleProfile>(this);
 	registerExitCallback(cb);
+    }
+    
+    if(_amha != NULL){
+        _amha->registerFullCPU(p->cpu_id, this);
     }
 }
 
@@ -1151,6 +1156,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<int> width;
 
     Param<bool> defer_registration;
+    
+    SimObjectParam<AdaptiveMHA *>  adaptiveMHA;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1291,7 +1298,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
     INIT_PARAM(width, "default machine width"),
 
     INIT_PARAM_DFLT(defer_registration, "defer registration with system "
-		    "(for sampling)", false)
+		    "(for sampling)", false),
+            
+    INIT_PARAM_DFLT(adaptiveMHA, "adaptive mha pointer", 0)
 
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1489,7 +1498,8 @@ CREATE_SIM_OBJECT(FullCPU)
 		      prioritized_commit,
 		      commit_model,
 		      pc_sample_interval,
-		      (PipeTrace *)ptrace);
+		      (PipeTrace *)ptrace,
+                      adaptiveMHA);
 
     return cpu;
 }

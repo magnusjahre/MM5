@@ -83,8 +83,12 @@ class BaseCPU : public SimObject
 
     //HACK by Magnus
     std::vector<ExecContext *> execContexts;
+    
+    int CPUParamsCpuID;
+    
   protected:
     // execContexts was here
+    int commitedInstructionSample;
 
   public:
 
@@ -184,6 +188,16 @@ class BaseCPU : public SimObject
     virtual BranchPred *getBranchPred() { return NULL; };
 
     virtual Counter totalInstructions() const { return 0; }
+    
+    double getCommittedInstructionSample(int sampleSize){
+        return (double) ((double)commitedInstructionSample / (double) sampleSize);
+    }
+    
+    void resetCommittedInstructionSample(){
+        commitedInstructionSample = 0;
+    }
+    
+    
 
     // Function tracing
   private:

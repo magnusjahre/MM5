@@ -4,6 +4,8 @@
 
 #include "sim/sim_object.hh"
 #include "mem/cache/base_cache.hh"
+#include "cpu/base.hh"
+#include "encumbered/cpu/full/cpu.hh"
 #include "mem/bus/bus.hh"
 #include "mem/mem_req.hh"
 #include "sim/eventq.hh"
@@ -36,12 +38,13 @@ class AdaptiveMHA : public SimObject{
         
         std::string memTraceFileName;
         std::string adaptiveMHATraceFileName;
+        std::string ipcTraceFileName;
         
         bool firstSample;
         
         bool onlyTraceBus;
         
-//         std::vector<int> zeroCount;
+        std::vector<FullCPU* > cpus;
     
     public:
         
@@ -77,6 +80,12 @@ class AdaptiveMHA : public SimObject{
         
         int getSampleSize(){
             return sampleFrequency;
+        }
+        
+        void registerFullCPU(int id, FullCPU* cpu){
+            assert(id < cpus.size());
+            assert(cpus[id] == 0);
+            cpus[id] = cpu;
         }
         
     private:

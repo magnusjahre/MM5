@@ -145,6 +145,9 @@ BaseCPU::BaseCPU(Params *p)
 	    e->schedule(p->functionTraceStart);
 	}
     }
+    
+    CPUParamsCpuID = p->cpu_id;
+    commitedInstructionSample = 0;
 }
 
 
