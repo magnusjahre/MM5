@@ -6,3 +6,6 @@ class NFQMemoryController(TimingMemoryController):
     rd_queue_size = Param.Int("Max read request queue size")
     wr_queue_size = Param.Int("Max write request queue size")
     starvation_prevention_thres = Param.Int("Starvation prevention threshold")
+    num_cpus = Param.Int("Number of CPUs")
+    processor_priority = Param.Int("Priority given to requests from a given processors")
+    writeback_priority = Param.Int("Priority given to writebacks with no processor identification")

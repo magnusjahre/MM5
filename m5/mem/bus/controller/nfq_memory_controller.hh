@@ -16,18 +16,35 @@ class NFQMemoryController : public TimingMemoryController
         int readQueueLength;
         int writeQueueLenght;
         int starvationPreventionThreshold;
+        int nfqNumCPUs;
+        
+        int processorPriority;
+        int processorInc;
+        int writebackPriority;
+        int writebackInc;
+        
+        std::vector<Tick> virtualFinishTimes;
+        std::vector<std::vector<MemReqPtr> > requests;
+        
+        std::vector<Addr> activePages;
         
         MemReqPtr pageCmd;
-
+    
+        int queuedReads;
+        int queuedWrites;
+        
+        Tick getMinStartTag();
     
     public:
-        std::list<MemReqPtr> memoryRequestQueue; 
         
         /** Constructs a Memory Controller object. */
         NFQMemoryController(std::string _name,
                             int _rdQueueLength,
                             int _wrQueueLength,
-                            int _spt);
+                            int _spt,
+                            int _numCPUs,
+                            int _processorPriority,
+                            int _writePriority);
     
         /** Frees locally allocated memory. */
         ~NFQMemoryController();

@@ -196,7 +196,8 @@ class MemReq : public FastAlloc, public RefCounted
     
     bool expectCompletionEvent;
     bool isDDRTestReq;
-	  
+    Tick virtualStartTime;
+    
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -243,7 +244,8 @@ class MemReq : public FastAlloc, public RefCounted
 	  offset(0),
 	  data(NULL),
           expectCompletionEvent(false),
-          isDDRTestReq(false)
+          isDDRTestReq(false),
+          virtualStartTime(0)
     {
     }
 
@@ -286,6 +288,7 @@ class MemReq : public FastAlloc, public RefCounted
         data = r.data;
         expectCompletionEvent = r.expectCompletionEvent;
         isDDRTestReq = r.isDDRTestReq;
+        virtualStartTime = r.virtualStartTime;
     }
 
     /**

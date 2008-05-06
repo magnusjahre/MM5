@@ -148,8 +148,7 @@ baseFlags = [
     'UniformPartitioning',
     'AddrBusVerify',
     'DataBusVerify',
-    'TimeMultiplexedBus',
-    'NFQBus'
+    'NFQController'
     ]
 
 #
