@@ -145,6 +145,8 @@ SimpleCPU::SimpleCPU(Params *p)
     lastDcacheStall = 0;
 
     execContexts.push_back(xc);
+    
+    switchFileName = "cpuSwitchInsts.txt";
 }
 
 SimpleCPU::~SimpleCPU()
@@ -155,13 +157,18 @@ void
 SimpleCPU::switchOut(Sampler *s)
 {
     
+    ofstream file(switchFileName.c_str(), ofstream::app);
+    file << name() << ": Switching out with " << numInst << " committed instructions @ " << curTick << "\n";
+    file.flush();
+    file.close();
+    
     sampler = s;
     if (status() == DcacheMissStall) {
 	DPRINTF(Sampler,"Outstanding dcache access, waiting for completion\n");
 	_status = DcacheMissSwitch;
     }
     else {
-	_status = SwitchedOut;    
+	_status = SwitchedOut;
 
 	if (tickEvent.scheduled())
 	    tickEvent.squash();
@@ -380,9 +387,6 @@ SimpleCPU::copy(Addr dest)
 	memReq->paddr = dest_addr;
 	xc->mem->write(memReq, data);
 	if (dcacheInterface) {
-//             if(dest_addr == 5368991752 || dest_addr == 5368991744){
-//                 cout << curTick << " " << name() << ": copying block\n";
-//             }
             
 	    memReq->cmd = Copy;
 	    memReq->completionEvent = NULL;
@@ -402,10 +406,6 @@ template <class T>
 Fault
 SimpleCPU::read(Addr addr, T &data, unsigned flags)
 {
-    
-//     if(addr == 5368991752){
-//         cout << curTick << " " << name() << ": reading from block\n";
-//     }
     
     if (status() == DcacheMissStall || status() == DcacheMissSwitch) {
 	Fault fault = xc->read(memReq,data);
@@ -438,11 +438,6 @@ SimpleCPU::read(Addr addr, T &data, unsigned flags)
 	    lastDcacheStall = curTick;
 	    unscheduleTickEvent();
             
-//             cout << curTick << " " << name() << " stalling on addr " << memReq->paddr << "\n";
-//             if(curTick >= 10160200){
-//               cout << curTick << " " << name() << " stalling on addr " << memReq->paddr << "\n";
-//               cout << curTick << " " << name() << (memReq->completionEvent == NULL ? "completion event is NULL" : "completion event is not NULL") << "\n";
-//             }
 	    _status = DcacheMissStall;
 	} else {
 	    // do functional access
@@ -508,10 +503,7 @@ template <class T>
 Fault
 SimpleCPU::write(T data, Addr addr, unsigned flags, uint64_t *res)
 {
-//     if(addr == 5368991752){
-//         cout << curTick << " " << name() << ": writing to block\n";
-//     }
-    
+
     memReq->reset(addr, sizeof(T), flags);
 
     // translate to physical address
@@ -537,7 +529,6 @@ SimpleCPU::write(T data, Addr addr, unsigned flags, uint64_t *res)
             memReq->expectCompletionEvent = true;
 	    lastDcacheStall = curTick;
 	    unscheduleTickEvent();
-//             cout << curTick << " " << name() << " stalling on addr " << memReq->paddr << "\n";
 	    _status = DcacheMissStall;
 	}
     }
@@ -618,9 +609,6 @@ SimpleCPU::processCacheCompletion()
                 traceData->finalize();
 	}
         
-//         if(memReq->paddr == 5368991744 || memReq->paddr == 5368991752){
-//             cout << curTick << " " << name() << " no longer stalled on addr " << memReq->paddr << "\n";
-//         }
 	dcacheStallCycles += curTick - lastDcacheStall;
 	_status = Running;
 	scheduleTickEvent(1);
@@ -666,10 +654,6 @@ SimpleCPU::tick()
     traceData = NULL;
 
     Fault fault = No_Fault;
-    
-//     if(curTick >= 357800 && name() == "simpleCPU0"){
-//         cout << curTick << " " << name() << ": tick event for simpleCPU, status is " << status() << "\n";
-//     }
 
 #if FULL_SYSTEM
     if (checkInterrupts && check_interrupts() && !xc->inPalMode() &&
@@ -752,9 +736,6 @@ SimpleCPU::tick()
             memReq->expectCompletionEvent = false;
 
 	    memReq->time = curTick;
-//             if(memReq->paddr == 4832456296ull && name() == "simpleCPU0"){
-//                 cout << curTick << " " << name() << ": icache access called\n";
-//             }
             
 	    MemAccessResult result = icacheInterface->access(memReq);
 
@@ -762,10 +743,6 @@ SimpleCPU::tick()
 	    // a miss.  We really should add first-class support for this
 	    // at some point.
 	    if (result != MA_HIT && icacheInterface->doEvents()) {
-                
-//                 if(memReq->paddr == 4832456296ull && name() == "simpleCPU0"){
-//                     cout << curTick << " " << name() << ": stalling on miss...\n";
-//                 }
                 
 		memReq->completionEvent = &cacheCompletionEvent;
                 memReq->expectCompletionEvent = true;
@@ -801,17 +778,6 @@ SimpleCPU::tick()
 
 	xc->func_exe_inst++;
         
-//         if(name() == "simpleCPU0"){
-//             ofstream file("insttrace.txt", ofstream::app);
-//             file << curTick << " " << name() << ": " << curStaticInst->disassemble(xc->regs.pc) << "\n";
-//             file.flush();
-//             file.close();
-//         }
-        
-//         if(name() == "simpleCPU0" && curTick == 357834){
-//             cout << curTick << ": R1 val is " << xc->regs.intRegFile[1] << "\n";
-//             cout << curTick << ": execing wierd branch, " << curStaticInst->disassemble(xc->regs.pc) << "\n";
-//         }
 	fault = curStaticInst->execute(this, traceData);
 
 #if FULL_SYSTEM

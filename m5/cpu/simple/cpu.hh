@@ -116,6 +116,7 @@ class SimpleCPU : public BaseCPU
 
   private:
     Status _status;
+    std::string switchFileName;
 
   public:
     void post_interrupt(int int_num, int index);
