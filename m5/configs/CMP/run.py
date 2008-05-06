@@ -225,6 +225,7 @@ else:
 ###############################################################################
 
 uniformPartStart = -1
+cacheProfileStart = -1
 if env['BENCHMARK'] in Splash2.benchmarkNames:
     # Scientific workloads
     root.sampler = Sampler()
@@ -262,6 +263,7 @@ elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog") or en
                             int(env['SIMULATETICKS'])] 
     root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
     uniformPartStart = int(env['FASTFORWARDTICKS'])
+    cacheProfileStart = int(env['FASTFORWARDTICKS'])
     root.setCPU(root.simpleCPU)
 else:
     # Multi-programmed workload
@@ -295,6 +297,7 @@ else:
     
     root.adaptiveMHA.startTick = simulateStart + warmup
     uniformPartStart = simulateStart #use warm-up to converge on static cache alloc
+    cacheProfileStart = simulateStart
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
@@ -351,6 +354,10 @@ if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
         bank.use_static_partitioning = True
         bank.static_part_start_tick = uniformPartStart
+
+if cacheProfileStart != -1:
+    for bank in root.l2:
+        bank.detailed_sim_start_tick = cacheProfileStart
 
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()

@@ -92,8 +92,6 @@ MSHRQueue::findMatch(Addr addr, int asid) const
 MSHR*
 MSHRQueue::findMatch(Addr addr, MemCmd cmd) const
 {
-//     cout << "findMatch (2) called\n";
-    
     assert(cmd == Read || cmd == Write);
     MSHR::ConstIterator i = allocatedList.begin();
     MSHR::ConstIterator end = allocatedList.end();
@@ -111,8 +109,6 @@ MSHRQueue::findMatch(Addr addr, MemCmd cmd) const
 bool
 MSHRQueue::findMatches(Addr addr, int asid, vector<MSHR*>& matches) const
 {
-//     cout << "find matches called\n";
-    
     // Need an empty vector
     assert(matches.empty());
     bool retval = false;
@@ -133,8 +129,6 @@ MSHRQueue::findMatches(Addr addr, int asid, vector<MSHR*>& matches) const
 MSHR*
 MSHRQueue::findPending(MemReqPtr &req) const
 {
-    
-//     cout << "find pending called\n";
     
     MSHR::ConstIterator i = pendingList.begin();
     MSHR::ConstIterator end = pendingList.end();
@@ -172,8 +166,6 @@ MSHR*
 MSHRQueue::allocate(MemReqPtr &req, int size)
 {
     
-//     cout << "allocate called\n";
-    
     Addr aligned_addr = req->paddr & ~((Addr)size - 1);
     MSHR *mshr = freeList.front();
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
@@ -198,8 +190,6 @@ MSHR*
 MSHRQueue::allocateFetch(Addr addr, int asid, int size, MemReqPtr &target)
 {
     
-//     cout << "allocateFetch called\n";
-    
     MSHR *mshr = freeList.front();
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     assert(mshr->getNumTargets() == 0);
@@ -215,8 +205,7 @@ MSHRQueue::allocateFetch(Addr addr, int asid, int size, MemReqPtr &target)
 MSHR*
 MSHRQueue::allocateTargetList(Addr addr, int asid, int size)
 {
-//     cout << "allocateTargetList called\n";
-    
+
     MSHR *mshr = freeList.front();
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     assert(mshr->getNumTargets() == 0);
@@ -234,7 +223,6 @@ MSHRQueue::allocateTargetList(Addr addr, int asid, int size)
 void
 MSHRQueue::deallocate(MSHR* mshr)
 {
-//     cout << "deallocate called\n";
     deallocateOne(mshr);
 }
 
@@ -243,7 +231,6 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 {
 
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
-    //     cout << "deallocate one called\n";
     //HACK by Magnus
     mshr->directoryOriginalCmd = InvalidCmd;
     
@@ -265,7 +252,6 @@ MSHRQueue::moveToFront(MSHR *mshr)
 {
     
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
-//     cout << "move to front called\n";
     if (!mshr->inService) {
 	assert(mshr == *(mshr->readyIter));
 	pendingList.erase(mshr->readyIter);
@@ -277,11 +263,8 @@ void
 MSHRQueue::markInService(MSHR* mshr)
 {
     
-//     cout << "mark in service called\n";
-    
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     
-    //assert(mshr == pendingList.front());
     if (mshr->req->cmd.isNoResponse()) {
 	assert(mshr->getNumTargets() == 0);
 	deallocate(mshr);
@@ -300,7 +283,6 @@ MSHRQueue::markPending(MSHR* mshr, MemCmd cmd)
 {
     
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
-//     cout << "mark pending called\n";
     
     assert(mshr->readyIter == NULL);
     mshr->req->cmd = cmd;

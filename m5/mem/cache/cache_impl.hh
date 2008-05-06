@@ -89,7 +89,12 @@ Cache(const std::string &_name, HierParams *hier_params,
         file.close();
         
         profileEvent = new CacheProfileEvent(this);
-        profileEvent->schedule(CACHE_PROFILE_INTERVAL);
+        if(params.detailedSimStartTick > 0){
+            profileEvent->schedule(params.detailedSimStartTick);
+        }
+        else{
+            profileEvent->schedule(CACHE_PROFILE_INTERVAL);
+        }
     }
     
     useAdaptiveMHA = false;

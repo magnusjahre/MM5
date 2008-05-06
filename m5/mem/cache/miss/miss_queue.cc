@@ -610,34 +610,15 @@ MissQueue::markInService(MemReqPtr &req)
 	}
     }
     if (unblock) {
-//         if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//             cout << curTick << ": Unblocking in markInService\n";
-//         }
-        
-        
-//         if(unblock && cache->name() == "L1dcaches2" && curTick >= 1086000){
-//             cout << curTick << "Actually unblocking!\n";
-//         }
-//         
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": ClearBlocked called from markInService\n";
-//         }
 	cache->clearBlocked(cause);
     }
-    
-//     cout << curTick << " " << cache->name() << ": Mark in service is called:\n";
-//     mq.printShortStatus();
 }
 
 
 void
 MissQueue::handleResponse(MemReqPtr &req, Tick time)
 {
-    
-//     if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//         std::cout << curTick << ": handleResponse is called, miss queue is " << (mq.isFull() ? "full" : "not full") << "\n";
-//     }
-    
+
     MSHR* mshr = req->mshr;
     if (req->mshr->originalCmd == Hard_Prefetch) {
 	DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n", 
@@ -652,17 +633,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
     bool unblock_target = false;
     BlockedCause cause = NUM_BLOCKED_CAUSES;
     
-    
-//     if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//         cout << curTick << ": Miss queue handleResponse is called\n";
-//     }
-    
     if (req->isCacheFill() && !req->isNoAllocate()) {
-        
-        
-//         if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//             cout << curTick << ": Request is cache fill\n";
-//         }
         
         mshr_miss_latency[mshr->originalCmd][req->thread_num] +=
 	    curTick - req->time;
@@ -672,9 +643,6 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 	    unblock_target = true;
 	    cause = Blocked_NoTargets;
 	    noTargetMSHR = NULL;
-//             if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//                 cout << curTick << ": Is noTargetMSHR\n";
-//             }
 	}
 	
 	if (mshr->hasTargets()) {
@@ -700,11 +668,6 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 	    mq.deallocate(mshr);
 	    if (unblock) {
                 unblock = !mq.isFull();
-                
-//                 if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//                     cout << curTick << ": Cache is full and we are " << (unblock ? "unblocking" : "not unblocking") << "\n";
-//                 }
-                
                 cause = Blocked_NoMSHRs;
 	    }
 	}
@@ -764,30 +727,15 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
     
     if(unblock_target){
         // if both are set, we have recently changed the number of MSHRs 
-//         if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//             cout << curTick << ": Unblocking due to targets\n";
-//         }
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": ClearBlocked called from handleResponse (1)\n";
-//         }
         cache->clearBlocked(Blocked_NoTargets);
         
         if(unblock && cache->isBlockedNoMSHRs()){
             // we are blocked for both targets and MSHRs at the same time (due to AMHA)
-//             if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//                 cout << curTick << ": ClearBlocked called from handleResponse, unblocking for MSHRs as well!!!\n";
-//             }
             cache->clearBlocked(Blocked_NoMSHRs);
         }
         
     }
     else if(unblock){
-//         if(cache->name() == "L1dcaches0" && curTick > 1390000){
-//             cout << curTick << ": Unblocking on cause " << cause  << " from handle resp, cache is " << (cache->isBlocked() ? "" : "not") << " blocked\n";
-//         }
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": ClearBlocked called from handleResponse (2)\n";
-//         }
         cache->clearBlocked(cause);
     }
 }
@@ -816,23 +764,9 @@ MissQueue::squash(int thread_number)
     
     if(unblock && unblock_target){
         assert(cache->useAdaptiveMHA);
-//         if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//             cout << curTick << ": Unblocking in squash (new code)\n";
-//         }
-        
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": ClearBlocked called from squash (1)\n";
-//         }
         cache->clearBlocked(Blocked_NoTargets);
     }
     else if (unblock && !mq.isFull()) {
-//         if(cache->name() == "L1dcaches0" && curTick > 1049000000){
-//             cout << curTick << ": Unblocking in squash (old code)\n";
-//         }
-        
-//         if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//             cout << curTick << ": ClearBlocked called from squash (2)\n";
-//         }
 	cache->clearBlocked(cause);
     }
 
@@ -857,19 +791,11 @@ MissQueue::doWriteback(Addr addr, int asid, ExecContext *xc,
 {
     if(cache->useDirectory) fatal("Cache tags doWriteback() version not implemented with directory");
     
-//     if(curTick >= 1086000){
-//         cout << curTick << " " << cache->name() << "Calling doWriteback() (1)\n";
-//     }
-    
     // Generate request
     MemReqPtr req = buildWritebackReq(addr, asid, xc, size, data,
 				      compressed);
 
     writebacks[req->thread_num]++;
-
-//     if(cache->name() == "L2Bank2" && curTick >= 1086000){
-//         cout << "calling allocateWrite from doWriteback (1)\n";
-//     }
     
     allocateWrite(req, 0, curTick);
 }
@@ -879,16 +805,9 @@ void
 MissQueue::doWriteback(MemReqPtr &req)
 {
     
-//     if(curTick >= 1086000){
-//         cout << curTick << " " << cache->name() << "Calling doWriteback() (2)\n";
-//     }
-    
     writebacks[req->thread_num]++;
     assert(req->xc || !cache->doData());
     
-//     if(cache->name() == "L2Bank2" && curTick >= 1086000){
-//         cout << "calling allocateWrite from doWriteback (2)\n";
-//     }
     allocateWrite(req, 0, curTick);
 }
 
@@ -899,10 +818,6 @@ MissQueue::allocateTargetList(Addr addr, int asid)
    MSHR* mshr = mq.allocateTargetList(addr, asid, blkSize);
    mshr->req->flags |= CACHE_LINE_FILL;
    if (mq.isFull()) {
-//        if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//            cout << curTick << ": SetBlocked called from allocateTargetList\n";
-//        }
-//        
        cache->setBlocked(Blocked_NoMSHRs);
    }
    return mshr;
