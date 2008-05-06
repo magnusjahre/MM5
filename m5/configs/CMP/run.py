@@ -116,7 +116,9 @@ if "CACHE-PARTITIONING" in env:
         panic("Only Conventional and StaticUniform cache partitioning are available")
 
 if "MEMORY-BUS-SCHEDULER" in env:
-    if env["MEMORY-BUS-SCHEDULER"] == "FCFS" or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+    if env["MEMORY-BUS-SCHEDULER"] == "FCFS" \
+    or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" \
+    or env["MEMORY-BUS-SCHEDULER"] == "TimeMultiplexed":
         pass
     else:
         panic("Only FCFS and RD-FCFS memory bus schedulers are supported")
@@ -367,6 +369,8 @@ if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()
 elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
     root.toMemBus.memory_controller = InOrderMemoryController()
+elif env["MEMORY-BUS-SCHEDULER"] == "TimeMultiplexed":
+    root.toMemBus.memory_controller = TimeMultMemoryController()
 else:
     # default is RDFCFS
     root.toMemBus.memory_controller = ReadyFirstMemoryController()

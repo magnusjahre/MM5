@@ -124,7 +124,10 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
     
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 16
-
+    
+class TimeMultMemoryController(TimeMultiplexedMemoryController):
+    queue_size = 16
+    
 class SDRAM(BaseMemory):
     num_banks = 8
     RAS_latency = 4
