@@ -125,8 +125,10 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 16
     
-class TimeMultMemoryController(TimeMultiplexedMemoryController):
-    queue_size = 16
+class ThisNFQMemoryController(NFQMemoryController):
+    rd_queue_size = 16
+    wr_queue_size = 16
+    starvation_prevention_thres = 1
     
 class SDRAM(BaseMemory):
     num_banks = 8

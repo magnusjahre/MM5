@@ -9,25 +9,28 @@
 /**
  * A Memory controller.
  */
-class TimeMultiplexedMemoryController : public TimingMemoryController
+class NFQMemoryController : public TimingMemoryController
 {
     
     private:
-        int queueLength;
-        MemReqPtr pageCmd;
-        bool prevActivate;
+        int readQueueLength;
+        int writeQueueLenght;
+        int starvationPreventionThreshold;
         
-        Addr activePage;
-        bool pageActivated;
+        MemReqPtr pageCmd;
+
     
     public:
         std::list<MemReqPtr> memoryRequestQueue; 
         
         /** Constructs a Memory Controller object. */
-        TimeMultiplexedMemoryController(std::string _name, int _queueLength);
+        NFQMemoryController(std::string _name,
+                            int _rdQueueLength,
+                            int _wrQueueLength,
+                            int _spt);
     
         /** Frees locally allocated memory. */
-        ~TimeMultiplexedMemoryController();
+        ~NFQMemoryController();
     
         int insertRequest(MemReqPtr &req);
     
