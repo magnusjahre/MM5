@@ -69,6 +69,12 @@ class NFQMemoryController : public TimingMemoryController
         bool hasMoreRequests();
     
         MemReqPtr& getRequest();
-
+    
+        virtual void setOpenPages(std::list<Addr> pages){
+            while(!pages.empty()){
+                activePages.push_back(pages.front());
+                pages.pop_front();
+            }
+        }
 };
 

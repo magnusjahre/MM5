@@ -72,6 +72,8 @@ Bus::Bus(const string &_name,
          AdaptiveMHA* _adaptiveMHA,
          int _cpu_count,
          int _bank_count,
+         Tick _switch_at,
+         TimingMemoryController* _fwController,
          TimingMemoryController* _memoryController)
     : BaseHier(_name, hier_params)
 {
@@ -79,6 +81,9 @@ Bus::Bus(const string &_name,
     clockRate = _clock;
     cpu_count = _cpu_count;
     bank_count = _bank_count;
+    
+    fwMemoryController = _fwController;
+    simMemoryController = _memoryController;
     
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
@@ -113,10 +118,16 @@ Bus::Bus(const string &_name,
     perCPURequests.resize(cpu_count, 0);
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
     
+    if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
     if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
+    _fwController->registerBus(this);
     _memoryController->registerBus(this);
-    memoryController = _memoryController;
+    
+    memoryController = fwMemoryController;
     memoryControllerEvent = new MemoryControllerEvent(this);
+    
+    MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
+    ctrlSwitch->schedule(_switch_at);
     
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -316,6 +327,8 @@ Bus::handleMemoryController()
     if (memoryController->hasMoreRequests()) {
         MemReqPtr &request = memoryController->getRequest();
         
+        DPRINTF(Bus, "sending req %s addr %x \n", request->cmd.toString(), request->paddr);
+        
 #ifdef INJECT_TEST_REQUESTS
         if(!request->isDDRTestReq && (request->cmd == Read || request->cmd == Writeback)){
             fatal("Testing is finished, stopping execution");
@@ -407,7 +420,8 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
         transmitInterfaces.insert(transmitInterfaces.begin(),bi);
     } else {
         slaveInterfaces.push_back(bi);
-        memoryController->registerInterface(bi);
+        fwMemoryController->registerInterface(bi);
+        simMemoryController->registerInterface(bi);
         transmitInterfaces.push_back(bi);
     }
     
@@ -478,6 +492,24 @@ Bus::getAverageQueuePerCPU(){
         else retval[i] = (double) ((double) perCPUQueueCycles[i] / (double) perCPURequests[i]);
     }
     return retval;
+}
+
+void
+Bus::switchMemoryController(){
+    
+    DPRINTF(Bus, "Switching from fast forward controller to simulation controller\n");
+    
+    memoryController = simMemoryController;
+    
+    simMemoryController->setOpenPages(fwMemoryController->getOpenPages());
+    
+    list<MemReqPtr> pendingReqs = fwMemoryController->getPendingRequests();
+    while(!pendingReqs.empty()){
+        MemReqPtr tmp = pendingReqs.front();
+        pendingReqs.pop_front();
+        assert(tmp->cmd == Read || tmp->cmd == Writeback);
+        simMemoryController->insertRequest(tmp);
+    }
 }
 
 #ifdef INJECT_TEST_REQUESTS
@@ -755,8 +787,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<int> cpu_count;
     Param<int> bank_count;
+    Param<Tick> switch_at;
+    SimObjectParam<TimingMemoryController *> fast_forward_controller;
     SimObjectParam<TimingMemoryController *> memory_controller;
-    
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -771,8 +804,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object",NULL),
     INIT_PARAM(cpu_count, "Number of CPUs"),
     INIT_PARAM(bank_count, "Number of L2 cache banks"),
+    INIT_PARAM_DFLT(switch_at, "Tick where memorycontroller is switched", 0),
+    INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL)
-                    
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -786,6 +820,8 @@ CREATE_SIM_OBJECT(Bus)
                    adaptive_mha,
                    cpu_count,
                    bank_count,
+                   switch_at,
+                   fast_forward_controller,
                    memory_controller);
 }
 

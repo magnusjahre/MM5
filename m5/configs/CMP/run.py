@@ -301,6 +301,7 @@ else:
     root.adaptiveMHA.startTick = simulateStart + warmup
     uniformPartStart = simulateStart #use warm-up to converge on static cache alloc
     cacheProfileStart = simulateStart
+    Bus.switch_at = simulateStart
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
@@ -365,6 +366,7 @@ if cacheProfileStart != -1:
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()
 root.toMemBus.adaptive_mha = root.adaptiveMHA
+root.toMemBus.fast_forward_controller = FastForwardMemoryController()
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()

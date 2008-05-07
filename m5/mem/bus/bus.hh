@@ -74,6 +74,10 @@ using namespace std;
  */
 class Bus : public BaseHier
 {
+  private:
+    TimingMemoryController *fwMemoryController;
+    TimingMemoryController *simMemoryController;
+    
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -134,6 +138,8 @@ class Bus : public BaseHier
         AdaptiveMHA* _adaptiveMHA,
         int cpu_count,
         int bank_count,
+        Tick _switch_at,
+        TimingMemoryController* _fwController,
         TimingMemoryController* _memoryController);
 
     /** Frees locally allocated memory. */
@@ -246,6 +252,8 @@ class Bus : public BaseHier
     void handleMemoryController(void);
 
     void latencyCalculated(MemReqPtr &req, Tick time);
+    
+    void switchMemoryController();
     
     // Adaptive MHA methods
     double getAverageQueue(Tick sampleSize);
@@ -512,6 +520,36 @@ class MemoryControllerEvent : public Event
      * @return The description of this event.
      */
     virtual const char *description();
+};
+
+/**
+ * Memory controller switch
+ */
+class MemoryControllerSwitchEvent : public Event
+{
+    Bus *bus;
+    public:
+    // constructor
+    /** A simple constructor. */
+    MemoryControllerSwitchEvent(Bus *_bus)
+        : Event(&mainEventQueue), bus(_bus)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process(){
+        bus->switchMemoryController();
+        delete this;
+    }
+    
+    /**
+    * Returns the string description of this event.
+    * @return The description of this event.
+     */
+    virtual const char *description(){
+        return "Memory Controller Switch Event";
+    }
 };
 
 #endif // __BUS_HH__

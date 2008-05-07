@@ -93,7 +93,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
         requests[nfqNumCPUs].push_back(req);
     }
     
-    if((queuedReads > readQueueLength || queuedWrites > writeQueueLenght) && !isBlocked() ){
+    if((queuedReads >= readQueueLength || queuedWrites >= writeQueueLenght) && !isBlocked() ){
         DPRINTF(NFQController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setBlocked();
     }
@@ -223,7 +223,7 @@ NFQMemoryController::findColumnRequest(MemReqPtr& req,
 
 bool 
 NFQMemoryController::pageActivated(MemReqPtr& req){
-    assert(activePages.size() < MAX_ACTIVE_PAGES);
+    assert(activePages.size() <= MAX_ACTIVE_PAGES);
     
     for(int i=0;i<activePages.size();i++){
         if(activePages[i] == getPage(req)){
@@ -252,6 +252,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
     
     assert(minrow >= 0 && mincol >= 0);
     MemReqPtr oldestReq = requests[minrow][mincol];
+    
     if(pageActivated(oldestReq)){
         // issuing oldest column command because starvation prevention threshold has been reached
         assert(starvationCounter >= starvationPreventionThreshold);
@@ -265,7 +266,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         bool canClose = true;
         for(int j=0;j<requests.size();j++){
             for(int k=0;k<requests[j].size();k++){
-                if(activePages[i] == getPageAddr(requests[j][k])){
+                if(activePages[i] == getPage(requests[j][k])){
                     canClose = false;
                 }
             }
@@ -275,20 +276,39 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             activePages.erase(activePages.begin()+i);
             
             DPRINTF(NFQController, 
-                    "Closing page addr %x because it has no pending requests\n",
+                    "Closing page %x request addr %x because it has no pending requests\n",
+                    getPage(req),
                     req->paddr);
             
             return true;
         }
     }
     
-    if(activePages.size() >= MAX_ACTIVE_PAGES){
+    if(!bankIsClosed(oldestReq)){
+        //bank conflict, close bank
+        int hitIndex = -1;
+        for(int i=0;i<activePages.size();i++){
+            if(getMemoryBankID(getPageAddr(activePages[i])) == getMemoryBankID(oldestReq->paddr)){
+                hitIndex = i;
+            }
+        }
+        assert(hitIndex >= 0);
+        req = createCloseReq(activePages[hitIndex]);
+        activePages.erase(activePages.begin()+hitIndex);
+        DPRINTF(NFQController, 
+                "Closing page %x, request addr %x due to page conflict with addr %x\n",
+                getPage(req),
+                req->paddr,
+                oldestReq->paddr);
+    }
+    else if(activePages.size() >= MAX_ACTIVE_PAGES){
         // a page must be closed before we can issue the request
         // close the page that has been active for the longest time
         req = createCloseReq(activePages[0]);
         activePages.erase(activePages.begin());
         DPRINTF(NFQController, 
-                "Closing page addr %x to issue oldest request\n",
+                "Closing page %x, request addr %x to issue oldest request\n",
+                getPage(req),
                 req->paddr);
         
     }
@@ -296,8 +316,9 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         req = createActivateReq(oldestReq);
         activePages.push_back(getPage(oldestReq));
         DPRINTF(NFQController, 
-                "Activating page addr %x, %d pages are currently active\n",
+                "Activating page, req addr %x, page addr %x, %d pages are currently active\n",
                 req->paddr,
+                getPage(req),
                 activePages.size());
     }
     
@@ -326,7 +347,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
     assert(req->cmd == Read || req->cmd == Writeback);
     req->cmd == Writeback ? queuedWrites-- : queuedReads--;
         
-    if((queuedReads <= readQueueLength || queuedWrites <= writeQueueLenght) && isBlocked() ){
+    if(queuedReads < readQueueLength && queuedWrites < writeQueueLenght && isBlocked() ){
         DPRINTF(NFQController, "Unblocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setUnBlocked();
     }

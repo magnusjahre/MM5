@@ -108,11 +108,9 @@ template <class Compression>
 Tick
 SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 {
-
-
-    // Sanity checks! :D
+    // Sanity checks
     assert (req->cmd == Read || req->cmd == Writeback || req->cmd == Close || req->cmd == Activate);
-
+    
     int bank = getMemoryBankID(req->paddr);
     Addr page = (req->paddr >> pagesize);
     DDR2State oldState = Bankstate[bank];
@@ -121,9 +119,14 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         active_bank_count--;
         Tick closelatency = 0;
         assert (Bankstate[bank] != DDR2Idle);
-        assert (Bankstate[bank] != DDR2Active);
         
         Tick prechCmdTick = 0;
+        if(Bankstate[bank] == DDR2Active){
+            // can happen on controller switch, but should be avoided
+            warn("Transition directly from Active to Idle (bad memory scheduling), memory read assumed");
+            // Assume that request is a read as this gives the lowest delay
+            prechCmdTick = activateTime[bank] + CAS_latency + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+        }
         if (Bankstate[bank] == DDR2Read) {
             prechCmdTick = readyTime[bank] + (internal_read_to_precharge - 2*bus_to_cpu_factor);
         } 
@@ -138,6 +141,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         closelatency += precharge_latency;
         closeTime[bank] = closelatency + prechCmdTick;
         Bankstate[bank] = DDR2Idle;
+        
         return 0;
     }
 

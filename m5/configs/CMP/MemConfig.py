@@ -122,6 +122,11 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
     writequeue_size = 16
     reserved_slots = 2
     
+class FastForwardMemoryController(RDFCFSMemoryController):
+    readqueue_size = 16
+    writequeue_size = 16
+    reserved_slots = 2
+    
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 16
     

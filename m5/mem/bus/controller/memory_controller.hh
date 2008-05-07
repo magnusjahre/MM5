@@ -64,6 +64,18 @@ class TimingMemoryController : public SimObject
     virtual bool hasMoreRequests() = 0;
 
     virtual MemReqPtr& getRequest() = 0;
+    
+    virtual std::list<Addr> getOpenPages(){
+        fatal("getOpenPages() is not implemented");
+    }
+    
+    virtual std::list<MemReqPtr>  getPendingRequests(){
+        fatal("getPendingRequests() is not implemented");
+    }
+    
+    virtual void setOpenPages(std::list<Addr> pages){
+        fatal("setOpenPages() is not implemented");
+    }
 
     void setBlocked();
 
@@ -82,7 +94,7 @@ class TimingMemoryController : public SimObject
     }
 
     // Get the corresponding page to a memory request
-    Addr getPage(MemReqPtr &req); 
+    Addr getPage(MemReqPtr &req);
     Addr getPageAddr(Addr addr);
 
     // Check if the request is contacting an active page
@@ -102,6 +114,10 @@ class TimingMemoryController : public SimObject
 
     void registerInterface(BaseInterface *interface) {
       mem_interface = interface;
+    }
+    
+    int getMemoryBankID(Addr addr){
+        return mem_interface->getMemoryBankID(addr);
     }
 };
 

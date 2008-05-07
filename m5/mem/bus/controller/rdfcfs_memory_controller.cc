@@ -214,6 +214,14 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     return close;
 }
 
+list<MemReqPtr>
+RDFCFSTimingMemoryController::getPendingRequests(){
+    list<MemReqPtr> retval;
+    retval.splice(retval.end(), readQueue);
+    retval.splice(retval.end(), writeQueue);
+    return retval;
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
