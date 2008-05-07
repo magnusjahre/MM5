@@ -118,10 +118,11 @@ if "CACHE-PARTITIONING" in env:
 if "MEMORY-BUS-SCHEDULER" in env:
     if env["MEMORY-BUS-SCHEDULER"] == "FCFS" \
     or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" \
-    or env["MEMORY-BUS-SCHEDULER"] == "NFQ":
+    or env["MEMORY-BUS-SCHEDULER"] == "FNFQ" \
+    or env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
         pass
     else:
-        panic("Only FCFS, RD-FCFS and NFQ memory bus schedulers are supported")
+        panic("Only FCFS, RD-FCFS, TNFQ and FNFQ memory bus schedulers are supported")
 
 ###############################################################################
 # Root, CPUs and L1 caches
@@ -369,8 +370,10 @@ if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()
 elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
     root.toMemBus.memory_controller = InOrderMemoryController()
-elif env["MEMORY-BUS-SCHEDULER"] == "NFQ":
-    root.toMemBus.memory_controller = ThisNFQMemoryController()
+elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
+    root.toMemBus.memory_controller = FairNFQMemoryController()
+elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
+    root.toMemBus.memory_controller = ThroughputNFQMemoryController()
 else:
     # default is RDFCFS
     root.toMemBus.memory_controller = ReadyFirstMemoryController()

@@ -125,10 +125,18 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 16
     
-class ThisNFQMemoryController(NFQMemoryController):
+class FairNFQMemoryController(NFQMemoryController):
     rd_queue_size = 16
     wr_queue_size = 16
-    starvation_prevention_thres = 1
+    starvation_prevention_thres = 0
+    num_cpus = int(env["NP"])
+    processor_priority = 1
+    writeback_priority = 4
+    
+class ThroughputNFQMemoryController(NFQMemoryController):
+    rd_queue_size = 16
+    wr_queue_size = 16
+    starvation_prevention_thres = 3
     num_cpus = int(env["NP"])
     processor_priority = 1
     writeback_priority = 4

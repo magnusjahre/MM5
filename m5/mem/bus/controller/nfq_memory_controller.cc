@@ -6,6 +6,9 @@
 
 #include "mem/bus/controller/nfq_memory_controller.hh"
 
+#define LARGE_TICK 10000000000
+#define MAX_ACTIVE_PAGES 4
+
 using namespace std;
 
 NFQMemoryController::NFQMemoryController(std::string _name, 
@@ -41,6 +44,9 @@ NFQMemoryController::NFQMemoryController(std::string _name,
     pageCmd->cmd = Activate;
     pageCmd->paddr = 0;
     
+    queuedReads = 0;
+    queuedWrites = 0;
+    starvationCounter = 0;
 }
 
 NFQMemoryController::~NFQMemoryController(){
@@ -88,6 +94,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
     
     if((queuedReads > readQueueLength || queuedWrites > writeQueueLenght) && !isBlocked() ){
+        DPRINTF(NFQController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setBlocked();
     }
     
@@ -96,7 +103,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
 
 Tick
 NFQMemoryController::getMinStartTag(){
-    Tick min = 10000000000;
+    Tick min = LARGE_TICK;
     bool allEmpty = true;
     for(int i=0;i<requests.size();i++){
         for(int j=0;j<requests[i].size();j++){
@@ -116,15 +123,18 @@ NFQMemoryController::hasMoreRequests() {
     bool allEmpty = true;
     
     for(int i=0;i<requests.size();i++){
-        if(!requests.empty()) allEmpty = false;
+        if(!requests[i].empty()) allEmpty = false;
     }
     
-    if(!allEmpty) return true;
+    if(!allEmpty){
+        return true;
+    }
     
     for(int i=0;i<virtualFinishTimes.size();i++){
         virtualFinishTimes[i] = 0;
     }
-    DPRINTF(NFQController, "No more requests, setting all finish times to 0");
+    
+    DPRINTF(NFQController, "No more requests, setting all finish times to 0\n");
     return false;
 }
 
@@ -133,13 +143,201 @@ NFQMemoryController::getRequest() {
     
     MemReqPtr& retval = pageCmd; // dummy initialization
     
-    // 1. Prioritize ready pages
+    bool foundReady = false;
+    bool foundColumn = false;
     
-    // 2. Prioritize CAS commands
+    if(starvationCounter < starvationPreventionThreshold){
+        // 1. Prioritize ready pages
+        foundReady = findColumnRequest(retval, &NFQMemoryController::isActive);
+        
+        // 2. Prioritize CAS commands
+        if(!foundReady){
+            foundColumn = findColumnRequest(retval, &NFQMemoryController::pageActivated);
+        }
+    }
+    else{
+        DPRINTF(NFQController,
+                "Bypassing ready check, starvation counter above threshold (cnt=%d, thres=%d)\n",
+               starvationCounter,
+               starvationPreventionThreshold);
+    }
     
-    // 3. Prioritize commands based on start tags
+    bool foundRow = false;
+    if(!foundReady && !foundColumn){
+        // 3. Prioritize commands based on start tags
+        foundRow = findRowRequest(retval);
+        assert(foundRow);
+        if(retval->cmd == Read || retval->cmd == Writeback){
+            DPRINTF(NFQController, "Resetting starvation counter after bypass\n");
+            starvationCounter = 0;
+        }
+    }
+    else{
+        //a request may have passed an older request
+        Tick oldest = getMinStartTag();
+        if(oldest < retval->virtualStartTime){
+            starvationCounter++;
+            DPRINTF(NFQController, "Incrementing starvation counter, value is now %d\n", starvationCounter);
+        }
+        else{
+            assert(retval->virtualStartTime <= oldest);
+            starvationCounter = 0;
+            DPRINTF(NFQController, 
+                    "Resetting starvation counter (req at %d, lowest %d)\n",
+                    retval->virtualStartTime,
+                    oldest);
+        }
+    }
     
     return retval;
+}
+
+bool
+NFQMemoryController::findColumnRequest(MemReqPtr& req, 
+                                       bool (NFQMemoryController::*compare)(MemReqPtr&)){
+    
+    Tick minval = LARGE_TICK;
+    int minrow = -1;
+    int mincol = -1;
+    
+    for(int i=0;i<requests.size();i++){
+        for(int j=0;j<requests[i].size();j++){
+            if( (this->*compare)(requests[i][j]) ){
+                if(requests[i][j]->virtualStartTime < minval){
+                    minval = requests[i][j]->virtualStartTime;
+                    minrow = i;
+                    mincol = j;
+                }
+            }
+        }
+    }
+    
+    if(minrow != -1 && mincol != -1){
+        req = prepareColumnRequest(requests[minrow][mincol]);
+        requests[minrow].erase(requests[minrow].begin()+mincol);
+        return true;
+    }
+    
+    return false;
+}
+
+bool 
+NFQMemoryController::pageActivated(MemReqPtr& req){
+    assert(activePages.size() < MAX_ACTIVE_PAGES);
+    
+    for(int i=0;i<activePages.size();i++){
+        if(activePages[i] == getPage(req)){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+NFQMemoryController::findRowRequest(MemReqPtr& req){
+    
+    Tick minval = LARGE_TICK;
+    int minrow = -1;
+    int mincol = -1;
+    
+    for(int i=0;i<requests.size();i++){
+        for(int j=0;j<requests[i].size();j++){
+            if(requests[i][j]->virtualStartTime < minval){
+                minval = requests[i][j]->virtualStartTime;
+                minrow = i;
+                mincol = j;
+            }
+        }
+    }
+    
+    assert(minrow >= 0 && mincol >= 0);
+    MemReqPtr oldestReq = requests[minrow][mincol];
+    if(pageActivated(oldestReq)){
+        // issuing oldest column command because starvation prevention threshold has been reached
+        assert(starvationCounter >= starvationPreventionThreshold);
+        req = prepareColumnRequest(oldestReq);
+        requests[minrow].erase(requests[minrow].begin()+mincol);
+        return true;
+    }
+    
+    // check for pages that can be closed
+    for(int i=0;i<activePages.size();i++){
+        bool canClose = true;
+        for(int j=0;j<requests.size();j++){
+            for(int k=0;k<requests[j].size();k++){
+                if(activePages[i] == getPageAddr(requests[j][k])){
+                    canClose = false;
+                }
+            }
+        }
+        if(canClose){
+            req = createCloseReq(activePages[i]);
+            activePages.erase(activePages.begin()+i);
+            
+            DPRINTF(NFQController, 
+                    "Closing page addr %x because it has no pending requests\n",
+                    req->paddr);
+            
+            return true;
+        }
+    }
+    
+    if(activePages.size() >= MAX_ACTIVE_PAGES){
+        // a page must be closed before we can issue the request
+        // close the page that has been active for the longest time
+        req = createCloseReq(activePages[0]);
+        activePages.erase(activePages.begin());
+        DPRINTF(NFQController, 
+                "Closing page addr %x to issue oldest request\n",
+                req->paddr);
+        
+    }
+    else{
+        req = createActivateReq(oldestReq);
+        activePages.push_back(getPage(oldestReq));
+        DPRINTF(NFQController, 
+                "Activating page addr %x, %d pages are currently active\n",
+                req->paddr,
+                activePages.size());
+    }
+    
+    return true;
+}
+
+MemReqPtr&
+NFQMemoryController::createCloseReq(Addr pageAddr){
+    pageCmd->cmd = Close;
+    pageCmd->paddr = getPageAddr(pageAddr);
+    pageCmd->flags &= ~SATISFIED;
+    return pageCmd;
+}
+        
+MemReqPtr&
+NFQMemoryController::createActivateReq(MemReqPtr& req){
+    Addr pageAddr = getPage(req);
+    pageCmd->cmd = Activate;
+    pageCmd->paddr = getPageAddr(pageAddr);
+    pageCmd->flags &= ~SATISFIED;
+    return pageCmd;
+}
+
+MemReqPtr&
+NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
+    assert(req->cmd == Read || req->cmd == Writeback);
+    req->cmd == Writeback ? queuedWrites-- : queuedReads--;
+        
+    if((queuedReads <= readQueueLength || queuedWrites <= writeQueueLenght) && isBlocked() ){
+        DPRINTF(NFQController, "Unblocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
+        setUnBlocked();
+    }
+        
+    DPRINTF(NFQController, 
+            "Returning column request, start time %d, addr %x, cpu %d\n",
+            req->virtualStartTime,
+            req->paddr,
+            req->adaptiveMHASenderID);
+    
+    return req;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

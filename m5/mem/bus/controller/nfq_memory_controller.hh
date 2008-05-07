@@ -33,8 +33,23 @@ class NFQMemoryController : public TimingMemoryController
         int queuedReads;
         int queuedWrites;
         
+        int starvationCounter;
+        
+    private:
         Tick getMinStartTag();
     
+        bool findColumnRequest(MemReqPtr& req, bool (NFQMemoryController::*compare)(MemReqPtr&));
+        
+        bool findRowRequest(MemReqPtr& req);
+        
+        bool pageActivated(MemReqPtr& req);
+        
+        MemReqPtr& createCloseReq(Addr pageAddr);
+        
+        MemReqPtr& createActivateReq(MemReqPtr& req);
+        
+        MemReqPtr& prepareColumnRequest(MemReqPtr& req);
+        
     public:
         
         /** Constructs a Memory Controller object. */
