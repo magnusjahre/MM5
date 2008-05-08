@@ -63,5 +63,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     }
     
     virtual std::list<MemReqPtr>  getPendingRequests();
+    
+    virtual void setOpenPages(std::list<Addr> pages);
 
 };

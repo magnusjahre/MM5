@@ -46,40 +46,68 @@ MemReqPtr& FCFSTimingMemoryController::getRequest() {
     
     MemReqPtr& retval = pageCmd; // dummy initialization
     
-    if(pageActivated){
-        if(isActive(memoryRequestQueue.front())){
-            retval = memoryRequestQueue.front();
-            memoryRequestQueue.pop_front();
+    if(!takeOverActiveList.empty()){
+        
+        // taking over from other scheduler, close all active pages
+        pageCmd->cmd = Close;
+        pageCmd->paddr = getPageAddr(takeOverActiveList.front());
+        takeOverActiveList.pop_front();
+        pageCmd->flags &= ~SATISFIED;
+        retval = pageCmd;
+        pageActivated = false;
+        activePage = 0;
+        
+        DPRINTF(MemoryController, "Closing active page due to takeover, cmd %s, addr %x\n", pageCmd->cmd, pageCmd->paddr);
+    
+    }
+    else{
+        
+        // common case scheduling
+        
+        if(pageActivated){
+            if(isActive(memoryRequestQueue.front())){
+                retval = memoryRequestQueue.front();
+                memoryRequestQueue.pop_front();
+            }
+            else{
+                pageCmd->cmd = Close;
+                pageCmd->paddr = getPageAddr(activePage);
+                pageCmd->flags &= ~SATISFIED;
+                retval = pageCmd;
+                pageActivated = false;
+                activePage = 0;
+                
+            }
         }
         else{
-            pageCmd->cmd = Close;
+            // update internals
+            assert(activePage == 0);
+            activePage = getPage(memoryRequestQueue.front());
+            pageActivated = true;
+            prevActivate = true;
+            
+            // issue an activate
+            pageCmd->cmd = Activate;
             pageCmd->paddr = getPageAddr(activePage);
             pageCmd->flags &= ~SATISFIED;
             retval = pageCmd;
-            pageActivated = false;
-            activePage = 0;
-            
         }
-    }
-    else{
-        // update internals
-        assert(activePage == 0);
-        activePage = getPage(memoryRequestQueue.front());
-        pageActivated = true;
-        prevActivate = true;
-        
-        // issue an activate
-        pageCmd->cmd = Activate;
-        pageCmd->paddr = getPageAddr(activePage);
-        pageCmd->flags &= ~SATISFIED;
-        retval = pageCmd;
     }
     
     if(isBlocked() && memoryRequestQueue.size() < queueLength){
         setUnBlocked();
     }
     
+    DPRINTF(MemoryController, "Returning memory request, cmd %s, addr %x\n", retval->cmd, retval->paddr);
+    
     return retval;
+}
+
+void
+FCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
+    assert(takeOverActiveList.empty());
+    takeOverActiveList.splice(takeOverActiveList.begin(), pages);
+    DPRINTF(MemoryController, "Recieved take over list\n");
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

@@ -19,6 +19,8 @@ class FCFSTimingMemoryController : public TimingMemoryController
         
         Addr activePage;
         bool pageActivated;
+        
+        std::list<Addr> takeOverActiveList;
     
     public:
         std::list<MemReqPtr> memoryRequestQueue; 
@@ -34,6 +36,8 @@ class FCFSTimingMemoryController : public TimingMemoryController
         bool hasMoreRequests();
     
         MemReqPtr& getRequest();
+        
+        virtual void setOpenPages(std::list<Addr> pages);
 
 };
 

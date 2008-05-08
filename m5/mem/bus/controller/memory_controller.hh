@@ -73,9 +73,7 @@ class TimingMemoryController : public SimObject
         fatal("getPendingRequests() is not implemented");
     }
     
-    virtual void setOpenPages(std::list<Addr> pages){
-        fatal("setOpenPages() is not implemented");
-    }
+    virtual void setOpenPages(std::list<Addr> pages) = 0;
 
     void setBlocked();
 

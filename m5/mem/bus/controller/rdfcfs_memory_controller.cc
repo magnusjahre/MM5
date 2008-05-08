@@ -278,6 +278,15 @@ RDFCFSTimingMemoryController::getPendingRequests(){
     return retval;
 }
 
+void
+RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
+    assert(activePages.empty());
+    activePages.splice(activePages.begin(), pages);
+    num_active_pages = activePages.size();
+    assert(num_active_pages < max_active_pages);
+    DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
