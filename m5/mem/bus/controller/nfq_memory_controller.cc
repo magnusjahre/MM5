@@ -6,7 +6,7 @@
 
 #include "mem/bus/controller/nfq_memory_controller.hh"
 
-#define LARGE_TICK 10000000000
+#define LARGE_TICK 10000000000ull
 #define MAX_ACTIVE_PAGES 4
 
 using namespace std;
