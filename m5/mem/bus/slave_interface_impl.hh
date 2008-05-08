@@ -66,10 +66,7 @@ SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 {
     int retval;
     bool already_satisfied = req->isSatisfied();
-    if (already_satisfied) {
-	// a backside bus interface supplying the data
-	return BA_NO_RESULT;
-    }
+    assert(!already_satisfied);
 
     if (this->inRange(req->paddr)) {
         if (this->isBlocked()) {

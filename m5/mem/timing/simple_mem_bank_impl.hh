@@ -115,6 +115,12 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     Addr page = (req->paddr >> pagesize);
     DDR2State oldState = Bankstate[bank];
     
+    DPRINTF(DRAM, "Calculating latency for req %x, cmd %s, page %x, bank %d\n",
+            req->paddr,
+            req->cmd,
+            page,
+            bank);
+    
     if (req->cmd == Close) {
         active_bank_count--;
         Tick closelatency = 0;
@@ -274,7 +280,7 @@ SimpleMemBank<Compression>::access(MemReqPtr &req)
 {
     Tick response_time;
 
-	response_time = calculateLatency(req) + curTick;
+    response_time = calculateLatency(req) + curTick;
 
     req->flags |= SATISFIED;
     si->respond(req, response_time);

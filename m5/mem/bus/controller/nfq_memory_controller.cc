@@ -77,7 +77,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
         virtualFinishTimes[nfqNumCPUs] += writebackInc;
     }
     
-    DPRINTF(NFQController, 
+    DPRINTF(MemoryController, 
             "Inserting request from cpu %d, addr %x, start time is %d, minimum time is %d\n",
             req->adaptiveMHASenderID, 
             req->paddr, 
@@ -94,7 +94,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
     
     if((queuedReads >= readQueueLength || queuedWrites >= writeQueueLenght) && !isBlocked() ){
-        DPRINTF(NFQController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
+        DPRINTF(MemoryController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setBlocked();
     }
     
@@ -134,7 +134,7 @@ NFQMemoryController::hasMoreRequests() {
         virtualFinishTimes[i] = 0;
     }
     
-    DPRINTF(NFQController, "No more requests, setting all finish times to 0\n");
+    DPRINTF(MemoryController, "No more requests, setting all finish times to 0\n");
     return false;
 }
 
@@ -156,7 +156,7 @@ NFQMemoryController::getRequest() {
         }
     }
     else{
-        DPRINTF(NFQController,
+        DPRINTF(MemoryController,
                 "Bypassing ready check, starvation counter above threshold (cnt=%d, thres=%d)\n",
                starvationCounter,
                starvationPreventionThreshold);
@@ -168,7 +168,7 @@ NFQMemoryController::getRequest() {
         foundRow = findRowRequest(retval);
         assert(foundRow);
         if(retval->cmd == Read || retval->cmd == Writeback){
-            DPRINTF(NFQController, "Resetting starvation counter after bypass\n");
+            DPRINTF(MemoryController, "Resetting starvation counter after bypass\n");
             starvationCounter = 0;
         }
     }
@@ -177,12 +177,12 @@ NFQMemoryController::getRequest() {
         Tick oldest = getMinStartTag();
         if(oldest < retval->virtualStartTime){
             starvationCounter++;
-            DPRINTF(NFQController, "Incrementing starvation counter, value is now %d\n", starvationCounter);
+            DPRINTF(MemoryController, "Incrementing starvation counter, value is now %d\n", starvationCounter);
         }
         else{
             assert(retval->virtualStartTime <= oldest);
             starvationCounter = 0;
-            DPRINTF(NFQController, 
+            DPRINTF(MemoryController, 
                     "Resetting starvation counter (req at %d, lowest %d)\n",
                     retval->virtualStartTime,
                     oldest);
@@ -275,7 +275,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             req = createCloseReq(activePages[i]);
             activePages.erase(activePages.begin()+i);
             
-            DPRINTF(NFQController, 
+            DPRINTF(MemoryController, 
                     "Closing page %x request addr %x because it has no pending requests\n",
                     getPage(req),
                     req->paddr);
@@ -295,7 +295,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         assert(hitIndex >= 0);
         req = createCloseReq(activePages[hitIndex]);
         activePages.erase(activePages.begin()+hitIndex);
-        DPRINTF(NFQController, 
+        DPRINTF(MemoryController, 
                 "Closing page %x, request addr %x due to page conflict with addr %x\n",
                 getPage(req),
                 req->paddr,
@@ -306,7 +306,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         // close the page that has been active for the longest time
         req = createCloseReq(activePages[0]);
         activePages.erase(activePages.begin());
-        DPRINTF(NFQController, 
+        DPRINTF(MemoryController, 
                 "Closing page %x, request addr %x to issue oldest request\n",
                 getPage(req),
                 req->paddr);
@@ -315,7 +315,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
     else{
         req = createActivateReq(oldestReq);
         activePages.push_back(getPage(oldestReq));
-        DPRINTF(NFQController, 
+        DPRINTF(MemoryController, 
                 "Activating page, req addr %x, page addr %x, %d pages are currently active\n",
                 req->paddr,
                 getPage(req),
@@ -348,17 +348,25 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
     req->cmd == Writeback ? queuedWrites-- : queuedReads--;
         
     if(queuedReads < readQueueLength && queuedWrites < writeQueueLenght && isBlocked() ){
-        DPRINTF(NFQController, "Unblocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
+        DPRINTF(MemoryController, "Unblocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setUnBlocked();
     }
         
-    DPRINTF(NFQController, 
+    DPRINTF(MemoryController, 
             "Returning column request, start time %d, addr %x, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
             req->adaptiveMHASenderID);
     
     return req;
+}
+
+void
+NFQMemoryController::setOpenPages(std::list<Addr> pages){
+    while(!pages.empty()){
+        activePages.push_back(pages.front());
+        pages.pop_front();
+    }
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

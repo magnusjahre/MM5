@@ -411,6 +411,8 @@ class AddrArbiterEvent : public Event
     int interfaceid;
 
     Tick original_time;
+    
+    int arbitrationLoopCounter;
 
   public:
     // constructor
@@ -419,6 +421,7 @@ class AddrArbiterEvent : public Event
 	: Event(&mainEventQueue), bus(_bus) {
         interfaceid = _interfaceid;
         original_time = _originaltime;
+        arbitrationLoopCounter = 0;
     }
 
     class event_compare :

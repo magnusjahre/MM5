@@ -148,7 +148,8 @@ baseFlags = [
     'UniformPartitioning',
     'AddrBusVerify',
     'DataBusVerify',
-    'NFQController'
+    'MemoryController',
+    'DRAM'
     ]
 
 #

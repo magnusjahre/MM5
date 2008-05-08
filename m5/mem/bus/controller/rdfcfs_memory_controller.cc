@@ -54,30 +54,21 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     assert(req->cmd == Read || req->cmd == Writeback);
   
     // Early activation of reads
-    if ((req->cmd == Read) && (num_active_pages < max_active_pages)) {
-        if (!isActive(req) && bankIsClosed(req)) {
-            // Activate that page
-            activate->paddr = req->paddr;
-            activate->flags &= ~SATISFIED;
-            activePages.push_back(getPage(req));
-            num_active_pages++;
-            assert(mem_interface->calculateLatency(activate) == 0);
-        }
-    }
+//     if ((req->cmd == Read) && (num_active_pages < max_active_pages)) {
+//         if (!isActive(req) && bankIsClosed(req)) {
+//             // Activate that page
+//             activate->paddr = req->paddr;
+//             activate->flags &= ~SATISFIED;
+//             activePages.push_back(getPage(req));
+//             num_active_pages++;
+//             assert(mem_interface->calculateLatency(activate) == 0);
+//         }
+//     }
     
     return 0;
 }
 
 bool RDFCFSTimingMemoryController::hasMoreRequests() {
-    
-    if(lastIssuedReq){
-        if(lastIsWrite){
-            writeQueue.remove(lastIssuedReq);
-        }
-        else{
-            readQueue.remove(lastIssuedReq);
-        }
-    }
     
     if (readQueue.empty() && writeQueue.empty() && (num_active_pages == 0)) {
       return false;
@@ -88,35 +79,85 @@ bool RDFCFSTimingMemoryController::hasMoreRequests() {
 
 MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
 
+    MemReqPtr& retval = activate; //dummy initialization
+    bool activateFound = false;
+    bool closeFound = false;
+    bool readyFound = false;
+    
     if (num_active_pages < max_active_pages) { 
-        
-        // Go through all lists to see if we can activate anything
-        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
-            if (!isActive(tmp) && bankIsClosed(tmp)) {
-                //Request is not active and bank is closed. Activate it
-                activate->paddr = tmp->paddr;
-                activate->flags &= ~SATISFIED;
-                activePages.push_back(getPage(tmp));
-                num_active_pages++;
-                
-                return (activate);
-            }
-        } 
-        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
-            if (!isActive(tmp) && bankIsClosed(tmp)) {
-                //Request is not active and bank is closed. Activate it
-                activate->paddr = tmp->paddr;
-                activate->flags &= ~SATISFIED;
-                activePages.push_back(getPage(tmp));
-                num_active_pages++;
-                
-                return (activate);
-            }
-        }        
+        activateFound = getActivate(retval);
+        if(activateFound) DPRINTF(MemoryController, "Found activate request, cmd %s addr %x\n", retval->cmd, retval->paddr);
     }
 
+    if(!activateFound){
+        closeFound = getClose(retval);
+        if(closeFound) DPRINTF(MemoryController, "Found close request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+    }
+    
+    if(!activateFound && !closeFound){
+        readyFound = getReady(retval);
+        if(readyFound) DPRINTF(MemoryController, "Found ready request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        assert(!bankIsClosed(retval));
+    }
+    
+    if(!activateFound && !closeFound && !readyFound){
+        bool otherFound = getOther(retval);
+        if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        assert(otherFound);
+        assert(!bankIsClosed(retval));
+    }
+    
+    // Remove request from queue (if read or write)
+    if(lastIssuedReq){
+        if(lastIsWrite){
+            writeQueue.remove(lastIssuedReq);
+        }
+        else{
+            readQueue.remove(lastIssuedReq);
+        }
+    }
+    
+    DPRINTF(MemoryController, "Returning command %s, addr %x\n", retval->cmd, retval->paddr);
+    
+    return retval;
+}
+
+bool
+RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
+    // Go through all lists to see if we can activate anything
+    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        if (!isActive(tmp) && bankIsClosed(tmp)) {
+            //Request is not active and bank is closed. Activate it
+            activate->cmd = Activate;
+            activate->paddr = tmp->paddr;
+            activate->flags &= ~SATISFIED;
+            activePages.push_back(getPage(tmp));
+            num_active_pages++;
+                
+            req = activate;
+            return true;
+        }
+    } 
+    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        if (!isActive(tmp) && bankIsClosed(tmp)) {
+            //Request is not active and bank is closed. Activate it
+            activate->cmd = Activate;
+            activate->paddr = tmp->paddr;
+            activate->flags &= ~SATISFIED;
+            activePages.push_back(getPage(tmp));
+            num_active_pages++;
+                
+            req = activate;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool 
+RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
     // Check if we can close the first page (eg, there is no active requests to this page
     for (pageIterator = activePages.begin(); pageIterator != activePages.end(); pageIterator++) {
         Addr Active = *pageIterator;
@@ -135,14 +176,20 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         }
 
         if (canClose) {
+            close->cmd = Close;
             close->paddr = getPageAddr(Active);
             close->flags &= ~SATISFIED;
             activePages.erase(pageIterator);
             num_active_pages--;
-            return close;
+            req = close;
+            return true;
         }
     }
-  
+    return false;
+}
+
+bool 
+RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
     // Go through the active pages and find a ready operation
     for (pageIterator = activePages.begin(); pageIterator != activePages.end() ; pageIterator++) {
         for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
@@ -150,15 +197,16 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
             if (isReady(tmp)) {
 
                 if(isBlocked() && 
-                    readQueue.size() <= readqueue_size && 
-                    writeQueue.size() <= writequeue_size){
+                   readQueue.size() <= readqueue_size && 
+                   writeQueue.size() <= writequeue_size){
                     setUnBlocked();
-                }
+                   }
         
-                lastIssuedReq = tmp;
-                lastIsWrite = false;
+                   lastIssuedReq = tmp;
+                   lastIsWrite = false;
                 
-                return tmp;
+                   req = tmp;
+                   return true;
             }
         }
         for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
@@ -166,32 +214,40 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
             if (isReady(tmp)) {
 
                 if(isBlocked() &&
-                    readQueue.size() <= readqueue_size && 
-                    writeQueue.size() <= writequeue_size){
+                   readQueue.size() <= readqueue_size && 
+                   writeQueue.size() <= writequeue_size){
                     setUnBlocked();
-                }
+                   }
         
-                lastIssuedReq = tmp;
-                lastIsWrite = true;
-                return tmp;
+                   lastIssuedReq = tmp;
+                   lastIsWrite = true;
+                   
+                   req = tmp;
+                   return true;
             }
         }
     }
-  
+    return false;
+}
+
+bool
+RDFCFSTimingMemoryController::getOther(MemReqPtr& req){
     // No ready operation, issue any active operation 
     for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
         MemReqPtr& tmp = *queueIterator;
         if (isActive(tmp)) {
 
             if(isBlocked() && 
-                readQueue.size() <= readqueue_size && 
-                writeQueue.size() <= writequeue_size){
+               readQueue.size() <= readqueue_size && 
+               writeQueue.size() <= writequeue_size){
                 setUnBlocked();
-            }
+               }
         
-            lastIssuedReq = tmp;
-            lastIsWrite = false;
-            return tmp;
+               lastIssuedReq = tmp;
+               lastIsWrite = false;
+               
+               req = tmp;
+               return true;
         }
     }
     for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
@@ -199,19 +255,19 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         if (isActive(tmp)) {
 
             if(isBlocked() &&
-                readQueue.size() <= readqueue_size && 
-                writeQueue.size() <= writequeue_size){
+               readQueue.size() <= readqueue_size && 
+               writeQueue.size() <= writequeue_size){
                 setUnBlocked();
-            }
+               }
         
-            lastIssuedReq = tmp;
-            lastIsWrite = true;
-            return tmp;
+               lastIssuedReq = tmp;
+               lastIsWrite = true;
+               
+               req = tmp;
+               return true;
         }
     }
-
-    fatal("This should never happen!");
-    return close;
+    return false;
 }
 
 list<MemReqPtr>

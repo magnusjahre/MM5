@@ -31,6 +31,11 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int writequeue_size;
     int reserved_slots;
 
+    bool getActivate(MemReqPtr& req);
+    bool getClose(MemReqPtr& req);
+    bool getReady(MemReqPtr& req);
+    bool getOther(MemReqPtr& req);
+    
   public:
 
     // Memory Request currently being issued

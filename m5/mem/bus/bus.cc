@@ -59,6 +59,8 @@ using namespace std;
 /** The maximum value of type Tick. */
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
+#define MAX_ARB_RESCHED 1000
+
 
 // NOTE: all times are stored internally as cpu ticks
 //       A conversion is made from provided time to
@@ -366,10 +368,17 @@ Bus::handleMemoryController()
 /* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time) 
 {
+
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
     nextfree = time;
+    
+    DPRINTF(Bus, 
+            "latency calculated req %s, addr %x, latency %d\n",
+            req->cmd.toString(),
+            req->paddr,
+            time - curTick);
     
 #ifdef DO_BUS_TRACE
     assert(slaveInterfaces.size() == 1);
@@ -649,9 +658,16 @@ AddrArbiterEvent::process()
 
     if (bus->memoryController->isBlocked()) {
         this->setpriority(Resched_Arb_Pri);
-        if(bus->nextfree <= curTick) this->schedule(curTick);
-        else this->schedule(bus->nextfree);
+        if(bus->nextfree <= curTick){
+            this->schedule(curTick);
+            arbitrationLoopCounter++;
+            if(arbitrationLoopCounter > MAX_ARB_RESCHED) fatal("Infinite loop of arbitration events");
+        } else {
+            this->schedule(bus->nextfree);
+            arbitrationLoopCounter = 0;
+        }
     } else {
+        arbitrationLoopCounter = 0;
         bus->arbitrateAddrBus(interfaceid);
         if (!bus->arb_events.empty()) {
             if (bus->need_to_sort) {
