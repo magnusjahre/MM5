@@ -283,7 +283,7 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
     assert(activePages.empty());
     activePages.splice(activePages.begin(), pages);
     num_active_pages = activePages.size();
-    assert(num_active_pages < max_active_pages);
+    assert(num_active_pages <= max_active_pages);
     DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
 }
 
@@ -302,7 +302,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
     INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
     INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
-    INIT_PARAM_DFLT(reserved_slots, "Numer of activations reserved for reads", 2)
+    INIT_PARAM_DFLT(reserved_slots, "Number of activations reserved for reads", 2)
 
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
