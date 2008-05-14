@@ -255,6 +255,7 @@ Interconnect::setBlocked(int fromInterface){
     int blockedL2ID = interconnectIDToL2IDMap[fromInterface];
     assert(!blockedInterfaces[blockedL2ID]);
     blockedInterfaces[blockedL2ID] = true;
+    DPRINTF(Blocking, "Blocking the Interconnect\n");
 }
         
 void
@@ -263,6 +264,7 @@ Interconnect::clearBlocked(int fromInterface){
     int unblockedL2ID = interconnectIDToL2IDMap[fromInterface];
     assert(blockedInterfaces[unblockedL2ID]);
     blockedInterfaces[unblockedL2ID] = false;
+    DPRINTF(Blocking, "Unblocking the Interconnect\n");
 }
 
 int

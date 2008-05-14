@@ -657,6 +657,8 @@ FullCPU::FullCPU(Params *p,
     if(_amha != NULL){
         _amha->registerFullCPU(p->cpu_id, this);
     }
+    
+    noCommitCycles = 0;
 }
 
 
@@ -725,13 +727,10 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
         
         // Fix by Magnus
         // The processor state should remain the same when the processor is switched
-//         cout << "status is " << execContexts[i]->status() << "\n";
         if(execContexts[i]->status() == ExecContext::Suspended){
-//             cout << "CPU is suspended" << i << "\n";
             execContexts[i]->suspend();
         }
         else if(execContexts[i]->status() == ExecContext::Active){
-//             cout << "activating CPU " << i << "\n";
             execContexts[i]->activate();
         }
         else if(execContexts[i]->status() == ExecContext::Halted){

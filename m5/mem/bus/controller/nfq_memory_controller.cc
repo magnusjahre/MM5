@@ -70,11 +70,11 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     // assign start time and update virtual clock
     req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
     if(req->adaptiveMHASenderID >= 0){
-        virtualFinishTimes[req->adaptiveMHASenderID] += processorInc;
+        virtualFinishTimes[req->adaptiveMHASenderID] = req->virtualStartTime + processorInc;
     }
     else{
         assert(req->cmd == Writeback);
-        virtualFinishTimes[nfqNumCPUs] += writebackInc;
+        virtualFinishTimes[nfqNumCPUs] = req->virtualStartTime + writebackInc;
     }
     
     DPRINTF(MemoryController, 
@@ -366,6 +366,32 @@ NFQMemoryController::setOpenPages(std::list<Addr> pages){
     while(!pages.empty()){
         activePages.push_back(pages.front());
         pages.pop_front();
+    }
+}
+
+void
+NFQMemoryController::printRequestQueue(Tick fromTick){
+    bool allEmpty = true;
+    
+    for(int i=0;i<requests.size();i++){
+        if(!requests[i].empty()) allEmpty = false;
+    }
+    
+    if(curTick >= fromTick){
+        if(!allEmpty){
+            cout << "\n";
+            cout << "Request queue at " << curTick << "\n";
+        
+            for(int i=0;i<requests.size();i++){
+                cout << "Queue " << i << ":";
+                for(int j=0;j<requests[i].size();j++){
+                    assert(requests[i][j]->cmd == Writeback || requests[i][j]->cmd == Read);
+                    cout << " " << requests[i][j]->paddr << "(" << (requests[i][j]->cmd == Writeback ? "W" : "R") << ", " << requests[i][j]->virtualStartTime << ")";
+                }
+                cout << "\n";
+            }
+            cout << "\n";
+        }
     }
 }
 

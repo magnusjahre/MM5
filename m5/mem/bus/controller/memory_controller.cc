@@ -24,6 +24,7 @@ TimingMemoryController::setBlocked()
     assert(!isBlockedFlag);
     startBlocking = curTick;
     isBlockedFlag = true;
+    DPRINTF(Blocking, "Blocking the Memory Controller\n");
 }
 
 void
@@ -33,6 +34,7 @@ TimingMemoryController::setUnBlocked()
     totalBlocktime += (curTick - startBlocking);
     bus->incrementBlockedCycles(curTick - startBlocking);
     isBlockedFlag = false;
+    DPRINTF(Blocking, "Unblocking the Memory Controller\n");
 }
 
 void

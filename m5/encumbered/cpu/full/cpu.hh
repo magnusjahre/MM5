@@ -73,6 +73,7 @@ class AdaptiveMHA;
 class FullCPU : public BaseCPU
 {
   private:
+      Tick noCommitCycles;
 
   public:
     ////////////////////////////////////////////
@@ -749,7 +750,7 @@ class FullCPU : public BaseCPU
 
     Stats::VectorStandardDeviation<> commit_bwlimit_stat;
 
-
+    Stats::Scalar<> commit_total_mem_stall_time;
 
     //----------------------------------------------------------------------
     //

@@ -50,6 +50,8 @@ class NFQMemoryController : public TimingMemoryController
         
         MemReqPtr& prepareColumnRequest(MemReqPtr& req);
         
+        void printRequestQueue(Tick fromTick);
+        
     public:
         
         /** Constructs a Memory Controller object. */

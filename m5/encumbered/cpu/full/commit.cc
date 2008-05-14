@@ -126,7 +126,7 @@ FullCPU::commit()
 //         cout << "rob dump fin\n";
 	panic("We stopped committing instructions!!!");
     }
-
+    
     //
     //  Determine which threads we don't need to worry about
     //
@@ -345,7 +345,6 @@ FullCPU::commit()
     blame  = blame_overall;
     detail = detail_overall;
 
-
     if (num_eligible == 0) {
 	//
 	//  Assign blame
@@ -360,6 +359,8 @@ FullCPU::commit()
 	    floss_state.commit_fu[0][0] = OpClass(detail);
 	    break;
 	  case COMMIT_DMISS:
+            commit_total_mem_stall_time++;
+            noCommitCycles++;
 	    floss_state.commit_mem_result[0] = MemAccessResult(detail);
 	    break;
 	  case COMMIT_CAUSE_NOT_SET:
@@ -380,7 +381,9 @@ FullCPU::commit()
 	return;
     }
 
-
+    // Magnus: we got here, we are not blocked any more
+    noCommitCycles = 0;
+    
     //
     //
     //
@@ -593,6 +596,7 @@ FullCPU::commit()
 	floss_state.commit_fu[0][0] = OpClass(detail);
 	break;
       case COMMIT_DMISS:
+        cout << curTick << " " << name() << ": became blocked for memory while committing\n";
 	floss_state.commit_mem_result[0] = MemAccessResult(detail);
 	break;
       case COMMIT_CAUSE_NOT_SET:
@@ -915,6 +919,12 @@ FullCPU::commitRegStats()
 	.precision(4)
 	.flags(total)
 	;
+    
+    // Magnus
+    commit_total_mem_stall_time
+        .name(name() + ".COM:total_ticks_stalled_for_memory")
+        .desc("Number of ticks the processor was stalled due to memory")
+        ;
 
 }
 

@@ -149,7 +149,8 @@ baseFlags = [
     'AddrBusVerify',
     'DataBusVerify',
     'MemoryController',
-    'DRAM'
+    'DRAM',
+    'Blocking'
     ]
 
 #

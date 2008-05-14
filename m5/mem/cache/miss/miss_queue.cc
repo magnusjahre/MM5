@@ -618,7 +618,6 @@ MissQueue::markInService(MemReqPtr &req)
 void
 MissQueue::handleResponse(MemReqPtr &req, Tick time)
 {
-
     MSHR* mshr = req->mshr;
     if (req->mshr->originalCmd == Hard_Prefetch) {
 	DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n", 
