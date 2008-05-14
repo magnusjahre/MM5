@@ -58,6 +58,8 @@ using namespace std;
 /*  Number of cycles we are allowed to go without committing an instruction  */
 #define CRASH_COUNT 100000
 
+#define MEM_BLOCKED_TRACE_FREQUENCY 100000
+
 class FaultHandlerDelayEvent : public Event
 {
     FullCPU *cpu;
@@ -125,6 +127,15 @@ FullCPU::commit()
 // 	ROB.dump();
 //         cout << "rob dump fin\n";
 	panic("We stopped committing instructions!!!");
+    }
+    
+    if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
+        string tracename = name() + "BlockedTrace.txt";
+        ofstream tracefile(tracename.c_str(), ofstream::app);
+        tracefile << curTick << "; " <<  ((double) ((double) noCommitCycles /  (double) MEM_BLOCKED_TRACE_FREQUENCY)) << "\n";
+        tracefile.flush();
+        tracefile.close();
+        noCommitCycles = 0;
     }
     
     //
@@ -380,9 +391,6 @@ FullCPU::commit()
 
 	return;
     }
-
-    // Magnus: we got here, we are not blocked any more
-    noCommitCycles = 0;
     
     //
     //

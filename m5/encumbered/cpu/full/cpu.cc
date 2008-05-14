@@ -659,6 +659,11 @@ FullCPU::FullCPU(Params *p,
     }
     
     noCommitCycles = 0;
+    string tracename = name() + "BlockedTrace.txt";
+    ofstream tracefile(tracename.c_str());
+    tracefile << "Tick;Blocked Fraction\n";
+    tracefile.flush();
+    tracefile.close();
 }
 
 
