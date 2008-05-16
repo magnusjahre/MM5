@@ -124,6 +124,10 @@ if "MEMORY-BUS-SCHEDULER" in env:
     else:
         panic("Only FCFS, RD-FCFS, TNFQ and FNFQ memory bus schedulers are supported")
 
+L2BankSize = -1
+if "L2BANKSIZE" in env:
+    L2BankSize = int(env["L2BANKSIZE"])
+    
 ###############################################################################
 # Root, CPUs and L1 caches
 ###############################################################################
@@ -362,6 +366,10 @@ if env["CACHE-PARTITIONING"] == "StaticUniform":
 if cacheProfileStart != -1:
     for bank in root.l2:
         bank.detailed_sim_start_tick = cacheProfileStart
+        
+if L2BankSize != -1:
+    for bank in root.l2:
+        bank.size = str(L2BankSize)+"kB"
 
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()

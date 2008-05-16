@@ -34,6 +34,8 @@ def copysymtree(fra, til):
   os.system("ln -s " + fra + " " + til +" 2> /dev/null")
 
 
+benchmarknames= ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
+
 # String to benchmark mappings
 
 def createWorkload(benchmarkStrings):
