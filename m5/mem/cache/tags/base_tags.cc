@@ -47,6 +47,12 @@ BaseTags::setCache(BaseCache *_cache)
 {
     cache = _cache;
     objName = cache->name();
+    
+    if(cache->useUniformPartitioning){
+        assert(cache->uniformPartitioningStartTick >= 0);
+        BaseTagsSwitchEvent* event = new BaseTagsSwitchEvent(this);
+        event->schedule(cache->uniformPartitioningStartTick);
+    }
 }
 
 void

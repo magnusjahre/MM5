@@ -40,6 +40,7 @@
 #include <string>
 #include "base/statistics.hh"
 #include "base/callback.hh"
+#include "sim/eventq.hh"
 
 class BaseCache;
 
@@ -139,6 +140,9 @@ class BaseTags
     virtual int getNumSets(){
         return 0;
     }
+    
+    virtual void handleSwitchEvent(){
+    }
 };
 
 class BaseTagsCallback : public Callback
@@ -149,4 +153,25 @@ class BaseTagsCallback : public Callback
     virtual void process() { tags->cleanupRefs(); };
 };
 
+class BaseTagsSwitchEvent : public Event
+{
+
+    public:
+        
+        BaseTags* bt;
+        
+        BaseTagsSwitchEvent(BaseTags* _bt)
+            : Event(&mainEventQueue, CPU_Switch_Pri), bt(_bt)
+        {
+        }
+        
+        void process(){
+            bt->handleSwitchEvent();
+            delete this;
+        }
+
+        virtual const char *description(){
+            return "BaseTags Switch Event";
+        }
+};
 #endif //__BASE_TAGS_HH__

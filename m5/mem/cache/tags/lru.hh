@@ -331,6 +331,8 @@ public:
     virtual void cleanupRefs();
     
     virtual std::vector<int> perCoreOccupancy();
+    
+    virtual void handleSwitchEvent();
 };
 
 #endif

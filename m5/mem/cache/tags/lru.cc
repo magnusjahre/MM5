@@ -35,7 +35,6 @@
  */
 
 #include <string>
-#include <cstdlib>
 
 #include "mem/cache/base_cache.hh"
 #include "base/intmath.hh"
@@ -127,9 +126,6 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     blks = new LRUBlk[numSets * assoc];
     // allocate data storage in one big chunk
     dataBlks = new uint8_t[numSets*assoc*blkSize];
-    
-    // seed random generator
-    srand(345);
 
     blkIndex = 0;	// index into blks array
     for (i = 0; i < numSets; ++i) {
@@ -283,7 +279,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         bool found = false;
         if(blkCnt[fromProc] < maxBlks){
             
-            // not using all blocks, LRU block is not touched
+            // not using all blocks
             DPRINTF(UniformPartitioning, "Set %d: Choosing block that has not been touched for replacement, request addr is %x, req from proc %d\n", 
                     set,
                     req->paddr, 
@@ -292,46 +288,8 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             found = true;
             
             // if the block is touched, one processor has more than its share of cache blocks
-            if(blk->isTouched){
-                // evict the lru block for the processor with the most cache blocks
-                int mostUser = -1;
-                int mostCount = -1;
-                for(int i = 0;i < cache->cpuCount;i++){
-                    if(blkCnt[i] > mostCount){
-                        mostCount = blkCnt[i];
-                        mostUser = i;
-                    }
-                }
-                assert(mostUser > -1);
-                
-                vector<int> mostUsers;
-                assert(cache->cpuCount < sizeof(int)*8);
-                for(int i=0;i<cache->cpuCount;i++){
-                    if(blkCnt[i] == mostCount){
-                        mostUsers.push_back(i);
-                    }
-                }
-                
-                int evictID = -1;
-                if(mostUsers.size() == 1){
-                    evictID = mostUser;
-                }
-                else{
-                    double curRand = ((double) rand() / (double) (RAND_MAX));
-                    int evictIndex = (int) (curRand * mostUsers.size());
-                    assert(evictIndex < mostUsers.size());
-                    evictID = mostUsers[evictIndex];
-                }
-                
-                for(int i = assoc-1;i>=0;i--){
-                    blk = sets[set].blks[i];
-                    if(blk->origRequestingCpuID == evictID){
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            
+            // This should not happen
+            assert(!blk->isTouched);
         }
         else{
             // replace the LRU block belonging to this cache
@@ -452,9 +410,11 @@ LRU::perCoreOccupancy(){
         for(int j=0;j<assoc;j++){
             LRUBlk* blk = sets[i].blks[j];
             assert(blk->origRequestingCpuID < cache->cpuCount);
-            if(blk->origRequestingCpuID != -1) ret[blk->origRequestingCpuID]++;
+            if(blk->origRequestingCpuID != -1
+               && blk->isTouched){
+                ret[blk->origRequestingCpuID]++;
+            }
             else{
-                assert(!blk->isTouched);
                 notTouched++;
             }
         }
@@ -468,4 +428,73 @@ LRU::perCoreOccupancy(){
     assert(sum == numSets * assoc);
     
     return ret;
+}
+
+void
+LRU::handleSwitchEvent(){
+    assert(cache->useUniformPartitioning);
+    
+    for(int i=0;i<numSets;i++){
+        for(int j=0;j<cache->cpuCount;j++){
+            
+            int cnt = 0;
+            for(int k=0;k<assoc;k++){
+                LRUBlk* blk = sets[i].blks[k];
+                if(blk->origRequestingCpuID == j) cnt++;
+            }
+            
+            int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+            assert(maxBlks > 1);
+            
+            if(cnt > maxBlks){
+                int invalidated = 0;
+                int removeCnt = cnt - maxBlks;
+                for(int k=assoc-1;k>=0;k--){
+                    LRUBlk* blk = sets[i].blks[k];
+                    if(blk->origRequestingCpuID == j){
+                        // invalidating the block
+                        blk->status = 0;
+                        blk->isTouched = false;
+                        blk->origRequestingCpuID = -1;
+                        tagsInUse--;
+                        invalidated++;
+                    }
+                    if(invalidated == removeCnt) break;
+                }
+            }
+        }
+        
+        // put all invalid blocks in LRU position
+        int invalidIndex = 0;
+        int passedCnt = 0;
+        for(int k=0;k<assoc;k++){
+            LRUBlk* blk = sets[i].blks[k];
+            if(!blk->isValid()){
+                invalidIndex = k;
+                break;
+            }
+        }
+        
+        for(int k=invalidIndex+1;k<assoc;k++){
+            LRUBlk* blk = sets[i].blks[k];
+            if(blk->isValid()){
+                // swap invalid with valid block
+                LRUBlk* tmp = sets[i].blks[invalidIndex];
+                sets[i].blks[invalidIndex] = blk;
+                sets[i].blks[k] = tmp;
+                invalidIndex = k - passedCnt;
+            }
+            else{
+                passedCnt++;
+            }
+        }
+        
+        // verify that all invalid blocks are at the most LRU positions
+        LRUBlk* prevBlk = sets[i].blks[0]; 
+        for(int k=1;k<assoc;k++){
+            LRUBlk* blk = sets[i].blks[k];
+            if(!prevBlk->isValid()) assert(!blk->isValid());
+            prevBlk = blk;
+        }
+    }
 }
