@@ -24,7 +24,7 @@ class DL1(BaseL1Cache):
 
 class L2Bank(BaseCache):
     size = '1MB' # 1MB * 4 banks = 4MB total cache size
-    assoc = 8
+    assoc = 16
     block_size = 64
     latency = 14 * Parent.clock.period
     mshrs = 8

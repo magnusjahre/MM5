@@ -62,6 +62,8 @@
 #include "sim/sim_events.hh" // for SimExitEvent
 
 #define CACHE_PROFILE_INTERVAL 100000
+//FIXME: epoch should be 10000000
+#define MTP_EPOCH 1000000
         
 using namespace std;
 
@@ -69,7 +71,7 @@ template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::
 Cache(const std::string &_name, HierParams *hier_params, 
       Cache<TagStore,Buffering,Coherence>::Params &params)
-    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning, params.uniformPartitioningStart),
+    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning, params.uniformPartitioningStart, params.useMTPPartitioning),
       prefetchAccess(params.prefetchAccess), 
       tags(params.tags), missQueue(params.missQueue),
       coherence(params.coherence), prefetcher(params.prefetcher),
@@ -78,6 +80,37 @@ Cache(const std::string &_name, HierParams *hier_params,
     
     idIsSet = false;
     cacheCpuID = params.cpu_id;
+    
+    // init shadowtags
+#ifdef USE_CACHE_LRU
+    
+    if(params.useMTPPartitioning){
+        shadowTags.resize(params.cpu_count, NULL);
+        for(int i=0;i<params.cpu_count;i++){
+            shadowTags[i] = new LRU(tags->getNumSets(),
+                                    this->getBlockSize(),
+                                    tags->getAssoc(),
+                                    hitLatency,
+                                    params.bankCount,
+                                    true);
+            shadowTags[i]->setCache(this);
+        }
+        
+        repartEvent = new CacheRepartitioningEvent(this);
+        repartEvent->schedule(params.uniformPartitioningStart);
+    }
+    else{
+       repartEvent = NULL;
+    }
+#else
+    repartEvent = NULL;
+#endif
+    
+    if(params.useMTPPartitioning){
+        misscurves.resize(params.cpu_count, vector<double>(tags->getAssoc(), 0));
+        curShadowCPU = -1;
+        assert(!shadowTags.empty());
+    }
     
     if(params.isShared){
         profileFileName = name() + "CapacityProfile.txt";
@@ -158,6 +191,15 @@ Cache(const std::string &_name, HierParams *hier_params,
 }
 
 template<class TagStore, class Buffering, class Coherence>
+Cache<TagStore,Buffering,Coherence>::~Cache(){
+   for(int i=0;i<shadowTags.size();i++) delete shadowTags[i];
+   if(repartEvent != NULL){
+       assert(!repartEvent->scheduled());
+       delete repartEvent;
+   }
+}
+
+template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::regStats()
 {
@@ -166,6 +208,12 @@ Cache<TagStore,Buffering,Coherence>::regStats()
     missQueue->regStats(name());
     coherence->regStats(name());
     prefetcher->regStats(name());
+    
+    for(int i=0;i<shadowTags.size();i++){
+        stringstream tmp;
+        tmp << i;
+        shadowTags[i]->regStats(name()+".shadowtags.cpu"+tmp.str());
+    }
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -187,6 +235,15 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         req->adaptiveMHASenderID = cacheCpuID;
     }
     
+    //shadow tag access
+    if(!shadowTags.empty()){
+        // access tags to update LRU stack
+        assert(isShared);
+        if(req->adaptiveMHASenderID != -1){
+            shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
+        }
+    }
+    
     if (req->cmd == Copy) {
         if(useDirectory) fatal("directory copy not implemented");
 	      startCopy(req);
@@ -194,8 +251,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         /**
          * @todo What return value makes sense on a copy.
          */
-        
-	      return MA_CACHE_MISS;
+        return MA_CACHE_MISS;
     }
     if (prefetchAccess) {
 	//We are determining prefetches on access stream, call prefetcher
@@ -413,6 +469,22 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
         
         if(directoryProtocol->handleDirectoryResponse(req, tags)){
             return;
+        }
+    }
+    
+    //shadow replacement
+    if(!shadowTags.empty()){
+        if(req->adaptiveMHASenderID != -1){
+            LRU::BlkList shadow_compress_list;
+            MemReqList shadow_writebacks;
+            LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
+            
+            // set block values to the values of the new occupant
+            shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
+            shadowBlk->asid = req->asid;
+            assert(req->xc || !doData());
+            shadowBlk->xc = req->xc;
+            shadowBlk->status = BlkValid;
         }
     }
     
@@ -1347,6 +1419,227 @@ Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
     file.close();
     
     profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
+}
+
+template<class TagStore, class Buffering, class Coherence>
+void 
+Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
+    
+    
+    
+    switch(curShadowCPU){
+        
+        case -1:{
+            curShadowCPU = 0; //enter measuring phase
+            break;
+        }
+        case 0:{
+            
+            string filename = name()+"MTPTrace.txt";
+            ofstream mtptracefile(filename.c_str());
+            
+            // measurement phase finished
+            for(int i=0;i<shadowTags.size();i++){
+                vector<double> missRateProfile = shadowTags[i]->getMissRates();
+                misscurves[i] = missRateProfile;
+                mtptracefile << "Warmup stats for CPU" << i << " shadow tags: " << shadowTags[i]->getTouchedRatio() << "\n";
+            }
+            
+            mtptracefile << "Measured miss rate curves\n";
+            for(int i=0;i<cpuCount;i++){
+                mtptracefile << "CPU" << i << ":";
+                for(int j=0;j<misscurves[i].size();j++){
+                    mtptracefile << " " << misscurves[i][j];
+                }
+                mtptracefile << "\n";
+            }
+
+            // exit measurement phase
+            curShadowCPU = 1; 
+            
+            // Calculate partitions
+            bool partitioningNeeded = calculatePartitions();
+            
+            // If all threads are suppliers, no partitioning is needed
+            // Use static uniform partitioning
+            if(!partitioningNeeded){
+                mtptracefile << "No partitioning found, reverting to static uniform partitioning\n";
+                mtptracefile.flush();
+                mtptracefile.close();
+                
+                // TODO: Enforce static uniform partitioning
+                
+                return;
+            }
+            
+            for(int i=0;i<mtpPartitions.size();i++){
+                mtptracefile << "Partition " << i << ":";
+                for(int j=0;j<mtpPartitions[i].size();j++){
+                    mtptracefile << " CPU" << j << "=" << mtpPartitions[i][j];
+                }
+                mtptracefile << "\n";
+            }
+            
+            mtptracefile.flush();
+            mtptracefile.close();
+            
+            //TODO: implement partition enforcement
+            
+            // reset hitprofiles and curCPU
+            for(int i=0;i<cpuCount;i++){
+                for(int j=0;j<tags->getAssoc();j++){
+                    misscurves[i][j] = 0;
+                }
+            }
+            break;
+        }
+        case 1:{
+            //TODO: switch partition according to strategy
+            break;
+        }
+        default:{
+            fatal("MTP: unknown selection value encountered");
+        }
+    }
+    
+    // reset counters and reschedule event
+    for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
+    repartEvent->schedule(curTick + MTP_EPOCH);
+}
+
+/**
+* This method implements Chang and Sohi's MTP allocation algorithm
+*/
+template<class TagStore, class Buffering, class Coherence>
+bool
+Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
+    
+    // Initialization
+    vector<vector<int> > partitions;
+    int baseSetSize = tags->getAssoc() / cpuCount;
+    int minSafeSetIndex = (tags->getAssoc() / cpuCount) -1;
+    int capacity = tags->getAssoc();
+    
+    vector<int> c_expand = vector<int>(cpuCount, 0);
+    for(int i=0;i<cpuCount;i++){
+        //FIXME: The minimum miss rate might be obtained with less than that static share of sets
+        double tmpMin = misscurves[i][minSafeSetIndex];
+        int minIndex = minSafeSetIndex;
+        for(int j=minSafeSetIndex+1;j<tags->getAssoc();j++){
+            if(misscurves[i][j] < tmpMin){
+                tmpMin = misscurves[i][j];
+                minIndex = j;
+            }
+        }
+        c_expand[i] = minIndex;
+    }
+    
+    vector<int> c_shrink = vector<int>(cpuCount, 0);
+    for(int i=0;i<cpuCount;i++){
+        c_shrink[i] = minSafeSetIndex;
+        double base = misscurves[i][minSafeSetIndex];
+        double expandSpeedup = base - misscurves[i][c_expand[i]];
+        
+        for(int j=minSafeSetIndex-1;j>=0;j--){
+            if(expandSpeedup >= (cpuCount-1)*(misscurves[i][j] - base)) c_shrink[i] = j;
+            else break;
+        }
+    }
+    
+    // Step 1 - Remove supplier threads
+    int supplierCount = 0;
+    int thrashingCount = 0;
+    vector<bool> supplier = vector<bool>(cpuCount, false);
+    for(int i=0;i<supplier.size();i++){
+        // Thread is supplier is max performance is attained with the guaranteed partition
+        if(c_shrink[i] == minSafeSetIndex){
+            supplier[i] = true;
+            supplierCount++;
+            capacity = capacity - baseSetSize;
+        }
+        else{
+            supplier[i] = false;
+            thrashingCount++;
+        }
+    }
+    
+    if(thrashingCount <= 1) return false;
+    
+    // Step 2 -- determine thrashing thread set
+    bool stable = false;
+    while(thrashingCount > 0 && !stable){
+        stable = true;
+        for(int i=0;i<cpuCount;i++){
+            if(!supplier[i]){
+                //thread i is currently designated as thrashing
+                int usedByOtherThrashers = 0;
+                for(int j=0;j<cpuCount;j++){
+                    if(!supplier[j] && j != i){
+                        usedByOtherThrashers += c_shrink[j]+1;
+                    }
+                }
+                int freeSets = capacity - usedByOtherThrashers;
+                
+                // reduce expanding capacity if it cannot be met
+                c_expand[i] = (freeSets-1 > c_expand[i] ? c_expand[i] : freeSets-1);
+                
+                // Thrashing test
+                bool result = false;
+                
+                double base = misscurves[i][minSafeSetIndex];
+                double expandSpeedup = base - misscurves[i][c_expand[i]];
+                
+                if(expandSpeedup >= (thrashingCount-1)*(misscurves[i][c_shrink[i]] - base)){
+                    result = true;
+                }
+                else{
+                    supplier[i] = true;
+                    thrashingCount--;
+                    supplierCount++;
+                    capacity = capacity - baseSetSize;
+                }
+                stable &= result;
+            }
+        }
+    }
+    
+    if(thrashingCount <= 1) return false;
+    
+    // Step 3 - build partitions
+    int partitionCount = thrashingCount;
+    mtpPartitions = vector<vector<int> >(partitionCount, vector<int>(cpuCount, 0));
+    for(int i=0;i<partitionCount;i++) for(int j=0;j<cpuCount;j++) mtpPartitions[i][j] = c_shrink[j]+1;
+    vector<bool> expanded = vector<bool>(cpuCount, false);
+    
+    int restCapacity = tags->getAssoc();
+    for(int i=0;i<cpuCount;i++) restCapacity = restCapacity - (c_shrink[i]+1);
+    
+    vector<int> thrasherIDs;
+    for(int i=0;i<cpuCount;i++) if(!supplier[i]) thrasherIDs.push_back(i);
+    
+    
+    for(int p=0;p<partitionCount;p++){
+        int j=p;
+        int visitedCount = 0;
+        int tmpCapacity = restCapacity;
+        while(visitedCount < thrasherIDs.size()){
+            int extraSpace = (c_expand[thrasherIDs[j]]+1) - (c_shrink[thrasherIDs[j]]+1);
+            if(extraSpace <= tmpCapacity){
+                mtpPartitions[p][thrasherIDs[j]] += extraSpace;
+                tmpCapacity = tmpCapacity - extraSpace;
+            }
+            else if(tmpCapacity > 0){
+                mtpPartitions[p][thrasherIDs[j]] += tmpCapacity;
+                tmpCapacity = 0;
+            }
+            
+            if(mtpPartitions[p][thrasherIDs[j]] >= c_expand[thrasherIDs[j]]+1) expanded[thrasherIDs[j]] = true;
+            j = (j + 1) % thrasherIDs.size();
+            visitedCount++;
+        }
+    }
+    
+    return true;
 }
 
 #ifdef CACHE_DEBUG

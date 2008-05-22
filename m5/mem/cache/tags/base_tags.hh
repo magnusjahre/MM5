@@ -141,6 +141,11 @@ class BaseTags
         return 0;
     }
     
+    virtual int getAssoc(){
+        return 0;
+    }
+        
+    
     virtual void handleSwitchEvent(){
     }
 };

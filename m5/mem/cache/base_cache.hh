@@ -114,6 +114,7 @@ class BaseCache : public BaseMem {
     Tick blockedAt;
 
   protected:
+      
     /** The master interface, typically nearer to Main Memory */
     BaseInterface *mi;
 
@@ -142,6 +143,7 @@ class BaseCache : public BaseMem {
     bool useAdaptiveMHA;
     bool useUniformPartitioning;
     Tick uniformPartitioningStartTick;
+    bool useMTPPartitioning;
     
     CacheProfileEvent* profileEvent;
     
@@ -266,7 +268,7 @@ class BaseCache : public BaseMem {
      * of this cache.
      * @param params The parameter object for this BaseCache.
      */
-    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning, Tick _uniformPartitioningStart);
+    BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning, Tick _uniformPartitioningStart, bool _useMTPPartitioning);
     
     /**
      * Set the master interface for this cache to the one provided.
@@ -480,6 +482,8 @@ class BaseCache : public BaseMem {
     
     virtual void handleProfileEvent() = 0;
     
+    virtual void handleRepartitioningEvent() = 0;
+    
 //     virtual DirectoryProtocol* getDirectoryProtocol() = 0;
     
     virtual int getCacheCPUid() = 0;
@@ -540,6 +544,27 @@ class CacheProfileEvent : public Event
 
         virtual const char *description(){
             return "Cache Profiling Event";
+        }
+};
+
+class CacheRepartitioningEvent: public Event
+{
+
+    public:
+        
+        BaseCache* cache;
+        
+        CacheRepartitioningEvent(BaseCache* _cache)
+            : Event(&mainEventQueue), cache(_cache)
+        {
+        }
+        
+        void process(){
+            cache->handleRepartitioningEvent();
+        }
+
+        virtual const char *description(){
+            return "Cache Repartitioning Event";
         }
 };
 

@@ -80,6 +80,7 @@ class BaseCache(BaseMem):
     is_read_only = Param.Bool("True if this cache is an instruction cache") # Magnus
     
     use_static_partitioning = Param.Bool("True if this cache uses static uniform capacity partitioning") # Magnus
+    use_mtp_partitioning = Param.Bool("True if this cache uses MTP partitioning") # Magnus
     static_part_start_tick = Param.Tick("The clock cycle to start enforcing a static cache share")
     detailed_sim_start_tick = Param.Tick("The tick where detailed simulation (and profiling) starts")
 

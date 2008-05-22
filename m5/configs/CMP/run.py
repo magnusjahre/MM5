@@ -110,7 +110,9 @@ if "USE-ADAPTIVE-MHA" in env:
 
 
 if "CACHE-PARTITIONING" in env:
-    if env["CACHE-PARTITIONING"] == "Conventional" or env["CACHE-PARTITIONING"] == "StaticUniform":
+    if env["CACHE-PARTITIONING"] == "Conventional" \
+    or env["CACHE-PARTITIONING"] == "StaticUniform" \
+    or env["CACHE-PARTITIONING"] == "MTP":
         pass
     else:
         panic("Only Conventional and StaticUniform cache partitioning are available")
@@ -361,6 +363,11 @@ if l2mshrs != -1:
 if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
         bank.use_static_partitioning = True
+        bank.static_part_start_tick = uniformPartStart
+        
+if env["CACHE-PARTITIONING"] == "MTP":
+    for bank in root.l2:
+        bank.use_mtp_partitioning = True
         bank.static_part_start_tick = uniformPartStart
 
 if cacheProfileStart != -1:

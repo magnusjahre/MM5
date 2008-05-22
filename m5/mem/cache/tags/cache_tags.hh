@@ -336,6 +336,10 @@ class CacheTags
     int getNumSets(){
         return ct->getNumSets();
     }
+    
+    int getAssoc(){
+        return ct->getAssoc();
+    }
 };
 
 

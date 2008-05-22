@@ -15,7 +15,7 @@ binary = rootdir+'/branch/fairMHA/m5/build/ALPHA_SE/m5.opt'
 bmArg = "-EBENCHMARK="
 cpuArg = "-ENP="
 interconArg = "-EINTERCONNECT="
-args = "-EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=2000000 -EFASTFORWARDTICKS=10000000"
+args = "-EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=1000000 -EFASTFORWARDTICKS=50000000"
 #mshrargs = "-EMSHRSL1D=16 -EMSHRSL1I=16 -EMSHRL1TARGETS=4 -EMSHRSL2=4 -EMSHRL2TARGETS=4 -EUSE-ADAPTIVE-MHA -EADAPTIVE-MHA-LOW-THRESHOLD=0.7 -EADAPTIVE-MHA-HIGH-THRESHOLD=0.9 -EADAPTIVE-REPEATS=1"
 #mshrargs = "-EMEMORY-BUS=TimeMultiplexed"
 #mshrargs = "-EMEMORY-BUS=NFQ"
@@ -29,6 +29,7 @@ cpus = [4] #[2, 4, 8]
 interconnect = 'crossbar'
 #buses = ['TNFQ', 'FNFQ', 'RDFCFS', 'FCFS']
 buses = ['RDFCFS']
+cachepart = 'MTP'
 
 #benchmarks = ['hello', 'gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
 
@@ -53,7 +54,7 @@ for cpu in cpus:
         report.write("\n"+output+"\n")
         for benchmark in benchmarks:
             #print binary+" "+bmArg+str(benchmark)+" "+args+" "+configFile
-            res = popen2.popen4("nice "+binary+" "+cpuArg+str(cpu)+" "+bmArg+str(benchmark)+" "+interconArg+interconnect+" "+args+" "+mshrargs+" "+"-EMEMORY-BUS-SCHEDULER="+bus+" "+configFile)
+            res = popen2.popen4("nice "+binary+" "+cpuArg+str(cpu)+" "+bmArg+str(benchmark)+" "+interconArg+interconnect+" "+args+" "+mshrargs+" "+"-EMEMORY-BUS-SCHEDULER="+bus+" -ECACHE-PARTITIONING="+cachepart+" "+configFile)
             
             out = ""
             for line in res[0]:

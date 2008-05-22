@@ -54,6 +54,18 @@ CacheSet::findBlk(int asid, Addr tag) const
     return 0;
 }
 
+LRUBlk*
+CacheSet::findBlk(int asid, Addr tag, int* hitIndex)
+{
+    for (int i = 0; i < assoc; ++i) {
+        if (blks[i]->tag == tag && blks[i]->isValid()) {
+            *hitIndex = i;
+            return blks[i];
+        }
+    }
+    return 0;
+}
+
 
 void
 CacheSet::moveToHead(LRUBlk *blk)
@@ -89,8 +101,8 @@ CacheSet::moveToHead(LRUBlk *blk)
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
-LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count) :
-    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count)
+LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow) :
+    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow)
 {
     
     // the provided addresses are byte addresses, so the provided block address can be used directly
@@ -156,6 +168,11 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	    blk->set = i;
 	}
     }
+    
+    if(isShadow){
+        perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
+    }
+    accesses = 0;
 }
 
 LRU::~LRU()
@@ -183,7 +200,9 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 {
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
+    
     LRUBlk *blk = sets[set].findBlk(asid, tag);
+    
     lat = hitLatency;
     if (blk != NULL) {
 	// move this block to head of the MRU list
@@ -214,7 +233,25 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
-    LRUBlk *blk = sets[set].findBlk(asid, tag);
+    
+    LRUBlk *blk = NULL;
+    if(isShadow){
+        accesses++;
+        int hitIndex = -1;
+        blk = sets[set].findBlk(asid, tag, &hitIndex);
+        if(blk != NULL){
+            assert(hitIndex >= 0 && hitIndex < assoc);
+            perSetHitCounters[set][hitIndex]++;
+            
+        }
+        else{
+            assert(hitIndex == -1);
+        }
+    }
+    else{
+        blk = sets[set].findBlk(asid, tag);
+    }
+    
     lat = hitLatency;
     if (blk != NULL) {
 	// move this block to head of the MRU list
@@ -233,7 +270,7 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 	}
 	blk->refCount += 1;
     }
-
+    
     return blk;
 }
 
@@ -497,4 +534,69 @@ LRU::handleSwitchEvent(){
             prevBlk = blk;
         }
     }
+}
+
+void
+LRU::resetHitCounters(){
+    accesses = 0;
+    for(int i=0;i<numSets;i++){
+        for(int j=0;j<assoc;j++){
+            perSetHitCounters[i][j] = 0;
+        }
+    }
+}
+void
+LRU::dumpHitCounters(){
+    assert(isShadow);
+    cout << "Hit counters for cache " << cache->name() << " @ " << curTick << "\n";
+    for(int i=0;i<numSets;i++){
+        cout << "Set " << i << ":";
+        for(int j=0;j<assoc;j++){
+            cout << " (" << j << ", " << perSetHitCounters[i][j] << ")";
+        }
+        cout << "\n";
+    }
+}
+
+std::vector<double>
+LRU::getMissRates(){
+    
+    assert(isShadow);
+    
+    vector<int> hits(assoc, 0);
+    for(int i=0;i<numSets;i++){
+        for(int j=0;j<assoc;j++){
+            hits[j] += perSetHitCounters[i][j];
+        }
+    }
+    
+    // transform to cumulative representation
+    for(int i=1;i<hits.size();i++){
+        hits[i] = hits[i] + hits[i-1];
+    }
+    
+    // compute miss rates
+    vector<double> missrates(assoc, 0);
+    assert(missrates.size() == hits.size());
+    for(int i=0;i<missrates.size();i++){
+        missrates[i] = (double) (((double) accesses - (double) hits[i]) / (double) accesses);
+    }
+    
+    return missrates;
+}
+
+double
+LRU::getTouchedRatio(){
+    
+    int warmcnt = 0;
+    int totalcnt = 0;
+    
+    for(int i=0;i<numSets;i++){
+        for(int j=0;j<assoc;j++){
+            if(sets[i].blks[j]->isTouched) warmcnt++;
+            totalcnt++;
+        }
+    }
+    assert(totalcnt == numSets*assoc);
+    return (double) ((double) warmcnt / (double) totalcnt);
 }

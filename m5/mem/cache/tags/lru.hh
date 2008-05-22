@@ -74,6 +74,8 @@ class CacheSet
      * @return Pointer to the block if found.
      */
     LRUBlk* findBlk(int asid, Addr tag) const;
+    
+    LRUBlk* findBlk(int asid, Addr tag, int* hitIndex);
 
     /**
      * Move the given block to the head of the list.
@@ -103,6 +105,8 @@ class LRU : public BaseTags
     const int hitLatency;
     
     const int numBanks;
+    
+    const bool isShadow;
 
     /** The cache sets. */
     CacheSet *sets;
@@ -120,6 +124,9 @@ class LRU : public BaseTags
     unsigned setMask;
     /** Mask out all bits that aren't part of the block offset. */
     unsigned blkMask;
+    
+    std::vector<std::vector<int> > perSetHitCounters;
+    int accesses;
 
 public:
     /**
@@ -129,7 +136,7 @@ public:
      * @param _assoc The associativity of the cache.
      * @param _hit_latency The latency in cycles for a hit.
      */
-    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count);
+    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow);
 
     /**
      * Destructor
@@ -157,6 +164,10 @@ public:
     
     int getNumSets(){
         return numSets;
+    }
+    
+    int getAssoc(){
+        return assoc;
     }
 
     /**
@@ -333,6 +344,14 @@ public:
     virtual std::vector<int> perCoreOccupancy();
     
     virtual void handleSwitchEvent();
+    
+    void resetHitCounters();
+    
+    void dumpHitCounters();
+    
+    std::vector<double> getMissRates();
+    
+    double getTouchedRatio();
 };
 
 #endif

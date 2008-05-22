@@ -49,14 +49,16 @@ BaseCache::BaseCache(const std::string &name,
                      bool _useDirectory, 
                      bool _isReadOnly,
                      bool _useUniformPartitioning,
-                     Tick _uniformPartitioningStart)
+                     Tick _uniformPartitioningStart,
+                     bool _useMTPPartitioning)
     : BaseMem(name, hier_params, params.hitLatency, params.addrRange), 
               blocked(0), blockedSnoop(0), masterRequests(0), slaveRequests(0),
               topLevelCache(false),  blkSize(params.blkSize), 
               missCount(params.maxMisses), isShared(_isShared),
               useDirectory(_useDirectory), isReadOnly(_isReadOnly),
               useUniformPartitioning(_useUniformPartitioning),
-              uniformPartitioningStartTick(_uniformPartitioningStart)
+              uniformPartitioningStartTick(_uniformPartitioningStart),
+              useMTPPartitioning(_useMTPPartitioning)
 {
     if(_useUniformPartitioning){
         if(!_isShared) panic("The cache must be shared to use static uniform partitioning!");

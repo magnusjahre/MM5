@@ -145,6 +145,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> is_read_only;
     
     Param<bool> use_static_partitioning;
+    Param<bool> use_mtp_partitioning;
     Param<Tick> static_part_start_tick;
     Param<Tick> detailed_sim_start_tick;
     
@@ -221,6 +222,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(is_shared, "is this a shared cache?", false),
     INIT_PARAM_DFLT(is_read_only, "is this an instruction cache?", false),
     INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
+    INIT_PARAM_DFLT(use_mtp_partitioning, "does this cache use Multiple Time Sharing Partitions?", false),
     INIT_PARAM_DFLT(static_part_start_tick, "the tick where cache part. enforcement will start", -1),
     INIT_PARAM_DFLT(detailed_sim_start_tick, "the tick where detailed simulation (and profiling) starts", -1),
     
@@ -321,6 +323,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
         else{\
             directory_protocol = NULL;\
         }\
+        \
         Cache<CacheTags<t, comp>, b, c>::Params params(tagStore, mq, coh, directory_protocol, \
 						       do_copy, base_params, \
 						       in_bus, out_bus, in_interconnect, out_interconnect, pf,  \
@@ -328,7 +331,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        multiprog_workload, is_shared, is_read_only,\
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
-                                                       use_static_partitioning, static_part_start_tick,\
+                                                       use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
                                                        detailed_sim_start_tick); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
@@ -418,7 +421,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #if defined(USE_CACHE_LRU)
 #define BUILD_LRU_CACHE(b, c) do {				\
-        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count);	\
+        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count, false);	\
 	BUILD_COMPRESSED_CACHE(LRU, tags, b, c);			\
     } while (0)
 #else
