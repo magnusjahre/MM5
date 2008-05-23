@@ -43,12 +43,12 @@
 using namespace std;
 
 void
-BaseTags::setCache(BaseCache *_cache)
+BaseTags::setCache(BaseCache *_cache, bool useSwitchEvent)
 {
     cache = _cache;
     objName = cache->name();
     
-    if(cache->useUniformPartitioning){
+    if(cache->useUniformPartitioning && useSwitchEvent){
         assert(cache->uniformPartitioningStartTick >= 0);
         BaseTagsSwitchEvent* event = new BaseTagsSwitchEvent(this);
         event->schedule(cache->uniformPartitioningStartTick);

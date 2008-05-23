@@ -340,6 +340,10 @@ class CacheTags
     int getAssoc(){
         return ct->getAssoc();
     }
+    
+    void setMTPPartition(std::vector<int> setQuotas){
+        ct->setMTPPartition(setQuotas);
+    }
 };
 
 

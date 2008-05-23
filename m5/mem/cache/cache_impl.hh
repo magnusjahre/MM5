@@ -93,7 +93,7 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     hitLatency,
                                     params.bankCount,
                                     true);
-            shadowTags[i]->setCache(this);
+            shadowTags[i]->setCache(this, false);
         }
         
         repartEvent = new CacheRepartitioningEvent(this);
@@ -108,9 +108,12 @@ Cache(const std::string &_name, HierParams *hier_params,
     
     if(params.useMTPPartitioning){
         misscurves.resize(params.cpu_count, vector<double>(tags->getAssoc(), 0));
-        curShadowCPU = -1;
+        mtpPhase = -1;
         assert(!shadowTags.empty());
+        assert(params.useUniformPartitioning);
     }
+    curMTPPartition = 0;
+    
     
     if(params.isShared){
         profileFileName = name() + "CapacityProfile.txt";
@@ -1427,10 +1430,10 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
     
     
     
-    switch(curShadowCPU){
+    switch(mtpPhase){
         
         case -1:{
-            curShadowCPU = 0; //enter measuring phase
+            mtpPhase = 0; //enter measuring phase
             break;
         }
         case 0:{
@@ -1455,7 +1458,7 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
             }
 
             // exit measurement phase
-            curShadowCPU = 1; 
+            mtpPhase = 1; 
             
             // Calculate partitions
             bool partitioningNeeded = calculatePartitions();
@@ -1467,7 +1470,12 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
                 mtptracefile.flush();
                 mtptracefile.close();
                 
-                // TODO: Enforce static uniform partitioning
+                // enforce static partitioning
+                int equalQuota = tags->getAssoc() / cpuCount;
+                vector<int> staticPartition(cpuCount, equalQuota);
+                
+                tags->setMTPPartition(staticPartition);
+                curMTPPartition = -1;
                 
                 return;
             }
@@ -1483,7 +1491,9 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
             mtptracefile.flush();
             mtptracefile.close();
             
-            //TODO: implement partition enforcement
+            // enforce the first MTP partition
+            curMTPPartition = 0;
+            tags->setMTPPartition(mtpPartitions[curMTPPartition]);
             
             // reset hitprofiles and curCPU
             for(int i=0;i<cpuCount;i++){
@@ -1494,7 +1504,11 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
             break;
         }
         case 1:{
-            //TODO: switch partition according to strategy
+            
+            // switch to next partitioning
+            curMTPPartition = (curMTPPartition + 1) % mtpPartitions.size();
+            assert(curMTPPartition >= 0 && curMTPPartition < mtpPartitions.size());
+            tags->setMTPPartition(mtpPartitions[curMTPPartition]);
             break;
         }
         default:{

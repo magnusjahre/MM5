@@ -73,7 +73,8 @@ class Cache : public BaseCache
     CacheRepartitioningEvent* repartEvent;
     std::vector<std::vector<double> > misscurves;
     std::vector<vector<int> > mtpPartitions;
-    int curShadowCPU;
+    int mtpPhase;
+    int curMTPPartition;
     
   public:
     /** Define the type of cache block to use. */

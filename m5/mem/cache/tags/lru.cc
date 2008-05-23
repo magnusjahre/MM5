@@ -173,6 +173,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
         perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
     }
     accesses = 0;
+    useMTPPartitioning = false;
 }
 
 LRU::~LRU()
@@ -291,54 +292,54 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     
     // grab a replacement candidate
     LRUBlk *blk;
-    if(cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick){
+    if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
+        || (useMTPPartitioning && !isShadow)){
+        
+        assert(!isShadow);
         
         int fromProc = req->adaptiveMHASenderID;
+        assert(fromProc >= 0 && fromProc < cache->cpuCount);
         
         // we know that assoc is a power of two, checked in the constructor
-        int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-        assert(maxBlks > 1);
+        int maxBlks = -1;
+        if(cache->useUniformPartitioning && !useMTPPartitioning){
+            maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+        }
+        else{
+            maxBlks = currentMTPPartition[fromProc];
+        }
+        assert(maxBlks >= 1);
         
         vector<int> blkCnt(cache->cpuCount, 0);
         for(int i=0;i<assoc;i++){
-            int tmpID = sets[set].blks[i]->origRequestingCpuID;
-            if(tmpID >= 0) blkCnt[tmpID]++;
+            int tmpID = sets[set].blks[i]->origRequestingCpuID; 
+            if(tmpID >= 0){
+                assert(tmpID >= 0 && tmpID < cache->cpuCount);
+                blkCnt[tmpID]++;
+            }
         }
-        
-        ostringstream tmp;
-        tmp << "Set " << set <<":";
-        for(int i=0;i<cache->cpuCount;i++){
-            tmp << " p" << i << "=" << blkCnt[i];
-        }
-        DPRINTF(UniformPartitioning, "%s\n", tmp.str().c_str());
-        
         
         bool found = false;
         if(blkCnt[fromProc] < maxBlks){
-            
-            // not using all blocks
-            DPRINTF(UniformPartitioning, "Set %d: Choosing block that has not been touched for replacement, request addr is %x, req from proc %d\n", 
-                    set,
-                    req->paddr, 
-                    fromProc);
             blk = sets[set].blks[assoc-1];
-            found = true;
-            
-            // if the block is touched, one processor has more than its share of cache blocks
-            // This should not happen
-            assert(!blk->isTouched);
+            if(cache->useUniformPartitioning && !useMTPPartitioning){
+                // not using all blocks
+                found = true;
+                assert(!blk->isTouched);
+            }
+            else{
+                if(!blk->isTouched) found = true;
+                else{
+                    // using MTP partitioning, evict from a cache that is using more than its quota
+                    fatal("impl MTP special case (1)");
+                }
+            }
         }
         else{
             // replace the LRU block belonging to this cache
             for(int i = assoc-1;i>=0;i--){
                 blk = sets[set].blks[i];
                 if(blk->origRequestingCpuID == fromProc){
-                    DPRINTF(UniformPartitioning, "Set %d: Replacing block belonging to processor %d, req by proc %d, request addr is %x, replaced block addr is %x\n",
-                            set,
-                            blk->origRequestingCpuID,
-                            fromProc,
-                            req->paddr,
-                            regenerateBlkAddr(blk->tag,blk->set));
                     found = true;
                     break;
                 }
@@ -366,7 +367,6 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 	    warmupCycle = curTick;
 	}
     }
-
     return blk;
 }
 
@@ -470,6 +470,7 @@ LRU::perCoreOccupancy(){
 void
 LRU::handleSwitchEvent(){
     assert(cache->useUniformPartitioning);
+    assert(!isShadow);
     
     for(int i=0;i<numSets;i++){
         for(int j=0;j<cache->cpuCount;j++){
@@ -529,6 +530,7 @@ LRU::handleSwitchEvent(){
         // verify that all invalid blocks are at the most LRU positions
         LRUBlk* prevBlk = sets[i].blks[0]; 
         for(int k=1;k<assoc;k++){
+
             LRUBlk* blk = sets[i].blks[k];
             if(!prevBlk->isValid()) assert(!blk->isValid());
             prevBlk = blk;
@@ -599,4 +601,18 @@ LRU::getTouchedRatio(){
     }
     assert(totalcnt == numSets*assoc);
     return (double) ((double) warmcnt / (double) totalcnt);
+}
+
+void 
+LRU::setMTPPartition(std::vector<int> setQuotas){
+    
+    int setcnt = 0;
+    for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
+    assert(setcnt == assoc);
+    
+    //FIXME: We might want to invalidate blocks that exceed the quota to measure the effectiveness of a pure MTP scheme
+    
+    useMTPPartitioning = true;
+    assert(setQuotas.size() == cache->cpuCount);
+    currentMTPPartition = setQuotas;
 }

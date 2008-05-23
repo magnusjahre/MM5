@@ -368,6 +368,7 @@ if env["CACHE-PARTITIONING"] == "StaticUniform":
 if env["CACHE-PARTITIONING"] == "MTP":
     for bank in root.l2:
         bank.use_mtp_partitioning = True
+        bank.use_static_partitioning = True
         bank.static_part_start_tick = uniformPartStart
 
 if cacheProfileStart != -1:

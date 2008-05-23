@@ -76,7 +76,7 @@ CacheTags<Tags,Compression>::setCache(BaseCache *_cache, int bus_width,
     cache = _cache;
     busWidth = bus_width;
     busRatio = bus_ratio;
-    ct->setCache(cache);
+    ct->setCache(cache, true);
     objName = cache->name();
 }
 

@@ -127,6 +127,8 @@ class LRU : public BaseTags
     
     std::vector<std::vector<int> > perSetHitCounters;
     int accesses;
+    std::vector<int> currentMTPPartition;
+    bool useMTPPartitioning;
 
 public:
     /**
@@ -352,6 +354,8 @@ public:
     std::vector<double> getMissRates();
     
     double getTouchedRatio();
+    
+    virtual void setMTPPartition(std::vector<int> setQuotas);
 };
 
 #endif

@@ -109,7 +109,7 @@ class BaseTags
      * objName.
      * @param _cache Pointer to parent cache.
      */
-    void setCache(BaseCache *_cache);
+    void setCache(BaseCache *_cache, bool useSwitchEvent);
 
     /**
      * Return the parent cache name.
@@ -147,6 +147,9 @@ class BaseTags
         
     
     virtual void handleSwitchEvent(){
+    }
+    
+    virtual void setMTPPartition(std::vector<int> setQuotas){
     }
 };
 
