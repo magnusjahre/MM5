@@ -608,6 +608,13 @@ LRU::setMTPPartition(std::vector<int> setQuotas){
     
     int setcnt = 0;
     for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
+    
+    DPRINTF(MTP, "Enforcing set quotas:");
+    for(int i=0;i<setQuotas.size();i++){
+        DPRINTFR(MTP, " %d:%d", i, setQuotas[i]);
+    }
+    DPRINTFR(MTP, "\n");
+    
     assert(setcnt == assoc);
     
     //FIXME: We might want to invalidate blocks that exceed the quota to measure the effectiveness of a pure MTP scheme

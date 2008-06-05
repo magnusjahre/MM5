@@ -1449,16 +1449,20 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
             }
             
             mtptracefile << "Measured miss rate curves\n";
+            DPRINTF(MTP, "Miss rate curves:\n");
             for(int i=0;i<cpuCount;i++){
                 mtptracefile << "CPU" << i << ":";
+                DPRINTFR(MTP, "CPU %d:", i);
                 for(int j=0;j<misscurves[i].size();j++){
+                    DPRINTFR(MTP, " %d:%f", j, misscurves[i][j]);
                     mtptracefile << " " << misscurves[i][j];
                 }
+                DPRINTFR(MTP, "\n");
                 mtptracefile << "\n";
             }
 
             // exit measurement phase
-            mtpPhase = 1; 
+            mtpPhase = 1;
             
             // Calculate partitions
             bool partitioningNeeded = calculatePartitions();
@@ -1466,6 +1470,7 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
             // If all threads are suppliers, no partitioning is needed
             // Use static uniform partitioning
             if(!partitioningNeeded){
+                DPRINTF(MTP, "No partitioning found\n");
                 mtptracefile << "No partitioning found, reverting to static uniform partitioning\n";
                 mtptracefile.flush();
                 mtptracefile.close();
@@ -1611,6 +1616,7 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
                     thrashingCount--;
                     supplierCount++;
                     capacity = capacity - baseSetSize;
+                    c_shrink[i] = minSafeSetIndex;
                 }
                 stable &= result;
             }
@@ -1631,7 +1637,6 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
     vector<int> thrasherIDs;
     for(int i=0;i<cpuCount;i++) if(!supplier[i]) thrasherIDs.push_back(i);
     
-    
     for(int p=0;p<partitionCount;p++){
         int j=p;
         int visitedCount = 0;
@@ -1651,6 +1656,15 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
             j = (j + 1) % thrasherIDs.size();
             visitedCount++;
         }
+    }
+    
+    DPRINTF(MTP, "Analysis resulted in the following partitions:\n");
+    for(int p=0;p<mtpPartitions.size();p++){
+        DPRINTFR(MTP, "P%d:", p);
+        for(int i=0;i<mtpPartitions[p].size();i++){
+            DPRINTFR(MTP, " %d:%d", i, mtpPartitions[p][i]);
+        }
+        DPRINTFR(MTP, "\n");
     }
     
     return true;
