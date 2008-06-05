@@ -330,8 +330,16 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             else{
                 if(!blk->isTouched) found = true;
                 else{
-                    // using MTP partitioning, evict from a cache that is using more than its quota
-                    fatal("impl MTP special case (1)");
+                    
+                    // using MTP partitioning, evict the LRU block from a cache that is using more than its quota
+                    for(int i = assoc-1;i>=0;i--){
+                        blk = sets[set].blks[i];
+                        assert(blk->origRequestingCpuID != -1);
+                        if(blkCnt[blk->origRequestingCpuID] > currentMTPPartition[blk->origRequestingCpuID]){
+                            found = true;
+                            break;
+                        }
+                    }
                 }
             }
         }
