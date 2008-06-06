@@ -146,6 +146,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     
     Param<bool> use_static_partitioning;
     Param<bool> use_mtp_partitioning;
+    Param<Tick> mtp_epoch_size;
     Param<Tick> static_part_start_tick;
     Param<Tick> detailed_sim_start_tick;
     
@@ -223,6 +224,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(is_read_only, "is this an instruction cache?", false),
     INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
     INIT_PARAM_DFLT(use_mtp_partitioning, "does this cache use Multiple Time Sharing Partitions?", false),
+    INIT_PARAM_DFLT(mtp_epoch_size, "the size of the MTP epoch", 10000000),
     INIT_PARAM_DFLT(static_part_start_tick, "the tick where cache part. enforcement will start", -1),
     INIT_PARAM_DFLT(detailed_sim_start_tick, "the tick where detailed simulation (and profiling) starts", -1),
     
@@ -332,7 +334,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-                                                       detailed_sim_start_tick); \
+                                                        detailed_sim_start_tick, mtp_epoch_size); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

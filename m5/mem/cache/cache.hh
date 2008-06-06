@@ -75,6 +75,7 @@ class Cache : public BaseCache
     std::vector<vector<int> > mtpPartitions;
     int mtpPhase;
     int curMTPPartition;
+    Tick mtpEpochSize;
     
   public:
     /** Define the type of cache block to use. */
@@ -173,6 +174,7 @@ class Cache : public BaseCache
         bool useMTPPartitioning;
         Tick uniformPartitioningStart;
         Tick detailedSimStartTick;
+        Tick mtpEpochSize;
 
 	Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 	       bool do_copy, BaseCache::Params params,
@@ -181,7 +183,7 @@ class Cache : public BaseCache
                Interconnect* _inInterconnect, Interconnect* _outInterconnect,
                Prefetcher<TagStore, Buffering> *_prefetcher,
                bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick)
+               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize)
 	    : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
               ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
               inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -192,7 +194,7 @@ class Cache : public BaseCache
               adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
               useMTPPartitioning(_useMTPPartitioning),
               uniformPartitioningStart(_uniformPartitioningStart),
-              detailedSimStartTick(_detailedSimStartTick)
+              detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize)
 	{
 	}
     };

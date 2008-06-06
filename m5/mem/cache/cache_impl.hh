@@ -62,8 +62,6 @@
 #include "sim/sim_events.hh" // for SimExitEvent
 
 #define CACHE_PROFILE_INTERVAL 100000
-//FIXME: epoch should be 10000000
-#define MTP_EPOCH 1000000
         
 using namespace std;
 
@@ -109,8 +107,13 @@ Cache(const std::string &_name, HierParams *hier_params,
     if(params.useMTPPartitioning){
         misscurves.resize(params.cpu_count, vector<double>(tags->getAssoc(), 0));
         mtpPhase = -1;
+        mtpEpochSize = params.mtpEpochSize;
+        assert(mtpEpochSize > 0);
         assert(!shadowTags.empty());
         assert(params.useUniformPartitioning);
+    }
+    else{
+        mtpEpochSize = 0;
     }
     curMTPPartition = 0;
     
@@ -1523,7 +1526,7 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
     
     // reset counters and reschedule event
     for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
-    repartEvent->schedule(curTick + MTP_EPOCH);
+    repartEvent->schedule(curTick + mtpEpochSize);
 }
 
 /**
@@ -1541,7 +1544,7 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
     
     vector<int> c_expand = vector<int>(cpuCount, 0);
     for(int i=0;i<cpuCount;i++){
-        //FIXME: The minimum miss rate might be obtained with less than that static share of sets
+        //NOTE: this implementation interpretes Chang and Sohi to mean the largest speedup relative to the guaranteed partition
         double tmpMin = misscurves[i][minSafeSetIndex];
         int minIndex = minSafeSetIndex;
         for(int j=minSafeSetIndex+1;j<tags->getAssoc();j++){
@@ -1552,6 +1555,12 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
         }
         c_expand[i] = minIndex;
     }
+    
+    DPRINTF(MTP, "Initial c_expand:");
+    for(int i=0;i<cpuCount;i++){
+        DPRINTFR(MTP, " P%d=%d", i, c_expand[i]);
+    }
+    DPRINTFR(MTP, "\n");
     
     vector<int> c_shrink = vector<int>(cpuCount, 0);
     for(int i=0;i<cpuCount;i++){
@@ -1564,6 +1573,13 @@ Cache<TagStore,Buffering,Coherence>::calculatePartitions(){
             else break;
         }
     }
+    
+    DPRINTF(MTP, "Initial c_shrink:");
+    for(int i=0;i<cpuCount;i++){
+        DPRINTFR(MTP, " P%d=%d", i, c_shrink[i]);
+    }
+    DPRINTFR(MTP, "\n");
+
     
     // Step 1 - Remove supplier threads
     int supplierCount = 0;
