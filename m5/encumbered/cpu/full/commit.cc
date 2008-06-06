@@ -372,6 +372,11 @@ FullCPU::commit()
 	  case COMMIT_DMISS:
             commit_total_mem_stall_time++;
             noCommitCycles++;
+            tmpBlockedCycles++;
+            
+            //HACK: the hit latency should be retrived from the L1 cache
+            if(tmpBlockedCycles > 3) l1MissStallCycles++;
+            
 	    floss_state.commit_mem_result[0] = MemAccessResult(detail);
 	    break;
 	  case COMMIT_CAUSE_NOT_SET:
@@ -439,6 +444,9 @@ FullCPU::commit()
     }
 
 
+    // entering main commit loop, reset tmp blocked cycle counter
+    tmpBlockedCycles = 0;
+    
     //
     //  Main commit loop
     //
@@ -604,7 +612,6 @@ FullCPU::commit()
 	floss_state.commit_fu[0][0] = OpClass(detail);
 	break;
       case COMMIT_DMISS:
-        cout << curTick << " " << name() << ": became blocked for memory while committing\n";
 	floss_state.commit_mem_result[0] = MemAccessResult(detail);
 	break;
       case COMMIT_CAUSE_NOT_SET:

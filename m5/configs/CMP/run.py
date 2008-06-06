@@ -108,6 +108,9 @@ if "USE-ADAPTIVE-MHA" in env:
     if 'ADAPTIVE-REPEATS' not in env:
         panic("The number of repeats to make a desicion must be given (-EADAPTIVE-REPEATS)")
 
+useFairAdaptiveMHA = False
+if "USE-FAIR-AMHA" in env:
+    useFairAdaptiveMHA = True
 
 if "CACHE-PARTITIONING" in env:
     if env["CACHE-PARTITIONING"] == "Conventional" \
@@ -211,11 +214,19 @@ if useAdaptiveMHA:
     root.adaptiveMHA.highThreshold = float(env["ADAPTIVE-MHA-HIGH-THRESHOLD"])
     root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
     root.adaptiveMHA.onlyTraceBus = False
+    root.adaptiveMHA.useFairMHA = False
+elif useFairAdaptiveMHA:
+    root.adaptiveMHA.lowThreshold = 0.0 # not used
+    root.adaptiveMHA.highThreshold = 1.0 # not used
+    root.adaptiveMHA.neededRepeats = 1 # not used
+    root.adaptiveMHA.onlyTraceBus = False
+    root.adaptiveMHA.useFairMHA = True
 else:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
     root.adaptiveMHA.highThreshold = 1.0 # not used
     root.adaptiveMHA.neededRepeats = 1 # not used
     root.adaptiveMHA.onlyTraceBus = True
+    root.adaptiveMHA.useFairMHA = False
 
 if "STATICASYMMETRICMHA" in env:
     tmpSAMList = env["STATICASYMMETRICMHA"].split(',')

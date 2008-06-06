@@ -16,7 +16,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          Tick _startTick,
                          bool _onlyTraceBus,
                          int _neededRepeatDecisions,
-                         vector<int> & _staticAsymmetricMHA)
+                         vector<int> & _staticAsymmetricMHA,
+                         bool _useFairAMHA)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -49,6 +50,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     if(!allStaticM1) staticAsymmetricMHAs = _staticAsymmetricMHA;
 
+    useFairAMHA = _useFairAMHA;
     
     dataCaches.resize(adaptiveMHAcpuCount, NULL);
     instructionCaches.resize(adaptiveMHAcpuCount, NULL);
@@ -129,6 +131,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     
     if(firstSample){
         bus->resetAdaptiveStats();
+        for(int i=0;i<cpus.size();i++) cpus[i]->getStalledL1MissCycles();
         firstSample = false;
         
         if(staticAsymmetricMHAs.size() != 0){
@@ -167,6 +170,22 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         cpus[i]->resetCommittedInstructionSample();
     }
     
+    // analyse data according to selected scheme
+    if(!onlyTraceBus){
+        if(useFairAMHA) doFairAMHA();
+        else doThroughputAMHA(dataBusUtil, dataUsers);
+        
+        // write Adaptive MHA trace file
+        ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
+        mhafile << time;
+        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount();
+        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount();
+        mhafile << "\n";
+        mhafile.flush();
+        mhafile.close();
+    }
+    
+    
     //write bus use trace
     ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
     memTraceFile << time;
@@ -187,40 +206,52 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     ipcfile << "\n";
     ipcfile.flush();
     ipcfile.close();
-    
-    
-    if(!onlyTraceBus){
-    
-        bool decreaseCalled = false;
-        if(dataBusUtil >= highThreshold){
-            decreaseNumMSHRs(dataUsers);
-            decreaseCalled = true;
-        }
-        if(dataBusUtil <= lowThreshold){
-            increaseNumMSHRs();
-        }
-        
-        if(!decreaseCalled){
-            numRepeatDecisions = 0;
-            currentCandidate = -1;
-        }
-        
-        // write Adaptive MHA trace file
-        ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
-        mhafile << time;
-        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount();
-        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount();
-        mhafile << "\n";
-        mhafile.flush();
-        mhafile.close();
-    }
+
         
     assert(!sampleEvent->scheduled());
     sampleEvent->schedule(time + sampleFrequency);
 }
 
 void
-AdaptiveMHA::decreaseNumMSHRs(vector<int> currentVector){
+AdaptiveMHA::doFairAMHA(){
+    
+    cout << "fair amha running at tick " << curTick << "\n";
+    
+    // 1. Gather data
+    
+    // gathering stalled cycles, i.e. stall time shared estimate
+    vector<int> stalledCycles(0, adaptiveMHAcpuCount);
+    for(int i=0;i<cpus.size();i++) stalledCycles[i] = cpus[i]->getStalledL1MissCycles();
+    
+    // gather the estimated cycles used for self-interference and transfers/accesses
+    
+    // 2. Compute maximum difference in stall time
+    
+    // 3. Reduce/Increase usable MSHRs to reduce the stall time difference
+    
+    
+}
+
+void
+AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers){
+    
+    bool decreaseCalled = false;
+    if(dataBusUtil >= highThreshold){
+        throughputDecreaseNumMSHRs(dataUsers);
+        decreaseCalled = true;
+    }
+    if(dataBusUtil <= lowThreshold){
+        throughputIncreaseNumMSHRs();
+    }
+        
+    if(!decreaseCalled){
+        numRepeatDecisions = 0;
+        currentCandidate = -1;
+    }
+}
+
+void
+AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
     
     int index = -1;
     int largest = 0;
@@ -262,7 +293,7 @@ AdaptiveMHA::decreaseNumMSHRs(vector<int> currentVector){
 }
 
 void
-AdaptiveMHA::increaseNumMSHRs(){
+AdaptiveMHA::throughputIncreaseNumMSHRs(){
     
     int smallest = 100;
     int index = -1;
@@ -303,6 +334,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<bool> onlyTraceBus;
     Param<int> neededRepeats;
     VectorParam<int> staticAsymmetricMHA;
+    Param<bool> useFairMHA;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -313,7 +345,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM(startTick, "The tick where the scheme is started"),
     INIT_PARAM(onlyTraceBus, "Only create the bus trace, adaptiveMHA is turned off"),
     INIT_PARAM(neededRepeats, "Number of repeated desicions to change config"),
-    INIT_PARAM(staticAsymmetricMHA, "The number of times each caches mshrcount should be reduced")
+    INIT_PARAM(staticAsymmetricMHA, "The number of times each caches mshrcount should be reduced"),
+    INIT_PARAM(useFairMHA, "True if the fair AMHA implementation should be used")
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
@@ -327,7 +360,8 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            startTick,
                            onlyTraceBus,
                            neededRepeats,
-                           staticAsymmetricMHA);
+                           staticAsymmetricMHA,
+                           useFairMHA);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

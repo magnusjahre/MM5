@@ -74,6 +74,8 @@ class FullCPU : public BaseCPU
 {
   private:
       Tick noCommitCycles;
+      Tick tmpBlockedCycles;
+      Tick l1MissStallCycles;
 
   public:
     ////////////////////////////////////////////
@@ -960,6 +962,12 @@ class FullCPU : public BaseCPU
     void commit_one_inst(ROBStation *rs);
 
     unsigned oldest_inst(ROBStation ***clist, unsigned *cnum, unsigned *cx);
+    
+    int getStalledL1MissCycles(){
+        int tmp = l1MissStallCycles;
+        l1MissStallCycles = 0;
+        return tmp;
+    }
 
 
     //----------------------------------------------------------------------

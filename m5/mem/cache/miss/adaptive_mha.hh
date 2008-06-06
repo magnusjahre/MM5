@@ -22,6 +22,8 @@ class AdaptiveMHA : public SimObject{
         double lowThreshold;
         int neededRepeatDecisions;
         
+        bool useFairAMHA;
+        
         int maxMshrs;
         
         std::vector<BaseCache* > dataCaches;
@@ -59,7 +61,8 @@ class AdaptiveMHA : public SimObject{
                     Tick _startTick,
                     bool _onlyTraceBus,
                     int _neededRepeatDecisions,
-                    std::vector<int> & _staticAsymmetricMHA);
+                    std::vector<int> & _staticAsymmetricMHA,
+                    bool _useFairAMHA);
         
         ~AdaptiveMHA();
         
@@ -89,9 +92,14 @@ class AdaptiveMHA : public SimObject{
         }
         
     private:
-        void decreaseNumMSHRs(std::vector<int> currentVector);
         
-        void increaseNumMSHRs();
+        void doFairAMHA();
+        
+        void doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers);
+
+        void throughputDecreaseNumMSHRs(std::vector<int> currentVector);
+        
+        void throughputIncreaseNumMSHRs();
 
 };
 

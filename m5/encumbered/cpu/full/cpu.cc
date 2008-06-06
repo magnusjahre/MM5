@@ -664,6 +664,9 @@ FullCPU::FullCPU(Params *p,
     tracefile << "Tick;Blocked Fraction\n";
     tracefile.flush();
     tracefile.close();
+    
+    tmpBlockedCycles = 0;
+    l1MissStallCycles = 0;
 }
 
 

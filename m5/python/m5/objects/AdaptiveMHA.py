@@ -10,3 +10,4 @@ class AdaptiveMHA(SimObject):
     onlyTraceBus = Param.Bool("Only create the bus trace, adaptiveMHA is turned off")
     neededRepeats = Param.Int("Number of repeated desicions to change config")
     staticAsymmetricMHA = VectorParam.Int("The number of times each caches mshrcount should be reduced")
+    useFairMHA = Param.Bool("True if the fair AMHA implementation should be used")
