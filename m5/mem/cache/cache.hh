@@ -125,7 +125,7 @@ class Cache : public BaseCache
       * A permanent mem req to always be used to cause invalidations.
       * Used to append to target list, to cause an invalidation.
       */
-    MemReqPtr invalidateReq;    
+    MemReqPtr invalidateReq;
     
     /**
      * Temporarily move a block into a MSHR.
@@ -175,7 +175,8 @@ class Cache : public BaseCache
         Tick uniformPartitioningStart;
         Tick detailedSimStartTick;
         Tick mtpEpochSize;
-
+        bool simulateContention;
+        
 	Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 	       bool do_copy, BaseCache::Params params,
                Bus * in_bus, Bus * out_bus, 
@@ -183,7 +184,7 @@ class Cache : public BaseCache
                Interconnect* _inInterconnect, Interconnect* _outInterconnect,
                Prefetcher<TagStore, Buffering> *_prefetcher,
                bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize)
+               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention)
 	    : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
               ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
               inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -194,7 +195,7 @@ class Cache : public BaseCache
               adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
               useMTPPartitioning(_useMTPPartitioning),
               uniformPartitioningStart(_uniformPartitioningStart),
-              detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize)
+              detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize), simulateContention(_simulateContention)
 	{
 	}
     };

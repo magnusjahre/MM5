@@ -7,8 +7,6 @@ using namespace std;
 void
 Crossbar::arbitrate(Tick cycle){
     
-//     if(cycle >= 25000131) cout << cycle << ": Arbitrate crossbar called\n";
-    
     list<InterconnectRequest* > notGrantedReqs;
     vector<bool> occupiedEndNodes(cpu_count + slaveInterfaces.size(), false);
     
@@ -30,10 +28,6 @@ Crossbar::arbitrate(Tick cycle){
             if(!(allInterfaces[toInterfaceID]->isMaster()) 
                 && blockedInterfaces[interconnectIDToL2IDMap[toInterfaceID]]){
                 // the destination cache is blocked, so we can not deliver to it
-                
-//                 if(allInterfaces[req->fromID]->getCacheName() == "L1dcaches3" && curTick >= 1127291){
-//                     cout << curTick << ": Crossbar, not delivering, L2 is blocked, name " << allInterfaces[toInterfaceID]->getCacheName() << "\n";
-//                 }
                 notGrantedReqs.push_back(req);
                 continue;
             }
@@ -52,14 +46,6 @@ Crossbar::arbitrate(Tick cycle){
                 totalArbitrationCycles += arbitrationDelay;
                 
                 // grant access
-//                 if(cycle >= 25100000 && allInterfaces[req->fromID]->getCacheName() == "L1icaches3"){
-//                     cout << cycle << ": Granting access to interface " << req->fromID << ", name " << allInterfaces[req->fromID]->getCacheName() <<" \n";
-//                 }
-                
-//                 if(allInterfaces[req->fromID]->getCacheName() == "L1dcaches3" && curTick >= 1127291){
-//                     cout << curTick << ": Crossbar, granting access to name " << allInterfaces[toInterfaceID]->getCacheName() << "\n";
-//                 }
-                
                 allInterfaces[req->fromID]->grantData();
                 delete req;
             }

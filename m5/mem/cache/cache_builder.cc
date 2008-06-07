@@ -153,6 +153,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> do_modulo_addr;
     Param<int> bank_id;
     Param<int> bank_count;
+    Param<bool> simulate_contention;
     
     Param<bool> do_copy;
     SimObjectParam<CoherenceProtocol *> protocol;
@@ -231,6 +232,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(do_modulo_addr, "use modulo operator to choose bank", false),
     INIT_PARAM_DFLT(bank_id, "the bank ID of this cache bank", -1),
     INIT_PARAM_DFLT(bank_count, "the number of cache banks", -1),
+    INIT_PARAM_DFLT(simulate_contention, "true if this cache simulates contention", false),
+    
     
     INIT_PARAM_DFLT(do_copy, "perform fast copies in the cache", false),
     INIT_PARAM_DFLT(protocol, "coherence protocol to use in the cache", NULL),
@@ -334,7 +337,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-                                                        detailed_sim_start_tick, mtp_epoch_size); \
+                                                       detailed_sim_start_tick, mtp_epoch_size, simulate_contention); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

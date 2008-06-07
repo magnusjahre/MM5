@@ -95,5 +95,6 @@ class BaseCache(BaseMem):
     do_modulo_addr = Param.Bool("Use modulo operator to select bank")
     bank_id = Param.Int("The bank ID of this cache (only for modulo addressed banks)")
     bank_count = Param.Int("The number of cache banks (only for modulo addressed banks)")
+    simulate_contention = Param.Bool("true if this cache simulates contention")
     
     adaptive_mha = Param.AdaptiveMHA("Adaptive MHA Object")

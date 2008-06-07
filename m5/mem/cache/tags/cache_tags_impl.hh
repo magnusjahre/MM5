@@ -203,9 +203,10 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk, MemReqPtr &req,
 	(req->isCompressed() ?
 	 compLatency/4 :
 	 0);
-
+    
     // Respond to target, if any
     if (target) {
+        
 	MemCmd cmd = target->cmd;
 
 	target->flags |= SATISFIED;
@@ -286,20 +287,12 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 	initial_offset = mshr->getTarget()->offset;
     }
     
-//     bool doPrint = false;
-//     if(req->paddr == 5409216256){
-//         cout << curTick << " " << cache->name() << ": block seen in handleResponse, cmd is " << req->cmd << "\n";
-//         doPrint = true;
-//     }
-    
     bool firstIsRead = (req->cmd == DirRedirectRead);
 
     while (mshr->hasTargets()) {
         
 	MemReqPtr target = mshr->getTarget();
 	MemCmd cmd = target->cmd;
-        
-//         if(doPrint) cout << "has targets!, target cmd is " << cmd << ", address is " << (target->paddr & ~(Addr(cache->getBlockSize()-1))) << "\n";
         
 	target->flags |= SATISFIED;
 	
@@ -320,7 +313,6 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
             if(firstIsRead && cmd.isWrite() && req->owner != cache->getCacheCPUid()){
                 // since the first is read and we are not the owner, we need to retransmit
                 // re-request is done in missQueue handleMiss()
-//                 cout << curTick << " " << cache->name() << ": write hidden by read, retransmitting, address is " << (target->paddr & ~(Addr(cache->getBlockSize()-1))) << "\n";
                 break;
             }
         }
@@ -349,7 +341,6 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 	if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
 	    assert(cmd.isWrite() || cmd.isRead());
 	    if (cmd.isWrite()) {
-//                 if(doPrint) cout << "writing to block\n";
 		blk->status |= BlkDirty;
 		ct->fixCopy(req, writebacks);
 		if (cache->doData()) {
@@ -371,8 +362,8 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 	    break;
 	}
         
-	cache->respondToMiss(target, completion_time);
-	mshr->popTarget();
+        mshr->popTarget();
+        cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
     
     if (blk && cache->doData()) {
@@ -444,8 +435,9 @@ CacheTags<Tags,Compression>::pseudoFill(MSHR * mshr,
 	    // permissions
 	    break;
 	}
-	cache->respondToMiss(target, completion_time);
-	mshr->popTarget();
+        
+        mshr->popTarget();
+        cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
     
     if (blk && cache->doData()) {
@@ -513,8 +505,8 @@ CacheTags<Tags,Compression>::handleTargets(MSHR *mshr, MemReqList &writebacks)
 	    break;
 	}
         
-	cache->respondToMiss(target, completion_time);
-	mshr->popTarget();
+        mshr->popTarget();
+        cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
     
     if (write_data && blk && cache->doData()) {

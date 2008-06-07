@@ -13,6 +13,7 @@ class BaseL1Cache(BaseCache):
     tgts_per_mshr = 4
     cpu_count = int(env['NP'])
     is_shared = False
+    simulate_contention = False
 
 class IL1(BaseL1Cache):
     latency = Parent.clock.period
@@ -33,6 +34,7 @@ class L2Bank(BaseCache):
     cpu_count = int(env['NP'])
     is_shared = True
     is_read_only = False
+    simulate_contention = True
     
     def setModuloAddr(self, bankID, bank_count):
         self.do_modulo_addr = True
@@ -82,7 +84,7 @@ class InterconnectCrossbar(Crossbar):
     width = 64
     clock = 1 * Parent.clock.period
     transferDelay = 4
-    arbitrationDelay = 5
+    arbitrationDelay = 4 # was 5, changed 7.6.08
     
 class InterconnectButterfly(Butterfly):
     width = 64

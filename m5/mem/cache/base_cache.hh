@@ -129,6 +129,10 @@ class BaseCache : public BaseMem {
 
     /** The number of misses to trigger an exit event. */
     Counter missCount;
+    
+    // cache contention variables
+    bool simulateContention;
+    Tick nextFreeCache;
 
   public:
       
@@ -433,13 +437,7 @@ class BaseCache : public BaseMem {
      * @param req The request to respond to.
      * @param time The time the response is ready.
      */
-    void respondToMiss(MemReqPtr &req, Tick time)
-    {
-	if (!req->isUncacheable()) {
-	    missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
-	}
-	si->respond(req,time);
-    }
+    void respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService);
 
     /**
      * Suppliess the data if cache to cache transfers are enabled.

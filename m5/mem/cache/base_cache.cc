@@ -371,4 +371,23 @@ BaseCache::checkIfCacheAlive(){
     checkEvent->schedule(curTick + CACHE_CHECK_INTERVAL);
 }
 
+void
+BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
+{
+    
+    // assumes that the targets are delivered to the interconnect in parallel
+    if(simulateContention && !moreTargetsToService){
+        assert(curTick == (time - hitLatency));
+        if(nextFreeCache < (time - hitLatency)) nextFreeCache = time;
+        else{
+            time = nextFreeCache + hitLatency;
+            nextFreeCache += hitLatency;
+        }
+    }
+    
+    if (!req->isUncacheable()) {
+        missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
+    }
+    si->respond(req,time);
+}
 
