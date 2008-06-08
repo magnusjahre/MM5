@@ -45,8 +45,6 @@
 
 #include "mem/interconnect/interconnect.hh"
 #include "mem/cache/coherence/directory.hh"
-
-#include "mem/cache/miss/adaptive_mha.hh"
         
 #include "mem/cache/tags/lru.hh"
 #include "mem/config/cache.hh"

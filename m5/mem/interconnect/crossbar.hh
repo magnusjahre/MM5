@@ -69,14 +69,16 @@ class Crossbar : public Interconnect
                  int _transDelay,
                  int _arbDelay,
                  int _cpu_count,
-                 HierParams *_hier)
+                 HierParams *_hier,
+                 AdaptiveMHA* _adaptiveMHA)
             : Interconnect(_name,
                            _width, 
                            _clock, 
                            _transDelay, 
                            _arbDelay,
                            _cpu_count,
-                           _hier){
+                           _hier,
+                           _adaptiveMHA){
             
             isFirstRequest = true;
             nextBusFreeTime = 0;

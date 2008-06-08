@@ -29,6 +29,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     cpus.resize(cpu_count, 0);
     
+    totalInterferenceDelay.resize(cpu_count, 0);
+    totalSharedDelay.resize(cpu_count, 0);
+    
     neededRepeatDecisions = _neededRepeatDecisions;
     
     currentCandidate = -1;
@@ -320,6 +323,18 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
         assert(dataCaches[index]->isBlocked());
         dataCaches[index]->clearBlocked(Blocked_NoMSHRs);
     }
+}
+
+void
+AdaptiveMHA::addInterferenceDelay(vector<Tick> perCPUQueueTimes){
+    for(int i=0;i<perCPUQueueTimes.size();i++){
+        totalInterferenceDelay[i] += perCPUQueueTimes[i];
+    }
+}
+
+void
+AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay){
+    fatal("add total delay not impl");
 }
 
 

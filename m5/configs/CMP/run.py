@@ -221,6 +221,7 @@ elif useFairAdaptiveMHA:
     root.adaptiveMHA.neededRepeats = 1 # not used
     root.adaptiveMHA.onlyTraceBus = False
     root.adaptiveMHA.useFairMHA = True
+    
 else:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
     root.adaptiveMHA.highThreshold = 1.0 # not used
@@ -355,7 +356,8 @@ Interconnect.cpu_count = int(env['NP'])
 root.setInterconnect(env['INTERCONNECT'],
                      L2_BANK_COUNT,
                      icProfileStart,
-                     moduloAddr)
+                     moduloAddr,
+                     useFairAdaptiveMHA)
 
 root.setL2Banks()
 if env['PROTOCOL'] in directory_protocols:

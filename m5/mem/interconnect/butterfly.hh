@@ -81,7 +81,8 @@ class Butterfly : public Interconnect
                   HierParams *_hier,
                   int _switchDelay,
                   int _radix,
-                  int _banks);
+                  int _banks,
+                  AdaptiveMHA* _adaptiveMHA);
         
         /**
         * This destructor does nothing.

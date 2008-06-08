@@ -145,6 +145,10 @@ Cache(const std::string &_name, HierParams *hier_params,
         if(params.adaptiveMHA != NULL){
             params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this);
             useAdaptiveMHA = true;
+            adaptiveMHA = params.adaptiveMHA;
+        }
+        else{
+            adaptiveMHA = NULL;
         }
     }
     

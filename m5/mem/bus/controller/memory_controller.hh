@@ -20,6 +20,7 @@
 #include "mem/bus/base_interface.hh"
 #include "mem/bus/bus.hh"
 
+class Bus;
 
 /**
  * A Memory controller.

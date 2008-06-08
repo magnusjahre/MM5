@@ -14,6 +14,10 @@ Crossbar::arbitrate(Tick cycle){
     if(cycle <= nextBusFreeTime) busIsUsed = true;
     
     Tick candiateReqTime = cycle - arbitrationDelay;
+    
+    vector<int> grantedCPUs;
+    vector<int> toBanks;
+    
     while(!requestQueue.empty()){
         InterconnectRequest* req = requestQueue.front();
         requestQueue.pop_front();
@@ -46,6 +50,16 @@ Crossbar::arbitrate(Tick cycle){
                 totalArbitrationCycles += arbitrationDelay;
                 
                 // grant access
+                int grantedCPU =  (allInterfaces[req->fromID]->isMaster() ?
+                                   interconnectIDToProcessorIDMap[req->fromID]
+                                 : interconnectIDToProcessorIDMap[toInterfaceID]);
+                grantedCPUs.push_back(grantedCPU);
+                
+                int toBank = (allInterfaces[req->fromID]->isMaster() ?
+                              interconnectIDToL2IDMap[toInterfaceID] + cpu_count
+                            : interconnectIDToL2IDMap[req->fromID] + cpu_count);
+                toBanks.push_back(toBank);
+                
                 allInterfaces[req->fromID]->grantData();
                 delete req;
             }
@@ -56,6 +70,42 @@ Crossbar::arbitrate(Tick cycle){
         else{
             // not ready
             notGrantedReqs.push_back(req);
+        }
+    }
+    
+    //measure interference
+    if(adaptiveMHA != NULL){
+        for(int i=0;i<grantedCPUs.size();i++){
+            
+            std::vector<Tick> queueWaitBuffer(cpu_count, 0);
+            
+            if(!notGrantedReqs.empty()){
+                list<InterconnectRequest* >::iterator notGrantedIterator;
+                notGrantedIterator = notGrantedReqs.begin();
+                
+                while(notGrantedIterator != notGrantedReqs.end()){
+                    InterconnectRequest* tmpReq = *notGrantedIterator;
+                    
+                    int cpuID = -1;
+                    (allInterfaces[tmpReq->fromID]->isMaster() 
+                            ? cpuID = interconnectIDToProcessorIDMap[tmpReq->fromID] 
+                            : cpuID = interconnectIDToProcessorIDMap[getDestinationId(tmpReq->fromID)]);
+                    assert(cpuID >= 0 && cpuID < cpu_count);
+                    
+                    int bankID = -1;
+                    (allInterfaces[tmpReq->fromID]->isMaster() 
+                            ? bankID = interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)] + cpu_count
+                            : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
+                    
+                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
+                        queueWaitBuffer[cpuID] += arbitrationDelay + transferDelay;
+                    }
+                    
+                    notGrantedIterator++;
+                }
+            
+                adaptiveMHA->addInterferenceDelay(queueWaitBuffer);
+            }
         }
     }
     
@@ -259,6 +309,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     Param<int> arbitrationDelay;
     Param<int> cpu_count;
     SimObjectParam<HierParams *> hier;
+    SimObjectParam<AdaptiveMHA *> adaptive_mha;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -269,18 +320,20 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier,
                     "Hierarchy global variables",
-                    &defaultHierParams)
+                    &defaultHierParams),
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
 {
     return new Crossbar(getInstanceName(),
-                                 width,
-                                 clock,
-                                 transferDelay,
-                                 arbitrationDelay,
-                                 cpu_count,
-                                 hier);
+                        width,
+                        clock,
+                        transferDelay,
+                        arbitrationDelay,
+                        cpu_count,
+                        hier,
+                        adaptive_mha);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)

@@ -15,14 +15,16 @@ Butterfly::Butterfly(const std::string &_name,
                      HierParams *_hier,
                      int _switchDelay,
                      int _radix,
-                     int _banks)
+                     int _banks,
+                     AdaptiveMHA* _adaptiveMHA)
                 : Interconnect(_name,
                                _width,
                                _clock,
                                _transDelay,
                                _arbDelay,
                                _cpu_count,
-                               _hier)
+                               _hier,
+                               _adaptiveMHA)
 {
     switchDelay = _switchDelay;
     radix = _radix;
@@ -428,6 +430,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Butterfly)
     Param<int> switch_delay;
     Param<int> radix;
     Param<int> banks;
+    SimObjectParam<AdaptiveMHA *> adaptive_mha;
 END_DECLARE_SIM_OBJECT_PARAMS(Butterfly)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Butterfly)
@@ -443,7 +446,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Butterfly)
                     "The delay of a switch in CPU cycles",
                     1),
     INIT_PARAM(radix, "The switching-degree of each switch"),
-    INIT_PARAM(banks, "the number of last-level cache banks")
+    INIT_PARAM(banks, "the number of last-level cache banks"),
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(Butterfly)
 
 CREATE_SIM_OBJECT(Butterfly)
@@ -457,7 +461,8 @@ CREATE_SIM_OBJECT(Butterfly)
                          hier,
                          switch_delay,
                          radix,
-                         banks);
+                         banks,
+                         adaptive_mha);
 }
 
 REGISTER_SIM_OBJECT("Butterfly", Butterfly)

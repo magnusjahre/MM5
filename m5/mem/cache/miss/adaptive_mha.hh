@@ -10,6 +10,7 @@
 #include "mem/mem_req.hh"
 #include "sim/eventq.hh"
 
+class BaseCache;
 class AdaptiveMHASampleEvent;
 
 class AdaptiveMHA : public SimObject{
@@ -47,6 +48,9 @@ class AdaptiveMHA : public SimObject{
         bool onlyTraceBus;
         
         std::vector<FullCPU* > cpus;
+        
+        std::vector<Tick> totalInterferenceDelay;
+        std::vector<Tick> totalSharedDelay;
     
     public:
         
@@ -90,6 +94,9 @@ class AdaptiveMHA : public SimObject{
             assert(cpus[id] == 0);
             cpus[id] = cpu;
         }
+        
+        void addInterferenceDelay(std::vector<Tick> perCPUQueueTimes);
+        void addTotalDelay(int issuedCPU, Tick delay);
         
     private:
         

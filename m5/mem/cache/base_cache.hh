@@ -45,7 +45,8 @@
 #include "mem/bus/base_interface.hh"
 #include "mem/mem_cmd.hh"
 #include "mem/mem_req.hh" // For MemReqPtr
-        
+
+#include "mem/cache/miss/adaptive_mha.hh"
 
 #include "mem/cache/coherence/directory.hh"
 #include "mem/cache/cache_blk.hh"
@@ -79,6 +80,8 @@ enum RequestCause{
     Request_PF,
     Request_DirectoryCoherence
 };
+
+class AdaptiveMHA;
 
 /**
  * A basic cache interface. Implements some common functions for speed.
@@ -145,6 +148,7 @@ class BaseCache : public BaseMem {
     bool useDirectory;
     bool isReadOnly;
     bool useAdaptiveMHA;
+    AdaptiveMHA* adaptiveMHA;
     bool useUniformPartitioning;
     Tick uniformPartitioningStartTick;
     bool useMTPPartitioning;

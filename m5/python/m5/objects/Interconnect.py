@@ -8,4 +8,5 @@ class Interconnect(BaseHier):
     clock = Param.Clock("interconnect frequency")
     transferDelay = Param.Int("interconnect transfer delay in interconnect cycles")
     arbitrationDelay = Param.Int("interconnect arbitration delay in interconnect cycles")
-    cpu_count = Param.Int("the number of CPUs in the system");
+    cpu_count = Param.Int("the number of CPUs in the system")
+    adaptive_mha = Param.AdaptiveMHA("Adaptive MHA Object")

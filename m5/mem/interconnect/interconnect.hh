@@ -12,6 +12,8 @@
 #include "interconnect_profile.hh"
 #include "sim/eventq.hh"
 #include "sim/stats.hh"
+
+#include "mem/cache/miss/adaptive_mha.hh"
         
 #include "cpu/exec_context.hh" // for ExecContext, needed for cpu_id
 #include "cpu/base.hh" // for BaseCPU, needed for cpu_id
@@ -57,6 +59,8 @@ class Interconnect : public BaseHier
         int cpu_count;
         
         InterconnectProfile* profiler;
+        
+        AdaptiveMHA* adaptiveMHA;
         
         std::map<int, int> processorIDToInterconnectIDMap;
         std::map<int, int> interconnectIDToProcessorIDMap;
@@ -219,7 +223,8 @@ class Interconnect : public BaseHier
                  int _transDelay,
                  int _arbDelay,
                  int _cpu_count,
-                 HierParams *_hier)
+                 HierParams *_hier,
+                 AdaptiveMHA* _adaptiveMHA)
             : BaseHier(_name, _hier){
 
             width = _width;
@@ -227,6 +232,10 @@ class Interconnect : public BaseHier
             transferDelay = _transDelay;
             arbitrationDelay = _arbDelay;
             cpu_count = _cpu_count;
+            
+            if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
+            else adaptiveMHA = NULL;
+            
     
             if(clock != 1){
                 fatal("The interconnects are only implemented to run "

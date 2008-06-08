@@ -84,6 +84,9 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
     
+    if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
+    else adaptiveMHA = NULL;
+    
     fwMemoryController = _fwController;
     simMemoryController = _memoryController;
     

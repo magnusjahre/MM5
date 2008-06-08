@@ -77,14 +77,16 @@ class SplitTransBus : public Interconnect
                       int _arbDelay,
                       int _cpu_count,
                       bool _pipelined,
-                      HierParams *_hier)
+                      HierParams *_hier,
+                      AdaptiveMHA* _amha)
             : Interconnect(_name,
                            _width, 
                            _clock, 
                            _transDelay, 
                            _arbDelay,
                            _cpu_count,
-                           _hier){
+                           _hier,
+                           _amha){
             
             pipelined = _pipelined;
             

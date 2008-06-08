@@ -218,6 +218,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(IdealInterconnect)
     Param<int> arbitrationDelay;
     Param<int> cpu_count;
     SimObjectParam<HierParams *> hier;
+    SimObjectParam<AdaptiveMHA *> adaptive_mha;
 END_DECLARE_SIM_OBJECT_PARAMS(IdealInterconnect)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(IdealInterconnect)
@@ -231,7 +232,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(IdealInterconnect)
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier,
                     "Hierarchy global variables",
-                    &defaultHierParams)
+                    &defaultHierParams),
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(IdealInterconnect)
 
 CREATE_SIM_OBJECT(IdealInterconnect)
@@ -242,7 +244,8 @@ CREATE_SIM_OBJECT(IdealInterconnect)
                                  transferDelay,
                                  arbitrationDelay,
                                  cpu_count,
-                                 hier);
+                                 hier,
+                                 adaptive_mha);
 }
 
 REGISTER_SIM_OBJECT("IdealInterconnect", IdealInterconnect)

@@ -512,6 +512,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(SplitTransBus)
         Param<int> cpu_count;
         Param<bool> pipelined;
         SimObjectParam<HierParams *> hier;
+        SimObjectParam<AdaptiveMHA *> adaptive_mha;
 END_DECLARE_SIM_OBJECT_PARAMS(SplitTransBus)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(SplitTransBus)
@@ -524,7 +525,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(SplitTransBus)
                               "and transmission"),
         INIT_PARAM_DFLT(hier,
                         "Hierarchy global variables",
-                        &defaultHierParams)
+                        &defaultHierParams),
+        INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(SplitTransBus)
 
 CREATE_SIM_OBJECT(SplitTransBus)
@@ -536,7 +538,8 @@ CREATE_SIM_OBJECT(SplitTransBus)
                              arbitrationDelay,
                              cpu_count,
                              pipelined,
-                             hier);
+                             hier,
+                             adaptive_mha);
 }
 
 REGISTER_SIM_OBJECT("SplitTransBus", SplitTransBus)

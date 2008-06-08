@@ -98,6 +98,8 @@ class Bus : public BaseHier
     AddrArbiterEvent* currently_scheduled;
 
     TimingMemoryController *memoryController;
+    
+    AdaptiveMHA* adaptiveMHA;
 
   protected:
     

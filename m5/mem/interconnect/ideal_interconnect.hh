@@ -57,14 +57,16 @@ class IdealInterconnect : public Interconnect
                       int _transDelay,
                       int _arbDelay,
                       int _cpu_count,
-                      HierParams *_hier)
+                      HierParams *_hier,
+                      AdaptiveMHA* _amha)
             : Interconnect(_name,
                            _width, 
                            _clock, 
                            _transDelay, 
                            _arbDelay,
                            _cpu_count,
-                           _hier){
+                           _hier,
+                           _amha){
         
             if(_width <= 0){
                 fatal("The idealInterconnect must have a finite width, "

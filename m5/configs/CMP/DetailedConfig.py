@@ -73,7 +73,7 @@ class DetailedStandAlone(Root):
     #def setNumCPUs(self, numCPUs):
         #self.interconnect.L1CacheCount = (numCPUs*2)
         
-    def setInterconnect(self, optionString, L2BankCount, profileStart, moduloAddr):
+    def setInterconnect(self, optionString, L2BankCount, profileStart, moduloAddr, useFairAMHA):
         if optionString == 'bus':
             self.interconnect = ToL2Bus()
             self.createL2(True, L2BankCount, moduloAddr)
@@ -97,6 +97,9 @@ class DetailedStandAlone(Root):
             self.createL2(False, L2BankCount, moduloAddr)
         else:
             panic('Unknown interconnect selected')
+            
+        if useFairAMHA:
+            self.interconnect.adaptive_mha = self.adaptiveMHA
             
         if profileStart != -1 and optionString != 'bus':
             self.interconnectProfiler = InterconnectProfile()
