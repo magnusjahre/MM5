@@ -372,6 +372,10 @@ if l2mshrs != -1:
     for bank in root.l2:
         bank.mshrs = l2mshrs
         bank.tgts_per_mshr = l2mshrTargets
+        
+if useFairAdaptiveMHA:
+    for l2 in root.l2:
+        l2.adaptive_mha = root.adaptiveMHA
 
 if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
@@ -387,7 +391,6 @@ if env["CACHE-PARTITIONING"] == "MTP":
 if cacheProfileStart != -1:
     for bank in root.l2:
         bank.detailed_sim_start_tick = cacheProfileStart
-        
 if L2BankSize != -1:
     for bank in root.l2:
         bank.size = str(L2BankSize)+"kB"

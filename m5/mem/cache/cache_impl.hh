@@ -80,7 +80,6 @@ Cache(const std::string &_name, HierParams *hier_params,
     cacheCpuID = params.cpu_id;
     
     simulateContention = params.simulateContention;
-    nextFreeCache = 0;
 
     // init shadowtags
 #ifdef USE_CACHE_LRU
@@ -142,9 +141,13 @@ Cache(const std::string &_name, HierParams *hier_params,
     useAdaptiveMHA = false;
     if (params.in == NULL) {
 	topLevelCache = true;
-        if(params.adaptiveMHA != NULL){
+        if(params.adaptiveMHA != NULL && !params.isShared){
             params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this);
             useAdaptiveMHA = true;
+            adaptiveMHA = params.adaptiveMHA;
+        }
+        else if(params.adaptiveMHA != NULL && params.isShared){
+            useAdaptiveMHA = false;
             adaptiveMHA = params.adaptiveMHA;
         }
         else{
@@ -362,10 +365,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	if (!req->cmd.isNoResponse()){
 	    respond(req, curTick+lat);
         }
-        else if(simulateContention){
-            if(nextFreeCache < curTick) nextFreeCache = curTick + lat;
-            else nextFreeCache += hitLatency;
-        }
+        else if(simulateContention) updateInterference(req);
 
 	return MA_HIT;
     }
@@ -397,21 +397,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         missesPerCPU[cacheCpuID]++;
     }
 
-    if(simulateContention){
-        Tick sendMissAt = 0;
-        if(curTick < nextFreeCache){
-            sendMissAt = nextFreeCache + hitLatency;
-            nextFreeCache = sendMissAt;
-        }
-        else{
-            sendMissAt = curTick + hitLatency;
-            nextFreeCache = sendMissAt;
-        }
-        missQueue->handleMiss(req, size, sendMissAt);
-    }
-    else{
-        missQueue->handleMiss(req, size, curTick + hitLatency);
-    }
+    if(simulateContention) missQueue->handleMiss(req, size, updateAndStoreInterference(req, curTick + hitLatency));
+    else missQueue->handleMiss(req, size, curTick + hitLatency);
+    
     return MA_CACHE_MISS;
 }
 
@@ -1433,17 +1421,7 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::respond(MemReqPtr &req, Tick time)
 {
-    //code assumes that time = arrival time + hitLatency
-    assert((time - hitLatency) == curTick);
-    if(simulateContention){
-        if(nextFreeCache > (time - hitLatency)){
-            time = nextFreeCache + hitLatency;
-            nextFreeCache += hitLatency;
-        }
-        else{
-            nextFreeCache = time;
-        }
-    }
+    if(simulateContention) time = updateAndStoreInterference(req, time);
     si->respond(req,time);
 }
 

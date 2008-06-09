@@ -135,6 +135,8 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     if(firstSample){
         bus->resetAdaptiveStats();
         for(int i=0;i<cpus.size();i++) cpus[i]->getStalledL1MissCycles();
+        for(int i=0;i<totalInterferenceDelay.size();i++) totalInterferenceDelay[i] = 0;
+        for(int i=0;i<totalSharedDelay.size();i++) totalSharedDelay[i] = 0;
         firstSample = false;
         
         if(staticAsymmetricMHAs.size() != 0){
@@ -218,13 +220,24 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 void
 AdaptiveMHA::doFairAMHA(){
     
-    cout << "fair amha running at tick " << curTick << "\n";
+    cout << "fair amha running at tick " << curTick << ":\n";
     
     // 1. Gather data
     
     // gathering stalled cycles, i.e. stall time shared estimate
-    vector<int> stalledCycles(0, adaptiveMHAcpuCount);
-    for(int i=0;i<cpus.size();i++) stalledCycles[i] = cpus[i]->getStalledL1MissCycles();
+    vector<int> stalledCycles(adaptiveMHAcpuCount, 0);
+    for(int i=0;i<cpus.size();i++){
+        stalledCycles[i] = cpus[i]->getStalledL1MissCycles();
+        cout << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
+    }
+    
+    // gather t_interference
+    vector<Tick> t_interference(adaptiveMHAcpuCount, 0);
+    for(int i=0;i<t_interference.size();i++){
+        cout << "CPU" << i << " interference: " << totalInterferenceDelay[i] << "\n";
+        t_interference[i] = totalInterferenceDelay[i];
+        totalInterferenceDelay[i] = 0;
+    }
     
     // gather the estimated cycles used for self-interference and transfers/accesses
     

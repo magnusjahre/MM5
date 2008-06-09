@@ -69,6 +69,7 @@ BaseCache::BaseCache(const std::string &name,
     checkEvent->schedule(CACHE_CHECK_INTERVAL);
     blockedAt = 0;
     
+    nextFreeCache = 0;
 }
 
 void
@@ -377,17 +378,73 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     
     // assumes that the targets are delivered to the interconnect in parallel
     if(simulateContention && !moreTargetsToService){
-        assert(curTick == (time - hitLatency));
-        if(nextFreeCache < (time - hitLatency)) nextFreeCache = time;
-        else{
-            time = nextFreeCache + hitLatency;
-            nextFreeCache += hitLatency;
-        }
+        updateAndStoreInterference(req, time);
     }
     
     if (!req->isUncacheable()) {
         missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
     }
     si->respond(req,time);
+}
+
+Tick
+BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
+    
+    assert(curTick == (time - hitLatency));
+        
+    for(int i=0;i<occupancy.size();i++){
+        if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);
+    }
+        
+    assert(req->adaptiveMHASenderID >= 0);
+    if(nextFreeCache < (time - hitLatency)){
+        occupancy.push_back(cacheOccupancy(time - hitLatency, time, req->adaptiveMHASenderID, curTick));
+        nextFreeCache = time;
+    }
+    else{
+        assert(occupancy.back().originalRequestTick <= curTick);
+        
+        Tick waitTime = nextFreeCache - (time - hitLatency);
+        
+        // search to discover which part(s) of the delay is actually due to interference with a different processor
+        vector<Tick> interference(cpuCount, 0);
+        int blameIndex = occupancy.size()-1;
+        while(waitTime > 0){
+            
+            int blameDelay = 0;
+            assert(blameIndex >= 0);
+            if(waitTime > hitLatency) blameDelay = hitLatency;
+            else blameDelay = waitTime;
+            
+            if(occupancy[blameIndex].occCPUID != req->adaptiveMHASenderID){
+                interference[req->adaptiveMHASenderID] += blameDelay;
+            }
+            
+            blameIndex--;
+            waitTime = waitTime - hitLatency;
+        }
+        
+        adaptiveMHA->addInterferenceDelay(interference);
+        
+        time = nextFreeCache + hitLatency;
+        nextFreeCache += hitLatency;
+        occupancy.push_back(cacheOccupancy(nextFreeCache - hitLatency,nextFreeCache, req->adaptiveMHASenderID, curTick));
+    }
+    
+    return time;
+}
+
+void
+BaseCache::updateInterference(MemReqPtr &req){
+    
+    if(nextFreeCache < curTick) nextFreeCache = curTick + hitLatency;
+    else nextFreeCache += hitLatency;
+    
+    assert(req->adaptiveMHASenderID != -1);
+    occupancy.push_back(cacheOccupancy(nextFreeCache - hitLatency, nextFreeCache, req->adaptiveMHASenderID, curTick));
+    
+    for(int i=0;i<occupancy.size();i++){
+        if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);
+    }
 }
 

@@ -137,6 +137,26 @@ class BaseCache : public BaseMem {
     bool simulateContention;
     Tick nextFreeCache;
 
+    struct cacheOccupancy{
+        Tick startTick;
+        Tick endTick;
+        int occCPUID;
+        Tick originalRequestTick;
+        
+        cacheOccupancy(Tick _start, Tick _end, int _id, Tick _origReq) 
+            : startTick(_start), endTick(_end), occCPUID(_id), originalRequestTick(_origReq)
+        {
+        }
+        
+        std::string toString(){
+            std::stringstream retstr;
+            retstr << "Occupied by CPU" << occCPUID << " from " << startTick << " to " << endTick << ", first req at " << originalRequestTick;
+            return retstr.str();
+        }
+    };
+    
+    std::vector<cacheOccupancy> occupancy;
+    
   public:
       
     /** Bank addressing scheme */
@@ -443,6 +463,9 @@ class BaseCache : public BaseMem {
      */
     void respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService);
 
+    Tick updateAndStoreInterference(MemReqPtr &req, Tick time);
+    void updateInterference(MemReqPtr &req);
+    
     /**
      * Suppliess the data if cache to cache transfers are enabled.
      * @param req The bus transaction to fulfill.
