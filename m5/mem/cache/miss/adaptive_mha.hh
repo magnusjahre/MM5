@@ -13,6 +13,13 @@
 class BaseCache;
 class AdaptiveMHASampleEvent;
 
+enum InterferenceType{
+    INTERCONNECT_INTERFERENCE,
+    L2_INTERFERENCE,
+    MEMORY_INTERFERENCE,
+    INTERFERENCE_COUNT
+};
+
 class AdaptiveMHA : public SimObject{
     
     private:
@@ -49,8 +56,43 @@ class AdaptiveMHA : public SimObject{
         
         std::vector<FullCPU* > cpus;
         
-        std::vector<Tick> totalInterferenceDelay;
+        std::vector<std::vector<Tick> > totalInterferenceDelay;
         std::vector<Tick> totalSharedDelay;
+        int interferenceOverflow;
+        
+        int numInterferenceRequests;
+        int numDelayRequests;
+        
+        struct delayEntry{
+            std::vector<std::vector<Tick> > cbDelay;
+            std::vector<std::vector<Tick> > l2Delay;
+            std::vector<std::vector<Tick> > memDelay;
+            Tick totalDelay;
+            bool isRead;
+            
+            delayEntry(){
+                totalDelay = 0;
+                isRead = true;
+            }
+            
+            delayEntry(const delayEntry &entry){
+                cbDelay = entry.cbDelay;
+                l2Delay = entry.l2Delay;
+                memDelay = entry.memDelay;
+                totalDelay = entry.totalDelay;
+                isRead = entry.isRead;
+            }
+            
+            delayEntry(std::vector<std::vector<Tick> > _delays, bool read, InterferenceType type);
+            
+            void addDelays(std::vector<std::vector<Tick> > newDelays, InterferenceType type);
+            
+            bool committed(){
+                return (totalDelay != 0);
+            }
+        };
+        
+        std::map<Addr,delayEntry> oracleStorage;
     
     public:
         
@@ -95,8 +137,12 @@ class AdaptiveMHA : public SimObject{
             cpus[id] = cpu;
         }
         
-        void addInterferenceDelay(std::vector<Tick> perCPUQueueTimes);
-        void addTotalDelay(int issuedCPU, Tick delay);
+        void addInterferenceDelay(std::vector<std::vector<Tick> > perCPUQueueTimes,
+                                  Addr addr,
+                                  MemCmd cmd,
+                                  int fromCPU,
+                                  InterferenceType type);
+        void addTotalDelay(int issuedCPU, Tick delay, Addr addr);
         
     private:
         

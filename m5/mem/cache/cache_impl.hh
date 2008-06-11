@@ -397,7 +397,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         missesPerCPU[cacheCpuID]++;
     }
 
-    if(simulateContention) missQueue->handleMiss(req, size, updateAndStoreInterference(req, curTick + hitLatency));
+    if(simulateContention){
+        Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
+        missQueue->handleMiss(req, size, issueAt);
+    }
     else missQueue->handleMiss(req, size, curTick + hitLatency);
     
     return MA_CACHE_MISS;
@@ -483,8 +486,6 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
-    
-    
     
     if(isDirectoryAndL1DataCache()){
         

@@ -196,6 +196,7 @@ class MemReq : public FastAlloc, public RefCounted
     
     bool expectCompletionEvent;
     bool isDDRTestReq;
+    bool isMemTestReq;
     Tick virtualStartTime;
     
     /**
@@ -245,6 +246,7 @@ class MemReq : public FastAlloc, public RefCounted
 	  data(NULL),
           expectCompletionEvent(false),
           isDDRTestReq(false),
+          isMemTestReq(false),
           virtualStartTime(0)
     {
     }
@@ -288,6 +290,7 @@ class MemReq : public FastAlloc, public RefCounted
         data = r.data;
         expectCompletionEvent = r.expectCompletionEvent;
         isDDRTestReq = r.isDDRTestReq;
+        isMemTestReq = r.isMemTestReq;
         virtualStartTime = r.virtualStartTime;
     }
 

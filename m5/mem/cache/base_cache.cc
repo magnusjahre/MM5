@@ -300,6 +300,11 @@ BaseCache::regStats()
         .desc("number of accesses for each CPU")
         .flags(total)
         ;
+    
+    delayDueToCongestion
+        .name(name() + ".congestion_delay")
+        .desc("Additional delay due to congestion")
+        ;
 }
 
 void
@@ -376,14 +381,24 @@ void
 BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
 {
     
+    Tick originalReqTime = time;
+    
     // assumes that the targets are delivered to the interconnect in parallel
     if(simulateContention && !moreTargetsToService){
-        updateAndStoreInterference(req, time);
+        time = updateAndStoreInterference(req, time);
+    }
+    else if(simulateContention && moreTargetsToService) warn("Targets might not be counted in the measurements");
+    
+    if(!isShared && adaptiveMHA != NULL && !moreTargetsToService){
+        adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->time, req->paddr);
     }
     
     if (!req->isUncacheable()) {
         missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
     }
+    
+    delayDueToCongestion += originalReqTime - time;
+    
     si->respond(req,time);
 }
 
@@ -395,7 +410,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
     for(int i=0;i<occupancy.size();i++){
         if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);
     }
-        
+    
     assert(req->adaptiveMHASenderID >= 0);
     if(nextFreeCache < (time - hitLatency)){
         occupancy.push_back(cacheOccupancy(time - hitLatency, time, req->adaptiveMHASenderID, curTick));
@@ -404,27 +419,22 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
     else{
         assert(occupancy.back().originalRequestTick <= curTick);
         
-        Tick waitTime = nextFreeCache - (time - hitLatency);
-        
         // search to discover which part(s) of the delay is actually due to interference with a different processor
-        vector<Tick> interference(cpuCount, 0);
-        int blameIndex = occupancy.size()-1;
-        while(waitTime > 0){
-            
-            int blameDelay = 0;
-            assert(blameIndex >= 0);
-            if(waitTime > hitLatency) blameDelay = hitLatency;
-            else blameDelay = waitTime;
-            
-            if(occupancy[blameIndex].occCPUID != req->adaptiveMHASenderID){
-                interference[req->adaptiveMHASenderID] += blameDelay;
-            }
-            
-            blameIndex--;
-            waitTime = waitTime - hitLatency;
+        vector<bool> waitingFor(cpuCount, false);
+        for(int i=0;i<occupancy.size();i++){
+            if(occupancy[i].occCPUID != req->adaptiveMHASenderID) waitingFor[occupancy[i].occCPUID] = true;
         }
         
-        adaptiveMHA->addInterferenceDelay(interference);
+        vector<vector<Tick> > interference(cpuCount, vector<Tick>(cpuCount, 0));
+        
+        for(int i=0;i<waitingFor.size();i++){
+            if(waitingFor[i]){
+                //NOTE: it might be helpful to compute the actual delay here
+                interference[req->adaptiveMHASenderID][i] = hitLatency;
+            }
+        }
+        
+        adaptiveMHA->addInterferenceDelay(interference, req->paddr, req->cmd, req->adaptiveMHASenderID, L2_INTERFERENCE);
         
         time = nextFreeCache + hitLatency;
         nextFreeCache += hitLatency;

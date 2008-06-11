@@ -29,8 +29,11 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     cpus.resize(cpu_count, 0);
     
-    totalInterferenceDelay.resize(cpu_count, 0);
+    totalInterferenceDelay = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
     totalSharedDelay.resize(cpu_count, 0);
+    numInterferenceRequests = 0;
+    numDelayRequests = 0;
+    interferenceOverflow = 0;
     
     neededRepeatDecisions = _neededRepeatDecisions;
     
@@ -131,12 +134,14 @@ AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache){
 void
 AdaptiveMHA::handleSampleEvent(Tick time){
     
-    
     if(firstSample){
         bus->resetAdaptiveStats();
         for(int i=0;i<cpus.size();i++) cpus[i]->getStalledL1MissCycles();
-        for(int i=0;i<totalInterferenceDelay.size();i++) totalInterferenceDelay[i] = 0;
+        for(int i=0;i<totalInterferenceDelay.size();i++) for(int j=0;j<totalInterferenceDelay[i].size();j++) totalInterferenceDelay[i][j] = 0;
         for(int i=0;i<totalSharedDelay.size();i++) totalSharedDelay[i] = 0;
+        numDelayRequests = 0;
+        numInterferenceRequests = 0;
+        oracleStorage.clear();
         firstSample = false;
         
         if(staticAsymmetricMHAs.size() != 0){
@@ -231,15 +236,60 @@ AdaptiveMHA::doFairAMHA(){
         cout << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
     }
     
-    // gather t_interference
-    vector<Tick> t_interference(adaptiveMHAcpuCount, 0);
-    for(int i=0;i<t_interference.size();i++){
-        cout << "CPU" << i << " interference: " << totalInterferenceDelay[i] << "\n";
-        t_interference[i] = totalInterferenceDelay[i];
-        totalInterferenceDelay[i] = 0;
+    int outstandingCnt = 0;
+    int writes = 0;
+    map<Addr, delayEntry>::iterator oracleIter = oracleStorage.begin();
+//     cout << "Storage state:\n";
+    while(oracleIter != oracleStorage.end()){
+//         cout << "Addr: " << hex << oracleIter->first << dec << ", " << ((oracleIter->second).isRead ? "read" : "write" ) << ", " << ((oracleIter->second).committed() ? "committed" : "no commit" ) << "\n";
+        if(!(oracleIter->second).committed()) outstandingCnt++;
+        else if(!(oracleIter->second).isRead) writes++;
+        oracleIter++;
     }
     
-    // gather the estimated cycles used for self-interference and transfers/accesses
+    assert(numInterferenceRequests + interferenceOverflow == oracleStorage.size());
+    assert(numDelayRequests == oracleStorage.size() - outstandingCnt - writes);
+    
+    // gather t_interference
+    cout << "t-interference:\n";
+    vector<vector<Tick> > t_interference(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
+    for(int i=0;i<t_interference.size();i++){
+        cout << i << ":";
+        for(int j=0;j<t_interference[i].size();j++){
+            t_interference[i][j] = totalInterferenceDelay[i][j];
+            cout << " " << t_interference[i][j];
+            totalInterferenceDelay[i][j] = 0;
+        }
+        cout << "\n";
+    }
+    numInterferenceRequests = 0;
+    
+    
+    // gather t_shared
+    vector<Tick> t_shared(adaptiveMHAcpuCount, 0);
+    for(int i=0;i<t_shared.size();i++){
+        cout << "CPU" << i << " total latency: " << totalSharedDelay[i] << "\n";
+        t_shared[i] = totalSharedDelay[i];
+//         assert(t_shared[i] >= t_interference[i]);
+        totalSharedDelay[i] = 0;
+    }
+    numDelayRequests = 0;
+    
+    // remove committed requests
+    oracleIter = oracleStorage.begin();
+    while(oracleIter != oracleStorage.end()){
+        map<Addr, delayEntry>::iterator eraseIterator = oracleIter++;
+        if((eraseIterator->second).committed()) oracleStorage.erase(eraseIterator);
+        else if(!(eraseIterator->second).isRead) oracleStorage.erase(eraseIterator);
+    }
+    
+    oracleIter = oracleStorage.begin();
+    while(oracleIter != oracleStorage.end()){
+        oracleIter++;
+    }
+    
+    interferenceOverflow = oracleStorage.size();
+   
     
     // 2. Compute maximum difference in stall time
     
@@ -338,16 +388,96 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
     }
 }
 
+// Storage convention: delay[victim][responsible]
 void
-AdaptiveMHA::addInterferenceDelay(vector<Tick> perCPUQueueTimes){
+AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
+                                  Addr addr,
+                                  MemCmd cmd,
+                                  int fromCPU,
+                                  InterferenceType type){
+    
+    assert(cmd == Read || cmd == Writeback);
+    
+    Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    
     for(int i=0;i<perCPUQueueTimes.size();i++){
-        totalInterferenceDelay[i] += perCPUQueueTimes[i];
+        for(int j=0;j<perCPUQueueTimes[i].size();j++){
+            totalInterferenceDelay[i][j] += perCPUQueueTimes[i][j];
+        }
     }
+    
+    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
+    if(iter != oracleStorage.end()){
+        oracleStorage[cacheBlkAddr].addDelays(perCPUQueueTimes, type);
+        assert(oracleStorage[cacheBlkAddr].isRead == (cmd == Read ? true : false));
+    }
+    else{
+        oracleStorage[cacheBlkAddr] = delayEntry(perCPUQueueTimes, (cmd == Read ? true : false), type);
+        numInterferenceRequests++;
+    }
+    
+//     cout << "Adding interference from cpu " << fromCPU << ":\n";
+//     for(int k=0;k<perCPUQueueTimes.size();k++){
+//         cout << k << ":";
+//         for(int j=0;j<perCPUQueueTimes[k].size();j++){
+//             cout << " " << perCPUQueueTimes[k][j];
+//         }
+//         cout << "\n";
+//     }
+    
 }
 
 void
-AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay){
-    fatal("add total delay not impl");
+AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr){
+    
+    assert(delay > 0);
+    
+    Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    
+    assert(issuedCPU >= 0 && issuedCPU <= totalSharedDelay.size());
+    totalSharedDelay[issuedCPU] += delay;
+    numDelayRequests++;
+    
+    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
+    assert(iter != oracleStorage.end());
+    oracleStorage[cacheBlkAddr].totalDelay = delay;
+}
+
+AdaptiveMHA::delayEntry::delayEntry(std::vector<std::vector<Tick> > _delays, bool read, InterferenceType type)
+{
+    switch(type){
+        case INTERCONNECT_INTERFERENCE:
+            cbDelay = _delays;
+            break;
+        case L2_INTERFERENCE:
+            l2Delay = _delays;
+            break;
+        case MEMORY_INTERFERENCE:
+            memDelay = _delays;
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
+    totalDelay = 0;
+    isRead = read;
+}
+            
+void
+AdaptiveMHA::delayEntry::addDelays(std::vector<std::vector<Tick> > newDelays, InterferenceType type){
+    switch(type){
+        case INTERCONNECT_INTERFERENCE:
+            for(int i=0;i<cbDelay.size();i++) for(int j=0;j<cbDelay[i].size();j++) cbDelay[i][j] += newDelays[i][j];
+            break;
+        case L2_INTERFERENCE:
+            for(int i=0;i<l2Delay.size();i++) for(int j=0;j<l2Delay[i].size();j++) l2Delay[i][j] += newDelays[i][j];
+            break;
+        case MEMORY_INTERFERENCE:
+            for(int i=0;i<memDelay.size();i++) for(int j=0;j<memDelay[i].size();j++) memDelay[i][j] += newDelays[i][j];
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
+    
 }
 
 

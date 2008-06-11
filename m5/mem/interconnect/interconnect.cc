@@ -303,6 +303,22 @@ Interconnect::getDestinationId(int fromID){
     return retID;
 }
 
+Addr
+Interconnect::getDestinationAddr(int fromID){
+
+    pair<Addr,int> tmp = allInterfaces[fromID]->getTargetAddr();
+    Addr targetAddr = tmp.first;
+    
+    assert(targetAddr != 0);
+    
+    return targetAddr;
+}
+
+MemCmd
+Interconnect::getCurrentCommand(int fromID){
+    return allInterfaces[fromID]->getCurrentCommand();
+}
+
 void
 Interconnect::getSendSample(int* dataSends,
                             int* instSends,

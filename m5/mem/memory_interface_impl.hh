@@ -41,7 +41,11 @@
         
 #include "cpu/base.hh"
 
+#include <cstdlib>
+
 #define MAX_MEM_ADDR ULL(0xffffffffffffffff)
+        
+// #define DO_MEMTEST
         
 using namespace std;
 
@@ -53,13 +57,20 @@ MemoryInterface<Mem>::MemoryInterface(const string &name, HierParams *hier,
 {
     thisName = name;
     issuedWarning = false;
+    
+#ifdef DO_MEMTEST
+    testEvent = new MemoryInterfaceTestEvent(this);
+    testEvent->schedule(0);
+#endif
 }
 
 template<class Mem>
 MemAccessResult
 MemoryInterface<Mem>::access(MemReqPtr &req)
 {
-
+#ifdef DO_MEMTEST
+    if(!req->isMemTestReq) return MA_CACHE_MISS;
+#endif
     if (memTrace) {
 	memTrace->writeReq(req);
     }
@@ -89,11 +100,12 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
         int cpu_count = mem->cpuCount;
         
         if(cpu_count > 8  && !issuedWarning){
-            warn("Multiprogram workload hack has not been tested for more that 8 CPUs, proceed with caution :-)");
+            warn("Multiprogram workload hack has not been tested for more than 8 CPUs, proceed with caution :-)");
             issuedWarning = true;
         }
         
-        Addr cpuAddrBase = (MAX_MEM_ADDR / cpu_count) * cpuId;
+        // Add cpu-id to keep addresses aligned
+        Addr cpuAddrBase = ((MAX_MEM_ADDR / cpu_count) * cpuId) + cpuId;
         
         req->oldAddr = req->paddr;
         req->paddr = cpuAddrBase + req->paddr;
@@ -102,7 +114,7 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
         if(req->paddr < cpuAddrBase){
             fatal("A memory address was moved out of this CPU's memory space at the low end");
         }
-        if(req->paddr >= (MAX_MEM_ADDR / cpu_count) * (cpuId+1)){
+        if(req->paddr >= ((MAX_MEM_ADDR / cpu_count) * (cpuId+1) + cpuId)){
             fatal("A memory address was moved out of this CPU's memory space at the high end");
         }
     }
@@ -121,6 +133,14 @@ template<class Mem>
 void
 MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
 {
+    
+#ifdef DO_MEMTEST
+    if(req->isMemTestReq){
+        cout << curTick << " " << name() << ": Response to addr " << hex << req->paddr << dec << " recieved at " << time << ", latency " << time - req->time << "\n";
+        return;
+    }
+#endif
+    
 #ifdef CACHE_DEBUG
     if(mem->isCache()){
         if (!req->prefetched) {
@@ -159,4 +179,50 @@ MemoryInterface<Mem>::squash(int thread_number)
 	memTrace->writeReq(req);
     }
     return mem->squash(thread_number);
+}
+
+template<class Mem>
+void
+MemoryInterface<Mem>::handleTestEvent(Tick time){
+
+    ifstream fin("../../mem/testscripts/simplemisses.test");
+    assert(fin);
+    
+    string line;
+    vector<vector<string> > actions;
+    while(getline(fin, line)){
+        vector<string> tokens;
+        int index = line.find_first_of(' ');
+        while(index != string::npos){
+            tokens.push_back(line.substr(0, index));
+            line = line.replace(0, index+1, "");
+            index = line.find_first_of(' ');
+        }
+        tokens.push_back(line);
+        actions.push_back(tokens);
+    }
+    
+    for(int i=0;i<actions.size();i++){
+        if((actions[i][0] == "*" || actions[i][0] == mem->name()) 
+            && (mem->isInstructionCache() ? actions[i][1] == "I" : actions[i][1] == "D")){
+            MemReqPtr req = new MemReq();
+            
+            req->paddr = (Addr) atoi(actions[i][3].c_str());
+            req->asid = 0;
+            req->size = 64;
+            req->data = new uint8_t[req->size];
+            req->isMemTestReq = true;
+            
+            if(actions[i][4] == "Write") req->cmd = Write;
+            else req->cmd = Read;
+            
+            Tick at = (Tick) atoi(actions[i][2].c_str());
+            req->time = at;
+            MemoryInterfaceTestActionEvent* evt = new MemoryInterfaceTestActionEvent(this, req);
+            evt->schedule(at);
+            testRequests.push_back(req);
+            
+            cout << name() << ": Creating request addr " << hex << req->paddr << dec << ", cmd " << req->cmd << " @ " << at << "\n";
+        }
+    }
 }

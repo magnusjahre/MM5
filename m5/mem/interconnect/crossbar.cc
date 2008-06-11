@@ -17,6 +17,8 @@ Crossbar::arbitrate(Tick cycle){
     
     vector<int> grantedCPUs;
     vector<int> toBanks;
+    vector<Addr> destinationAddrs;
+    vector<MemCmd> currentCommands;
     
     while(!requestQueue.empty()){
         InterconnectRequest* req = requestQueue.front();
@@ -60,6 +62,10 @@ Crossbar::arbitrate(Tick cycle){
                             : interconnectIDToL2IDMap[req->fromID] + cpu_count);
                 toBanks.push_back(toBank);
                 
+                destinationAddrs.push_back(getDestinationAddr(req->fromID));
+                currentCommands.push_back(getCurrentCommand(req->fromID));
+                
+//                 cout << curTick << ": Granting access to CPU" << grantedCPU << ", addr " << hex << getDestinationAddr(req->fromID) << dec << "\n";
                 allInterfaces[req->fromID]->grantData();
                 delete req;
             }
@@ -77,7 +83,7 @@ Crossbar::arbitrate(Tick cycle){
     if(adaptiveMHA != NULL){
         for(int i=0;i<grantedCPUs.size();i++){
             
-            std::vector<Tick> queueWaitBuffer(cpu_count, 0);
+            std::vector<bool> isBlocking(cpu_count, false);
             
             if(!notGrantedReqs.empty()){
                 list<InterconnectRequest* >::iterator notGrantedIterator;
@@ -97,14 +103,25 @@ Crossbar::arbitrate(Tick cycle){
                             ? bankID = interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)] + cpu_count
                             : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
                     
-                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
-                        queueWaitBuffer[cpuID] += arbitrationDelay + transferDelay;
-                    }
+                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]) isBlocking[cpuID] = true;
+                    
                     
                     notGrantedIterator++;
                 }
-            
-                adaptiveMHA->addInterferenceDelay(queueWaitBuffer);
+                
+                vector<vector<Tick> > queueWaitBuffer = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
+                
+                for(int j=0;j<cpu_count;j++){
+                    if(isBlocking[j]){
+                        queueWaitBuffer[j][grantedCPUs[i]] = transferDelay + arbitrationDelay;
+                    }
+                }
+                
+                adaptiveMHA->addInterferenceDelay(queueWaitBuffer,
+                                                  destinationAddrs[i],
+                                                  currentCommands[i],
+                                                  grantedCPUs[i],
+                                                  INTERCONNECT_INTERFERENCE);
             }
         }
     }
@@ -238,7 +255,7 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
         
         /* update statistics */
         sentRequests++;
-        int curCpuId = delivery->req->xc->cpu->params->cpu_id;
+        int curCpuId = delivery->req->adaptiveMHASenderID; //delivery->req->xc->cpu->params->cpu_id;
         int queueCycles = (cycle - delivery->grantTime) - transferDelay;
         
         totalTransQueueCycles += queueCycles;

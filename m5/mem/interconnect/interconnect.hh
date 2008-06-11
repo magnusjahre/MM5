@@ -364,6 +364,10 @@ class Interconnect : public BaseHier
         
         int getDestinationId(int fromID);
         
+        Addr getDestinationAddr(int fromID);
+        
+        MemCmd getCurrentCommand(int fromID);
+        
         /**
         * This method puts the request into a queue and schedules an 
         * arbitration event if needed. The request queue is kept sorted in 

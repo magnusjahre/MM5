@@ -36,6 +36,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     bool getReady(MemReqPtr& req);
     bool getOther(MemReqPtr& req);
     
+    void estimateInterference(MemReqPtr& req);
+    
   public:
 
     // Memory Request currently being issued

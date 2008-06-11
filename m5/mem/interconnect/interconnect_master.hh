@@ -122,6 +122,8 @@ class InterconnectMaster : public InterconnectInterface
         */
         std::pair<Addr, int> getTargetAddr();
         
+        MemCmd getCurrentCommand();
+        
         /**
         * This method is only valid for slave interfaces and produces a fatal
         * error message if it is called.

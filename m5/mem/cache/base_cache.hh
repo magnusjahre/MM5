@@ -251,6 +251,8 @@ class BaseCache : public BaseMem {
     Stats::Vector<> missesPerCPU;
     /** Per cpu cache access statistics */
     Stats::Vector<> accessesPerCPU;
+    
+    Stats::Scalar<> delayDueToCongestion;
 
     /**
      * @}

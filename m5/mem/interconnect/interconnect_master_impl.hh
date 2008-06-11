@@ -68,7 +68,6 @@ InterconnectMaster<MemType>::deliver(MemReqPtr &req){
     } 
     
     if(trace_on){ 
-//     if(curTick >= 25100000 && thisCache->name() == "L1icaches3"){
         cout << "Master "<< interfaceID <<" is waiting for (response): ";
         for(int i=0;i<outstandingRequestAddrs.size();++i){
             cout << "(" << outstandingRequestAddrs[i]->first 
@@ -89,10 +88,6 @@ InterconnectMaster<MemType>::request(Tick time){
     if(trace_on) cout << "TRACE: MASTER_REQUEST id " << interfaceID << " at " 
                       << curTick << "\n";
     
-//     if(curTick >= 25100000 && thisCache->name() == "L1icaches3"){
-//         cout << curTick << ": " << thisCache->name() << " Request for crossbar recieved\n";
-//     }
-    
     thisInterconnect->request(time, interfaceID);
 }
 
@@ -103,21 +98,10 @@ InterconnectMaster<MemType>::grantData(){
     
     MemReqPtr req = thisCache->getMemReq();
     
-//     if(thisCache->name() == "L1dcaches2" && curTick >= 1086000){
-//         cout << curTick << ": cb granted, sending data!\n";
-//     }
-    
     if(!req){
-//         if(curTick >= 25100000 && thisCache->name() == "L1icaches3"){
-//             cout << "Request is NULL!!!!\n";
-//         }
         thisInterconnect->incNullRequests();
         return false;
     }
-    
-//     if(curTick >= 25100000 && thisCache->name() == "L1icaches3"){
-//         cout << curTick << ": " << thisCache->name() << " is sending data, addr is " << req->oldAddr << "; " << (!req->cmd.isNoResponse() ? "respond" : "no response") << "\n";
-//     }
     
     if(trace_on) cout << "TRACE: MASTER_SEND " << req->cmd.toString() 
                       << " from id " << interfaceID << " addr " << req->paddr 
@@ -160,10 +144,6 @@ pair<Addr, int>
 InterconnectMaster<MemType>::getTargetAddr(){
     MemReqPtr currentRequest = thisCache->getMemReq();
     
-//     if(thisCache->name() == "L1dcaches2" && curTick >= 1086000){
-//         cout << curTick << ": master getTargetAddr called, " << currentRequest->paddr << ", time is " << currentRequest->time << "\n";
-//     }
-    
     if(!currentRequest) return pair<Addr,int>(0,-2);
     assert(currentRequest->paddr != 0);
     
@@ -176,6 +156,14 @@ InterconnectMaster<MemType>::getTargetAddr(){
     currentValsValid = true;
     
     return pair<Addr,int>(currentRequest->paddr, toInterface);
+}
+
+template<class MemType>
+MemCmd
+InterconnectMaster<MemType>::getCurrentCommand(){
+    MemReqPtr currentRequest = thisCache->getMemReq();
+    assert(currentRequest);
+    return currentRequest->cmd;
 }
 
 

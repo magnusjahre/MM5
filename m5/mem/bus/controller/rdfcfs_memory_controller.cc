@@ -36,7 +36,7 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 }
 
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
-
+    
     req->inserted_into_memory_controller = curTick;
     if (req->cmd == Read) {
         readQueue.push_back(req);
@@ -52,18 +52,6 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     }
     
     assert(req->cmd == Read || req->cmd == Writeback);
-  
-    // Early activation of reads
-//     if ((req->cmd == Read) && (num_active_pages < max_active_pages)) {
-//         if (!isActive(req) && bankIsClosed(req)) {
-//             // Activate that page
-//             activate->paddr = req->paddr;
-//             activate->flags &= ~SATISFIED;
-//             activePages.push_back(getPage(req));
-//             num_active_pages++;
-//             assert(mem_interface->calculateLatency(activate) == 0);
-//         }
-//     }
     
     return 0;
 }
@@ -116,6 +104,9 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
             readQueue.remove(lastIssuedReq);
         }
     }
+    
+    // estimate interference caused by this request
+    if(retval->cmd == Read || retval->cmd == Writeback) estimateInterference(retval);
     
     DPRINTF(MemoryController, "Returning command %s, addr %x\n", retval->cmd, retval->paddr);
     
@@ -191,42 +182,41 @@ RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
 bool 
 RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
     // Go through the active pages and find a ready operation
-    for (pageIterator = activePages.begin(); pageIterator != activePages.end() ; pageIterator++) {
-        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
-            if (isReady(tmp)) {
+    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        if (isReady(tmp)) {
 
-                if(isBlocked() && 
-                   readQueue.size() <= readqueue_size && 
-                   writeQueue.size() <= writequeue_size){
-                    setUnBlocked();
-                   }
-        
-                   lastIssuedReq = tmp;
-                   lastIsWrite = false;
-                
-                   req = tmp;
-                   return true;
+            if(isBlocked() && 
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                setUnBlocked();
             }
-        }
-        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
-            if (isReady(tmp)) {
-
-                if(isBlocked() &&
-                   readQueue.size() <= readqueue_size && 
-                   writeQueue.size() <= writequeue_size){
-                    setUnBlocked();
-                   }
+    
+            lastIssuedReq = tmp;
+            lastIsWrite = false;
         
-                   lastIssuedReq = tmp;
-                   lastIsWrite = true;
-                   
-                   req = tmp;
-                   return true;
-            }
+            req = tmp;
+            return true;
         }
     }
+    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        if (isReady(tmp)) {
+
+            if(isBlocked() &&
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                setUnBlocked();
+                }
+    
+                lastIssuedReq = tmp;
+                lastIsWrite = true;
+                
+                req = tmp;
+                return true;
+        }
+    }
+    
     return false;
 }
 
@@ -287,6 +277,50 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
     DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
 }
 
+void
+RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
+    
+    //TODO: implement Mutlu et al.'s scheme for comparison
+    
+    int localCpuCnt =bus->adaptiveMHA->getCPUCount();
+    vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
+    int fromCPU = req->adaptiveMHASenderID;
+    
+    if(fromCPU == -1) return;
+    
+    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        
+        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
+            if(isReady(tmp)){
+                // interference on bus
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+            }
+            else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
+                // interference due to bank conflict
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+            }
+        }
+    }
+    
+    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+        MemReqPtr& tmp = *queueIterator;
+        
+        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
+            if(isReady(tmp)){
+                // interference on bus
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+            }
+            else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
+                // interference due to bank conflict
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+            }
+        }
+    }
+    
+    bus->adaptiveMHA->addInterferenceDelay(interference, req->paddr, req->cmd, req->adaptiveMHASenderID, MEMORY_INTERFERENCE);
+}
+        
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)

@@ -51,9 +51,14 @@ template<class Mem>
 class MemoryInterface : public MemInterface
 {
   
+  public:
+    class MemoryInterfaceTestEvent;
+    
   private:
     std::string thisName;
     bool issuedWarning;
+    MemoryInterfaceTestEvent* testEvent;
+    std::vector<MemReqPtr> testRequests;
     
   protected:
     /** The connected Memory. */
@@ -146,6 +151,53 @@ class MemoryInterface : public MemInterface
 	range_list.push_back(RangeIn(0,MaxAddr));
     }
     
+    void handleTestEvent(Tick time);
+    
+    class MemoryInterfaceTestEvent: public Event
+    {
+
+        public:
+        
+            MemoryInterface<Mem>* interface;
+        
+            MemoryInterfaceTestEvent(MemoryInterface<Mem>* _interface)
+            : Event(&mainEventQueue), interface(_interface)
+            {
+            }
+        
+            void process(){
+                interface->handleTestEvent(curTick);
+            }
+
+            virtual const char *description(){
+                return "Memory Test Event";
+            }
+    };
+    
+    class MemoryInterfaceTestActionEvent: public Event
+    {
+
+        public:
+        
+            MemoryInterface<Mem>* interface;
+            MemReqPtr req;
+        
+            MemoryInterfaceTestActionEvent(MemoryInterface<Mem>* _interface,
+                                           MemReqPtr& _req)
+            : Event(&mainEventQueue), interface(_interface), req(_req)
+            {
+            }
+        
+            void process(){
+                interface->access(req);
+                delete this;
+            }
+
+            virtual const char *description(){
+                return "Memory Test Action Event";
+            }
+    };
 };
+
 
 #endif

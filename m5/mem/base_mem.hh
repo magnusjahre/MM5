@@ -123,6 +123,8 @@ class BaseMem : public BaseHier
     
     bool isCache() { return false; }
     
+    virtual bool isInstructionCache() { return false; }
+    
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;
     virtual void addPendingRequest(Addr address, MemReqPtr& req) = 0;

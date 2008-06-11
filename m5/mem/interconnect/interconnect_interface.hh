@@ -275,6 +275,9 @@ class InterconnectInterface : public BaseInterface
         */
         virtual std::pair<Addr, int> getTargetAddr() = 0;
         
+        
+        virtual MemCmd getCurrentCommand() = 0;
+        
         /**
         * This method returns the ID of the destination interface of the 
         * request at the front of the request queue in a slave interface.

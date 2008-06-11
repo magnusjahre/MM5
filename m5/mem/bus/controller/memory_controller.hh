@@ -28,12 +28,12 @@ class Bus;
 class TimingMemoryController : public SimObject
 {
   private:
-      
-    Bus* bus;
-      
     Tick totalBlocktime;
     
   protected:
+      
+    Bus* bus;
+      
     bool isBlockedFlag;
     Tick startBlocking;
     bool isPrewriteBlockedFlag;

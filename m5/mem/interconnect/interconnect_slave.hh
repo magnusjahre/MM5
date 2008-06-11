@@ -134,15 +134,15 @@ class InterconnectSlave : public InterconnectInterface
             return false;
         }
         
-        /**
-        * This method has no relevance for a slave interface and issues a
-        * fatal error message if it is called.
-        *
-        * @return Nothing.
-        */
         std::pair<Addr, int> getTargetAddr(){
-            fatal("getTargetAddr() not valid for slave interfaces");
-            return std::pair<Addr, int>(-42,-42);
+            assert(!responseQueue.empty());
+            return std::pair<Addr, int>(responseQueue.front()->req->paddr,
+                                        responseQueue.front()->req->fromInterfaceID);
+        }
+        
+        MemCmd getCurrentCommand(){
+            assert(!responseQueue.empty());
+            return responseQueue.front()->req->cmd;
         }
         
         /**
