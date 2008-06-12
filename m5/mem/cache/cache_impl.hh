@@ -565,7 +565,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
                     // actions are handled in the check
                 }
                 else {
-                    
+                    if(!isShared) writebacks.front()->adaptiveMHASenderID = cacheCpuID;
 		    missQueue->doWriteback(writebacks.front());
 		}
 		writebacks.pop_front();

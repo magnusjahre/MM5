@@ -415,6 +415,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time)
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
     }
+    else if(req->cmd == Writeback && adaptiveMHA != NULL && req->adaptiveMHASenderID != -1){
+        adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->writebackGeneratedAt, req->paddr, false);
+    }
 }
 
 int

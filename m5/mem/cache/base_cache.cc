@@ -390,7 +390,7 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     else if(simulateContention && moreTargetsToService) warn("Targets might not be counted in the measurements");
     
     if(!isShared && adaptiveMHA != NULL && !moreTargetsToService){
-        adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->time, req->paddr);
+        adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->time, req->paddr, true);
     }
     
     if (!req->isUncacheable()) {

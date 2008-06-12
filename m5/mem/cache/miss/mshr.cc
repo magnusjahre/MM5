@@ -85,6 +85,8 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 	req->pc = target->pc;
         
         req->oldAddr = target->oldAddr;
+        req->enteredMemSysAt = target->enteredMemSysAt;
+        req->writebackGeneratedAt = target->writebackGeneratedAt;
         
         // make sure owner ID is copied to the new request
         // necessary for the AdaptiveMHA
@@ -117,7 +119,9 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->pc = target->pc;
     
     req->oldAddr = target->oldAddr;
+    req->writebackGeneratedAt = target->writebackGeneratedAt;
     
+    req->enteredMemSysAt = target->enteredMemSysAt;
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     
 }

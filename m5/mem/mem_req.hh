@@ -184,6 +184,9 @@ class MemReq : public FastAlloc, public RefCounted
     /** The time this request was started. Used to calculate latencies. */
     Tick time;
 
+    Tick enteredMemSysAt;
+    Tick writebackGeneratedAt;
+    
     Tick inserted_into_memory_controller;
 
     /** program counter of initiating access; for tracing/debugging */
@@ -240,6 +243,8 @@ class MemReq : public FastAlloc, public RefCounted
 	  //cpu_num(0), 
 	  thread_num(0),
 	  time(0),
+          enteredMemSysAt(0),
+          writebackGeneratedAt(0),
           inserted_into_memory_controller(0),
 	  pc(0),
 	  offset(0),
@@ -284,6 +289,8 @@ class MemReq : public FastAlloc, public RefCounted
         completionEvent = r.completionEvent;
         thread_num = r.thread_num;
         time = r.time;
+        enteredMemSysAt = r.enteredMemSysAt;
+        writebackGeneratedAt = r.writebackGeneratedAt;
         inserted_into_memory_controller = r.inserted_into_memory_controller;
         pc = r.pc;
         offset = r.offset;

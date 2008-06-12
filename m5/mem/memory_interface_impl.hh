@@ -92,6 +92,7 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
 	}
     }
     
+    req->enteredMemSysAt = curTick;
     
     if(mem->isMultiprogWorkload && mem->isCache()){
         

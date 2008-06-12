@@ -198,7 +198,7 @@ if l1mshrsInst != -1:
 # might only be used for tracing memory bus usage
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
-root.adaptiveMHA.sampleFrequency = 10000 #100000
+root.adaptiveMHA.sampleFrequency = 500000
     
 for cpu in root.detailedCPU:
     cpu.adaptiveMHA = root.adaptiveMHA

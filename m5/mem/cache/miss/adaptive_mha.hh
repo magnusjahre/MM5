@@ -58,6 +58,7 @@ class AdaptiveMHA : public SimObject{
         
         std::vector<std::vector<Tick> > totalInterferenceDelay;
         std::vector<Tick> totalSharedDelay;
+        std::vector<Tick> totalSharedWritebackDelay;
         int interferenceOverflow;
         
         int numInterferenceRequests;
@@ -142,7 +143,7 @@ class AdaptiveMHA : public SimObject{
                                   MemCmd cmd,
                                   int fromCPU,
                                   InterferenceType type);
-        void addTotalDelay(int issuedCPU, Tick delay, Addr addr);
+        void addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead);
         
     private:
         
