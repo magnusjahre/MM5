@@ -162,7 +162,7 @@ template<class MemType>
 MemCmd
 InterconnectMaster<MemType>::getCurrentCommand(){
     MemReqPtr currentRequest = thisCache->getMemReq();
-    assert(currentRequest);
+    if(!currentRequest) return InvalidCmd;
     return currentRequest->cmd;
 }
 

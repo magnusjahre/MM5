@@ -29,9 +29,12 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     cpus.resize(cpu_count, 0);
     
-    totalInterferenceDelay = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
+    totalInterferenceDelayRead = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
+    totalInterferenceDelayWrite = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
     totalSharedDelay.resize(cpu_count, 0);
     totalSharedWritebackDelay.resize(cpu_count, 0);
+    delayReadRequestsPerCPU.resize(cpu_count, 0);
+    delayWriteRequestsPerCPU.resize(cpu_count, 0);
     numInterferenceRequests = 0;
     numDelayRequests = 0;
     interferenceOverflow = 0;
@@ -50,6 +53,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     firstSample = true;
             
     maxMshrs = -1;
+    maxWB = -1;
     
     assert(_staticAsymmetricMHA.size() == cpu_count);
     bool allStaticM1 = true;
@@ -127,20 +131,30 @@ AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache){
     }
     
     if(!onlyTraceBus){
-        if(maxMshrs == -1) maxMshrs = cache->getCurrentMSHRCount();
-        else assert(maxMshrs == cache->getCurrentMSHRCount());
+        if(maxMshrs == -1) maxMshrs = cache->getCurrentMSHRCount(true);
+        else assert(maxMshrs == cache->getCurrentMSHRCount(true));
+        
+        if(isDataCache){
+            if(maxWB == -1) maxWB = cache->getCurrentMSHRCount(false);
+            else assert(maxWB == cache->getCurrentMSHRCount(false));
+        }
     }
 }
 
 void
 AdaptiveMHA::handleSampleEvent(Tick time){
     
+    bool wasFirst = false;
     if(firstSample){
+        wasFirst = true;
         bus->resetAdaptiveStats();
         for(int i=0;i<cpus.size();i++) cpus[i]->getStalledL1MissCycles();
-        for(int i=0;i<totalInterferenceDelay.size();i++) for(int j=0;j<totalInterferenceDelay[i].size();j++) totalInterferenceDelay[i][j] = 0;
+        for(int i=0;i<totalInterferenceDelayRead.size();i++) for(int j=0;j<totalInterferenceDelayRead[i].size();j++) totalInterferenceDelayRead[i][j] = 0;
+        for(int i=0;i<totalInterferenceDelayWrite.size();i++) for(int j=0;j<totalInterferenceDelayWrite[i].size();j++) totalInterferenceDelayWrite[i][j] = 0;
         for(int i=0;i<totalSharedDelay.size();i++) totalSharedDelay[i] = 0;
         for(int i=0;i<totalSharedWritebackDelay.size();i++) totalSharedWritebackDelay[i] = 0;
+        for(int i=0;i<delayReadRequestsPerCPU.size();i++) delayReadRequestsPerCPU[i] = 0;
+        for(int i=0;i<delayWriteRequestsPerCPU.size();i++) delayWriteRequestsPerCPU[i] = 0;
         numDelayRequests = 0;
         numInterferenceRequests = 0;
         oracleStorage.clear();
@@ -150,7 +164,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
             assert(onlyTraceBus);
             for(int i=0;i<staticAsymmetricMHAs.size();i++){
                 for(int j=0;j<staticAsymmetricMHAs[i];j++){
-                    dataCaches[i]->decrementNumMSHRs();
+                    dataCaches[i]->decrementNumMSHRs(true);
                 }
             }
         }
@@ -184,14 +198,14 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     
     // analyse data according to selected scheme
     if(!onlyTraceBus){
-        if(useFairAMHA) doFairAMHA();
+        if(useFairAMHA && ! wasFirst) doFairAMHA();
         else doThroughputAMHA(dataBusUtil, dataUsers);
         
         // write Adaptive MHA trace file
         ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
         mhafile << time;
-        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount();
-        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount();
+        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(true);
+        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(true);
         mhafile << "\n";
         mhafile.flush();
         mhafile.close();
@@ -226,9 +240,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 
 void
 AdaptiveMHA::doFairAMHA(){
-    
-    cout << "fair amha running at tick " << curTick << ":\n";
-    
+
     // 1. Gather data
     
     // gathering stalled cycles, i.e. stall time shared estimate
@@ -241,41 +253,58 @@ AdaptiveMHA::doFairAMHA(){
     int outstandingCnt = 0;
     int writes = 0;
     map<Addr, delayEntry>::iterator oracleIter = oracleStorage.begin();
-//     cout << "Storage state:\n";
     while(oracleIter != oracleStorage.end()){
-//         cout << "Addr: " << hex << oracleIter->first << dec << ", " << ((oracleIter->second).isRead ? "read" : "write" ) << ", " << ((oracleIter->second).committed() ? "committed" : "no commit" ) << "\n";
         if(!(oracleIter->second).committed()) outstandingCnt++;
         else if(!(oracleIter->second).isRead) writes++;
         oracleIter++;
     }
     
-    // gather t_interference
-    cout << "t-interference:\n";
-    vector<vector<Tick> > t_interference(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
-    for(int i=0;i<t_interference.size();i++){
+    // gather t_interference_read
+    cout << "t-interference-read:\n";
+    vector<vector<Tick> > t_interference_read(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
+    for(int i=0;i<t_interference_read.size();i++){
         cout << i << ":";
-        for(int j=0;j<t_interference[i].size();j++){
-            t_interference[i][j] = totalInterferenceDelay[i][j];
-            cout << " " << t_interference[i][j];
-            totalInterferenceDelay[i][j] = 0;
+        for(int j=0;j<t_interference_read[i].size();j++){
+            t_interference_read[i][j] = totalInterferenceDelayRead[i][j];
+            cout << " " << t_interference_read[i][j];
+            totalInterferenceDelayRead[i][j] = 0;
         }
         cout << "\n";
     }
     numInterferenceRequests = 0;
     
+    cout << "t-interference-write\n";
+    vector<vector<Tick> > t_interference_write(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
+    for(int i=0;i<t_interference_write.size();i++){
+        cout << i << ":";
+        for(int j=0;j<t_interference_write[i].size();j++){
+            t_interference_write[i][j] = totalInterferenceDelayWrite[i][j];
+            cout << " " << t_interference_write[i][j];
+            totalInterferenceDelayWrite[i][j] = 0;
+        }
+        cout << "\n";
+    }
     
     // gather t_shared
     vector<Tick> t_shared(adaptiveMHAcpuCount, 0);
     vector<Tick> t_writeback(adaptiveMHAcpuCount, 0);
     for(int i=0;i<t_shared.size();i++){
-        cout << "CPU" << i << " total latency: " << totalSharedDelay[i] << ", wb " << totalSharedWritebackDelay[i] << "\n";
         t_shared[i] = totalSharedDelay[i];
         t_writeback[i] = totalSharedWritebackDelay[i];
-//         assert(t_shared[i] >= t_interference[i]);
         totalSharedDelay[i] = 0;
         totalSharedWritebackDelay[i] = 0;
     }
     numDelayRequests = 0;
+    
+    // gather number of read requests
+    vector<Tick> numReads(adaptiveMHAcpuCount, 0);
+    vector<Tick> numWrites(adaptiveMHAcpuCount, 0);
+    for(int i=0;i<numReads.size();i++){
+        numReads[i] = delayReadRequestsPerCPU[i];
+        numWrites[i] = delayWriteRequestsPerCPU[i];
+        delayReadRequestsPerCPU[i] = 0;
+        delayWriteRequestsPerCPU[i] = 0;
+    }
     
     // remove committed requests
     oracleIter = oracleStorage.begin();
@@ -292,31 +321,101 @@ AdaptiveMHA::doFairAMHA(){
     
     interferenceOverflow = oracleStorage.size();
    
-    // 2. Compute maximum difference in stall time
-    
-    vector<Tick> interferenceSum(adaptiveMHAcpuCount, 0);
+    // 2. Compute relative interference points to quantify unfairness
+    cout << "Relative interference points:\n";
+    vector<vector<double> > relativeInterferencePoints(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
+    vector<double> overallRelativeInterference(adaptiveMHAcpuCount, 0.0);
     for(int i=0;i<adaptiveMHAcpuCount;i++){
+        cout << i << ":";
         for(int j=0;j<adaptiveMHAcpuCount;j++){
-            interferenceSum[i] += t_interference[i][j];
+            if(numReads[i] == 0){
+                relativeInterferencePoints[i][j] = 0;
+            }
+            else{
+                relativeInterferencePoints[i][j] = (double) ((double) t_interference_read[i][j] / (double) numReads[i]);
+            }
+            cout << " " << relativeInterferencePoints[i][j];
+            overallRelativeInterference[i] += (double) t_interference_read[i][j];
         }
-    }
-    
-    vector<vector<double> > stallTimeRatios(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
-    for(int i=0;i<stallTimeRatios.size();i++){
-        for(int j=0;j<stallTimeRatios[i].size();j++){
-            double ratio_i = (double) (stalledCycles[i]) / ((double) (stalledCycles[i] + interferenceSum[i]));
-            double ratio_j = (double) (stalledCycles[j]) / ((double) (stalledCycles[j] + interferenceSum[j]));
-            
-            stallTimeRatios[i][j] = ratio_i / ratio_j;
-            cout << stallTimeRatios[i][j] << " ";
-        }
+        overallRelativeInterference[i] = overallRelativeInterference[i] / (double)  numReads[i];
         cout << "\n";
     }
     
+    // 3a Identify the least well-behaving processor and reduce its allowed read or write bandwidth
     
-    // 3. Reduce/Increase usable MSHRs to reduce the stall time difference
+    double maxDifference = 0;
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        for(int j=0;j<adaptiveMHAcpuCount;j++){
+            if(overallRelativeInterference[i] != 0 && overallRelativeInterference[j] != 0){
+                double diff = overallRelativeInterference[i] / overallRelativeInterference[j];
+                if(diff > maxDifference){
+                    maxDifference = diff;
+                }
+            }
+        }
+    }
     
+    cout << "Maxdiff is " << maxDifference << "\n";
     
+    if(maxDifference > 1.20){
+        
+        // Reduce miss para of worst processor
+        
+        double maxScore = 0.0;
+        double minScore = 1000000000.0;
+        int victimID = -1;
+        int responsibleID = -1;
+        for(int i=0;i<adaptiveMHAcpuCount;i++){
+            for(int j=0;j<adaptiveMHAcpuCount;j++){
+                // find max score
+                if(stalledCycles[i] > 0){
+                    if(relativeInterferencePoints[i][j] > maxScore){
+                        maxScore = relativeInterferencePoints[i][j];
+                        victimID = i;
+                        responsibleID = j;
+                    }
+                }
+                if(relativeInterferencePoints[i][j] > 0 && relativeInterferencePoints[i][j] < minScore){
+                    minScore = relativeInterferencePoints[i][j];
+                }
+            }
+        }
+        assert(victimID >= 0 && responsibleID >= 0);
+        
+        cout << "CPU " << responsibleID << " has " << numReads[responsibleID] << " reads and " << numWrites[responsibleID] << " writes\n";
+        bool blameReads = numReads[responsibleID] >= numWrites[responsibleID];
+        
+        cout << "The main victim is cpu " << victimID << " which suffers from interference with CPU " << responsibleID << ", value is " << maxScore << ", " << (blameReads ? "blame reads" : "blame writes") << ", minScore " << minScore << ", ratio " << minScore / maxScore << "\n";
+        
+        if(dataCaches[responsibleID]->getCurrentMSHRCount(blameReads) > 1){
+            dataCaches[responsibleID]->decrementNumMSHRs(blameReads);
+        }
+    }
+    else if(maxDifference < 1.10){
+        
+        vector<int> tmpStall = stalledCycles;
+        
+        while(!tmpStall.empty()){
+            Tick maxval = 0;
+            int maxID = -1;
+            for(int i=0;i<tmpStall.size();i++){
+                if(maxval < tmpStall[i]){
+                    maxval = tmpStall[i];
+                }
+            }
+            if(maxID == -1) break;
+            
+            if(dataCaches[maxID]->getCurrentMSHRCount(true) < maxMshrs){
+                dataCaches[maxID]->incrementNumMSHRs(true);
+                break;
+            }
+            else if(dataCaches[maxID]->getCurrentMSHRCount(false) < maxWB){
+                dataCaches[maxID]->decrementNumMSHRs(false);
+                break;
+            }
+            tmpStall.erase(tmpStall.begin()+maxID);
+        }
+    }
 }
 
 void
@@ -343,7 +442,7 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
     int index = -1;
     int largest = 0;
     for(int i=0;i<currentVector.size();i++){
-        if(currentVector[i] > largest && dataCaches[i]->getCurrentMSHRCount() > 1){
+        if(currentVector[i] > largest && dataCaches[i]->getCurrentMSHRCount(true) > 1){
             largest = currentVector[i];
             index = i;
         }
@@ -361,7 +460,7 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
         
         numRepeatDecisions++;
         if(numRepeatDecisions >= neededRepeatDecisions){
-            dataCaches[index]->decrementNumMSHRs();
+            dataCaches[index]->decrementNumMSHRs(true);
             numRepeatDecisions = 0;
         }
     }
@@ -371,7 +470,7 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
         numRepeatDecisions = 1;
         
         if(neededRepeatDecisions == 1){
-            dataCaches[index]->decrementNumMSHRs();
+            dataCaches[index]->decrementNumMSHRs(true);
             numRepeatDecisions = 0;
         }
 
@@ -386,8 +485,8 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
     int index = -1;
     
     for(int i=0;i<adaptiveMHAcpuCount;i++){
-        if(dataCaches[i]->getCurrentMSHRCount() < smallest){
-            smallest = dataCaches[i]->getCurrentMSHRCount();
+        if(dataCaches[i]->getCurrentMSHRCount(true) < smallest){
+            smallest = dataCaches[i]->getCurrentMSHRCount(true);
             index = i;
         }
     }
@@ -400,7 +499,7 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
     numRepeatDecisions = 0;
     
     // no filtering here, we should increase quickly
-    dataCaches[index]->incrementNumMSHRs();
+    dataCaches[index]->incrementNumMSHRs(true);
     
     // Unblock the cache if it is blocked due to too few MSHRs
     if(dataCaches[index]->isBlockedNoMSHRs()){
@@ -415,7 +514,8 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
                                   Addr addr,
                                   MemCmd cmd,
                                   int fromCPU,
-                                  InterferenceType type){
+                                  InterferenceType type,
+                                  vector<vector<bool> > nextIsRead){
     
     assert(cmd == Read || cmd == Writeback);
     
@@ -423,7 +523,8 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
     
     for(int i=0;i<perCPUQueueTimes.size();i++){
         for(int j=0;j<perCPUQueueTimes[i].size();j++){
-            totalInterferenceDelay[i][j] += perCPUQueueTimes[i][j];
+            if(nextIsRead[i][j]) totalInterferenceDelayRead[i][j] += perCPUQueueTimes[i][j];
+            else totalInterferenceDelayWrite[i][j] += perCPUQueueTimes[i][j];
         }
     }
     
@@ -444,7 +545,7 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
 //     for(int k=0;k<perCPUQueueTimes.size();k++){
 //         cout << k << ":";
 //         for(int j=0;j<perCPUQueueTimes[k].size();j++){
-//             cout << " " << perCPUQueueTimes[k][j];
+//             cout << " (" << perCPUQueueTimes[k][j] << ", " << (nextIsRead[k][j] ? "True" : "False") << ")";
 //         }
 //         cout << "\n";
 //     }
@@ -460,9 +561,16 @@ AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead){
     
     assert(issuedCPU >= 0 && issuedCPU <= totalSharedDelay.size());
     assert(issuedCPU >= 0 && issuedCPU <= totalSharedWritebackDelay.size());
-    if(isRead) totalSharedDelay[issuedCPU] += delay;
-    else totalSharedWritebackDelay[issuedCPU] += delay;
+    if(isRead){
+        totalSharedDelay[issuedCPU] += delay;
+        delayReadRequestsPerCPU[issuedCPU]++;
+    }
+    else{
+        totalSharedWritebackDelay[issuedCPU] += delay;
+        delayWriteRequestsPerCPU[issuedCPU]++;
+    }
     numDelayRequests++;
+    
     
     map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
     if(iter != oracleStorage.end()){

@@ -254,15 +254,15 @@ public:
 	fatal("Unimplemented");
     }
     
-    void incrementNumMSHRs(){
+    void incrementNumMSHRs(bool onMSHRs){
         fatal("Makes no sense");
     }
     
-    void decrementNumMSHRs(){
+    void decrementNumMSHRs(bool onMSHRs){
         fatal("Makes no sense");
     }
     
-    int getCurrentMSHRCount(){
+    int getCurrentMSHRCount(bool onMSHRs){
         fatal("Makes no sense");
         return 0;
     }

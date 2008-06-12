@@ -275,7 +275,6 @@ class InterconnectInterface : public BaseInterface
         */
         virtual std::pair<Addr, int> getTargetAddr() = 0;
         
-        
         virtual MemCmd getCurrentCommand() = 0;
         
         /**

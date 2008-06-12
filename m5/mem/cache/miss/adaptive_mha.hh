@@ -33,6 +33,7 @@ class AdaptiveMHA : public SimObject{
         bool useFairAMHA;
         
         int maxMshrs;
+        int maxWB;
         
         std::vector<BaseCache* > dataCaches;
         std::vector<BaseCache* > instructionCaches;
@@ -56,13 +57,16 @@ class AdaptiveMHA : public SimObject{
         
         std::vector<FullCPU* > cpus;
         
-        std::vector<std::vector<Tick> > totalInterferenceDelay;
+        std::vector<std::vector<Tick> > totalInterferenceDelayRead;
+        std::vector<std::vector<Tick> > totalInterferenceDelayWrite;
         std::vector<Tick> totalSharedDelay;
         std::vector<Tick> totalSharedWritebackDelay;
         int interferenceOverflow;
         
         int numInterferenceRequests;
         int numDelayRequests;
+        std::vector<int> delayReadRequestsPerCPU;
+        std::vector<int> delayWriteRequestsPerCPU;
         
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
@@ -142,7 +146,8 @@ class AdaptiveMHA : public SimObject{
                                   Addr addr,
                                   MemCmd cmd,
                                   int fromCPU,
-                                  InterferenceType type);
+                                  InterferenceType type,
+                                  std::vector<std::vector<bool> > nextIsRead);
         void addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead);
         
     private:

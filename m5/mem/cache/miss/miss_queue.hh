@@ -351,22 +351,29 @@ class MissQueue
     MSHR* allocateTargetList(Addr addr, int asid);
     
     // Adaptive MHA methods
-    void incrementNumMSHRs(){
-        mq.incrementNumMSHRs();
+    void incrementNumMSHRs(bool onMSHRs){
+        if(onMSHRs) mq.incrementNumMSHRs();
+        else wb.incrementNumMSHRs();
     }
     
-    void decrementNumMSHRs(){
-        mq.decrementNumMSHRs();
-        if(mq.isFull() && !cache->isBlockedNoMSHRs()){
-//             if(cache->name() == "L1dcaches3" && curTick >= 1082099355){
-//                 std::cout << curTick << ": SetBlocked called from decrementNumMSHRs\n";
-//             }
-            cache->setBlocked(Blocked_NoMSHRs);
+    void decrementNumMSHRs(bool onMSHRs){
+        if(onMSHRs){
+            mq.decrementNumMSHRs();
+            if(mq.isFull() && !cache->isBlockedNoMSHRs()){
+                cache->setBlocked(Blocked_NoMSHRs);
+            }
+        }
+        else{
+            wb.decrementNumMSHRs();
+            if(wb.isFull() && !cache->isBlockedNoWBBuffers()){
+                cache->setBlocked(Blocked_NoWBBuffers);
+            }
         }
     }
     
-    int getCurrentMSHRCount(){
-        return mq.getCurrentMSHRCount();
+    int getCurrentMSHRCount(bool onMSHRs){
+        if(onMSHRs) return mq.getCurrentMSHRCount();
+        else return wb.getCurrentMSHRCount();
     }
     
 };

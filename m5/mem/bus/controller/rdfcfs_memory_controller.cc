@@ -284,6 +284,7 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     
     int localCpuCnt =bus->adaptiveMHA->getCPUCount();
     vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
+    vector<vector<bool> > delayedIsRead(localCpuCnt, vector<bool>(localCpuCnt, false));
     int fromCPU = req->adaptiveMHASenderID;
     
     if(fromCPU == -1) return;
@@ -294,31 +295,45 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
             if(isReady(tmp)){
                 // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 4;
+                delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
             }
             else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
                 // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 12;
+                delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
             }
         }
     }
     
+    // if a CPU has both reads and writes queued, the request is counted as read
     for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
         MemReqPtr& tmp = *queueIterator;
         
         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
             if(isReady(tmp)){
                 // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 4;
+                if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
+                    delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
+                }
             }
             else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
                 // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = mem_interface->getDataTransTime();
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 12;
+                if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
+                    delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
+                }
             }
         }
     }
     
-    bus->adaptiveMHA->addInterferenceDelay(interference, req->paddr, req->cmd, req->adaptiveMHASenderID, MEMORY_INTERFERENCE);
+    bus->adaptiveMHA->addInterferenceDelay(interference,
+                                           req->paddr,
+                                           req->cmd,
+                                           req->adaptiveMHASenderID,
+                                           MEMORY_INTERFERENCE,
+                                           delayedIsRead);
 }
         
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

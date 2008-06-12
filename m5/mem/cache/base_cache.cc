@@ -427,14 +427,20 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
         
         vector<vector<Tick> > interference(cpuCount, vector<Tick>(cpuCount, 0));
         
+        vector<vector<bool> > delayedIsRead(cpuCount, vector<bool>(cpuCount, false));
         for(int i=0;i<waitingFor.size();i++){
             if(waitingFor[i]){
-                //NOTE: it might be helpful to compute the actual delay here
-                interference[req->adaptiveMHASenderID][i] = hitLatency;
+                interference[req->adaptiveMHASenderID][i] = 1;
+                delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
             }
         }
         
-        adaptiveMHA->addInterferenceDelay(interference, req->paddr, req->cmd, req->adaptiveMHASenderID, L2_INTERFERENCE);
+        adaptiveMHA->addInterferenceDelay(interference,
+                                          req->paddr,
+                                          req->cmd,
+                                          req->adaptiveMHASenderID,
+                                          L2_INTERFERENCE,
+                                          delayedIsRead);
         
         time = nextFreeCache + hitLatency;
         nextFreeCache += hitLatency;

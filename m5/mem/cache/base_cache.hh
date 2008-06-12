@@ -522,9 +522,9 @@ class BaseCache : public BaseMem {
     virtual void missQueueHandleResponse(MemReqPtr &req, Tick time) = 0;
     
     // Adaptive MHA methods
-    virtual void incrementNumMSHRs() = 0;
-    virtual void decrementNumMSHRs() = 0;
-    virtual int getCurrentMSHRCount() = 0;
+    virtual void incrementNumMSHRs(bool onMSHRs) = 0;
+    virtual void decrementNumMSHRs(bool onMSHRs) = 0;
+    virtual int getCurrentMSHRCount(bool onMSHRs) = 0;
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;

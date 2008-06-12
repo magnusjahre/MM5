@@ -9,7 +9,8 @@ class BaseL1Cache(BaseCache):
     size = '64kB'
     assoc = 8
     block_size = 64
-    mshrs = 4
+    mshrs = 16
+    write_buffers = 8
     tgts_per_mshr = 4
     cpu_count = int(env['NP'])
     is_shared = False

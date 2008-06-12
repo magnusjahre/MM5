@@ -364,16 +364,16 @@ class Cache : public BaseCache
     }
     
     // Adaptive MHA methods
-    virtual void incrementNumMSHRs(){
-        missQueue->incrementNumMSHRs();
+    virtual void incrementNumMSHRs(bool onMSHRs){
+        missQueue->incrementNumMSHRs(onMSHRs);
     }
     
-    virtual void decrementNumMSHRs(){
-        missQueue->decrementNumMSHRs();
+    virtual void decrementNumMSHRs(bool onMSHRs){
+        missQueue->decrementNumMSHRs(onMSHRs);
     }
     
-    virtual int getCurrentMSHRCount(){
-        return missQueue->getCurrentMSHRCount();
+    virtual int getCurrentMSHRCount(bool onMSHRs){
+        return missQueue->getCurrentMSHRCount(onMSHRs);
     }
     
 #ifdef CACHE_DEBUG

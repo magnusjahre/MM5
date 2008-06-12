@@ -84,6 +84,7 @@ Crossbar::arbitrate(Tick cycle){
         for(int i=0;i<grantedCPUs.size();i++){
             
             std::vector<bool> isBlocking(cpu_count, false);
+            std::vector<bool> isRead(cpu_count, false);
             
             if(!notGrantedReqs.empty()){
                 list<InterconnectRequest* >::iterator notGrantedIterator;
@@ -103,17 +104,29 @@ Crossbar::arbitrate(Tick cycle){
                             ? bankID = interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)] + cpu_count
                             : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
                     
-                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]) isBlocking[cpuID] = true;
+                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
+                        // only update values if we have not encountered a request from this processor before
+                        if(!isBlocking[cpuID]){
+                            isBlocking[cpuID] = true;
+                            
+                            MemCmd delayedCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
+                            if(delayedCmd == Read) isRead[cpuID] = true;
+                            else isRead[cpuID] = false;
+                        }
+
+                    }
                     
                     
                     notGrantedIterator++;
                 }
                 
                 vector<vector<Tick> > queueWaitBuffer = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
+                vector<vector<bool> > delayedIsRead(cpu_count, vector<bool>(cpu_count, false));
                 
                 for(int j=0;j<cpu_count;j++){
                     if(isBlocking[j]){
-                        queueWaitBuffer[j][grantedCPUs[i]] = transferDelay + arbitrationDelay;
+                        queueWaitBuffer[j][grantedCPUs[i]] = 1;
+                        delayedIsRead[j][grantedCPUs[i]] = isRead[j];
                     }
                 }
                 
@@ -121,7 +134,8 @@ Crossbar::arbitrate(Tick cycle){
                                                   destinationAddrs[i],
                                                   currentCommands[i],
                                                   grantedCPUs[i],
-                                                  INTERCONNECT_INTERFERENCE);
+                                                  INTERCONNECT_INTERFERENCE,
+                                                  delayedIsRead);
             }
         }
     }
