@@ -2,7 +2,7 @@
 #include "sim/builder.hh"
 #include "adaptive_mha.hh"
 
-#include <fstream>
+#include <iomanip>
 
 // #define FATAL_ZERO_NUM 100
 
@@ -73,8 +73,10 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         adaptiveMHATraceFileName = "adaptiveMHATrace.txt";
         ofstream mhafile(adaptiveMHATraceFileName.c_str());
         mhafile << "Tick";
-        for(int i=0;i<cpu_count;i++) mhafile << ";DCache " << i << " MSHRs";
-        for(int i=0;i<cpu_count;i++) mhafile << ";ICache " << i << " MSHRs";
+        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " MSHRs";
+        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " WB";
+        for(int i=0;i<cpu_count;i++) mhafile << ";I" << i << " MSHRs";
+        for(int i=0;i<cpu_count;i++) mhafile << ";I " << i << " WB";
         mhafile << "\n";
         mhafile.flush();
         mhafile.close();
@@ -201,11 +203,20 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         if(useFairAMHA && ! wasFirst) doFairAMHA();
         else doThroughputAMHA(dataBusUtil, dataUsers);
         
+        if(wasFirst){
+            ofstream fairfile("fairAlgTrace.txt");
+            fairfile << "";
+            fairfile.flush();
+            fairfile.close();
+        }
+        
         // write Adaptive MHA trace file
         ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
         mhafile << time;
         for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(true);
+        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(false);
         for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(true);
+        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(false);
         mhafile << "\n";
         mhafile.flush();
         mhafile.close();
@@ -241,14 +252,22 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 void
 AdaptiveMHA::doFairAMHA(){
 
+    double highThres = 1.20;
+    double lowThres = 1.10;
+    Tick lowestAccStallTime = 1000;
+    
+    ofstream fairfile("fairAlgTrace.txt", ofstream::app);
+    fairfile << "\nFAIR ADAPTIVE MHA RUNNING AT TICK " << curTick << "\n\n";
+    
     // 1. Gather data
     
     // gathering stalled cycles, i.e. stall time shared estimate
     vector<int> stalledCycles(adaptiveMHAcpuCount, 0);
     for(int i=0;i<cpus.size();i++){
         stalledCycles[i] = cpus[i]->getStalledL1MissCycles();
-        cout << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
+        fairfile << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
     }
+    fairfile << "\n";
     
     int outstandingCnt = 0;
     int writes = 0;
@@ -260,30 +279,26 @@ AdaptiveMHA::doFairAMHA(){
     }
     
     // gather t_interference_read
-    cout << "t-interference-read:\n";
     vector<vector<Tick> > t_interference_read(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
     for(int i=0;i<t_interference_read.size();i++){
-        cout << i << ":";
         for(int j=0;j<t_interference_read[i].size();j++){
             t_interference_read[i][j] = totalInterferenceDelayRead[i][j];
-            cout << " " << t_interference_read[i][j];
             totalInterferenceDelayRead[i][j] = 0;
         }
-        cout << "\n";
     }
     numInterferenceRequests = 0;
     
-    cout << "t-interference-write\n";
+    printMatrix(t_interference_read, fairfile, "Read interference matrix:");
+    
     vector<vector<Tick> > t_interference_write(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
     for(int i=0;i<t_interference_write.size();i++){
-        cout << i << ":";
         for(int j=0;j<t_interference_write[i].size();j++){
             t_interference_write[i][j] = totalInterferenceDelayWrite[i][j];
-            cout << " " << t_interference_write[i][j];
             totalInterferenceDelayWrite[i][j] = 0;
         }
-        cout << "\n";
     }
+    
+    printMatrix(t_interference_write, fairfile, "Write interference matrix:");
     
     // gather t_shared
     vector<Tick> t_shared(adaptiveMHAcpuCount, 0);
@@ -299,12 +314,15 @@ AdaptiveMHA::doFairAMHA(){
     // gather number of read requests
     vector<Tick> numReads(adaptiveMHAcpuCount, 0);
     vector<Tick> numWrites(adaptiveMHAcpuCount, 0);
+    fairfile << "Total number of reads and writes per CPU:\n";
     for(int i=0;i<numReads.size();i++){
         numReads[i] = delayReadRequestsPerCPU[i];
         numWrites[i] = delayWriteRequestsPerCPU[i];
         delayReadRequestsPerCPU[i] = 0;
         delayWriteRequestsPerCPU[i] = 0;
+        fairfile << "CPU " << i << ": " << numReads[i] << " reads, " << numWrites[i] << " writes\n";
     }
+    fairfile << "\n";
     
     // remove committed requests
     oracleIter = oracleStorage.begin();
@@ -322,11 +340,10 @@ AdaptiveMHA::doFairAMHA(){
     interferenceOverflow = oracleStorage.size();
    
     // 2. Compute relative interference points to quantify unfairness
-    cout << "Relative interference points:\n";
     vector<vector<double> > relativeInterferencePoints(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
     vector<double> overallRelativeInterference(adaptiveMHAcpuCount, 0.0);
+    fairfile << "Interference points per CPU:\n";
     for(int i=0;i<adaptiveMHAcpuCount;i++){
-        cout << i << ":";
         for(int j=0;j<adaptiveMHAcpuCount;j++){
             if(numReads[i] == 0){
                 relativeInterferencePoints[i][j] = 0;
@@ -334,30 +351,43 @@ AdaptiveMHA::doFairAMHA(){
             else{
                 relativeInterferencePoints[i][j] = (double) ((double) t_interference_read[i][j] / (double) numReads[i]);
             }
-            cout << " " << relativeInterferencePoints[i][j];
             overallRelativeInterference[i] += (double) t_interference_read[i][j];
         }
         overallRelativeInterference[i] = overallRelativeInterference[i] / (double)  numReads[i];
-        cout << "\n";
+        fairfile << "CPU" << i << ": " << overallRelativeInterference[i] << "\n";
     }
+    fairfile << "\n";
     
-    // 3a Identify the least well-behaving processor and reduce its allowed read or write bandwidth
+    printMatrix(relativeInterferencePoints, fairfile, "Relative Interference Point Matrix:");
     
-    double maxDifference = 0;
+    // 3. Measure fairness by computing interference point ratios
+    // Idea: if the threads are impacted by fairness to the same extent, the memory system will appear to be fair
+    vector<vector<double> > searchPoints(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
+    double maxDifference = 1.0;
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         for(int j=0;j<adaptiveMHAcpuCount;j++){
             if(overallRelativeInterference[i] != 0 && overallRelativeInterference[j] != 0){
                 double diff = overallRelativeInterference[i] / overallRelativeInterference[j];
-                if(diff > maxDifference){
-                    maxDifference = diff;
+                if(stalledCycles[i] >= lowestAccStallTime){
+                    searchPoints[i][j] = diff;
+                    if(diff > maxDifference){
+                        maxDifference = diff;
+                    }
+                }
+                else{
+                    searchPoints[i][j] = -1;
                 }
             }
         }
     }
     
-    cout << "Maxdiff is " << maxDifference << "\n";
+    printMatrix(searchPoints, fairfile, "Relative Interference Searchpoints:");
     
-    if(maxDifference > 1.20){
+    fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
+    
+    
+    // 4 Modify MSHRs of writeback queue based on measurements
+    if(maxDifference > highThres){
         
         // Reduce miss para of worst processor
         
@@ -368,7 +398,7 @@ AdaptiveMHA::doFairAMHA(){
         for(int i=0;i<adaptiveMHAcpuCount;i++){
             for(int j=0;j<adaptiveMHAcpuCount;j++){
                 // find max score
-                if(stalledCycles[i] > 0){
+                if(stalledCycles[i] >= lowestAccStallTime){
                     if(relativeInterferencePoints[i][j] > maxScore){
                         maxScore = relativeInterferencePoints[i][j];
                         victimID = i;
@@ -382,40 +412,58 @@ AdaptiveMHA::doFairAMHA(){
         }
         assert(victimID >= 0 && responsibleID >= 0);
         
-        cout << "CPU " << responsibleID << " has " << numReads[responsibleID] << " reads and " << numWrites[responsibleID] << " writes\n";
+        fairfile << "CPU " << responsibleID 
+                << " has " << numReads[responsibleID] 
+                << " reads and " << numWrites[responsibleID] << " writes\n";
+        
         bool blameReads = numReads[responsibleID] >= numWrites[responsibleID];
         
-        cout << "The main victim is cpu " << victimID << " which suffers from interference with CPU " << responsibleID << ", value is " << maxScore << ", " << (blameReads ? "blame reads" : "blame writes") << ", minScore " << minScore << ", ratio " << minScore / maxScore << "\n";
+        fairfile << "The main victim is cpu " << victimID 
+                << " which suffers from interference with CPU " << responsibleID 
+                << ", value is " << maxScore 
+                << ", " << (blameReads ? "blame reads" : "blame writes") 
+                << ", minScore " << minScore 
+                << ", ratio " << minScore / maxScore << "\n";
         
         if(dataCaches[responsibleID]->getCurrentMSHRCount(blameReads) > 1){
             dataCaches[responsibleID]->decrementNumMSHRs(blameReads);
         }
     }
-    else if(maxDifference < 1.10){
+    else if(maxDifference < lowThres){
         
         vector<int> tmpStall = stalledCycles;
         
         while(!tmpStall.empty()){
-            Tick maxval = 0;
+            Tick maxval = lowestAccStallTime;
             int maxID = -1;
             for(int i=0;i<tmpStall.size();i++){
                 if(maxval < tmpStall[i]){
                     maxval = tmpStall[i];
+                    maxID = i;
                 }
             }
-            if(maxID == -1) break;
+            if(maxID == -1){
+                fairfile << "No CPU with large enough stall time could be found, quitting\n";
+                break;
+            }
             
+            fairfile << "CPU " << maxID << " has a large stall time, can we increase its resources?\n";
             if(dataCaches[maxID]->getCurrentMSHRCount(true) < maxMshrs){
+                fairfile << "Increasing the number of MSHRs for cpu " << maxID << "\n";
                 dataCaches[maxID]->incrementNumMSHRs(true);
                 break;
             }
             else if(dataCaches[maxID]->getCurrentMSHRCount(false) < maxWB){
-                dataCaches[maxID]->decrementNumMSHRs(false);
+                fairfile << "Increasing the size of the writeback queue for cpu " << maxID << "\n";
+                dataCaches[maxID]->incrementNumMSHRs(false);
                 break;
             }
             tmpStall.erase(tmpStall.begin()+maxID);
         }
     }
+    
+    fairfile.flush();
+    fairfile.close();
 }
 
 void
@@ -540,16 +588,6 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
         oracleStorage[cacheBlkAddr] = delayEntry(perCPUQueueTimes, (cmd == Read ? true : false), type);
         numInterferenceRequests++;
     }
-    
-//     cout << "Adding interference from cpu " << fromCPU << ":\n";
-//     for(int k=0;k<perCPUQueueTimes.size();k++){
-//         cout << k << ":";
-//         for(int j=0;j<perCPUQueueTimes[k].size();j++){
-//             cout << " (" << perCPUQueueTimes[k][j] << ", " << (nextIsRead[k][j] ? "True" : "False") << ")";
-//         }
-//         cout << "\n";
-//     }
-    
 }
 
 void
@@ -615,6 +653,31 @@ AdaptiveMHA::delayEntry::addDelays(std::vector<std::vector<Tick> > newDelays, In
     
 }
 
+void
+AdaptiveMHA::printMatrix(std::vector<std::vector<Tick> >& matrix, ofstream &file, std::string header){
+    file << header << "\n";
+    for(int i=0;i<matrix.size();i++){
+        file << i << ":";
+        for(int j=0;j<matrix[i].size();j++){
+            file << setw(10) << matrix[i][j]; 
+        }
+        file << "\n";
+    }
+    file << "\n";
+}
+
+void
+AdaptiveMHA::printMatrix(std::vector<std::vector<double> >& matrix, ofstream &file, std::string header){
+    file << header << "\n";
+    for(int i=0;i<matrix.size();i++){
+        file << i << ":";
+        for(int j=0;j<matrix[i].size();j++){
+            file << setw(10) << matrix[i][j];
+        }
+        file << "\n";
+    }
+    file << "\n";
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

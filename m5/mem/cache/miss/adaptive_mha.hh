@@ -10,6 +10,8 @@
 #include "mem/mem_req.hh"
 #include "sim/eventq.hh"
 
+#include <fstream>
+
 class BaseCache;
 class AdaptiveMHASampleEvent;
 
@@ -159,7 +161,9 @@ class AdaptiveMHA : public SimObject{
         void throughputDecreaseNumMSHRs(std::vector<int> currentVector);
         
         void throughputIncreaseNumMSHRs();
-
+        
+        void printMatrix(std::vector<std::vector<Tick> >& matrix, std::ofstream &file, std::string header);
+        void printMatrix(std::vector<std::vector<double> >& matrix, std::ofstream &file, std::string header);
 };
 
 class AdaptiveMHASampleEvent : public Event
