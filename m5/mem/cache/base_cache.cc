@@ -387,7 +387,6 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     if(simulateContention && !moreTargetsToService){
         time = updateAndStoreInterference(req, time);
     }
-    else if(simulateContention && moreTargetsToService) warn("Targets might not be counted in the measurements");
     
     if(!isShared && adaptiveMHA != NULL && !moreTargetsToService){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->time, req->paddr, true);
@@ -435,12 +434,14 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
             }
         }
         
-        adaptiveMHA->addInterferenceDelay(interference,
-                                          req->paddr,
-                                          req->cmd,
-                                          req->adaptiveMHASenderID,
-                                          L2_INTERFERENCE,
-                                          delayedIsRead);
+        if(adaptiveMHA != NULL){
+            adaptiveMHA->addInterferenceDelay(interference,
+                                            req->paddr,
+                                            req->cmd,
+                                            req->adaptiveMHASenderID,
+                                            L2_INTERFERENCE,
+                                            delayedIsRead);
+        }
         
         time = nextFreeCache + hitLatency;
         nextFreeCache += hitLatency;
