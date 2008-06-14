@@ -451,11 +451,23 @@ AdaptiveMHA::doFairAMHA(){
             if(dataCaches[maxID]->getCurrentMSHRCount(true) < maxMshrs){
                 fairfile << "Increasing the number of MSHRs for cpu " << maxID << "\n";
                 dataCaches[maxID]->incrementNumMSHRs(true);
+                
+                if(dataCaches[maxID]->isBlockedNoMSHRs()){
+                    assert(dataCaches[maxID]->isBlocked());
+                    dataCaches[maxID]->clearBlocked(Blocked_NoMSHRs);
+                }
+                
                 break;
             }
             else if(dataCaches[maxID]->getCurrentMSHRCount(false) < maxWB){
                 fairfile << "Increasing the size of the writeback queue for cpu " << maxID << "\n";
                 dataCaches[maxID]->incrementNumMSHRs(false);
+                
+                if(dataCaches[maxID]->isBlockedNoWBBuffers()){
+                    assert(dataCaches[maxID]->isBlocked());
+                    dataCaches[maxID]->clearBlocked(Blocked_NoWBBuffers);
+                }
+                
                 break;
             }
             tmpStall.erase(tmpStall.begin()+maxID);
