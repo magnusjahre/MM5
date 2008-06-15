@@ -193,6 +193,8 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     }
     
     vector<double> IPCs(adaptiveMHAcpuCount, 0);
+    assert(IPCs.size() == cpus.size());
+    assert(cpus.size() == adaptiveMHAcpuCount);
     for(int i=0;i<cpus.size();i++){
         IPCs[i] = cpus[i]->getCommittedInstructionSample(sampleFrequency);
         cpus[i]->resetCommittedInstructionSample();
@@ -268,7 +270,8 @@ AdaptiveMHA::doFairAMHA(){
         fairfile << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
     }
     fairfile << "\n";
-    
+
+    /*    
     int outstandingCnt = 0;
     int writes = 0;
     map<Addr, delayEntry>::iterator oracleIter = oracleStorage.begin();
@@ -277,6 +280,7 @@ AdaptiveMHA::doFairAMHA(){
         else if(!(oracleIter->second).isRead) writes++;
         oracleIter++;
     }
+    */
     
     // gather t_interference_read
     vector<vector<Tick> > t_interference_read(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
@@ -325,6 +329,7 @@ AdaptiveMHA::doFairAMHA(){
     fairfile << "\n";
     
     // remove committed requests
+    /*
     oracleIter = oracleStorage.begin();
     while(oracleIter != oracleStorage.end()){
         map<Addr, delayEntry>::iterator eraseIterator = oracleIter++;
@@ -338,7 +343,8 @@ AdaptiveMHA::doFairAMHA(){
     }
     
     interferenceOverflow = oracleStorage.size();
-   
+    */   
+
     // 2. Compute relative interference points to quantify unfairness
     vector<vector<double> > relativeInterferencePoints(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
     vector<double> overallRelativeInterference(adaptiveMHAcpuCount, 0.0);
@@ -579,7 +585,7 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
     
     assert(cmd == Read || cmd == Writeback);
     
-    Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
     
     for(int i=0;i<perCPUQueueTimes.size();i++){
         for(int j=0;j<perCPUQueueTimes[i].size();j++){
@@ -587,7 +593,8 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
             else totalInterferenceDelayWrite[i][j] += perCPUQueueTimes[i][j];
         }
     }
-    
+
+    /*
     map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
     if(iter != oracleStorage.end()){
         oracleStorage[cacheBlkAddr].addDelays(perCPUQueueTimes, type);
@@ -600,6 +607,7 @@ AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
         oracleStorage[cacheBlkAddr] = delayEntry(perCPUQueueTimes, (cmd == Read ? true : false), type);
         numInterferenceRequests++;
     }
+    */
 }
 
 void
@@ -607,7 +615,7 @@ AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead){
     
     assert(delay > 0);
     
-    Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
     
     assert(issuedCPU >= 0 && issuedCPU <= totalSharedDelay.size());
     assert(issuedCPU >= 0 && issuedCPU <= totalSharedWritebackDelay.size());
@@ -621,11 +629,12 @@ AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead){
     }
     numDelayRequests++;
     
-    
+    /*
     map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
     if(iter != oracleStorage.end()){
         oracleStorage[cacheBlkAddr].totalDelay = delay;
     }
+    */
 }
 
 AdaptiveMHA::delayEntry::delayEntry(std::vector<std::vector<Tick> > _delays, bool read, InterferenceType type)
