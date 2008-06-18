@@ -70,6 +70,11 @@ class AdaptiveMHA : public SimObject{
         std::vector<int> delayReadRequestsPerCPU;
         std::vector<int> delayWriteRequestsPerCPU;
         
+        std::vector<std::vector<bool> > interferenceBlacklist;
+        int lastInterfererID;
+        int lastVictimID;
+        double lastInterferenceValue;
+        
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
             std::vector<std::vector<Tick> > l2Delay;
@@ -161,6 +166,20 @@ class AdaptiveMHA : public SimObject{
         void throughputDecreaseNumMSHRs(std::vector<int> currentVector);
         
         void throughputIncreaseNumMSHRs();
+        
+        void fairAMHAFirstAlg(std::ofstream& fairfile,
+                              std::vector<std::vector<double> >& relativeInterferencePoints,
+                              std::vector<Tick>& numReads,
+                              std::vector<Tick>& numWrites,
+                              std::vector<int>& stalledCycles,
+                              double maxDifference,
+                              Tick lowestAccStallTime);
+        
+        void maxDiffRedWithRollback(std::ofstream& fairfile,
+                                    std::vector<std::vector<double> >& relativeInterferencePoints,
+                                    std::vector<Tick>& numReads,
+                                    std::vector<int>& stalledCycles,
+                                    double maxDifference);
         
         void printMatrix(std::vector<std::vector<Tick> >& matrix, std::ofstream &file, std::string header);
         void printMatrix(std::vector<std::vector<double> >& matrix, std::ofstream &file, std::string header);

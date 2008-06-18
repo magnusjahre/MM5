@@ -39,6 +39,11 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     numDelayRequests = 0;
     interferenceOverflow = 0;
     
+    interferenceBlacklist = vector<vector<bool> >(cpu_count, vector<bool>(cpu_count, false));
+    lastInterfererID = -1;
+    lastVictimID = -1;
+    lastInterferenceValue = 0.0;
+    
     neededRepeatDecisions = _neededRepeatDecisions;
     
     currentCandidate = -1;
@@ -254,8 +259,6 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 void
 AdaptiveMHA::doFairAMHA(){
 
-    double highThres = 1.20;
-    double lowThres = 1.10;
     Tick lowestAccStallTime = 1000;
     
     ofstream fairfile("fairAlgTrace.txt", ofstream::app);
@@ -391,8 +394,115 @@ AdaptiveMHA::doFairAMHA(){
     
     fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
     
-    
     // 4 Modify MSHRs of writeback queue based on measurements
+    maxDiffRedWithRollback(fairfile,
+                           relativeInterferencePoints,
+                           numReads,
+                           stalledCycles,
+                           maxDifference);
+    
+    fairfile.flush();
+    fairfile.close();
+}
+
+void
+AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
+                                    std::vector<std::vector<double> >& relativeInterferencePoints,
+                                    std::vector<Tick>& numReads,
+                                    std::vector<int>& stalledCycles,
+                                    double maxDifference){
+    
+    double reductionThreshold = 0.2;
+    
+    // check last move
+    if(lastVictimID >= 0 && lastInterfererID >= 0){
+        
+        fairfile << "Checking last decision, current interference is " 
+                << relativeInterferencePoints[lastVictimID][lastInterfererID] 
+                << " last was " << lastInterferenceValue 
+                << ", threshold value was " 
+                <<  lastInterferenceValue -(reductionThreshold * lastInterferenceValue) << "\n";
+        
+        if(relativeInterferencePoints[lastVictimID][lastInterfererID]
+           > lastInterferenceValue -(reductionThreshold * lastInterferenceValue)){
+            
+            // blacklist change
+            interferenceBlacklist[lastVictimID][lastInterfererID] = true;
+            fairfile << "MSHR reduction did not impact stall time sufficiently, blacklisting victim "
+                     << lastVictimID << " and interferer " << lastInterfererID << "\n";
+            
+            // roll back reduction decision, increase interferers MSHR count
+            assert(dataCaches[lastInterfererID]->getCurrentMSHRCount(true) < maxMshrs);
+            fairfile << "Increasing the number of MSHRs for cpu " << lastInterfererID << "\n";
+            dataCaches[lastInterfererID]->incrementNumMSHRs(true);
+                
+            if(dataCaches[lastInterfererID]->isBlockedNoMSHRs()){
+                assert(dataCaches[lastInterfererID]->isBlocked());
+                dataCaches[lastInterfererID]->clearBlocked(Blocked_NoMSHRs);
+            }
+            
+            // reset storage
+            lastVictimID = -1;
+            lastInterfererID = -1;
+            lastInterferenceValue = 0.0;
+        }
+    }
+    
+    // last change accepted or no change, search for another reduction that can improve fairness
+    double maxScore = 0.0;
+    int victimID = -1;
+    int responsibleID = -1;
+    
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        for(int j=0;j<adaptiveMHAcpuCount;j++){
+            if(!interferenceBlacklist[i][j]){
+                if(relativeInterferencePoints[i][j] > maxScore){
+                    maxScore = relativeInterferencePoints[i][j];
+                    victimID = i;
+                    responsibleID = j;
+                }
+            }
+        }
+    }
+    
+    if(victimID < 0 || responsibleID < 0){
+        fairfile << "No reduction opportunity found, reseting storage and quitting...\n";
+        
+        // reset storage
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        lastInterferenceValue = 0.0;
+        
+        return;
+    }
+    
+    if(dataCaches[responsibleID]->getCurrentMSHRCount(true) > 1){
+        fairfile << "CPU " << responsibleID << " interferes with CPU " << victimID << ", reducing MSHRs\n";
+        dataCaches[responsibleID]->decrementNumMSHRs(true);
+    }
+    else{
+        fairfile << "CPU " << responsibleID << " interferes with CPU "
+                 << victimID << ", allready at blocking cache configuration, no action taken.\n";
+    }
+    
+    // update storage
+    lastVictimID = victimID;
+    lastInterfererID = responsibleID;
+    lastInterferenceValue = relativeInterferencePoints[lastVictimID][lastInterfererID];
+}
+
+void
+AdaptiveMHA::fairAMHAFirstAlg(std::ofstream& fairfile,
+                              vector<vector<double> >& relativeInterferencePoints,
+                              vector<Tick>& numReads,
+                              vector<Tick>& numWrites,
+                              vector<int>& stalledCycles,
+                              double maxDifference,
+                              Tick lowestAccStallTime){
+    
+    double highThres = 1.20;
+    double lowThres = 1.10;
+    
     if(maxDifference > highThres){
         
         // Reduce miss para of worst processor
@@ -479,9 +589,6 @@ AdaptiveMHA::doFairAMHA(){
             tmpStall.erase(tmpStall.begin()+maxID);
         }
     }
-    
-    fairfile.flush();
-    fairfile.close();
 }
 
 void
