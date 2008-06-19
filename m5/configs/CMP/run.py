@@ -110,6 +110,10 @@ if "USE-ADAPTIVE-MHA" in env:
 
 useFairAdaptiveMHA = False
 if "USE-FAIR-AMHA" in env:
+    if 'FAIR-RESET-COUNTER' not in env:
+        panic("The number of events to process must be given (-EFAIR-RESET-COUNTER)")
+    if 'FAIR-REDUCTION-THRESHOLD' not in env:
+        panic("A reduction threshold must be given (-EFAIR-REDUCTION-THRESHOLD)")
     useFairAdaptiveMHA = True
 
 if "CACHE-PARTITIONING" in env:
@@ -221,6 +225,8 @@ elif useFairAdaptiveMHA:
     root.adaptiveMHA.neededRepeats = 1 # not used
     root.adaptiveMHA.onlyTraceBus = False
     root.adaptiveMHA.useFairMHA = True
+    root.adaptiveMHA.resetCounter = int(env["FAIR-RESET-COUNTER"])
+    root.adaptiveMHA.reductionThreshold = float(env["FAIR-REDUCTION-THRESHOLD"])
     
 else:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
@@ -317,7 +323,7 @@ else:
         simulateCycles = int(env['SIMULATETICKS'])
     
     root.adaptiveMHA.startTick = simulateStart + warmup
-    uniformPartStart = simulateStart #use warm-up to converge on static cache alloc
+    uniformPartStart = simulateStart + warmup
     cacheProfileStart = simulateStart
     Bus.switch_at = simulateStart
 

@@ -75,6 +75,10 @@ class AdaptiveMHA : public SimObject{
         int lastVictimID;
         double lastInterferenceValue;
         
+        int resetCounter;
+        int localResetCounter;
+        double reductionThreshold;
+        
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
             std::vector<std::vector<Tick> > l2Delay;
@@ -120,7 +124,9 @@ class AdaptiveMHA : public SimObject{
                     bool _onlyTraceBus,
                     int _neededRepeatDecisions,
                     std::vector<int> & _staticAsymmetricMHA,
-                    bool _useFairAMHA);
+                    bool _useFairAMHA,
+                    int _resetCounter,
+                    double _reductionThreshold);
         
         ~AdaptiveMHA();
         

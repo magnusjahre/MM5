@@ -11,3 +11,5 @@ class AdaptiveMHA(SimObject):
     neededRepeats = Param.Int("Number of repeated desicions to change config")
     staticAsymmetricMHA = VectorParam.Int("The number of times each caches mshrcount should be reduced")
     useFairMHA = Param.Bool("True if the fair AMHA implementation should be used")
+    resetCounter = Param.Int("The number of events that should be processed before F-AMHA is reset")
+    reductionThreshold = Param.Float("The percentage reduction in interference points needed to accept a reduction")

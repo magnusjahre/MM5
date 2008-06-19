@@ -17,7 +17,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          bool _onlyTraceBus,
                          int _neededRepeatDecisions,
                          vector<int> & _staticAsymmetricMHA,
-                         bool _useFairAMHA)
+                         bool _useFairAMHA,
+                         int _resetCounter,
+                         double _reductionThreshold)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -26,6 +28,10 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     lowThreshold = _lowThreshold;
     
     onlyTraceBus = _onlyTraceBus;
+    
+    resetCounter = _resetCounter;
+    localResetCounter = _resetCounter;
+    reductionThreshold = _reductionThreshold;
     
     cpus.resize(cpu_count, 0);
     
@@ -412,7 +418,56 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
                                     std::vector<int>& stalledCycles,
                                     double maxDifference){
     
-    double reductionThreshold = 0.2;
+    assert(resetCounter > 0);
+    localResetCounter--;
+    
+    cout << "Blacklist at entry:\n";
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        for(int j=0;j<adaptiveMHAcpuCount;j++){
+            cout << setw(10) << (interferenceBlacklist[i][j] ? "True" : "False");
+        }
+        cout << "\n";
+    }
+    
+    if(localResetCounter <= 0){
+        
+        fairfile << "Resetting blacklist and increasing all caches to max MSHRs\n";
+        
+        // Reset blacklist
+        for(int i=0;i<adaptiveMHAcpuCount;i++){
+            for(int j=0;j<adaptiveMHAcpuCount;j++){
+                interferenceBlacklist[i][j] = false;
+            }
+        }
+        
+        // Increase all caches to max MSHRs
+        for(int i=0;i<dataCaches.size();i++){
+            while(dataCaches[i]->getCurrentMSHRCount(true) < maxMshrs){
+                dataCaches[i]->incrementNumMSHRs(true);
+                
+                if(dataCaches[i]->isBlockedNoMSHRs()){
+                    assert(dataCaches[i]->isBlocked());
+                    dataCaches[i]->clearBlocked(Blocked_NoMSHRs);
+                }
+            }
+        }
+        
+        cout << "Blacklist is now:\n";
+        for(int i=0;i<adaptiveMHAcpuCount;i++){
+            for(int j=0;j<adaptiveMHAcpuCount;j++){
+                cout << setw(10) << (interferenceBlacklist[i][j] ? "True" : "False");
+            }
+            cout << "\n";
+        }
+        
+        localResetCounter = resetCounter;
+        
+        // Need to collect new measurements before making a decision
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        lastInterferenceValue = 0.0;
+        return;
+    }
     
     // check last move
     if(lastVictimID >= 0 && lastInterfererID >= 0){
@@ -819,6 +874,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<int> neededRepeats;
     VectorParam<int> staticAsymmetricMHA;
     Param<bool> useFairMHA;
+    Param<int> resetCounter;
+    Param<double> reductionThreshold;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -830,7 +887,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM(onlyTraceBus, "Only create the bus trace, adaptiveMHA is turned off"),
     INIT_PARAM(neededRepeats, "Number of repeated desicions to change config"),
     INIT_PARAM(staticAsymmetricMHA, "The number of times each caches mshrcount should be reduced"),
-    INIT_PARAM(useFairMHA, "True if the fair AMHA implementation should be used")
+    INIT_PARAM(useFairMHA, "True if the fair AMHA implementation should be used"),
+    INIT_PARAM_DFLT(resetCounter,"The number of events that should be processed before F-AMHA is reset", -1),
+    INIT_PARAM_DFLT(reductionThreshold, "The percentage reduction in interference points needed to accept a reduction", 0.1)
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
@@ -845,7 +904,9 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            onlyTraceBus,
                            neededRepeats,
                            staticAsymmetricMHA,
-                           useFairMHA);
+                           useFairMHA,
+                           resetCounter,
+                           reductionThreshold);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)
