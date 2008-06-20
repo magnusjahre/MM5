@@ -301,7 +301,7 @@ AdaptiveMHA::doFairAMHA(){
     }
     numInterferenceRequests = 0;
     
-    printMatrix(t_interference_read, fairfile, "Read interference matrix:");
+    printMatrix<Tick>(t_interference_read, fairfile, "Read interference matrix:");
     
     vector<vector<Tick> > t_interference_write(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
     for(int i=0;i<t_interference_write.size();i++){
@@ -311,7 +311,7 @@ AdaptiveMHA::doFairAMHA(){
         }
     }
     
-    printMatrix(t_interference_write, fairfile, "Write interference matrix:");
+    printMatrix<Tick>(t_interference_write, fairfile, "Write interference matrix:");
     
     // gather t_shared
     vector<Tick> t_shared(adaptiveMHAcpuCount, 0);
@@ -373,7 +373,7 @@ AdaptiveMHA::doFairAMHA(){
     }
     fairfile << "\n";
     
-    printMatrix(relativeInterferencePoints, fairfile, "Relative Interference Point Matrix:");
+    printMatrix<double>(relativeInterferencePoints, fairfile, "Relative Interference Point Matrix:");
     
     // 3. Measure fairness by computing interference point ratios
     // Idea: if the threads are impacted by fairness to the same extent, the memory system will appear to be fair
@@ -396,7 +396,7 @@ AdaptiveMHA::doFairAMHA(){
         }
     }
     
-    printMatrix(searchPoints, fairfile, "Relative Interference Searchpoints:");
+//     printMatrix(searchPoints, fairfile, "Relative Interference Searchpoints:");
     
     fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
     
@@ -420,6 +420,10 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
     
     assert(resetCounter > 0);
     localResetCounter--;
+    
+    double interferencePointMinAllowed = 5.0;
+    
+    printMatrix<bool>(interferenceBlacklist, fairfile, "Current blacklist:");
     
     if(localResetCounter <= 0){
         
@@ -504,7 +508,7 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
         }
     }
     
-    if(victimID < 0 || responsibleID < 0){
+    if(victimID < 0 || responsibleID < 0 || maxScore < interferencePointMinAllowed){
         fairfile << "No reduction opportunity found, reseting storage and quitting...\n";
         
         // reset storage
@@ -820,8 +824,9 @@ AdaptiveMHA::delayEntry::addDelays(std::vector<std::vector<Tick> > newDelays, In
     
 }
 
+template <class T>
 void
-AdaptiveMHA::printMatrix(std::vector<std::vector<Tick> >& matrix, ofstream &file, std::string header){
+AdaptiveMHA::printMatrix(std::vector<std::vector<T> >& matrix, ofstream &file, std::string header){
     file << header << "\n";
     for(int i=0;i<matrix.size();i++){
         file << i << ":";
@@ -833,18 +838,6 @@ AdaptiveMHA::printMatrix(std::vector<std::vector<Tick> >& matrix, ofstream &file
     file << "\n";
 }
 
-void
-AdaptiveMHA::printMatrix(std::vector<std::vector<double> >& matrix, ofstream &file, std::string header){
-    file << header << "\n";
-    for(int i=0;i<matrix.size();i++){
-        file << i << ":";
-        for(int j=0;j<matrix[i].size();j++){
-            file << setw(10) << matrix[i][j];
-        }
-        file << "\n";
-    }
-    file << "\n";
-}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

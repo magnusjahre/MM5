@@ -187,8 +187,7 @@ class AdaptiveMHA : public SimObject{
                                     std::vector<int>& stalledCycles,
                                     double maxDifference);
         
-        void printMatrix(std::vector<std::vector<Tick> >& matrix, std::ofstream &file, std::string header);
-        void printMatrix(std::vector<std::vector<double> >& matrix, std::ofstream &file, std::string header);
+        template <class T> void printMatrix(std::vector<std::vector<T> >& matrix, std::ofstream &file, std::string header);
 };
 
 class AdaptiveMHASampleEvent : public Event
