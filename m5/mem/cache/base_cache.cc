@@ -39,6 +39,7 @@
 #include "cpu/base.hh"
 
 #define CACHE_CHECK_INTERVAL 100000
+#define CONTENTION_DELAY 2
 
 using namespace std;
 
@@ -411,9 +412,9 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
     }
     
     assert(req->adaptiveMHASenderID >= 0);
-    if(nextFreeCache < (time - hitLatency)){
-        occupancy.push_back(cacheOccupancy(time - hitLatency, time, req->adaptiveMHASenderID, curTick));
-        nextFreeCache = time;
+    if(nextFreeCache < curTick){
+        occupancy.push_back(cacheOccupancy(curTick, curTick + CONTENTION_DELAY, req->adaptiveMHASenderID, curTick));
+        nextFreeCache = curTick + CONTENTION_DELAY;
     }
     else{
         assert(occupancy.back().originalRequestTick <= curTick);
@@ -443,9 +444,9 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
                                             delayedIsRead);
         }
         
-        time = nextFreeCache + hitLatency;
-        nextFreeCache += hitLatency;
-        occupancy.push_back(cacheOccupancy(nextFreeCache - hitLatency,nextFreeCache, req->adaptiveMHASenderID, curTick));
+        time = nextFreeCache + CONTENTION_DELAY;
+        nextFreeCache += CONTENTION_DELAY;
+        occupancy.push_back(cacheOccupancy(nextFreeCache - CONTENTION_DELAY,nextFreeCache, req->adaptiveMHASenderID, curTick));
     }
     
     return time;
@@ -454,11 +455,11 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
 void
 BaseCache::updateInterference(MemReqPtr &req){
     
-    if(nextFreeCache < curTick) nextFreeCache = curTick + hitLatency;
-    else nextFreeCache += hitLatency;
+    if(nextFreeCache < curTick) nextFreeCache = curTick + CONTENTION_DELAY;
+    else nextFreeCache += CONTENTION_DELAY;
     
     assert(req->adaptiveMHASenderID != -1);
-    occupancy.push_back(cacheOccupancy(nextFreeCache - hitLatency, nextFreeCache, req->adaptiveMHASenderID, curTick));
+    occupancy.push_back(cacheOccupancy(nextFreeCache - CONTENTION_DELAY, nextFreeCache, req->adaptiveMHASenderID, curTick));
     
     for(int i=0;i<occupancy.size();i++){
         if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);

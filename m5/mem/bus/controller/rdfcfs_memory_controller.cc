@@ -295,12 +295,12 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
             if(isReady(tmp)){
                 // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 4;
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 20;
                 delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
             }
             else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
                 // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 12;
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 60;
                 delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
             }
         }
@@ -313,14 +313,14 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
             if(isReady(tmp)){
                 // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 4;
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 20;
                 if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
                     delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
                 }
             }
             else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
                 // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 12;
+                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 60;
                 if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
                     delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
                 }

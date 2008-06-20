@@ -421,14 +421,6 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
     assert(resetCounter > 0);
     localResetCounter--;
     
-    cout << "Blacklist at entry:\n";
-    for(int i=0;i<adaptiveMHAcpuCount;i++){
-        for(int j=0;j<adaptiveMHAcpuCount;j++){
-            cout << setw(10) << (interferenceBlacklist[i][j] ? "True" : "False");
-        }
-        cout << "\n";
-    }
-    
     if(localResetCounter <= 0){
         
         fairfile << "Resetting blacklist and increasing all caches to max MSHRs\n";
@@ -450,14 +442,6 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
                     dataCaches[i]->clearBlocked(Blocked_NoMSHRs);
                 }
             }
-        }
-        
-        cout << "Blacklist is now:\n";
-        for(int i=0;i<adaptiveMHAcpuCount;i++){
-            for(int j=0;j<adaptiveMHAcpuCount;j++){
-                cout << setw(10) << (interferenceBlacklist[i][j] ? "True" : "False");
-            }
-            cout << "\n";
         }
         
         localResetCounter = resetCounter;
