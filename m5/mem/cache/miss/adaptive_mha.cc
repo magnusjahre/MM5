@@ -19,7 +19,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          vector<int> & _staticAsymmetricMHA,
                          bool _useFairAMHA,
                          int _resetCounter,
-                         double _reductionThreshold)
+                         double _reductionThreshold,
+                         double _interferencePointMinAllowed)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -32,6 +33,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     resetCounter = _resetCounter;
     localResetCounter = _resetCounter;
     reductionThreshold = _reductionThreshold;
+    interferencePointMinAllowed = _interferencePointMinAllowed;
     
     cpus.resize(cpu_count, 0);
     
@@ -420,8 +422,6 @@ AdaptiveMHA::maxDiffRedWithRollback(std::ofstream& fairfile,
     
     assert(resetCounter > 0);
     localResetCounter--;
-    
-    double interferencePointMinAllowed = 5.0;
     
     printMatrix<bool>(interferenceBlacklist, fairfile, "Current blacklist:");
     
@@ -853,6 +853,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<bool> useFairMHA;
     Param<int> resetCounter;
     Param<double> reductionThreshold;
+    Param<double> minInterferencePointAllowed;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -866,7 +867,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM(staticAsymmetricMHA, "The number of times each caches mshrcount should be reduced"),
     INIT_PARAM(useFairMHA, "True if the fair AMHA implementation should be used"),
     INIT_PARAM_DFLT(resetCounter,"The number of events that should be processed before F-AMHA is reset", -1),
-    INIT_PARAM_DFLT(reductionThreshold, "The percentage reduction in interference points needed to accept a reduction", 0.1)
+    INIT_PARAM_DFLT(reductionThreshold, "The percentage reduction in interference points needed to accept a reduction", 0.1),
+    INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0)
+            
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
@@ -883,7 +886,8 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            staticAsymmetricMHA,
                            useFairMHA,
                            resetCounter,
-                           reductionThreshold);
+                           reductionThreshold,
+                           minInterferencePointAllowed);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

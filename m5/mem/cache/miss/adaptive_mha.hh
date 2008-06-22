@@ -78,6 +78,7 @@ class AdaptiveMHA : public SimObject{
         int resetCounter;
         int localResetCounter;
         double reductionThreshold;
+        double interferencePointMinAllowed;
         
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
@@ -126,7 +127,8 @@ class AdaptiveMHA : public SimObject{
                     std::vector<int> & _staticAsymmetricMHA,
                     bool _useFairAMHA,
                     int _resetCounter,
-                    double _reductionThreshold);
+                    double _reductionThreshold,
+                    double _interferencePointMinAllowed);
         
         ~AdaptiveMHA();
         
