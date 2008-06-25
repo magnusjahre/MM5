@@ -38,6 +38,10 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     void estimateInterference(MemReqPtr& req);
     
+    std::vector<bool> hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue);
+    
+    std::vector<int> computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue);
+    
   public:
 
     // Memory Request currently being issued

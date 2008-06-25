@@ -280,53 +280,49 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
 void
 RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     
-    //TODO: implement Mutlu et al.'s scheme for comparison
-    
-    int localCpuCnt =bus->adaptiveMHA->getCPUCount();
+    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
     vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
     vector<vector<bool> > delayedIsRead(localCpuCnt, vector<bool>(localCpuCnt, false));
     int fromCPU = req->adaptiveMHASenderID;
     
     if(fromCPU == -1) return;
     
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        
-        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
-            if(isReady(tmp)){
-                // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 20;
-                delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
-            }
-            else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
-                // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 60;
-                delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = true;
-            }
+    // Interference due to bus capacity
+    vector<bool> readBusInterference = hasReadyRequestWaiting(req, readQueue);
+    assert(readBusInterference.size() == localCpuCnt);
+    for(int i=0;i<readBusInterference.size();i++){
+        if(readBusInterference[i]){
+            interference[i][req->adaptiveMHASenderID] += 20;
+            delayedIsRead[i][req->adaptiveMHASenderID] = true;
         }
     }
     
-    // if a CPU has both reads and writes queued, the request is counted as read
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        
-        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
-            if(isReady(tmp)){
-                // interference on bus
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 20;
-                if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
-                    delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
-                }
-            }
-            else if(getMemoryBankID(tmp) == getMemoryBankID(req)){
-                // interference due to bank conflict
-                interference[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = 60;
-                if(!delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID]){
-                    delayedIsRead[tmp->adaptiveMHASenderID][req->adaptiveMHASenderID] = false;
-                }
-            }
+    // Interference due to bank conflicts
+    vector<int> readBankInterference = computeBankWaitingPara(req, readQueue);
+    assert(readBankInterference.size() == localCpuCnt);
+    for(int i=0;i<readBankInterference.size();i++){
+        if(readBankInterference[i] > 0){
+            interference[i][req->adaptiveMHASenderID] 
+                    += 60 / readBankInterference[i];
+            delayedIsRead[i][req->adaptiveMHASenderID] = true;
         }
     }
+    
+//     bool allZero = true;
+//     for(int i=0;i<localCpuCnt;i++) for(int j=0;j<localCpuCnt;j++) if(interference[i][j] != 0) allZero = false;
+//     
+//     if(!allZero){
+//         cout << "Final interference matrix\n";
+//         for(int i=0;i<localCpuCnt;i++){
+//             for(int j=0;j<localCpuCnt;j++){
+//                 cout << interference[i][j] << " ";
+//             }
+//             cout << "\n";
+//         }
+//     }
+    
+    // Interference due to page hits becoming page misses
+    //FIXME: Implement
     
     bus->adaptiveMHA->addInterferenceDelay(interference,
                                            req->paddr,
@@ -335,7 +331,65 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
                                            MEMORY_INTERFERENCE,
                                            delayedIsRead);
 }
+
+std::vector<bool> 
+RDFCFSTimingMemoryController::hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue){
+    
+    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
+    list<MemReqPtr>::iterator tmpIterator;
+    vector<bool> retval = vector<bool>(localCpuCnt, false);
+    
+    for (tmpIterator = queue.begin(); tmpIterator != queue.end(); tmpIterator++) {
+        MemReqPtr& tmp = *tmpIterator;
         
+        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
+            if(isReady(tmp)){
+                // interference on bus
+                retval[tmp->adaptiveMHASenderID] = true;
+            }
+        }
+    }
+    return retval;
+}
+
+vector<int>
+RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue){
+    
+    const int BANKS = 8;
+    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
+    list<MemReqPtr>::iterator tmpIterator;
+    vector<vector<bool> > waitingForBanks(localCpuCnt, vector<bool>(BANKS, false));
+    vector<int> retval = vector<int>(localCpuCnt, false);
+    
+    for(int i=0;i<localCpuCnt;i++){
+        if(i != req->adaptiveMHASenderID){
+            for (tmpIterator = writeQueue.begin(); 
+                 tmpIterator != writeQueue.end(); 
+                 tmpIterator++) {
+                
+                MemReqPtr& tmp = *tmpIterator;
+                
+                if (tmp->adaptiveMHASenderID != -1) {
+                    if(getMemoryBankID(tmp) != getMemoryBankID(req)){
+                        waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp)] = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    for(int i=0;i<localCpuCnt;i++){
+        for(int j=0;j<BANKS;j++){
+            if(waitingForBanks[i][j]) retval[i]++;
+        }
+    }
+    
+    // divide by 2
+    for(int i=0;i<localCpuCnt;i++) retval[i] = retval[i] >> 1;
+    
+    return retval;
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
@@ -343,7 +397,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     Param<int> readqueue_size;
     Param<int> writequeue_size;
     Param<int> reserved_slots;
-
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
