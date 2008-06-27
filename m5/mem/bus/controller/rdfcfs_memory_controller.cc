@@ -308,19 +308,6 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         }
     }
     
-//     bool allZero = true;
-//     for(int i=0;i<localCpuCnt;i++) for(int j=0;j<localCpuCnt;j++) if(interference[i][j] != 0) allZero = false;
-//     
-//     if(!allZero){
-//         cout << "Final interference matrix\n";
-//         for(int i=0;i<localCpuCnt;i++){
-//             for(int j=0;j<localCpuCnt;j++){
-//                 cout << interference[i][j] << " ";
-//             }
-//             cout << "\n";
-//         }
-//     }
-    
     // Interference due to page hits becoming page misses
     //FIXME: Implement
     
@@ -359,28 +346,32 @@ RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<M
     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
     list<MemReqPtr>::iterator tmpIterator;
     vector<vector<bool> > waitingForBanks(localCpuCnt, vector<bool>(BANKS, false));
-    vector<int> retval = vector<int>(localCpuCnt, false);
+    vector<bool> waitingInSameBank = vector<bool>(localCpuCnt, false);
+    vector<int> retval = vector<int>(localCpuCnt, 0);
     
-    for(int i=0;i<localCpuCnt;i++){
-        if(i != req->adaptiveMHASenderID){
-            for (tmpIterator = writeQueue.begin(); 
-                 tmpIterator != writeQueue.end(); 
-                 tmpIterator++) {
-                
-                MemReqPtr& tmp = *tmpIterator;
-                
-                if (tmp->adaptiveMHASenderID != -1) {
-                    if(getMemoryBankID(tmp) != getMemoryBankID(req)){
-                        waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp)] = true;
-                    }
-                }
+    stringstream banktrace;
+    
+    for(tmpIterator = queue.begin();tmpIterator != queue.end();tmpIterator++){
+        
+        MemReqPtr& tmp = *tmpIterator;
+        
+        if (tmp->adaptiveMHASenderID != -1) {
+            if(getMemoryBankID(tmp->paddr) != getMemoryBankID(req->paddr)){
+                waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp->paddr)] = true;
+            }
+            else{
+                waitingInSameBank[tmp->adaptiveMHASenderID] = true;
             }
         }
     }
     
     for(int i=0;i<localCpuCnt;i++){
-        for(int j=0;j<BANKS;j++){
-            if(waitingForBanks[i][j]) retval[i]++;
+        if(waitingInSameBank[i] && i != req->adaptiveMHASenderID){
+            for(int j=0;j<BANKS;j++){
+                if(waitingForBanks[i][j]){
+                    retval[i]++;
+                }
+            }
         }
     }
     
