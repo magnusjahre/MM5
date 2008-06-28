@@ -281,17 +281,6 @@ AdaptiveMHA::doFairAMHA(){
         fairfile << "CPU" << i << " stall cycles: " << stalledCycles[i] << "\n";
     }
     fairfile << "\n";
-
-    /*    
-    int outstandingCnt = 0;
-    int writes = 0;
-    map<Addr, delayEntry>::iterator oracleIter = oracleStorage.begin();
-    while(oracleIter != oracleStorage.end()){
-        if(!(oracleIter->second).committed()) outstandingCnt++;
-        else if(!(oracleIter->second).isRead) writes++;
-        oracleIter++;
-    }
-    */
     
     // gather t_interference_read
     vector<vector<Tick> > t_interference_read(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
@@ -338,23 +327,6 @@ AdaptiveMHA::doFairAMHA(){
         fairfile << "CPU " << i << ": " << numReads[i] << " reads, " << numWrites[i] << " writes\n";
     }
     fairfile << "\n";
-    
-    // remove committed requests
-    /*
-    oracleIter = oracleStorage.begin();
-    while(oracleIter != oracleStorage.end()){
-        map<Addr, delayEntry>::iterator eraseIterator = oracleIter++;
-        if((eraseIterator->second).committed()) oracleStorage.erase(eraseIterator);
-        else if(!(eraseIterator->second).isRead) oracleStorage.erase(eraseIterator);
-    }
-    
-    oracleIter = oracleStorage.begin();
-    while(oracleIter != oracleStorage.end()){
-        oracleIter++;
-    }
-    
-    interferenceOverflow = oracleStorage.size();
-    */   
 
     // 2. Compute relative interference points to quantify unfairness
     vector<vector<double> > relativeInterferencePoints(adaptiveMHAcpuCount, vector<double>(adaptiveMHAcpuCount, 0.0));
@@ -398,16 +370,24 @@ AdaptiveMHA::doFairAMHA(){
         }
     }
     
-//     printMatrix(searchPoints, fairfile, "Relative Interference Searchpoints:");
+    printMatrix(searchPoints, fairfile, "Relative Interference Searchpoints:");
     
     fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
     
     // 4 Modify MSHRs of writeback queue based on measurements
-    maxDiffRedWithRollback(fairfile,
-                           relativeInterferencePoints,
-                           numReads,
-                           stalledCycles,
-                           maxDifference);
+//     maxDiffRedWithRollback(fairfile,
+//                            relativeInterferencePoints,
+//                            numReads,
+//                            stalledCycles,
+//                            maxDifference);
+    
+    fairAMHAFirstAlg(fairfile,
+                     relativeInterferencePoints,
+                     numReads,
+                     numWrites,
+                     stalledCycles,
+                     maxDifference,
+                     lowestAccStallTime);
     
     fairfile.flush();
     fairfile.close();
