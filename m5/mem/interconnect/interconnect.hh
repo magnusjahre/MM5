@@ -108,6 +108,10 @@ class Interconnect : public BaseHier
             public:
                 Tick time;
                 int fromID;
+                
+                Tick virtualStartTime;
+                int toBank;
+                int fromProc;
             
                 /**
                 * Default constructor
@@ -118,6 +122,10 @@ class Interconnect : public BaseHier
                 InterconnectRequest(Tick _time, int _fromID){
                     time = _time;
                     fromID = _fromID;
+                    
+                    virtualStartTime = -1;
+                    toBank = -1;
+                    fromProc = -1;
                 }
         };
         

@@ -37,11 +37,16 @@ class Crossbar : public Interconnect
         bool doProfiling;
         std::vector<int> channelUseCycles;
         
+        bool doFairArbitration;
+        std::vector<std::vector<Tick> > virtualFinishTimes;
+        
         bool checkCrossbarState(InterconnectRequest* req,
                                 int toInterfaceID,
                                 std::vector<bool>* state,
                                 bool* busIsUsed,
                                 Tick cycle);
+        
+        Tick getMinStartTag(int toBank);
         
     public:
         
@@ -70,20 +75,7 @@ class Crossbar : public Interconnect
                  int _arbDelay,
                  int _cpu_count,
                  HierParams *_hier,
-                 AdaptiveMHA* _adaptiveMHA)
-            : Interconnect(_name,
-                           _width, 
-                           _clock, 
-                           _transDelay, 
-                           _arbDelay,
-                           _cpu_count,
-                           _hier,
-                           _adaptiveMHA){
-            
-            isFirstRequest = true;
-            nextBusFreeTime = 0;
-            doProfiling = false;
-        }
+                 AdaptiveMHA* _adaptiveMHA);
         
         /**
         * This destructor deletes the request queues that are dynamically
