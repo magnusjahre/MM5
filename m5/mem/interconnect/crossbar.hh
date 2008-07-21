@@ -38,7 +38,7 @@ class Crossbar : public Interconnect
         std::vector<int> channelUseCycles;
         
         bool doFairArbitration;
-        std::vector<std::vector<Tick> > virtualFinishTimes;
+        std::vector<Tick> virtualFinishTimes;
         
         bool checkCrossbarState(InterconnectRequest* req,
                                 int toInterfaceID,
@@ -46,7 +46,35 @@ class Crossbar : public Interconnect
                                 bool* busIsUsed,
                                 Tick cycle);
         
-        Tick getMinStartTag(int toBank);
+        Tick getMinStartTag();
+        
+        void grantInterface(InterconnectRequest* req,
+                            int toInterfaceID,
+                            Tick cycle,
+                            std::vector<int> &grantedCPUs,
+                            std::vector<int> &toBanks,
+                            std::vector<Addr> &destinationAddrs,
+                            std::vector<MemCmd> &currentCommands);
+        
+        void doStandardArbitration(Tick candiateReqTime,
+                                   std::list<InterconnectRequest* > &notGrantedReqs,
+                                   Tick cycle,
+                                   bool& busIsUsed,
+                                   std::vector<bool>& occupiedEndNodes,
+                                   std::vector<int> &grantedCPUs,
+                                   std::vector<int> &toBanks,
+                                   std::vector<Addr> &destinationAddrs,
+                                   std::vector<MemCmd> &currentCommands);
+        
+        void doNFQArbitration(Tick candiateReqTime,
+                              std::list<InterconnectRequest* > &notGrantedReqs,
+                              Tick cycle,
+                              bool& busIsUsed,
+                              std::vector<bool>& occupiedEndNodes,
+                              std::vector<int> &grantedCPUs,
+                              std::vector<int> &toBanks,
+                              std::vector<Addr> &destinationAddrs,
+                              std::vector<MemCmd> &currentCommands);
         
     public:
         

@@ -28,7 +28,7 @@ Crossbar::Crossbar(const std::string &_name,
     doProfiling = false;
     
     doFairArbitration = true; //FIXME: parameterize this
-    virtualFinishTimes = vector<vector<Tick> >(CACHE_BANKS, vector<Tick>(_adaptiveMHA->getCPUCount(), 0));
+    virtualFinishTimes = vector<Tick>(_cpu_count, 0);
 }
 
 void
@@ -48,111 +48,27 @@ Crossbar::arbitrate(Tick cycle){
     vector<MemCmd> currentCommands;
     
     if(!doFairArbitration){
-        while(!requestQueue.empty()){
-            InterconnectRequest* req = requestQueue.front();
-            requestQueue.pop_front();
-            
-            if(req->time <= candiateReqTime){
-                
-                int toInterfaceID = getDestinationId(req->fromID);
-                if(toInterfaceID == -1){ delete req; continue; }
-                
-                // check if destination is blocked
-                if(!(allInterfaces[toInterfaceID]->isMaster()) 
-                    && blockedInterfaces[interconnectIDToL2IDMap[toInterfaceID]]){
-                    // the destination cache is blocked, so we can not deliver to it
-                    notGrantedReqs.push_back(req);
-                    continue;
-                }
-                
-                // check if the request can be granted access
-                bool grantAccess = checkCrossbarState(req,
-                                                    toInterfaceID,
-                                                    &occupiedEndNodes,
-                                                    &busIsUsed,
-                                                    cycle);
-                
-                if(grantAccess){
-                    // update statistics
-                    arbitratedRequests++;
-                    totalArbQueueCycles += (cycle - req->time) - arbitrationDelay;
-                    totalArbitrationCycles += arbitrationDelay;
-                    
-                    // grant access
-                    int grantedCPU =  (allInterfaces[req->fromID]->isMaster() ?
-                                    interconnectIDToProcessorIDMap[req->fromID]
-                                    : interconnectIDToProcessorIDMap[toInterfaceID]);
-                    grantedCPUs.push_back(grantedCPU);
-                    
-                    int toBank = (allInterfaces[req->fromID]->isMaster() ?
-                                interconnectIDToL2IDMap[toInterfaceID] + cpu_count
-                                : interconnectIDToL2IDMap[req->fromID] + cpu_count);
-                    toBanks.push_back(toBank);
-                    
-                    destinationAddrs.push_back(getDestinationAddr(req->fromID));
-                    currentCommands.push_back(getCurrentCommand(req->fromID));
-                    
-    //                 cout << curTick << ": Granting access to CPU" << grantedCPU << ", addr " << hex << getDestinationAddr(req->fromID) << dec << "\n";
-                    allInterfaces[req->fromID]->grantData();
-                    delete req;
-                }
-                else{
-                    notGrantedReqs.push_back(req);
-                }
-            }
-            else{
-                // not ready
-                notGrantedReqs.push_back(req);
-            }
-        }
+        doStandardArbitration(candiateReqTime,
+                              notGrantedReqs,
+                              cycle,
+                              busIsUsed,
+                              occupiedEndNodes,
+                              grantedCPUs,
+                              toBanks,
+                              destinationAddrs,
+                              currentCommands);
     }
     else{
         // NFQ crossbar arbitration
-        vector<vector<bool> > waitingForBank(CACHE_BANKS, vector<bool>(cpu_count, false));
-        
-        list<InterconnectRequest* >::iterator tmpIterator;
-        tmpIterator = requestQueue.begin();
-        while(tmpIterator != requestQueue.end()){
-            
-            InterconnectRequest* req = *tmpIterator;
-            
-            if(req->time <= candiateReqTime){
-                
-                int toInterfaceID = getDestinationId(req->fromID);
-                cout << "req for interface " << toInterfaceID << " from interface " << req->fromID << " at " << req->time << "\n";
-                if(toInterfaceID > -1 && !allInterfaces[toInterfaceID]->isMaster()){
-                    int toBank = interconnectIDToL2IDMap[toInterfaceID];
-                    int fromProc = interconnectIDToProcessorIDMap[req->fromID];
-                    
-                    waitingForBank[toBank][fromProc] = true;
-                    
-                    if(req->virtualStartTime == -1){
-                        assert(req->toBank == -1 && req->fromProc == -1);
-                        req->toBank = toBank;
-                        req->fromProc = fromProc;
-                        
-                        Tick minTag = getMinStartTag(toBank);
-                        Tick curFinTag = virtualFinishTimes[toBank][fromProc];
-    
-                        req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
-                        virtualFinishTimes[toBank][fromProc] = req->virtualStartTime + cpu_count;
-                        cout << "Assigning start time " << req->virtualStartTime << ", and finish time " << virtualFinishTimes[toBank][fromProc] << "\n";
-                    }
-                }
-            }
-            tmpIterator++;
-        }
-        
-        cout << "Current wait matrix:\n";
-        for(int i=0;i<CACHE_BANKS;i++){
-            cout << "Bank " << i << ": ";
-            for(int j=0;j<cpu_count;j++){
-                cout << waitingForBank[i][j] << " ";
-            }
-            cout << "\n";
-        }
-        
-        fatal("fair impl not impl");
+        doNFQArbitration(candiateReqTime,
+                         notGrantedReqs,
+                         cycle,
+                         busIsUsed,
+                         occupiedEndNodes,
+                         grantedCPUs,
+                         toBanks,
+                         destinationAddrs,
+                         currentCommands);
     }
     
     //measure interference
@@ -232,6 +148,216 @@ Crossbar::arbitrate(Tick cycle){
                                     + arbitrationDelay);
         }
     }
+}
+
+void
+Crossbar::doStandardArbitration(Tick candiateReqTime,
+                                list<InterconnectRequest* > &notGrantedReqs,
+                                Tick cycle,
+                                bool& busIsUsed,
+                                vector<bool>& occupiedEndNodes,
+                                vector<int> &grantedCPUs,
+                                vector<int> &toBanks,
+                                vector<Addr> &destinationAddrs,
+                                vector<MemCmd> &currentCommands){
+    
+    while(!requestQueue.empty()){
+        InterconnectRequest* req = requestQueue.front();
+        requestQueue.pop_front();
+            
+        if(req->time <= candiateReqTime){
+                
+            int toInterfaceID = getDestinationId(req->fromID);
+            if(toInterfaceID == -1){ delete req; continue; }
+                
+                // check if destination is blocked
+            if(!(allInterfaces[toInterfaceID]->isMaster()) 
+                 && blockedInterfaces[interconnectIDToL2IDMap[toInterfaceID]]){
+                    // the destination cache is blocked, so we can not deliver to it
+                notGrantedReqs.push_back(req);
+                continue;
+                 }
+                
+                // check if the request can be granted access
+                 bool grantAccess = checkCrossbarState(req,
+                         toInterfaceID,
+                         &occupiedEndNodes,
+                         &busIsUsed,
+                         cycle);
+                
+                 if(grantAccess){
+                     grantInterface(req,
+                                    toInterfaceID,
+                                    cycle,
+                                    grantedCPUs,
+                                    toBanks,
+                                    destinationAddrs,
+                                    currentCommands);
+                 }
+                 else{
+                     notGrantedReqs.push_back(req);
+                 }
+        }
+        else{
+                // not ready
+            notGrantedReqs.push_back(req);
+        }
+    }
+}
+        
+void 
+Crossbar::doNFQArbitration(Tick candiateReqTime,
+                           list<InterconnectRequest* > &notGrantedReqs,
+                           Tick cycle,
+                           bool& busIsUsed,
+                           vector<bool>& occupiedEndNodes,
+                           vector<int> &grantedCPUs,
+                           vector<int> &toBanks,
+                           vector<Addr> &destinationAddrs,
+                           vector<MemCmd> &currentCommands){
+    
+    list<InterconnectRequest* >::iterator tmpIterator;
+    tmpIterator = requestQueue.begin();
+    while(tmpIterator != requestQueue.end()){
+            
+        InterconnectRequest* req = *tmpIterator;
+            
+        if(req->time <= candiateReqTime){
+                
+            int toInterfaceID = getDestinationId(req->fromID);
+            if(toInterfaceID == -1){ delete req; continue; }
+                
+            cout << "req for interface " << toInterfaceID << " from interface " << req->fromID << " at " << req->time << "\n";
+            if(toInterfaceID > -1){
+                int bank = allInterfaces[toInterfaceID]->isMaster() ? 
+                        interconnectIDToL2IDMap[req->fromID] : interconnectIDToL2IDMap[toInterfaceID];
+                int proc = allInterfaces[toInterfaceID]->isMaster() ? 
+                        interconnectIDToProcessorIDMap[toInterfaceID] : interconnectIDToProcessorIDMap[req->fromID];
+                    
+                bool response = allInterfaces[toInterfaceID]->isMaster();
+                    
+                cout << "bank ID " << bank << ", CPU ID " << proc << ", " << (response ? "response" : "not response") << "\n";
+                    
+//                     waitingForBank[toBank][fromProc] = true;
+                    
+                if(req->virtualStartTime == -1){
+                    assert(req->bank == -1 && req->proc == -1);
+                    req->bank = bank;
+                    req->proc = proc;
+                    req->response = response;
+                    req->toInterface = toInterfaceID;
+                        
+                    Tick minTag = getMinStartTag();
+                    Tick curFinTag = virtualFinishTimes[proc];
+    
+                    req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
+                    virtualFinishTimes[proc] = req->virtualStartTime + cpu_count;
+                    cout << "Assigning start time " << req->virtualStartTime << ", and finish time " << virtualFinishTimes[proc] << "\n";
+                }
+            }
+        }
+        tmpIterator++;
+    }
+        
+    cout << "\n";
+        
+    while(!requestQueue.empty()){
+        list<InterconnectRequest* >::iterator tmpIterator;
+        tmpIterator = requestQueue.begin();
+        Tick minVirtStartTime = getMinStartTag();
+        cout << "Arbitrating amongst reqs with start time " << minVirtStartTime << "\n";
+        
+        while(tmpIterator != requestQueue.end()){
+                
+            bool incremented = false;
+                
+            InterconnectRequest* req = *tmpIterator;
+                
+            cout << "requested at " << req->time << ", candidate time is " << candiateReqTime << "\n";
+                
+            if(req->time <= candiateReqTime){
+                    
+                cout << "checking request with start time " << req->virtualStartTime << "\n";
+                    
+                if(req->virtualStartTime == minVirtStartTime){
+                        
+                        // check if destination is blocked
+                    if(!(allInterfaces[req->toInterface]->isMaster()) 
+                         && blockedInterfaces[interconnectIDToL2IDMap[req->toInterface]]){
+                        notGrantedReqs.push_back(req);
+                        continue;
+                         }
+                        
+                         bool grantAccess = checkCrossbarState(req,
+                                 req->toInterface,
+                                 &occupiedEndNodes,
+                                 &busIsUsed,
+                                 cycle);
+                        
+                         if(grantAccess){
+                             cout << "access granted\n";
+                             grantInterface(req,
+                                            req->toInterface,
+                                            cycle,
+                                            grantedCPUs,
+                                            toBanks,
+                                            destinationAddrs,
+                                            currentCommands);
+                         }
+                         else{
+                            // resource conflict, access not granted
+                             cout << "delayed!\n";
+                             notGrantedReqs.push_back(req);
+                         }
+                        
+                        // remove request from queue
+                         tmpIterator = requestQueue.erase(tmpIterator);
+                         incremented = true;
+                }
+            }
+            else{
+                    
+                cout << "request not ready\n";
+                    
+                    // not ready
+                notGrantedReqs.push_back(req);
+                tmpIterator = requestQueue.erase(tmpIterator);
+                incremented = true;
+            }
+            if(!incremented) tmpIterator++;
+        }
+    }
+        
+    fatal("stop please");
+}
+
+void
+Crossbar::grantInterface(InterconnectRequest* req,
+                         int toInterfaceID,
+                         Tick cycle,
+                         vector<int> &grantedCPUs,
+                         vector<int> &toBanks,
+                         vector<Addr> &destinationAddrs,
+                         vector<MemCmd> &currentCommands){
+    // update statistics
+    arbitratedRequests++;
+    totalArbQueueCycles += (cycle - req->time) - arbitrationDelay;
+    totalArbitrationCycles += arbitrationDelay;
+
+    // grant access
+    int grantedCPU =  (allInterfaces[req->fromID]->isMaster() ? interconnectIDToProcessorIDMap[req->fromID] 
+                        : interconnectIDToProcessorIDMap[toInterfaceID]);
+    grantedCPUs.push_back(grantedCPU);
+
+    int toBank = (allInterfaces[req->fromID]->isMaster() ? interconnectIDToL2IDMap[toInterfaceID] + cpu_count
+                : interconnectIDToL2IDMap[req->fromID] + cpu_count);
+    toBanks.push_back(toBank);
+
+    destinationAddrs.push_back(getDestinationAddr(req->fromID));
+    currentCommands.push_back(getCurrentCommand(req->fromID));
+
+    allInterfaces[req->fromID]->grantData();
+    delete req;
 }
 
 bool
@@ -408,7 +534,7 @@ Crossbar::writeChannelDecriptor(std::ofstream &stream){
 }
 
 Tick
-Crossbar::getMinStartTag(int toBank){
+Crossbar::getMinStartTag(){
     Tick min = 10000000000ull;
     bool allEmpty = true;
     
@@ -416,18 +542,15 @@ Crossbar::getMinStartTag(int toBank){
     tmpIterator = requestQueue.begin();
     while(tmpIterator != requestQueue.end()){
         InterconnectRequest* req = *tmpIterator;
-        if(req->virtualStartTime > -1 
-           && req->virtualStartTime < min
-           && req->toBank == toBank){
+        if(req->virtualStartTime > -1 && req->virtualStartTime < min){
             min = req->virtualStartTime;
             allEmpty = false;
         }
-        
         tmpIterator++;
     }
     
     if(allEmpty) return 0;
-    return min;
+    return 0;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
