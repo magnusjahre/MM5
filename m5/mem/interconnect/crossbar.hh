@@ -54,7 +54,8 @@ class Crossbar : public Interconnect
                             std::vector<int> &grantedCPUs,
                             std::vector<int> &toBanks,
                             std::vector<Addr> &destinationAddrs,
-                            std::vector<MemCmd> &currentCommands);
+                            std::vector<MemCmd> &currentCommands,
+                            int position = 0);
         
         void doStandardArbitration(Tick candiateReqTime,
                                    std::list<InterconnectRequest* > &notGrantedReqs,

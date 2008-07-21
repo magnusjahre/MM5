@@ -110,10 +110,7 @@ class Interconnect : public BaseHier
                 int fromID;
                 
                 Tick virtualStartTime;
-                int bank;
                 int proc;
-                bool response;
-                int toInterface;
             
                 /**
                 * Default constructor
@@ -126,10 +123,7 @@ class Interconnect : public BaseHier
                     fromID = _fromID;
                     
                     virtualStartTime = -1;
-//                     bank = -1;
                     proc = -1;
-//                     response = false;
-//                     toInterface = -1;
                 }
         };
         

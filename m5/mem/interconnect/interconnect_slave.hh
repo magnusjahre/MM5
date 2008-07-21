@@ -115,6 +115,8 @@ class InterconnectSlave : public InterconnectInterface
         */
         bool grantData();
         
+        bool grantData(int position);
+        
         /**
         * The deliver method is not used in a slave interface and issues a
         * fatal error message if it is called.

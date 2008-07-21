@@ -115,6 +115,10 @@ class InterconnectInterface : public BaseInterface
         * @return True if another request is outstanding.
         */
         virtual bool grantData() = 0;
+        
+        virtual bool grantData(int position){
+            fatal("grantData(int position) should only be called on InterconnectSlave");
+        }
     
         /**
         * The interconnects does not support snooping, so this method issues a 

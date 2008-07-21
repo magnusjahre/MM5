@@ -106,6 +106,26 @@ InterconnectSlave<MemType>::grantData(){
 
 template<class MemType>
 bool
+InterconnectSlave<MemType>::grantData(int position){
+    
+    assert(position >= 0 && position < responseQueue.size());
+    InterconnectResponse* response = responseQueue[position];
+    responseQueue.erase(responseQueue.begin() + position);
+    
+    MemReqPtr req = response->req;
+    
+    // Update send profile
+    updateProfileValues(req);
+    
+    thisInterconnect->send(req, curTick, interfaceID);
+    
+    delete response;
+    
+    return !responseQueue.empty();
+}
+
+template<class MemType>
+bool
 InterconnectSlave<MemType>::inRange(Addr addr)
 {
     assert(thisCache != NULL);

@@ -238,8 +238,10 @@ Crossbar::doNFQArbitration(Tick candiateReqTime,
             if(allInterfaces[toInterfaceID]->isMaster()){
                 assert(!allInterfaces[req->fromID]->isMaster());
                 int bank = interconnectIDToL2IDMap[req->fromID];
+                
                 int tmpToInterface = allInterfaces[req->fromID]->getRequestDestination(numSlaveReqs[bank]);
                 numSlaveReqs[bank]++;
+                
                 proc = interconnectIDToProcessorIDMap[tmpToInterface];
             }
             else{
@@ -300,23 +302,37 @@ Crossbar::doNFQArbitration(Tick candiateReqTime,
                     
                     int proc = allInterfaces[toInterfaceID]->isMaster() ? 
                             interconnectIDToProcessorIDMap[toInterfaceID] : interconnectIDToProcessorIDMap[req->fromID];
-
-                    assert(req->proc == proc);
+                    
+                    int position = 0;
+                    int destination = toInterfaceID;
+                    if(req->proc != proc){
+                        assert(!allInterfaces[req->fromID]->isMaster());
+                        for(int i=0;i<requestQueue.size();i++){
+                            int tmpDestination = allInterfaces[req->fromID]->getRequestDestination(i);
+                            if(interconnectIDToProcessorIDMap[tmpDestination] == req->proc){
+                                position = i;
+                                destination = tmpDestination;
+                                break;
+                            }
+                        }
+                    }
                     
                     bool grantAccess = checkCrossbarState(req,
-                                                          toInterfaceID,
+                                                          (position == 0 ? toInterfaceID : destination),
                                                           &occupiedEndNodes,
                                                           &busIsUsed,
                                                           cycle);
                 
                     if(grantAccess){
+                        
                         grantInterface(req,
-                                       toInterfaceID,
+                                       (position == 0 ? toInterfaceID : destination),
                                        cycle,
                                        grantedCPUs,
                                        toBanks,
                                        destinationAddrs,
-                                       currentCommands);
+                                       currentCommands,
+                                       position);
                     }
                     else{
                         // resource conflict, access not granted
@@ -364,7 +380,8 @@ Crossbar::grantInterface(InterconnectRequest* req,
                          vector<int> &grantedCPUs,
                          vector<int> &toBanks,
                          vector<Addr> &destinationAddrs,
-                         vector<MemCmd> &currentCommands){
+                         vector<MemCmd> &currentCommands,
+                         int position){
     // update statistics
     arbitratedRequests++;
     totalArbQueueCycles += (cycle - req->time) - arbitrationDelay;
@@ -382,7 +399,13 @@ Crossbar::grantInterface(InterconnectRequest* req,
     destinationAddrs.push_back(getDestinationAddr(req->fromID));
     currentCommands.push_back(getCurrentCommand(req->fromID));
 
-    allInterfaces[req->fromID]->grantData();
+    if(position == 0){
+        allInterfaces[req->fromID]->grantData();
+    }
+    else{
+        assert(!allInterfaces[req->fromID]->isMaster());
+        allInterfaces[req->fromID]->grantData(position);
+    }
     delete req;
 }
 
@@ -392,7 +415,7 @@ Crossbar::checkCrossbarState(InterconnectRequest* req,
                              std::vector<bool>* state,
                              bool* busIsUsed,
                              Tick cycle){
-    
+
     // handle bus arbitration
     if(allInterfaces[toInterfaceID]->isMaster()){
         // sent to a master
