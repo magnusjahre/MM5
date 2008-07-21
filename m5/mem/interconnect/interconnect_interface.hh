@@ -293,6 +293,11 @@ class InterconnectInterface : public BaseInterface
         * @return The name of the cache associated with a given interface.
         */
         virtual std::string getCacheName() = 0;
+        
+        virtual int getRequestDestination(int numberInQueue){
+            fatal("getRequestDestination should only be called on a InterconnectSlave");
+            return -1;
+        }
 
 };
 

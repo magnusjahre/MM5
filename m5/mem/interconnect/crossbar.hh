@@ -76,6 +76,12 @@ class Crossbar : public Interconnect
                               std::vector<Addr> &destinationAddrs,
                               std::vector<MemCmd> &currentCommands);
         
+        struct reqLess : public binary_function<InterconnectRequest*, InterconnectRequest* ,bool> {
+            bool operator()(InterconnectRequest* a, InterconnectRequest* b){
+                return a->time < b->time;
+            }
+        };
+        
     public:
         
         /**

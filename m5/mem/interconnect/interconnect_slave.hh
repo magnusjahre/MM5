@@ -182,6 +182,8 @@ class InterconnectSlave : public InterconnectInterface
         * @return True if this interface is responsible for this address.
         */
         virtual bool inRange(Addr addr);
+        
+        virtual int getRequestDestination(int numberInQueue);
 
 };
 

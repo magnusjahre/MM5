@@ -126,10 +126,10 @@ class Interconnect : public BaseHier
                     fromID = _fromID;
                     
                     virtualStartTime = -1;
-                    bank = -1;
+//                     bank = -1;
                     proc = -1;
-                    response = false;
-                    toInterface = -1;
+//                     response = false;
+//                     toInterface = -1;
                 }
         };
         

@@ -139,3 +139,10 @@ InterconnectSlave<MemType>::inRange(Addr addr)
     }
 }
 
+template<class MemType>
+int
+InterconnectSlave<MemType>::getRequestDestination(int numberInQueue){
+    assert(numberInQueue >= 0 && numberInQueue < responseQueue.size());
+    return responseQueue[numberInQueue]->req->fromInterfaceID;
+}
+
