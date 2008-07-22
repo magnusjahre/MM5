@@ -42,7 +42,7 @@
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/cache.hh"
 #include "mem/bus/bus.hh"
-#include "mem/crossbar/crossbar.hh" // Magnus
+// #include "mem/crossbar/crossbar.hh" // Magnus
 #include "mem/cache/coherence/directory.hh" // Magnus
 #include "mem/cache/coherence/stenstrom.hh" // Magnus
 #include "mem/cache/coherence/coherence_protocol.hh"

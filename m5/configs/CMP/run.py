@@ -139,6 +139,10 @@ L2BankSize = -1
 if "L2BANKSIZE" in env:
     L2BankSize = int(env["L2BANKSIZE"])
     
+fairCrossbar = False
+if "USE-FAIR-CROSSBAR" in env:
+    fairCrossbar = True
+    
 ###############################################################################
 # Root, CPUs and L1 caches
 ###############################################################################
@@ -365,7 +369,8 @@ root.setInterconnect(env['INTERCONNECT'],
                      L2_BANK_COUNT,
                      icProfileStart,
                      moduloAddr,
-                     useFairAdaptiveMHA)
+                     useFairAdaptiveMHA,
+                     fairCrossbar)
 
 root.setL2Banks()
 if env['PROTOCOL'] in directory_protocols:

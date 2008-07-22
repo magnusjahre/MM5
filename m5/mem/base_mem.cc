@@ -37,7 +37,7 @@
 #include "sim/param.hh"
 #include "mem/base_mem.hh"
 #include "mem/bus/base_interface.hh"
-#include "mem/crossbar/crossbar_interface.hh" // Magnus
+// #include "mem/crossbar/crossbar_interface.hh" // Magnus
 
 void 
 BaseMem::setSlaveInterface(BaseInterface *i)

@@ -41,8 +41,9 @@
 
 #include "base/range.hh"
 #include "mem/base_hier.hh"
-#include "mem/crossbar/crossbar_interface.hh" // for CrossbarInterface
+// #include "mem/crossbar/crossbar_interface.hh" // for CrossbarInterface
 #include "targetarch/isa_traits.hh" // for Addr
+#include "mem/mem_req.hh"
 
 #define CACHE_DEBUG 1
 

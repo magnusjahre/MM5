@@ -110,7 +110,8 @@ class Crossbar : public Interconnect
                  int _arbDelay,
                  int _cpu_count,
                  HierParams *_hier,
-                 AdaptiveMHA* _adaptiveMHA);
+                 AdaptiveMHA* _adaptiveMHA,
+                 bool _useNFQArbitration);
         
         /**
         * This destructor deletes the request queues that are dynamically

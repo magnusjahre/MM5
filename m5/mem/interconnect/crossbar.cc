@@ -4,9 +4,6 @@
         
 using namespace std;
 
-//FIXME: Replace this with slaveInterfaces.size()
-#define CACHE_BANKS 4
-
 Crossbar::Crossbar(const std::string &_name,
                    int _width, 
                    int _clock,
@@ -14,7 +11,8 @@ Crossbar::Crossbar(const std::string &_name,
                    int _arbDelay,
                    int _cpu_count,
                    HierParams *_hier,
-                   AdaptiveMHA* _adaptiveMHA)
+                   AdaptiveMHA* _adaptiveMHA,
+                   bool _useNFQArbitration)
     : Interconnect(_name,
                    _width, 
                    _clock, 
@@ -28,7 +26,7 @@ Crossbar::Crossbar(const std::string &_name,
     nextBusFreeTime = 0;
     doProfiling = false;
     
-    doFairArbitration = true; //FIXME: parameterize this
+    doFairArbitration = _useNFQArbitration;
     virtualFinishTimes = vector<Tick>(_cpu_count, 0);
 }
 
@@ -612,6 +610,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     Param<int> cpu_count;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
+    Param<bool> use_NFQ_arbitration;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -623,7 +622,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
     INIT_PARAM_DFLT(hier,
                     "Hierarchy global variables",
                     &defaultHierParams),
-    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
+    INIT_PARAM_DFLT(use_NFQ_arbitration, "If true, Network Fair Queuing arbitration is used", false)
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
@@ -635,7 +635,8 @@ CREATE_SIM_OBJECT(Crossbar)
                         arbitrationDelay,
                         cpu_count,
                         hier,
-                        adaptive_mha);
+                        adaptive_mha,
+                        use_NFQ_arbitration);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)
