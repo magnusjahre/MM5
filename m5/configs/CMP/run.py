@@ -5,6 +5,8 @@ import Spec2000
 import workloads
 import hog_workloads
 import bw_workloads
+import deterministic_fw_wls as fair_workloads
+import single_core_fw as single_core
 from DetailedConfig import *
 
 ###############################################################################
@@ -37,11 +39,7 @@ if 'BENCHMARK' not in env:
     panic("The BENCHMARK environment variable must be set!\ne.g. \
     -EBENCHMARK=Cholesky\n")
 
-# Multi-programmed workloads (numbered 1 to N) reads fast-forward cycles 
-# from a config file
-# Splash benchmarks can read from config file
-if not ((env['BENCHMARK'].isdigit()) or (env['BENCHMARK'] 
-        in Splash2.benchmarkNames) or env['BENCHMARK'].startswith("hog") or env['BENCHMARK'].startswith("bw")):
+if not "ISEXPERIMENT" in env:
     if 'FASTFORWARDTICKS' not in env:
         panic("The FASTFORWARDTICKS environment variable must be set!\n\
         e.g. -EFASTFORWARDTICKS=10000\n")
@@ -287,7 +285,42 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
         uniformPartStart = int(env['FASTFORWARDTICKS'])
             
     root.setCPU(root.simpleCPU)
-elif not (env['BENCHMARK'].isdigit() or env['BENCHMARK'].startswith("hog") or env['BENCHMARK'].startswith("bw")):
+elif env['BENCHMARK'] in single_core.configuration:
+    assert int(env['NP']) == 1
+    if "L2BANKSIZE" not in env:
+        panic("The cache size must be reduced for the single core experiments")
+    
+    fwticks = 0
+    if 'ISEXPERIMENT' in env:
+        fwticks = single_core.configuration[env['BENCHMARK']][1]
+    else:
+        fwticks = int(env['FASTFORWARDTICKS'])
+    fwticks = fwticks
+    
+    simulateCycles = int(env['SIMULATETICKS'])
+    if 'ISEXPERIMENT' in env:
+        warmup = 10000000
+        simulateCycles = int(env['SIMULATETICKS'] + warmup)
+        Statistics.dump_reset = True
+        Statistics.dump_cycle = fwticks + warmup
+    else:
+        warmup = 0
+    
+    root.sampler = Sampler()
+    root.sampler.phase0_cpus = Parent.simpleCPU
+    root.sampler.phase1_cpus = Parent.detailedCPU
+    root.sampler.periods = [fwticks, simulateCycles]
+    
+    root.adaptiveMHA.startTick = fwticks + warmup
+    uniformPartStart = fwticks + warmup
+    cacheProfileStart = fwticks
+    Bus.switch_at = fwticks
+
+    
+elif not (env['BENCHMARK'].isdigit() 
+    or env['BENCHMARK'].startswith("hog") 
+    or env['BENCHMARK'].startswith("bw")
+    or env['BENCHMARK'].startswith("fair")):
     # Simulator test workloads
     root.sampler = Sampler()
     root.sampler.phase0_cpus = Parent.simpleCPU
@@ -310,6 +343,9 @@ else:
         elif env['BENCHMARK'].startswith("bw"):
             tmpBM = env['BENCHMARK'].replace("bw","")
             fwCycles = bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][1]
+        elif env['BENCHMARK'].startswith("fair"):
+            tmpBM = env['BENCHMARK'].replace("fair","")
+            fwCycles = fair_workloads.workloads[int(tmpBM)][1]
         else:
             fwCycles = \
                 workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
@@ -562,6 +598,15 @@ elif env['BENCHMARK'].startswith("bw"):
                bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][0])
 
 ###############################################################################
+# Multi-programmed fairness workloads
+###############################################################################
+
+elif env['BENCHMARK'].startswith("fair"):
+    tmpBM = env['BENCHMARK'].replace("fair","")
+    prog = Spec2000.createWorkload(
+               fair_workloads.workloads[int(tmpBM)][0])
+
+###############################################################################
 # Multi-programmed workloads with memory hog
 ###############################################################################
 
@@ -571,6 +616,13 @@ elif env['BENCHMARK'].startswith("hog"):
                hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][0])
     prog.append(TestPrograms.ThrashCache())
 
+
+###############################################################################
+# Single core workloads
+###############################################################################
+
+elif env['BENCHMARK'] in single_core.configuration:
+    prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
 
 ###############################################################################
 # Testprograms
