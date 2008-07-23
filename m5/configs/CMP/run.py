@@ -285,6 +285,7 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
         uniformPartStart = int(env['FASTFORWARDTICKS'])
             
     root.setCPU(root.simpleCPU)
+
 elif env['BENCHMARK'] in single_core.configuration:
     assert int(env['NP']) == 1
     if "L2BANKSIZE" not in env:
@@ -299,7 +300,7 @@ elif env['BENCHMARK'] in single_core.configuration:
     
     simulateCycles = int(env['SIMULATETICKS'])
     if 'ISEXPERIMENT' in env:
-        warmup = 10000000
+        warmup = 1000000
         simulateCycles = int(env['SIMULATETICKS'] + warmup)
         Statistics.dump_reset = True
         Statistics.dump_cycle = fwticks + warmup
@@ -313,8 +314,8 @@ elif env['BENCHMARK'] in single_core.configuration:
     
     root.adaptiveMHA.startTick = fwticks + warmup
     uniformPartStart = fwticks + warmup
-    cacheProfileStart = fwticks
-    Bus.switch_at = fwticks
+    cacheProfileStart = fwticks + warmup
+    Bus.switch_at = fwticks + warmup
 
     
 elif not (env['BENCHMARK'].isdigit() 
@@ -356,7 +357,7 @@ else:
     simulateStart = max(fwCycles)
     if 'ISEXPERIMENT' in env:
         # add 10M cycles warm-up to avoid startup effects (and to make sure that stats are reset only once)
-        warmup = 10000000
+        warmup = 1000000
         simulateCycles = int(env['SIMULATETICKS'] + warmup)
         Statistics.dump_reset = True
         Statistics.dump_cycle = simulateStart + warmup
@@ -366,8 +367,8 @@ else:
     
     root.adaptiveMHA.startTick = simulateStart + warmup
     uniformPartStart = simulateStart + warmup
-    cacheProfileStart = simulateStart
-    Bus.switch_at = simulateStart
+    cacheProfileStart = simulateStart + warmup
+    Bus.switch_at = simulateStart + warmup
 
     for i in xrange(int(env['NP'])):
         root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
@@ -443,6 +444,13 @@ if cacheProfileStart != -1:
 if L2BankSize != -1:
     for bank in root.l2:
         bank.size = str(L2BankSize)+"kB"
+
+for bank in root.l2:
+    if int(env["NP"]) > 1:
+        bank.use_static_partitioning_for_warmup = True
+        bank.static_part_start_tick = uniformPartStart
+    else:
+        bank.use_static_partitioning_for_warmup = False
 
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()

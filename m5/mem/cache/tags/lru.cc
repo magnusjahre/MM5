@@ -291,9 +291,10 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     unsigned set = extractSet(req->paddr);
     
     // grab a replacement candidate
-    LRUBlk *blk;
+    LRUBlk *blk = NULL;
     if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
-        || (useMTPPartitioning && !isShadow)){
+        || (useMTPPartitioning && !isShadow)
+        || (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick && !isShadow)){
         
         assert(!isShadow);
         
@@ -302,7 +303,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         
         // we know that assoc is a power of two, checked in the constructor
         int maxBlks = -1;
-        if(cache->useUniformPartitioning && !useMTPPartitioning){
+        if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
             maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
         }
         else{
@@ -322,7 +323,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         bool found = false;
         if(blkCnt[fromProc] < maxBlks){
             blk = sets[set].blks[assoc-1];
-            if(cache->useUniformPartitioning && !useMTPPartitioning){
+            if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
                 // not using all blocks
                 found = true;
                 assert(!blk->isTouched);
@@ -624,8 +625,6 @@ LRU::setMTPPartition(std::vector<int> setQuotas){
     DPRINTFR(MTP, "\n");
     
     assert(setcnt == assoc);
-    
-    //FIXME: We might want to invalidate blocks that exceed the quota to measure the effectiveness of a pure MTP scheme
     
     useMTPPartitioning = true;
     assert(setQuotas.size() == cache->cpuCount);

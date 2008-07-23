@@ -80,6 +80,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     cacheCpuID = params.cpu_id;
     
     simulateContention = params.simulateContention;
+    useStaticPartInWarmup = params.useStaticPartInWarmup;
 
     // init shadowtags
 #ifdef USE_CACHE_LRU
@@ -1446,8 +1447,6 @@ Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
 template<class TagStore, class Buffering, class Coherence>
 void 
 Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
-    
-    
     
     switch(mtpPhase){
         

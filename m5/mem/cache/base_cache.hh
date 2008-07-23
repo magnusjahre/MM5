@@ -172,6 +172,7 @@ class BaseCache : public BaseMem {
     bool useUniformPartitioning;
     Tick uniformPartitioningStartTick;
     bool useMTPPartitioning;
+    bool useStaticPartInWarmup;
     
     CacheProfileEvent* profileEvent;
     
