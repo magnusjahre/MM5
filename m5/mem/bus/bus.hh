@@ -77,6 +77,7 @@ class Bus : public BaseHier
   private:
     TimingMemoryController *fwMemoryController;
     TimingMemoryController *simMemoryController;
+    Tick detailedSimulationStart;
     
   public:
     /** Width of the bus in bytes. */

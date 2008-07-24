@@ -444,7 +444,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
                                             delayedIsRead);
         }
         
-        time = nextFreeCache + CONTENTION_DELAY;
+        time = nextFreeCache + hitLatency;
         nextFreeCache += CONTENTION_DELAY;
         occupancy.push_back(cacheOccupancy(nextFreeCache - CONTENTION_DELAY,nextFreeCache, req->adaptiveMHASenderID, curTick));
     }

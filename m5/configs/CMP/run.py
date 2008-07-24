@@ -455,7 +455,7 @@ for bank in root.l2:
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()
 root.toMemBus.adaptive_mha = root.adaptiveMHA
-root.toMemBus.fast_forward_controller = FastForwardMemoryController()
+#root.toMemBus.fast_forward_controller = FastForwardMemoryController()
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()

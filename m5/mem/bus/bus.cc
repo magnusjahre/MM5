@@ -61,10 +61,7 @@ using namespace std;
 
 #define MAX_ARB_RESCHED 1000
 
-
-// NOTE: all times are stored internally as cpu ticks
-//       A conversion is made from provided time to
-//       bus cycles
+#define WARMUP_LATENCY 40
 
 // bus constructor
 Bus::Bus(const string &_name,
@@ -123,16 +120,19 @@ Bus::Bus(const string &_name,
     perCPURequests.resize(cpu_count, 0);
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
     
-    if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
+//     if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
+    if(_fwController != NULL) fatal("Fast forward memory controller not implemented");
     if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
-    _fwController->registerBus(this);
+//     _fwController->registerBus(this);
     _memoryController->registerBus(this);
     
-    memoryController = fwMemoryController;
+//     memoryController = fwMemoryController;
+    memoryController = simMemoryController;
     memoryControllerEvent = new MemoryControllerEvent(this);
     
-    MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
-    ctrlSwitch->schedule(_switch_at);
+//     MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
+//     ctrlSwitch->schedule(_switch_at);
+    detailedSimulationStart = _switch_at;
     
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -237,6 +237,7 @@ Bus::requestDataBus(int id, Tick time)
 void
 Bus::requestAddrBus(int id, Tick time)
 {
+    
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
@@ -300,6 +301,19 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         testRequests.pop_front();
     }
 #endif
+    
+    // Warm up code that removes the effects of contention (possible to compare shared and alone configurations)
+    // Infinite bandwidth, all requests are page hits
+    if(curTick < detailedSimulationStart){
+        
+        if (req->cmd == Read) { 
+            assert(req->busId < interfaces.size() && req->busId > -1);
+            DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
+            deliverevent->schedule(origReqTime + WARMUP_LATENCY);
+        }
+        
+        return true;
+    }
     
     // Insert request into memory controller
     memoryController->insertRequest(req);
@@ -435,7 +449,7 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
         transmitInterfaces.insert(transmitInterfaces.begin(),bi);
     } else {
         slaveInterfaces.push_back(bi);
-        fwMemoryController->registerInterface(bi);
+//         fwMemoryController->registerInterface(bi);
         simMemoryController->registerInterface(bi);
         transmitInterfaces.push_back(bi);
     }

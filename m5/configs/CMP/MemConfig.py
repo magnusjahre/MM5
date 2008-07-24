@@ -28,7 +28,7 @@ class L2Bank(BaseCache):
     size = '2MB' # 1MB * 4 banks = 4MB total cache size
     assoc = 16
     block_size = 64
-    latency = 16 * Parent.clock.period
+    latency = 18 * Parent.clock.period
     mshrs = 8
     tgts_per_mshr = 4
     write_buffers = 16
