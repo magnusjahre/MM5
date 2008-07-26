@@ -106,7 +106,11 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     }
     
     // estimate interference caused by this request
-    if(retval->cmd == Read || retval->cmd == Writeback) estimateInterference(retval);
+    if(retval->cmd == Read || retval->cmd == Writeback){
+        estimateInterference(retval);
+        bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
+                                     isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
+    }
     
     DPRINTF(MemoryController, "Returning command %s, addr %x\n", retval->cmd, retval->paddr);
     
@@ -120,6 +124,9 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
         MemReqPtr& tmp = *queueIterator;
         if (!isActive(tmp) && bankIsClosed(tmp)) {
             //Request is not active and bank is closed. Activate it
+            
+            currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
+            
             activate->cmd = Activate;
             activate->paddr = tmp->paddr;
             activate->flags &= ~SATISFIED;
@@ -133,6 +140,9 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
     for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
         MemReqPtr& tmp = *queueIterator;
         if (!isActive(tmp) && bankIsClosed(tmp)) {
+            
+            currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
+            
             //Request is not active and bank is closed. Activate it
             activate->cmd = Activate;
             activate->paddr = tmp->paddr;

@@ -124,7 +124,7 @@ Bus::Bus(const string &_name,
     if(_fwController != NULL) fatal("Fast forward memory controller not implemented");
     if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
 //     _fwController->registerBus(this);
-    _memoryController->registerBus(this);
+    _memoryController->registerBus(this, _cpu_count);
     
 //     memoryController = fwMemoryController;
     memoryController = simMemoryController;
@@ -210,6 +210,25 @@ Bus::regStats()
             ;
 
     avgQueueCycles = totalQueueCycles / totalRequests;
+    
+    accessesPerCPU.init(cpu_count);
+    accessesPerCPU
+            .name(name() + ".accesses_per_cpu")
+            .desc("number of accesses for each CPU")
+            .flags(total)
+            ;
+    
+    pageHitsPerCPU.init(cpu_count);
+    pageHitsPerCPU
+            .name(name() + ".page_hits_per_cpu")
+            .desc("number of page hits for each CPU")
+            .flags(total)
+            ;
+    
+    noCPUrequests
+            .name(name() + ".no_cpu_sends")
+            .desc("Counted to verify that per CPU stats got all requests")
+            ;
     
     blockedCycles
             .name(name() + ".blocked_cycles")
@@ -365,6 +384,7 @@ Bus::handleMemoryController()
 #endif
 
         if(request->cmd != Activate && request->cmd != Close){
+            assert(request->inserted_into_memory_controller > 0);
             int queue_lat = curTick - request->inserted_into_memory_controller;
             totalQueueCycles += queue_lat;
             if(request->adaptiveMHASenderID != -1){
@@ -539,6 +559,19 @@ Bus::switchMemoryController(){
         assert(tmp->cmd == Read || tmp->cmd == Writeback);
         simMemoryController->insertRequest(tmp);
     }
+}
+
+void
+Bus::updatePerCPUAccessStats(int cpuID, bool pageHit){
+   
+    if(cpuID == -1){
+        noCPUrequests++;
+        return;
+    }
+    
+    assert(cpuID >= 0 && cpuID < cpu_count);
+    if(pageHit) pageHitsPerCPU[cpuID]++;
+    accessesPerCPU[cpuID]++;
 }
 
 #ifdef INJECT_TEST_REQUESTS

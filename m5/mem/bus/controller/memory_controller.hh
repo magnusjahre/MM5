@@ -30,9 +30,13 @@ class TimingMemoryController : public SimObject
   private:
     Tick totalBlocktime;
     
+    std::vector<std::vector<Addr> > cpuLastActivated;
+    std::vector<Addr> lastActivated;
+    
   protected:
       
     Bus* bus;
+    int memCtrCPUCount;
       
     bool isBlockedFlag;
     Tick startBlocking;
@@ -56,9 +60,7 @@ class TimingMemoryController : public SimObject
     /** Frees locally allocated memory. */
     virtual ~TimingMemoryController();
 
-    void registerBus(Bus* _bus) { 
-        bus = _bus; 
-    }
+    void registerBus(Bus* _bus, int cpuCount);
     
     virtual int insertRequest(MemReqPtr &req) = 0;
 
@@ -112,12 +114,16 @@ class TimingMemoryController : public SimObject
     }
 
     void registerInterface(BaseInterface *interface) {
-      mem_interface = interface;
+        mem_interface = interface;
     }
     
     int getMemoryBankID(Addr addr){
         return mem_interface->getMemoryBankID(addr);
     }
+    
+    void currentActivationAddress(int cpuID, Addr addr, int bank);
+    
+    bool isPageHit(Addr addr, int bank);
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

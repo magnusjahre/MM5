@@ -19,6 +19,14 @@ TimingMemoryController::~TimingMemoryController(){
 }
 
 void
+TimingMemoryController::registerBus(Bus* _bus, int cpuCount){ 
+    bus = _bus; 
+    memCtrCPUCount = cpuCount;
+    cpuLastActivated.resize(cpuCount, std::vector<Addr>(_bus->getBankCount(), 0));
+    lastActivated.resize(_bus->getBankCount(), 0);
+}
+
+void
 TimingMemoryController::setBlocked()
 {
     assert(!isBlockedFlag);
@@ -62,6 +70,17 @@ Addr
 TimingMemoryController::getPageAddr(Addr addr)
 {
     return (addr << mem_interface->getPageSize());
+}
+
+void
+TimingMemoryController::currentActivationAddress(int cpuID, Addr addr, int bank){
+    lastActivated[bank] = addr;
+    //FIXME: implement updating perCPU activation addrs in cpuLastActivated
+}
+
+bool 
+TimingMemoryController::isPageHit(Addr addr, int bank){
+    return addr != lastActivated[bank];
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

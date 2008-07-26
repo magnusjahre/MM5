@@ -55,6 +55,7 @@ NFQMemoryController::~NFQMemoryController(){
 int
 NFQMemoryController::insertRequest(MemReqPtr &req) {
 
+    req->inserted_into_memory_controller = curTick;
     assert(req->cmd == Read || req->cmd == Writeback);
     req->cmd == Read ? queuedReads++ : queuedWrites++;
     
@@ -187,6 +188,11 @@ NFQMemoryController::getRequest() {
                     retval->virtualStartTime,
                     oldest);
         }
+    }
+    
+    if(retval->cmd == Read || retval->cmd == Writeback){
+        bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
+                                     isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
     }
     
     return retval;
@@ -335,6 +341,9 @@ NFQMemoryController::createCloseReq(Addr pageAddr){
         
 MemReqPtr&
 NFQMemoryController::createActivateReq(MemReqPtr& req){
+    
+    currentActivationAddress(req->adaptiveMHASenderID, req->paddr, getMemoryBankID(req->paddr));
+    
     Addr pageAddr = getPage(req);
     pageCmd->cmd = Activate;
     pageCmd->paddr = getPageAddr(pageAddr);

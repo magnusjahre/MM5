@@ -131,7 +131,7 @@ if "MEMORY-BUS-SCHEDULER" in env:
     or env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
         pass
     else:
-        panic("Only FCFS, RD-FCFS, TNFQ and FNFQ memory bus schedulers are supported")
+        panic("Only FCFS, RDFCFS, TNFQ and FNFQ memory bus schedulers are supported")
 
 L2BankSize = -1
 if "L2BANKSIZE" in env:

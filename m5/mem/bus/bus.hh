@@ -78,6 +78,7 @@ class Bus : public BaseHier
     TimingMemoryController *fwMemoryController;
     TimingMemoryController *simMemoryController;
     Tick detailedSimulationStart;
+    int bank_count;
     
   public:
     /** Width of the bus in bytes. */
@@ -118,6 +119,10 @@ class Bus : public BaseHier
     Stats::Scalar<> totalRequests;
     Stats::Formula avgQueueCycles;
     
+    Stats::Vector<> accessesPerCPU;
+    Stats::Vector<> pageHitsPerCPU;
+    Stats::Scalar<> noCPUrequests;
+    
     Stats::Scalar<> blockedCycles;
     
     Stats::Scalar<> nullGrants;
@@ -154,6 +159,10 @@ class Bus : public BaseHier
     /** Reset bus statistics-related state. */
     void resetStats();
 
+    int getBankCount(){
+        return bank_count;
+    }
+    
     /**
      * Mark the interface as needing the address bus.
      * @param id The id of the BusInterface making the request.
@@ -258,6 +267,8 @@ class Bus : public BaseHier
     
     void switchMemoryController();
     
+    void updatePerCPUAccessStats(int cpuID, bool pageHit);
+    
     // Adaptive MHA methods
     double getAverageQueue(Tick sampleSize);
     std::vector<double> getAverageQueuePerCPU();
@@ -273,7 +284,6 @@ class Bus : public BaseHier
     int adaptiveSampleSize;
     
     int cpu_count;
-    int bank_count;
     
 #ifdef INJECT_TEST_REQUESTS
     std::list<MemReqPtr> testRequests;
