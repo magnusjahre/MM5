@@ -71,6 +71,8 @@ class BaseMemory : public BaseMem
      */
     const bool doWrites;
     
+    int num_banks; // needs to be here for statistics allocation
+    
     // statistics
     /**
      * @addtogroup MemoryStatistics Memory Statistics
@@ -105,6 +107,8 @@ class BaseMemory : public BaseMem
 
     /* Non-overlapping activates */
     Stats::Scalar<> number_of_non_overlap_activate;
+    
+    Stats::Vector<> accessesPerBank;
 
   public:
     

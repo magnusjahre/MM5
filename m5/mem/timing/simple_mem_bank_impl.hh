@@ -115,6 +115,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     Addr page = (req->paddr >> pagesize);
     DDR2State oldState = Bankstate[bank];
     
+    accessesPerBank[bank]++;
+    
     DPRINTF(DRAM, "Calculating latency for req %x, cmd %s, page %x, bank %d\n",
             req->paddr,
             req->cmd,

@@ -56,7 +56,6 @@ class SimpleMemBank : public BaseMemory
 {
   private:
     /* DDR2 params */
-    int num_banks;
     int RAS_latency;
     int CAS_latency;
     int precharge_latency;

@@ -122,4 +122,11 @@ BaseMemory::regStats()
             .name(name() + ".number_of_non_overlap_activate")
             .desc("Number of non overlapping activates")
             ;
+    
+    accessesPerBank.init(num_banks);
+    accessesPerBank
+            .name(name() + ".accesses_per_bank")
+            .desc("number of accesses for each bank")
+            .flags(total)
+            ;
 }
