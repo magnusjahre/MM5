@@ -148,6 +148,7 @@ FullCPU::commit()
 	if (!thread_info[i].active || ROB.num_thread(i) == 0) {
 	    finished_thread[i] = true;
 	    num_finished_threads++;
+            if(ROB.num_thread(i) == 0) commit_cycles_empty_ROB++;
 	    if (!thread_info[i].active
 		|| execContexts[i]->status() != ExecContext::Active) {
 		num_inactive_threads++;
@@ -940,6 +941,11 @@ FullCPU::commitRegStats()
         .name(name() + ".COM:total_ticks_stalled_for_memory")
         .desc("Number of ticks the processor was stalled due to memory")
         ;
+    
+    commit_cycles_empty_ROB
+            .name(name() + ".COM:commit_cycles_empty_ROB")
+            .desc("Number of ticks the processor could not commit instructions because the ROB was empty")
+            ;
 
 }
 

@@ -525,6 +525,7 @@ class FullCPU : public BaseCPU
 
     Stats::Scalar<> fetch_decisions;
     Stats::Scalar<> fetch_idle_cycles;
+    Stats::Scalar<> fetch_idle_cycles_cache_miss;
     Stats::Scalar<> fetch_idle_icache_blocked_cycles;
 
     Stats::Vector<> qfull_iq_occupancy;
@@ -753,6 +754,7 @@ class FullCPU : public BaseCPU
     Stats::VectorStandardDeviation<> commit_bwlimit_stat;
 
     Stats::Scalar<> commit_total_mem_stall_time;
+    Stats::Scalar<> commit_cycles_empty_ROB;
 
     //----------------------------------------------------------------------
     //

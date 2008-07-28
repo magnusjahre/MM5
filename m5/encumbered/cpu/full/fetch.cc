@@ -1285,6 +1285,8 @@ FullCPU::fetch()
      * if we don't need them for scheduling this cycle */
 
     update_icounts();
+    
+    bool blockedDueToCache = false;
 
     /*
      * For each thread, set/clear the thread_info[].blocked flag.
@@ -1384,6 +1386,7 @@ FullCPU::fetch()
         if (icache_output_buffer[thread_number]->free_slots() < fetch_width) {
             floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_IMISS;
 	    floss_state.fetch_mem_result[thread_number] = MA_CACHE_MISS;
+            blockedDueToCache = true;
             continue;
         }
 
@@ -1407,6 +1410,7 @@ FullCPU::fetch()
     if (all_threads_blocked) {
 	flossRecord(&floss_state, thread_fetched);
 	fetch_idle_cycles++;
+        if(blockedDueToCache) fetch_idle_cycles_cache_miss++;
 	//	check_counters();
 	return;
     }
@@ -1792,9 +1796,15 @@ FullCPU::fetchRegStats()
 	.desc("number of times the fetch stage chose between threads")
 	;
     fetch_idle_cycles
-	.name(name() + ".FETCH:idle_cycles")
-	.desc("number of cycles where fetch stage was idle")
-	;
+            .name(name() + ".FETCH:idle_cycles")
+            .desc("number of cycles where fetch stage was idle")
+            ;
+    
+    fetch_idle_cycles_cache_miss
+            .name(name() + ".FETCH:idle_cycles_cache_miss")
+            .desc("number of cycles where fetch stage was idle due to cache miss")
+            ;
+    
     fetch_idle_icache_blocked_cycles
 	.name(name() + ".FETCH:idle_icache_blocked_cycles")
 	.desc("number of cycles where fetch was idle due to icache blocked")
