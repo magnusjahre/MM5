@@ -375,19 +375,19 @@ AdaptiveMHA::doFairAMHA(){
     fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
     
     // 4 Modify MSHRs of writeback queue based on measurements
-//     maxDiffRedWithRollback(fairfile,
-//                            relativeInterferencePoints,
-//                            numReads,
-//                            stalledCycles,
-//                            maxDifference);
+    maxDiffRedWithRollback(fairfile,
+                           relativeInterferencePoints,
+                           numReads,
+                           stalledCycles,
+                           maxDifference);
     
-    fairAMHAFirstAlg(fairfile,
-                     relativeInterferencePoints,
-                     numReads,
-                     numWrites,
-                     stalledCycles,
-                     maxDifference,
-                     lowestAccStallTime);
+//     fairAMHAFirstAlg(fairfile,
+//                      relativeInterferencePoints,
+//                      numReads,
+//                      numWrites,
+//                      stalledCycles,
+//                      maxDifference,
+//                      lowestAccStallTime);
     
     fairfile.flush();
     fairfile.close();
