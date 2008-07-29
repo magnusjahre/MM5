@@ -288,8 +288,6 @@ if env['BENCHMARK'] in Splash2.benchmarkNames:
 
 elif env['BENCHMARK'] in single_core.configuration:
     assert int(env['NP']) == 1
-    if "L2BANKSIZE" not in env:
-        panic("The cache size must be reduced for the single core experiments")
     
     fwticks = 0
     if 'ISEXPERIMENT' in env:
@@ -446,11 +444,11 @@ if L2BankSize != -1:
         bank.size = str(L2BankSize)+"kB"
 
 for bank in root.l2:
-    if int(env["NP"]) > 1:
+    #if int(env["NP"]) > 1:
         bank.use_static_partitioning_for_warmup = True
         bank.static_part_start_tick = uniformPartStart
-    else:
-        bank.use_static_partitioning_for_warmup = False
+    #else:
+        #bank.use_static_partitioning_for_warmup = False
 
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()
