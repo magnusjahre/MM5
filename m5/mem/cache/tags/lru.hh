@@ -129,6 +129,8 @@ class LRU : public BaseTags
     int accesses;
     std::vector<int> currentMTPPartition;
     bool useMTPPartitioning;
+    
+    std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
 
 public:
     /**
@@ -356,6 +358,10 @@ public:
     double getTouchedRatio();
     
     virtual void setMTPPartition(std::vector<int> setQuotas);
+    
+    virtual void updateSetHitStats(MemReqPtr& req);
+    
+    virtual void dumpHitStats();
 };
 
 #endif

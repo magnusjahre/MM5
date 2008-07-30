@@ -35,6 +35,8 @@
  */
 
 #include <string>
+#include <fstream>
+#include <iomanip>
 
 #include "mem/cache/base_cache.hh"
 #include "base/intmath.hh"
@@ -120,7 +122,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     if (hitLatency <= 0) {
 	fatal("access latency must be greater than zero");
     }
-
+    
     LRUBlk  *blk;
     int i, j, blkIndex;
     
@@ -172,6 +174,11 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     if(isShadow){
         perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
     }
+    else if(!isShadow && _bank_count > 0){ // only L2, real tags
+        // FIXME: number of CPUs is hardcoded
+        perCPUperSetHitCounters.resize(4, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
+    }
+    
     accesses = 0;
     useMTPPartitioning = false;
 }
@@ -273,6 +280,53 @@ LRU::findBlock(MemReqPtr &req, int &lat)
     }
     
     return blk;
+}
+
+void 
+LRU::updateSetHitStats(MemReqPtr& req){
+    
+    assert(!isShadow); // only real tags
+    assert(numBanks > 0); // only L2 cache
+    if(curTick < cache->detailedSimulationStartTick) return;
+    
+    int hitIndex = -1;
+    Addr tag = extractTag(req->paddr);
+    unsigned set = extractSet(req->paddr);
+    LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
+
+    // A few sanity checks :-)
+    assert(tmpBlk != NULL);
+    assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
+    assert(tmpBlk->origRequestingCpuID < 4);
+    assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
+    assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
+    assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
+    
+    perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
+}
+
+void
+LRU::dumpHitStats(){
+    stringstream name;
+    name << cache->name() << "HitStats.txt";
+    ofstream outfile(name.str().c_str());
+   
+    outfile << "Dumping hit statistics for " << cache->name() << " at tick " << curTick << "\n\n";
+    
+    for(int i=0;i<perCPUperSetHitCounters.size();i++){
+        outfile << "CPU " << i << " hit statistics\n";
+        for(int j=0;j<perCPUperSetHitCounters[0].size();j++){
+            outfile << "Set " << setw(4) << right << j << setw(5) << left << ":";
+            for(int k=0;k<perCPUperSetHitCounters[0][0].size();k++){
+                outfile << setw(10) << left << perCPUperSetHitCounters[i][j][k];
+            }
+            outfile << "\n";
+        }
+        outfile << "\n";
+    }
+    
+    outfile.flush();
+    outfile.close();
 }
 
 LRUBlk*

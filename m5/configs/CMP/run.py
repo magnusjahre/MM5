@@ -257,6 +257,7 @@ else:
 
 uniformPartStart = -1
 cacheProfileStart = -1
+simulationEnds = -1
 if env['BENCHMARK'] in Splash2.benchmarkNames:
     # Scientific workloads
     root.sampler = Sampler()
@@ -313,6 +314,7 @@ elif env['BENCHMARK'] in single_core.configuration:
     root.adaptiveMHA.startTick = fwticks + warmup
     uniformPartStart = fwticks + warmup
     cacheProfileStart = fwticks + warmup
+    simulationEnds = fwticks + simulateCycles
     Bus.switch_at = fwticks + warmup
 
     
@@ -329,6 +331,7 @@ elif not (env['BENCHMARK'].isdigit()
     root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
     uniformPartStart = int(env['FASTFORWARDTICKS'])
     cacheProfileStart = int(env['FASTFORWARDTICKS'])
+    simulationEnds = int(env['FASTFORWARDTICKS']) + int(env['SIMULATETICKS'])
     root.setCPU(root.simpleCPU)
 else:
     # Multi-programmed workload
@@ -366,6 +369,7 @@ else:
     root.adaptiveMHA.startTick = simulateStart + warmup
     uniformPartStart = simulateStart + warmup
     cacheProfileStart = simulateStart + warmup
+    simulationEnds = simulateStart + simulateCycles
     Bus.switch_at = simulateStart + warmup
 
     for i in xrange(int(env['NP'])):
@@ -439,6 +443,12 @@ if env["CACHE-PARTITIONING"] == "MTP":
 if cacheProfileStart != -1:
     for bank in root.l2:
         bank.detailed_sim_start_tick = cacheProfileStart
+
+if simulationEnds != -1:
+    for bank in root.l2:
+        bank.detailed_sim_end_tick = simulationEnds
+
+        
 if L2BankSize != -1:
     for bank in root.l2:
         bank.size = str(L2BankSize)+"kB"

@@ -124,6 +124,8 @@ class TimingMemoryController : public SimObject
     void currentActivationAddress(int cpuID, Addr addr, int bank);
     
     bool isPageHit(Addr addr, int bank);
+    
+    bool isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID);
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

@@ -344,6 +344,14 @@ class CacheTags
     void setMTPPartition(std::vector<int> setQuotas){
         ct->setMTPPartition(setQuotas);
     }
+    
+    void updateSetHitStats(MemReqPtr& req){
+        ct->updateSetHitStats(req);
+    }
+    
+    void dumpHitStats(){
+        ct->dumpHitStats();
+    }
 };
 
 

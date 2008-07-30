@@ -175,6 +175,7 @@ class Cache : public BaseCache
         Tick mtpEpochSize;
         bool simulateContention;
         bool useStaticPartInWarmup;
+        Tick detailedSimEndTick;
         
 	Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 	       bool do_copy, BaseCache::Params params,
@@ -183,7 +184,7 @@ class Cache : public BaseCache
                Interconnect* _inInterconnect, Interconnect* _outInterconnect,
                Prefetcher<TagStore, Buffering> *_prefetcher,
                bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup)
+               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, Tick _detailedSimEndTick)
 	    : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
               ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
               inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -195,7 +196,7 @@ class Cache : public BaseCache
               useMTPPartitioning(_useMTPPartitioning),
               uniformPartitioningStart(_uniformPartitioningStart),
               detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
-              simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup)
+              simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup), detailedSimEndTick(_detailedSimEndTick)
 	{
 	}
     };
@@ -376,6 +377,14 @@ class Cache : public BaseCache
     
     virtual int getCurrentMSHRCount(bool onMSHRs){
         return missQueue->getCurrentMSHRCount(onMSHRs);
+    }
+    
+    virtual std::vector<int> perCoreOccupancy(){
+        return tags->perCoreOccupancy();
+    }
+    
+    virtual void dumpHitStats(){
+        tags->dumpHitStats();
     }
     
 #ifdef CACHE_DEBUG

@@ -239,8 +239,26 @@ Bus::regStats()
             .name(name() + ".null_grants")
             .desc("Number of times the bus was granted in error")
             ;
+    
+    interferenceRemovedHits
+            .name(name() + ".hits_removed_by_interference")
+            .desc("The number of page misses that would be a hit in a private memory system")
+            ;
+    
+    constructiveInterferenceHits
+            .name(name() + ".constructive_interference_hits")
+            .desc("The number of page hits due to constructive interference")
+            ;
 }
 
+void
+Bus::incConstructiveInterference(){
+    constructiveInterferenceHits++;
+}
+    
+void Bus::incInterferenceMisses(){
+    interferenceRemovedHits++;
+}
 
 void
 Bus::resetStats()

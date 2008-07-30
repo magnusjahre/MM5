@@ -41,6 +41,7 @@
 #include "base/statistics.hh"
 #include "base/callback.hh"
 #include "sim/eventq.hh"
+#include "mem/mem_req.hh"
 
 class BaseCache;
 
@@ -150,6 +151,12 @@ class BaseTags
     }
     
     virtual void setMTPPartition(std::vector<int> setQuotas){
+    }
+    
+    virtual void updateSetHitStats(MemReqPtr& req){
+    }
+    
+    virtual void dumpHitStats(){
     }
 };
 

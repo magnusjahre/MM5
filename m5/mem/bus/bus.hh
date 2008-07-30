@@ -126,6 +126,9 @@ class Bus : public BaseHier
     Stats::Scalar<> blockedCycles;
     
     Stats::Scalar<> nullGrants;
+    
+    Stats::Scalar<> interferenceRemovedHits;
+    Stats::Scalar<> constructiveInterferenceHits;
 
     /** The last cycle the data arbiter was run, used for debugging. */
     Tick runDataLast;
@@ -268,6 +271,10 @@ class Bus : public BaseHier
     void switchMemoryController();
     
     void updatePerCPUAccessStats(int cpuID, bool pageHit);
+    
+    void incConstructiveInterference();
+    
+    void incInterferenceMisses();
     
     // Adaptive MHA methods
     double getAverageQueue(Tick sampleSize);

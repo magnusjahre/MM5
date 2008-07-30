@@ -84,6 +84,7 @@ class BaseCache(BaseMem):
     mtp_epoch_size = Param.Tick("the size of the MTP epoch")
     static_part_start_tick = Param.Tick("The clock cycle to start enforcing a static cache share")
     detailed_sim_start_tick = Param.Tick("The tick where detailed simulation (and profiling) starts")
+    detailed_sim_end_tick = Param.Tick("The tick where detailed simulation ends")
     use_static_partitioning_for_warmup = Param.Bool("if true, static partitioning is used in the warm up phase")
 
     # Directory protocol parameters

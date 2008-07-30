@@ -137,17 +137,20 @@ Cache(const std::string &_name, HierParams *hier_params,
         else{
             profileEvent->schedule(CACHE_PROFILE_INTERVAL);
         }
+        detailedSimulationStartTick = params.detailedSimStartTick;
     }
     
     useAdaptiveMHA = false;
     if (params.in == NULL) {
 	topLevelCache = true;
         if(params.adaptiveMHA != NULL && !params.isShared){
-            params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this);
+            params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this, false);
             useAdaptiveMHA = true;
             adaptiveMHA = params.adaptiveMHA;
         }
         else if(params.adaptiveMHA != NULL && params.isShared){
+            //register for cache capacity measurements
+            params.adaptiveMHA->registerCache(-1, !params.isReadOnly, this, true);
             useAdaptiveMHA = false;
             adaptiveMHA = params.adaptiveMHA;
         }
@@ -205,6 +208,12 @@ Cache(const std::string &_name, HierParams *hier_params,
     invalidateReq->cmd = Invalidate;
     
     localName = _name;
+    
+    if(isShared){
+        CacheDumpStatsEvent* dumpEvent = new CacheDumpStatsEvent(this);
+        assert(params.detailedSimEndTick > 0);
+        dumpEvent->schedule(params.detailedSimEndTick);
+    }
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -368,6 +377,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
         else if(simulateContention) updateInterference(req);
 
+        if(isShared){
+            assert(blk->origRequestingCpuID == req->adaptiveMHASenderID);
+            tags->updateSetHitStats(req);
+        }
 	return MA_HIT;
     }
     

@@ -312,14 +312,24 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     assert(readBankInterference.size() == localCpuCnt);
     for(int i=0;i<readBankInterference.size();i++){
         if(readBankInterference[i] > 0){
-            interference[i][req->adaptiveMHASenderID] 
-                    += 60 / readBankInterference[i];
+            interference[i][req->adaptiveMHASenderID] += 60 / readBankInterference[i];
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
         }
     }
     
     // Interference due to page hits becoming page misses
-    //FIXME: Implement
+    if(!isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
+        && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+        //NOTE: might want to add these to measurements
+        bus->incInterferenceMisses();
+    }
+    
+    // Detect constructive interference
+    if(isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
+       && !isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+        //NOTE: might want to include these in the measuerements
+        bus->incConstructiveInterference();
+    }
     
     bus->adaptiveMHA->addInterferenceDelay(interference,
                                            req->paddr,

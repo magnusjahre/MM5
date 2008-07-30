@@ -22,8 +22,9 @@ void
 TimingMemoryController::registerBus(Bus* _bus, int cpuCount){ 
     bus = _bus; 
     memCtrCPUCount = cpuCount;
-    cpuLastActivated.resize(cpuCount, std::vector<Addr>(_bus->getBankCount(), 0));
-    lastActivated.resize(_bus->getBankCount(), 0);
+    //FIXME: number of banks is hardcoded
+    cpuLastActivated.resize(cpuCount, std::vector<Addr>(8, 0));
+    lastActivated.resize(8, 0);
 }
 
 void
@@ -74,13 +75,38 @@ TimingMemoryController::getPageAddr(Addr addr)
 
 void
 TimingMemoryController::currentActivationAddress(int cpuID, Addr addr, int bank){
+    
+    //FIXME: number of banks is hardcoded
+    
+    assert(bank >= 0 && bank < lastActivated.size());
     lastActivated[bank] = addr;
-    //FIXME: implement updating perCPU activation addrs in cpuLastActivated
+    if(cpuID >= 0){
+        assert(cpuID >=  0 && cpuID < cpuLastActivated.size());
+        assert(cpuLastActivated[0].size() == 8);
+        assert(bank >= 0 && bank < cpuLastActivated[0].size());
+        cpuLastActivated[cpuID][bank] = addr;
+    }
 }
 
 bool 
 TimingMemoryController::isPageHit(Addr addr, int bank){
+    
+    //FIXME: number of banks is hardcoded
+    
+    assert(bank >= 0 && bank < lastActivated.size());
     return addr != lastActivated[bank];
+}
+
+bool
+TimingMemoryController::isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID){
+    
+    //FIXME: number of banks is hardcoded
+    
+    if(cpuID == -1) return false;
+    assert(cpuID >=  0 && cpuID < cpuLastActivated.size());
+    assert(cpuLastActivated[0].size() == 8);
+    assert(bank >= 0 && bank < cpuLastActivated[0].size());
+    return addr != cpuLastActivated[cpuID][bank];
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

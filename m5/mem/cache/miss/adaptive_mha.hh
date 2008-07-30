@@ -39,6 +39,7 @@ class AdaptiveMHA : public SimObject{
         
         std::vector<BaseCache* > dataCaches;
         std::vector<BaseCache* > instructionCaches;
+        std::vector<BaseCache* > sharedCaches;
         
         std::vector<int> staticAsymmetricMHAs;
         
@@ -74,6 +75,7 @@ class AdaptiveMHA : public SimObject{
         int lastInterfererID;
         int lastVictimID;
         double lastInterferenceValue;
+        Tick lastInterferenceValueTick;
         
         int resetCounter;
         int localResetCounter;
@@ -134,7 +136,7 @@ class AdaptiveMHA : public SimObject{
         
         void regStats();
         
-        void registerCache(int cpu_id, bool isDataCache, BaseCache* cache);
+        void registerCache(int cpu_id, bool isDataCache, BaseCache* cache, bool isShared);
         
         void registerBus(Bus* _bus){
             bus = _bus;
@@ -188,6 +190,13 @@ class AdaptiveMHA : public SimObject{
                                     std::vector<Tick>& numReads,
                                     std::vector<int>& stalledCycles,
                                     double maxDifference);
+        
+        void IPDirectWithRollback(std::ofstream& fairfile,
+                                  std::vector<std::vector<Tick> >& readInterference,
+                                  std::vector<int>& sharedCacheCapacityIPs,
+                                  std::vector<Tick>& numReads,
+                                  std::vector<int>& stalledCycles,
+                                  double maxDifference);
         
         template <class T> void printMatrix(std::vector<std::vector<T> >& matrix, std::ofstream &file, std::string header);
 };

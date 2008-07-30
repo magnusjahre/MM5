@@ -174,6 +174,8 @@ class BaseCache : public BaseMem {
     bool useMTPPartitioning;
     bool useStaticPartInWarmup;
     
+    Tick detailedSimulationStartTick;
+    
     CacheProfileEvent* profileEvent;
     
 #ifdef CACHE_DEBUG
@@ -526,6 +528,10 @@ class BaseCache : public BaseMem {
     virtual void incrementNumMSHRs(bool onMSHRs) = 0;
     virtual void decrementNumMSHRs(bool onMSHRs) = 0;
     virtual int getCurrentMSHRCount(bool onMSHRs) = 0;
+    
+    virtual std::vector<int> perCoreOccupancy() = 0;
+    
+    virtual void dumpHitStats() = 0;
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;
@@ -593,6 +599,28 @@ class CacheRepartitioningEvent: public Event
 
         virtual const char *description(){
             return "Cache Repartitioning Event";
+        }
+};
+
+class CacheDumpStatsEvent: public Event
+{
+
+    public:
+        
+        BaseCache* cache;
+        
+        CacheDumpStatsEvent(BaseCache* _cache)
+    : Event(&mainEventQueue), cache(_cache)
+        {
+        }
+        
+        void process(){
+            cache->dumpHitStats();
+            delete this;
+        }
+
+        virtual const char *description(){
+            return "Cache Dump Hit Stats Event";
         }
 };
 
