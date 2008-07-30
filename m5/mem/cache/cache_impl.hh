@@ -270,6 +270,12 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
     }
     
+    // update hit statistics
+    // NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
+    if(isShared){
+        tags->updateSetHitStats(req);
+    }
+    
     if (req->cmd == Copy) {
         if(useDirectory) fatal("directory copy not implemented");
 	      startCopy(req);
@@ -377,10 +383,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
         else if(simulateContention) updateInterference(req);
 
-        if(isShared){
-            assert(blk->origRequestingCpuID == req->adaptiveMHASenderID);
-            tags->updateSetHitStats(req);
-        }
 	return MA_HIT;
     }
     

@@ -293,6 +293,7 @@ LRU::updateSetHitStats(MemReqPtr& req){
     Addr tag = extractTag(req->paddr);
     unsigned set = extractSet(req->paddr);
     LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
+    if(tmpBlk == NULL) return; // cache miss, no hit statistics :-)
 
     // A few sanity checks :-)
     assert(tmpBlk != NULL);
