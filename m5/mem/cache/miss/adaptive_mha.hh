@@ -198,6 +198,13 @@ class AdaptiveMHA : public SimObject{
                                   std::vector<int>& stalledCycles,
                                   double maxDifference);
         
+        void dampingAndCacheAnalysis(std::ofstream& fairfile,
+                                     std::vector<std::vector<Tick> >& readInterference,
+                                     std::vector<int>& sharedCacheCapacityIPs,
+                                     std::vector<Tick>& numReads,
+                                     std::vector<int>& stalledCycles,
+                                     double maxDifference);
+        
         template <class T> void printMatrix(std::vector<std::vector<T> >& matrix, std::ofstream &file, std::string header);
 };
 

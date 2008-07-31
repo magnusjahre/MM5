@@ -110,10 +110,10 @@ useFairAdaptiveMHA = False
 if "USE-FAIR-AMHA" in env:
     if 'FAIR-RESET-COUNTER' not in env:
         panic("The number of events to process must be given (-EFAIR-RESET-COUNTER)")
-    if 'FAIR-REDUCTION-THRESHOLD' not in env:
-        panic("A reduction threshold must be given (-EFAIR-REDUCTION-THRESHOLD)")
-    if 'FAIR-MIN-IP-ALLOWED' not in env:
-        panic("A minimum IP value must be given (-EFAIR-MIN-IP-ALLOWED)")
+    #if 'FAIR-REDUCTION-THRESHOLD' not in env:
+        #panic("A reduction threshold must be given (-EFAIR-REDUCTION-THRESHOLD)")
+    #if 'FAIR-MIN-IP-ALLOWED' not in env:
+        #panic("A minimum IP value must be given (-EFAIR-MIN-IP-ALLOWED)")
     useFairAdaptiveMHA = True
 
 if "CACHE-PARTITIONING" in env:
@@ -226,12 +226,24 @@ if useAdaptiveMHA:
 elif useFairAdaptiveMHA:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
     root.adaptiveMHA.highThreshold = 1.0 # not used
-    root.adaptiveMHA.neededRepeats = 1 # not used
+    if "ADAPTIVE-REPEATS" in env:
+        root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
+    else:
+        root.adaptiveMHA.neededRepeats = 0
     root.adaptiveMHA.onlyTraceBus = False
     root.adaptiveMHA.useFairMHA = True
+    
     root.adaptiveMHA.resetCounter = int(env["FAIR-RESET-COUNTER"])
-    root.adaptiveMHA.reductionThreshold = float(env["FAIR-REDUCTION-THRESHOLD"])
-    root.adaptiveMHA.minInterferencePointAllowed = float(env["FAIR-MIN-IP-ALLOWED"])
+    
+    if "FAIR-REDUCTION-THRESHOLD" in env:
+        root.adaptiveMHA.reductionThreshold = float(env["FAIR-REDUCTION-THRESHOLD"])
+    else:
+        root.adaptiveMHA.reductionThreshold = 0.0
+        
+    if "FAIR-MIN-IP-ALLOWED"in env:
+        root.adaptiveMHA.minInterferencePointAllowed = float(env["FAIR-MIN-IP-ALLOWED"])
+    else:
+        root.adaptiveMHA.minInterferencePointAllowed = 0.0
 else:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
     root.adaptiveMHA.highThreshold = 1.0 # not used

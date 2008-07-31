@@ -400,12 +400,19 @@ AdaptiveMHA::doFairAMHA(){
     fairfile << "Current fairness measure (Maxdiff) is " << maxDifference << "\n";
     
     // 4 Modify MSHRs of writeback queue based on measurements
-    IPDirectWithRollback(fairfile,
-                         t_interference_read,
-                         sharedCacheCapacityOverusePoints,
-                         numReads,
-                         stalledCycles,
-                         maxDifference);
+    dampingAndCacheAnalysis(fairfile,
+                            t_interference_read,
+                            sharedCacheCapacityOverusePoints,
+                            numReads,
+                            stalledCycles,
+                            maxDifference);
+    
+//     IPDirectWithRollback(fairfile,
+//                          t_interference_read,
+//                          sharedCacheCapacityOverusePoints,
+//                          numReads,
+//                          stalledCycles,
+//                          maxDifference);
     
 //     maxDiffRedWithRollback(fairfile,
 //                            relativeInterferencePoints,
@@ -634,7 +641,7 @@ AdaptiveMHA::IPDirectWithRollback(std::ofstream& fairfile,
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         for(int j=0;j<adaptiveMHAcpuCount;j++){
             if(!interferenceBlacklist[i][j]){
-                if(readInterference[i][j] > maxScore){
+                if(readInterference[i][j] > maxScore){ //FIXME: Bug here, unclear if it influences results!!!
                     maxScore = readInterference[i][j] + sharedCacheCapacityIPs[j];
                     victimID = i;
                     responsibleID = j;
@@ -668,6 +675,106 @@ AdaptiveMHA::IPDirectWithRollback(std::ofstream& fairfile,
     lastInterfererID = responsibleID;
     lastInterferenceValueTick = readInterference[lastVictimID][lastInterfererID];
 }
+
+void
+AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
+                                     std::vector<std::vector<Tick> >& readInterference,
+                                     std::vector<int>& sharedCacheCapacityIPs,
+                                     std::vector<Tick>& numReads,
+                                     std::vector<int>& stalledCycles,
+                                     double maxDifference){
+    
+    assert(interferencePointMinAllowed == 0.0);
+    assert(reductionThreshold == 0.0);
+    assert(resetCounter > 0);
+    localResetCounter--;
+    
+    if(localResetCounter <= 0){
+        
+        fairfile << "Increasing all caches to max MSHRs\n";
+        
+        // Increase all caches to max MSHRs
+        for(int i=0;i<dataCaches.size();i++){
+            while(dataCaches[i]->getCurrentMSHRCount(true) < maxMshrs){
+                dataCaches[i]->incrementNumMSHRs(true);
+                
+                if(dataCaches[i]->isBlockedNoMSHRs()){
+                    assert(dataCaches[i]->isBlocked());
+                    dataCaches[i]->clearBlocked(Blocked_NoMSHRs);
+                }
+            }
+        }
+        
+        localResetCounter = resetCounter;
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        numRepeatDecisions = 0;
+        return;
+    }
+    
+    Tick maxScore = 0;
+    int victimID = -1;
+    int responsibleID = -1;
+    
+    
+    vector<vector<Tick> > resultingIPs(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        for(int j=0;j<adaptiveMHAcpuCount;j++){
+            //NOTE: a new computation of cache IPs which is graded with overuse might be appropriate
+            resultingIPs[i][j] = readInterference[i][j] + sharedCacheCapacityIPs[j];
+        }
+    }
+    printMatrix(resultingIPs, fairfile, "IPs used for analysis");
+    
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        for(int j=0;j<adaptiveMHAcpuCount;j++){
+            // skip caches that are allready at the blocking configuration
+            if(dataCaches[j]->getCurrentMSHRCount(true) > 1){
+                if(resultingIPs[i][j] > maxScore){
+                    maxScore = resultingIPs[i][j];
+                    victimID = i;
+                    responsibleID = j;
+                }
+            }
+        }
+    }
+    
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        if(dataCaches[i]->getCurrentMSHRCount(true) == 1){
+            fairfile << "CPU " << i << " has been reduced to a blocking cache, has been skipped\n"; 
+        }
+    }
+    
+    assert(victimID >= 0 && responsibleID >= 0);
+    if(victimID == lastVictimID && responsibleID == lastInterfererID){
+        numRepeatDecisions++;
+        fairfile << "Responsible is still " << responsibleID << " and " << victimID << " is still the victim, repeates increased to " << numRepeatDecisions << ", " << neededRepeatDecisions << " needed\n";
+    }
+    else{
+        lastVictimID = victimID;
+        lastInterfererID = responsibleID;
+        numRepeatDecisions = 1;
+        
+        fairfile << "New responsible and victim (r=" << responsibleID << ", v=" << victimID << "). Repeats reset to " << numRepeatDecisions << "\n";
+    }
+    
+    assert(numRepeatDecisions <= neededRepeatDecisions);
+    if(numRepeatDecisions == neededRepeatDecisions){
+        if(dataCaches[responsibleID]->getCurrentMSHRCount(true) > 1){
+            fairfile << "CPU " << responsibleID << " interferes with CPU " << victimID << ", reducing MSHRs\n";
+            dataCaches[responsibleID]->decrementNumMSHRs(true);
+        }
+        else{
+            fairfile << "CPU " << responsibleID << " interferes with CPU "
+                    << victimID << ", allready at blocking cache configuration, no action taken.\n";
+        }
+        
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        numRepeatDecisions = 0;
+    }
+}
+
 
 void
 AdaptiveMHA::fairAMHAFirstAlg(std::ofstream& fairfile,
