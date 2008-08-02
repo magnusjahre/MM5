@@ -739,10 +739,20 @@ AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
         }
     }
     
+    int blockingCount = 0;
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         if(dataCaches[i]->getCurrentMSHRCount(true) == 1){
             fairfile << "CPU " << i << " has been reduced to a blocking cache, has been skipped\n"; 
+            blockingCount++;
         }
+    }
+    
+    if(blockingCount == adaptiveMHAcpuCount){
+        fairfile << "All caches have been reduced to blocking caches, quitting...\n"; 
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        numRepeatDecisions = 0;
+        return;
     }
     
     assert(victimID >= 0 && responsibleID >= 0);
