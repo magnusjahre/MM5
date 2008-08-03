@@ -684,7 +684,7 @@ AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
                                      std::vector<int>& stalledCycles,
                                      double maxDifference){
     
-    assert(interferencePointMinAllowed == 0.0);
+//     assert(interferencePointMinAllowed == 0.0);
     assert(reductionThreshold == 0.0);
     assert(resetCounter > 0);
     localResetCounter--;
@@ -712,10 +712,9 @@ AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
         return;
     }
     
-    Tick maxScore = 0;
+    Tick maxScore = (int) interferencePointMinAllowed;
     int victimID = -1;
     int responsibleID = -1;
-    
     
     vector<vector<Tick> > resultingIPs(adaptiveMHAcpuCount, vector<Tick>(adaptiveMHAcpuCount, 0));
     for(int i=0;i<adaptiveMHAcpuCount;i++){
@@ -755,7 +754,15 @@ AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
         return;
     }
     
-    assert(victimID >= 0 && responsibleID >= 0);
+    if(victimID == -1 && responsibleID == -1){
+        fairfile << "All remaining caches have to few iterference points, quitting...\n"; 
+        lastVictimID = -1;
+        lastInterfererID = -1;
+        numRepeatDecisions = 0;
+        return;
+    }
+    
+    
     if(victimID == lastVictimID && responsibleID == lastInterfererID){
         numRepeatDecisions++;
         fairfile << "Responsible is still " << responsibleID << " and " << victimID << " is still the victim, repeates increased to " << numRepeatDecisions << ", " << neededRepeatDecisions << " needed\n";
