@@ -116,7 +116,7 @@ Crossbar::arbitrate(Tick cycle){
                 
                 for(int j=0;j<cpu_count;j++){
                     if(isBlocking[j]){
-                        queueWaitBuffer[j][grantedCPUs[i]] = 4;
+                        queueWaitBuffer[j][grantedCPUs[i]] = 1;
                         delayedIsRead[j][grantedCPUs[i]] = isRead[j];
                     }
                 }

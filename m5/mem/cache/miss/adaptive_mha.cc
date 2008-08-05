@@ -720,8 +720,7 @@ AdaptiveMHA::dampingAndCacheAnalysis(std::ofstream& fairfile,
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         for(int j=0;j<adaptiveMHAcpuCount;j++){
             //NOTE: a new computation of cache IPs which is graded with overuse might be appropriate
-            //FIXME: Do not add to the processor itself (own interference i 0 by definition)
-            resultingIPs[i][j] = readInterference[i][j] + sharedCacheCapacityIPs[j];
+            if(i != j) resultingIPs[i][j] = readInterference[i][j] + sharedCacheCapacityIPs[j];
         }
     }
     printMatrix(resultingIPs, fairfile, "IPs used for analysis");
