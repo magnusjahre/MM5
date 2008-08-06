@@ -302,7 +302,7 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     assert(readBusInterference.size() == localCpuCnt);
     for(int i=0;i<readBusInterference.size();i++){
         if(readBusInterference[i]){
-            interference[i][req->adaptiveMHASenderID] += 20;
+            interference[i][req->adaptiveMHASenderID] += 40;
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
         }
     }
@@ -312,7 +312,7 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     assert(readBankInterference.size() == localCpuCnt);
     for(int i=0;i<readBankInterference.size();i++){
         if(readBankInterference[i] > 0){
-            interference[i][req->adaptiveMHASenderID] += 60 / readBankInterference[i];
+            interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
         }
     }

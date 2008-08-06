@@ -421,20 +421,30 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
         
         // search to discover which part(s) of the delay is actually due to interference with a different processor
         vector<bool> waitingFor(cpuCount, false);
+        vector<int> waitingPosition(cpuCount, -1);
         for(int i=0;i<occupancy.size();i++){
-            if(occupancy[i].occCPUID != req->adaptiveMHASenderID) waitingFor[occupancy[i].occCPUID] = true;
+          if(occupancy[i].occCPUID != req->adaptiveMHASenderID){
+              waitingFor[occupancy[i].occCPUID] = true;
+              waitingPosition[occupancy[i].occCPUID] = i;
+          }
         }
         
         vector<vector<Tick> > interference(cpuCount, vector<Tick>(cpuCount, 0));
-        
         vector<vector<bool> > delayedIsRead(cpuCount, vector<bool>(cpuCount, false));
         for(int i=0;i<waitingFor.size();i++){
             if(waitingFor[i]){
-                interference[req->adaptiveMHASenderID][i] = 1;
-                delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
+              Tick occFromTick = nextFreeCache - ((occupancy.size() - waitingPosition[i])*CONTENTION_DELAY);
+              Tick occToTick = occFromTick + CONTENTION_DELAY;
+
+              Tick curIP = 0;
+              if(occFromTick < curTick) curIP = occToTick - curTick;
+              else curIP = CONTENTION_DELAY;
+
+              interference[req->adaptiveMHASenderID][i] = curIP;
+              delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
             }
         }
-        
+                
         if(adaptiveMHA != NULL){
             adaptiveMHA->addInterferenceDelay(interference,
                                             req->paddr,
