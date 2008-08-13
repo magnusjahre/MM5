@@ -81,6 +81,10 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
     
+    busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
+    conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
+    hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
+    
     if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
     else adaptiveMHA = NULL;
     
@@ -590,6 +594,65 @@ Bus::updatePerCPUAccessStats(int cpuID, bool pageHit){
     assert(cpuID >= 0 && cpuID < cpu_count);
     if(pageHit) pageHitsPerCPU[cpuID]++;
     accessesPerCPU[cpuID]++;
+}
+
+std::vector<std::vector<int> > 
+Bus::retrieveBusInterferenceStats(){
+    return busInterference;
+}
+
+void
+Bus::resetBusInterferenceStats(){
+    for(int i=0;i<busInterference.size();i++){
+        for(int j=0;j<busInterference.size();j++){
+            busInterference[i][j] = 0;
+        }
+    }
+}
+
+std::vector<std::vector<int> >
+Bus::retrieveConflictInterferenceStats(){
+    return conflictInterference;
+}
+
+void
+Bus::resetConflictInterferenceStats(){
+    for(int i=0;i<conflictInterference.size();i++){
+        for(int j=0;j<conflictInterference.size();j++){
+            conflictInterference[i][j] = 0;
+        }
+    }
+}
+
+std::vector<std::vector<int> > 
+Bus::retrieveHitToMissInterferenceStats(){
+    return hitToMissInterference;
+}
+    
+void
+Bus::resetHitToMissInterferenceStats(){
+    for(int i=0;i<hitToMissInterference.size();i++){
+        for(int j=0;j<hitToMissInterference.size();j++){
+            hitToMissInterference[i][j] = 0;
+        }
+    }
+}
+
+void 
+Bus::addInterference(int victimID, int interfererID, interference_type iType){
+    switch(iType){
+        case BUS_INTERFERENCE:
+            busInterference[victimID][interfererID]++;
+            break;
+        case CONFLICT_INTERFERENCE:
+            conflictInterference[victimID][interfererID]++;
+            break;
+        case HIT_TO_MISS_INTERFERENCE:
+            hitToMissInterference[victimID][interfererID]++;
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
 }
 
 #ifdef INJECT_TEST_REQUESTS

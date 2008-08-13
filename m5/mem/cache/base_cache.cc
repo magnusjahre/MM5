@@ -70,6 +70,11 @@ BaseCache::BaseCache(const std::string &name,
     checkEvent->schedule(CACHE_CHECK_INTERVAL);
     blockedAt = 0;
     
+    if(_isShared){
+        interferenceEventsBW = vector<vector<int> >(params.baseCacheCPUCount, vector<int>(params.baseCacheCPUCount,0));
+        interferenceEventsCapacity = vector<vector<int> >(params.baseCacheCPUCount, vector<int>(params.baseCacheCPUCount,0));
+    }
+    
     nextFreeCache = 0;
 }
 
@@ -442,6 +447,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
 
               interference[req->adaptiveMHASenderID][i] = curIP;
               delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
+              interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
             }
         }
                 
@@ -476,3 +482,36 @@ BaseCache::updateInterference(MemReqPtr &req){
     }
 }
 
+std::vector<std::vector<int> > 
+BaseCache::retrieveBWInterferenceStats(){
+    return interferenceEventsBW;
+}
+        
+void
+BaseCache::resetBWInterferenceStats(){
+    for(int i=0;i<interferenceEventsBW.size();i++){
+        for(int j=0;j<interferenceEventsBW[0].size();j++){
+            interferenceEventsBW[i][j] = 0;
+        }
+    }
+}
+
+std::vector<std::vector<int> >
+BaseCache::retrieveCapacityInterferenceStats(){
+    return interferenceEventsCapacity;
+}
+
+
+void 
+BaseCache::resetCapacityInterferenceStats(){
+    for(int i=0;i<interferenceEventsCapacity.size();i++){
+        for(int j=0;j<interferenceEventsCapacity[0].size();j++){
+            interferenceEventsCapacity[i][j] = 0;
+        }
+    }
+}
+
+void
+BaseCache::addCapacityInterference(int victimID, int interfererID){
+    interferenceEventsCapacity[victimID][interfererID]++;
+}

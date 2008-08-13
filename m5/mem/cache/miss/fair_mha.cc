@@ -622,3 +622,117 @@ AdaptiveMHA::fairAMHAFirstAlg(std::ofstream& fairfile,
         }
     }
 }
+
+// Storage convention: delay[victim][responsible]
+void
+AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
+                                  Addr addr,
+                                  MemCmd cmd,
+                                  int fromCPU,
+                                  InterferenceType type,
+                                  vector<vector<bool> > nextIsRead){
+    
+    assert(cmd == Read || cmd == Writeback);
+    
+    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    
+    for(int i=0;i<perCPUQueueTimes.size();i++){
+        for(int j=0;j<perCPUQueueTimes[i].size();j++){
+            if(nextIsRead[i][j]) totalInterferenceDelayRead[i][j] += perCPUQueueTimes[i][j];
+            else totalInterferenceDelayWrite[i][j] += perCPUQueueTimes[i][j];
+        }
+    }
+
+    /*
+    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
+    if(iter != oracleStorage.end()){
+        oracleStorage[cacheBlkAddr].addDelays(perCPUQueueTimes, type);
+        bool prevRead = (cmd == Read ? true : false);
+        if(oracleStorage[cacheBlkAddr].isRead != prevRead){
+            oracleStorage[cacheBlkAddr].isRead = !prevRead;
+        }
+    }
+    else{
+        oracleStorage[cacheBlkAddr] = delayEntry(perCPUQueueTimes, (cmd == Read ? true : false), type);
+        numInterferenceRequests++;
+    }
+    */
+}
+
+void
+AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead){
+    
+    assert(delay > 0);
+    
+    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    
+    assert(issuedCPU >= 0 && issuedCPU <= totalSharedDelay.size());
+    assert(issuedCPU >= 0 && issuedCPU <= totalSharedWritebackDelay.size());
+    if(isRead){
+        totalSharedDelay[issuedCPU] += delay;
+        delayReadRequestsPerCPU[issuedCPU]++;
+    }
+    else{
+        totalSharedWritebackDelay[issuedCPU] += delay;
+        delayWriteRequestsPerCPU[issuedCPU]++;
+    }
+    numDelayRequests++;
+    
+    /*
+    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
+    if(iter != oracleStorage.end()){
+        oracleStorage[cacheBlkAddr].totalDelay = delay;
+    }
+    */
+}
+
+AdaptiveMHA::delayEntry::delayEntry(std::vector<std::vector<Tick> > _delays, bool read, InterferenceType type)
+{
+    switch(type){
+        case INTERCONNECT_INTERFERENCE:
+            cbDelay = _delays;
+            break;
+        case L2_INTERFERENCE:
+            l2Delay = _delays;
+            break;
+        case MEMORY_INTERFERENCE:
+            memDelay = _delays;
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
+    totalDelay = 0;
+    isRead = read;
+}
+            
+void
+AdaptiveMHA::delayEntry::addDelays(std::vector<std::vector<Tick> > newDelays, InterferenceType type){
+    switch(type){
+        case INTERCONNECT_INTERFERENCE:
+            for(int i=0;i<cbDelay.size();i++) for(int j=0;j<cbDelay[i].size();j++) cbDelay[i][j] += newDelays[i][j];
+            break;
+        case L2_INTERFERENCE:
+            for(int i=0;i<l2Delay.size();i++) for(int j=0;j<l2Delay[i].size();j++) l2Delay[i][j] += newDelays[i][j];
+            break;
+        case MEMORY_INTERFERENCE:
+            for(int i=0;i<memDelay.size();i++) for(int j=0;j<memDelay[i].size();j++) memDelay[i][j] += newDelays[i][j];
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
+    
+}
+
+template <class T>
+void
+AdaptiveMHA::printMatrix(std::vector<std::vector<T> >& matrix, ofstream &file, std::string header){
+    file << header << "\n";
+    for(int i=0;i<matrix.size();i++){
+        file << i << ":";
+        for(int j=0;j<matrix[i].size();j++){
+            file << setw(10) << matrix[i][j]; 
+        }
+        file << "\n";
+    }
+    file << "\n";
+}

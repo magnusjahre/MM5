@@ -418,6 +418,12 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
     }
     assert(blk != NULL);
     
+    //estimate interference
+    if(blk->origRequestingCpuID != req->adaptiveMHASenderID && blk->origRequestingCpuID != -1){
+        assert(req->adaptiveMHASenderID != -1);
+        cache->addCapacityInterference(blk->origRequestingCpuID, req->adaptiveMHASenderID);
+    }
+    
     sets[set].moveToHead(blk);
     if (blk->isValid()) {
 	int thread_num = (blk->xc) ? blk->xc->thread_num : 0;

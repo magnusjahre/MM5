@@ -32,6 +32,7 @@ class TimingMemoryController : public SimObject
     
     std::vector<std::vector<Addr> > cpuLastActivated;
     std::vector<Addr> lastActivated;
+    std::vector<Addr> lastActivatedBy;
     
   protected:
       
@@ -126,6 +127,8 @@ class TimingMemoryController : public SimObject
     bool isPageHit(Addr addr, int bank);
     
     bool isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID);
+    
+    int getLastActivatedBy(int bank);
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

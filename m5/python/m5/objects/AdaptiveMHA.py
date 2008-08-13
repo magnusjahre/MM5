@@ -14,3 +14,5 @@ class AdaptiveMHA(SimObject):
     resetCounter = Param.Int("The number of events that should be processed before F-AMHA is reset")
     reductionThreshold = Param.Float("The percentage reduction in interference points needed to accept a reduction")
     minInterferencePointAllowed = Param.Float("Lowest relative interference point that will count as interference")
+    printInterference = Param.Bool("True if the total interference stats should be printed")
+    finalSimTick = Param.Tick("Tick at which interference stats are printed")

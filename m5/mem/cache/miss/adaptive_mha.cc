@@ -22,7 +22,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          bool _useFairAMHA,
                          int _resetCounter,
                          double _reductionThreshold,
-                         double _interferencePointMinAllowed)
+                         double _interferencePointMinAllowed,
+                         bool _printInterference,
+                         Tick _finalSimTick)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -36,6 +38,16 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     localResetCounter = _resetCounter;
     reductionThreshold = _reductionThreshold;
     interferencePointMinAllowed = _interferencePointMinAllowed;
+    
+    printInterference = _printInterference;
+    finalSimTick = _finalSimTick;
+    if(printInterference){
+        AdaptiveMHADumpInterferenceEvent* dumpEvent = new AdaptiveMHADumpInterferenceEvent(this);
+        assert(finalSimTick > 0);
+        dumpEvent->schedule(finalSimTick);
+    }
+    
+    interconnect = NULL;
     
     cpus.resize(cpu_count, 0);
     
@@ -181,6 +193,17 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         numInterferenceRequests = 0;
         oracleStorage.clear();
         firstSample = false;
+        
+        // reset interference stats
+        assert(interconnect != NULL);
+        interconnect->resetInterferenceStats();
+        for(int i=0;i<sharedCaches.size();i++){
+            sharedCaches[i]->resetBWInterferenceStats();
+            sharedCaches[i]->resetCapacityInterferenceStats();
+        }
+        bus->resetBusInterferenceStats();
+        bus->resetConflictInterferenceStats();
+        bus->resetHitToMissInterferenceStats();
         
         if(staticAsymmetricMHAs.size() != 0){
             assert(onlyTraceBus);
@@ -362,118 +385,40 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
     }
 }
 
-// Storage convention: delay[victim][responsible]
 void
-AdaptiveMHA::addInterferenceDelay(vector<std::vector<Tick> > perCPUQueueTimes,
-                                  Addr addr,
-                                  MemCmd cmd,
-                                  int fromCPU,
-                                  InterferenceType type,
-                                  vector<vector<bool> > nextIsRead){
+AdaptiveMHA::handleInterferenceDumpEvent(){
     
-    assert(cmd == Read || cmd == Writeback);
+    ofstream interferenceFile("interferenceStats.txt");
     
-    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
+    interferenceFile << "\nInterference statistics dump at tick " << curTick << "\n\n";
     
-    for(int i=0;i<perCPUQueueTimes.size();i++){
-        for(int j=0;j<perCPUQueueTimes[i].size();j++){
-            if(nextIsRead[i][j]) totalInterferenceDelayRead[i][j] += perCPUQueueTimes[i][j];
-            else totalInterferenceDelayWrite[i][j] += perCPUQueueTimes[i][j];
-        }
-    }
-
-    /*
-    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
-    if(iter != oracleStorage.end()){
-        oracleStorage[cacheBlkAddr].addDelays(perCPUQueueTimes, type);
-        bool prevRead = (cmd == Read ? true : false);
-        if(oracleStorage[cacheBlkAddr].isRead != prevRead){
-            oracleStorage[cacheBlkAddr].isRead = !prevRead;
-        }
-    }
-    else{
-        oracleStorage[cacheBlkAddr] = delayEntry(perCPUQueueTimes, (cmd == Read ? true : false), type);
-        numInterferenceRequests++;
-    }
-    */
-}
-
-void
-AdaptiveMHA::addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead){
+    // Retrieve and print interference
+    vector<vector<int> > icStats = interconnect->retrieveInterferenceStats();
+    printMatrix(icStats, interferenceFile, "Interconnect Interference Events");
     
-    assert(delay > 0);
-    
-    //Addr cacheBlkAddr = addr & ~((Addr) dataCaches[0]->getBlockSize()-1);
-    
-    assert(issuedCPU >= 0 && issuedCPU <= totalSharedDelay.size());
-    assert(issuedCPU >= 0 && issuedCPU <= totalSharedWritebackDelay.size());
-    if(isRead){
-        totalSharedDelay[issuedCPU] += delay;
-        delayReadRequestsPerCPU[issuedCPU]++;
-    }
-    else{
-        totalSharedWritebackDelay[issuedCPU] += delay;
-        delayWriteRequestsPerCPU[issuedCPU]++;
-    }
-    numDelayRequests++;
-    
-    /*
-    map<Addr, delayEntry>::iterator iter = oracleStorage.find(cacheBlkAddr);
-    if(iter != oracleStorage.end()){
-        oracleStorage[cacheBlkAddr].totalDelay = delay;
-    }
-    */
-}
-
-AdaptiveMHA::delayEntry::delayEntry(std::vector<std::vector<Tick> > _delays, bool read, InterferenceType type)
-{
-    switch(type){
-        case INTERCONNECT_INTERFERENCE:
-            cbDelay = _delays;
-            break;
-        case L2_INTERFERENCE:
-            l2Delay = _delays;
-            break;
-        case MEMORY_INTERFERENCE:
-            memDelay = _delays;
-            break;
-        default:
-            fatal("Unknown interference type");
-    }
-    totalDelay = 0;
-    isRead = read;
-}
-            
-void
-AdaptiveMHA::delayEntry::addDelays(std::vector<std::vector<Tick> > newDelays, InterferenceType type){
-    switch(type){
-        case INTERCONNECT_INTERFERENCE:
-            for(int i=0;i<cbDelay.size();i++) for(int j=0;j<cbDelay[i].size();j++) cbDelay[i][j] += newDelays[i][j];
-            break;
-        case L2_INTERFERENCE:
-            for(int i=0;i<l2Delay.size();i++) for(int j=0;j<l2Delay[i].size();j++) l2Delay[i][j] += newDelays[i][j];
-            break;
-        case MEMORY_INTERFERENCE:
-            for(int i=0;i<memDelay.size();i++) for(int j=0;j<memDelay[i].size();j++) memDelay[i][j] += newDelays[i][j];
-            break;
-        default:
-            fatal("Unknown interference type");
+    for(int i=0;i<sharedCaches.size();i++){
+        stringstream header;
+        header << "Cache Bandwidth Interference Events for cache " << sharedCaches[i]->name();
+        vector<vector<int> > cacheBWStats = sharedCaches[i]->retrieveBWInterferenceStats();
+        printMatrix(cacheBWStats, interferenceFile, header.str());
+        
+        stringstream header2;
+        header2 << "Cache Capacity Interference Events for cache " << sharedCaches[i]->name();
+        vector<vector<int> > cacheCapacityStats = sharedCaches[i]->retrieveCapacityInterferenceStats();
+        printMatrix(cacheCapacityStats, interferenceFile, header2.str());
     }
     
-}
-
-template <class T>
-void
-AdaptiveMHA::printMatrix(std::vector<std::vector<T> >& matrix, ofstream &file, std::string header){
-    file << header << "\n";
-    for(int i=0;i<matrix.size();i++){
-        file << i << ":";
-        for(int j=0;j<matrix[i].size();j++){
-            file << setw(10) << matrix[i][j]; 
-        }
-        file << "\n";
-    }
-    file << "\n";
+    vector<vector<int> > busStats = bus->retrieveBusInterferenceStats();
+    printMatrix(busStats, interferenceFile, "Interference due to serialization on memory bus");
+    
+    vector<vector<int> > busConflictStats = bus->retrieveConflictInterferenceStats();
+    printMatrix(busConflictStats, interferenceFile, "Interference from page conflicts");
+    
+    vector<vector<int> > busHitToMissStats = bus->retrieveHitToMissInterferenceStats();
+    printMatrix(busHitToMissStats, interferenceFile, "Interference from page hits becoming page misses");
+    
+    interferenceFile.flush();
+    interferenceFile.close();
 }
 
 
@@ -492,6 +437,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<int> resetCounter;
     Param<double> reductionThreshold;
     Param<double> minInterferencePointAllowed;
+    Param<bool> printInterference;
+    Param<Tick> finalSimTick;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -506,7 +453,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM(useFairMHA, "True if the fair AMHA implementation should be used"),
     INIT_PARAM_DFLT(resetCounter,"The number of events that should be processed before F-AMHA is reset", -1),
     INIT_PARAM_DFLT(reductionThreshold, "The percentage reduction in interference points needed to accept a reduction", 0.1),
-    INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0)
+    INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0),
+    INIT_PARAM_DFLT(printInterference, "True if the total interference stats should be printed", false),
+    INIT_PARAM_DFLT(finalSimTick, "Tick at which interference stats are printed", 0)
             
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
@@ -525,7 +474,9 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            useFairMHA,
                            resetCounter,
                            reductionThreshold,
-                           minInterferencePointAllowed);
+                           minInterferencePointAllowed,
+                           printInterference,
+                           finalSimTick);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

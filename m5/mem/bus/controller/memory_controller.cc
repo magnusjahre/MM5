@@ -25,6 +25,7 @@ TimingMemoryController::registerBus(Bus* _bus, int cpuCount){
     //FIXME: number of banks is hardcoded
     cpuLastActivated.resize(cpuCount, std::vector<Addr>(8, 0));
     lastActivated.resize(8, 0);
+    lastActivatedBy.resize(8, 0);
 }
 
 void
@@ -80,12 +81,18 @@ TimingMemoryController::currentActivationAddress(int cpuID, Addr addr, int bank)
     
     assert(bank >= 0 && bank < lastActivated.size());
     lastActivated[bank] = addr;
+    lastActivatedBy[bank] = cpuID;
     if(cpuID >= 0){
         assert(cpuID >=  0 && cpuID < cpuLastActivated.size());
         assert(cpuLastActivated[0].size() == 8);
         assert(bank >= 0 && bank < cpuLastActivated[0].size());
         cpuLastActivated[cpuID][bank] = addr;
     }
+}
+
+int
+TimingMemoryController::getLastActivatedBy(int bank){
+    return lastActivatedBy[bank];
 }
 
 bool 

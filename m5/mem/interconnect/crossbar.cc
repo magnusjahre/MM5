@@ -26,6 +26,8 @@ Crossbar::Crossbar(const std::string &_name,
     nextBusFreeTime = 0;
     doProfiling = false;
     
+    interferenceEvents = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
+    
     doFairArbitration = _useNFQArbitration;
     virtualFinishTimes = vector<Tick>(_cpu_count, 0);
 }
@@ -118,6 +120,7 @@ Crossbar::arbitrate(Tick cycle){
                     if(isBlocking[j]){
                         queueWaitBuffer[j][grantedCPUs[i]] = 1;
                         delayedIsRead[j][grantedCPUs[i]] = isRead[j];
+                        interferenceEvents[j][grantedCPUs[i]]++;
                     }
                 }
                 
@@ -578,6 +581,20 @@ Crossbar::writeChannelDecriptor(std::ofstream &stream){
     }
     
     stream << "Channel " << cpu_count+slaveInterfaces.size() << ": Coherence bus\n";
+}
+
+std::vector<std::vector<int> > 
+Crossbar::retrieveInterferenceStats(){
+    return interferenceEvents;
+}
+
+void 
+Crossbar::resetInterferenceStats(){
+    for(int i=0;i<interferenceEvents.size();i++){
+        for(int j=0;j<interferenceEvents[0].size();j++){
+            interferenceEvents[i][j] = 0;
+        }
+    }
 }
 
 Tick

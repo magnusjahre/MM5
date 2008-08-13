@@ -99,8 +99,8 @@ class DetailedStandAlone(Root):
         else:
             panic('Unknown interconnect selected')
             
-        if useFairAMHA:
-            self.interconnect.adaptive_mha = self.adaptiveMHA
+        #if useFairAMHA:
+        self.interconnect.adaptive_mha = self.adaptiveMHA
             
         if profileStart != -1 and optionString != 'bus':
             self.interconnectProfiler = InterconnectProfile()

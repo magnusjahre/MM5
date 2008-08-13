@@ -40,6 +40,8 @@ class Crossbar : public Interconnect
         bool doFairArbitration;
         std::vector<Tick> virtualFinishTimes;
         
+        std::vector<std::vector<int> > interferenceEvents;
+        
         bool checkCrossbarState(InterconnectRequest* req,
                                 int toInterfaceID,
                                 std::vector<bool>* state,
@@ -77,7 +79,7 @@ class Crossbar : public Interconnect
                               std::vector<Addr> &destinationAddrs,
                               std::vector<MemCmd> &currentCommands);
         
-        struct reqLess : public binary_function<InterconnectRequest*, InterconnectRequest* ,bool> {
+        struct reqLess : public std::binary_function<InterconnectRequest*, InterconnectRequest* ,bool> {
             bool operator()(InterconnectRequest* a, InterconnectRequest* b){
                 return a->time < b->time;
             }
@@ -195,6 +197,10 @@ class Crossbar : public Interconnect
         * @see InterconnectProfile
         */
         void writeChannelDecriptor(std::ofstream &stream);
+        
+        virtual std::vector<std::vector<int> > retrieveInterferenceStats();
+        
+        virtual void resetInterferenceStats();
 };
 
 #endif // __CROSSBAR_HH__

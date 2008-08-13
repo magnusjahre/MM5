@@ -230,37 +230,7 @@ class Interconnect : public BaseHier
                  int _arbDelay,
                  int _cpu_count,
                  HierParams *_hier,
-                 AdaptiveMHA* _adaptiveMHA)
-            : BaseHier(_name, _hier){
-
-            width = _width;
-            clock = _clock;
-            transferDelay = _transDelay;
-            arbitrationDelay = _arbDelay;
-            cpu_count = _cpu_count;
-            
-            if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
-            else adaptiveMHA = NULL;
-            
-    
-            if(clock != 1){
-                fatal("The interconnects are only implemented to run "
-                      "at the same frequency as the CPU core");
-            }
-            
-            if(cpu_count < 1){
-                fatal("There must be at least one CPU in the system");
-            }
-            
-            masterInterfaceCount = -1;
-            slaveInterfaceCount = -1;
-            totalInterfaceCount = -1;
-            
-            blocked = false;
-            blockedAt = -1;
-            waitingFor = -1;
-            
-        }
+                 AdaptiveMHA* _adaptiveMHA);
         
         ~Interconnect(){ /* does nothing */ }
         
@@ -431,6 +401,14 @@ class Interconnect : public BaseHier
         virtual void scheduleArbitrationEvent(Tick candidateTime);
         
         void scheduleDeliveryQueueEvent(Tick candidateTime);
+        
+        virtual std::vector<std::vector<int> > retrieveInterferenceStats(){
+            fatal("retrieveInterferenceStats() called on interconnect which does not support it");
+        }
+        
+        virtual void resetInterferenceStats(){
+            fatal("resetInterferenceStats() called on interconnect which does not support it");
+        }
 };
 
 /**

@@ -513,7 +513,7 @@ CREATE_SIM_OBJECT(BaseCache)
 
     // Build BaseCache param object
     BaseCache::Params base_params(addr_range, latency,
-				  block_size, max_miss_count);
+				  block_size, max_miss_count, cpu_count);
 
     //Warnings about prefetcher policy
     if (pf_policy == "none" && (prefetch_miss || prefetch_access)) {

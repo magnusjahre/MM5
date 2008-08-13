@@ -304,6 +304,7 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         if(readBusInterference[i]){
             interference[i][req->adaptiveMHASenderID] += 40;
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
+            bus->addInterference(i, req->adaptiveMHASenderID, BUS_INTERFERENCE);
         }
     }
     
@@ -314,6 +315,7 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         if(readBankInterference[i] > 0){
             interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
+            bus->addInterference(i, req->adaptiveMHASenderID, CONFLICT_INTERFERENCE);
         }
     }
     
@@ -322,6 +324,9 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
         && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
         //NOTE: might want to add these to measurements
         bus->incInterferenceMisses();
+        bus->addInterference(req->adaptiveMHASenderID, 
+                             getLastActivatedBy(getMemoryBankID(req->paddr)), 
+                             HIT_TO_MISS_INTERFERENCE);
     }
     
     // Detect constructive interference

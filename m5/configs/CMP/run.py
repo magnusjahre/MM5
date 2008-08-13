@@ -371,7 +371,7 @@ else:
     if 'ISEXPERIMENT' in env:
         # add 10M cycles warm-up to avoid startup effects (and to make sure that stats are reset only once)
         warmup = 1000000
-        simulateCycles = int(env['SIMULATETICKS'] + warmup)
+        simulateCycles = int(env['SIMULATETICKS']) + warmup
         Statistics.dump_reset = True
         Statistics.dump_cycle = simulateStart + warmup
     else:
@@ -437,9 +437,9 @@ if l2mshrs != -1:
         bank.mshrs = l2mshrs
         bank.tgts_per_mshr = l2mshrTargets
         
-if useFairAdaptiveMHA:
-    for l2 in root.l2:
-        l2.adaptive_mha = root.adaptiveMHA
+#if useFairAdaptiveMHA:
+for l2 in root.l2:
+    l2.adaptive_mha = root.adaptiveMHA
 
 if env["CACHE-PARTITIONING"] == "StaticUniform":
     for bank in root.l2:
@@ -459,6 +459,9 @@ if cacheProfileStart != -1:
 if simulationEnds != -1:
     for bank in root.l2:
         bank.detailed_sim_end_tick = simulationEnds
+        
+    root.adaptiveMHA.printInterference = True
+    root.adaptiveMHA.finalSimTick = simulationEnds
 
         
 if L2BankSize != -1:

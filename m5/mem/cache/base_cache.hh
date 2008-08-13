@@ -116,6 +116,9 @@ class BaseCache : public BaseMem {
     CacheAliveCheckEvent* checkEvent;
     Tick blockedAt;
 
+    std::vector<std::vector<int> > interferenceEventsBW;
+    std::vector<std::vector<int> > interferenceEventsCapacity;
+    
   protected:
       
     /** The master interface, typically nearer to Main Memory */
@@ -283,13 +286,15 @@ class BaseCache : public BaseMem {
 	 */
 	Counter maxMisses;
         
+        int baseCacheCPUCount;
+        
 	/**
 	 * Construct an instance of this parameter class.
 	 */
 	Params(std::vector<Range<Addr> > addr_range,
-	       int hit_latency, int _blkSize, Counter max_misses)
+               int hit_latency, int _blkSize, Counter max_misses, int _baseCacheCPUCount)
 	    : addrRange(addr_range), hitLatency(hit_latency), blkSize(_blkSize),
-	      maxMisses(max_misses)
+	      maxMisses(max_misses), baseCacheCPUCount(_baseCacheCPUCount)
 	{
 	}
     };
@@ -509,6 +514,12 @@ class BaseCache : public BaseMem {
     }
     
     void checkIfCacheAlive();
+    
+    std::vector<std::vector<int> > retrieveBWInterferenceStats();
+    void resetBWInterferenceStats();
+    std::vector<std::vector<int> > retrieveCapacityInterferenceStats();
+    void resetCapacityInterferenceStats();
+    void addCapacityInterference(int victimID, int interfererID);
     
     virtual void handleProfileEvent() = 0;
     

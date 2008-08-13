@@ -9,6 +9,7 @@
 #include "mem/bus/bus.hh"
 #include "mem/mem_req.hh"
 #include "sim/eventq.hh"
+#include "mem/interconnect/interconnect.hh"
 
 #include <fstream>
 
@@ -47,6 +48,7 @@ class AdaptiveMHA : public SimObject{
         int numRepeatDecisions;
         
         Bus* bus;
+        Interconnect* interconnect;
         
         AdaptiveMHASampleEvent* sampleEvent;
         
@@ -81,6 +83,9 @@ class AdaptiveMHA : public SimObject{
         int localResetCounter;
         double reductionThreshold;
         double interferencePointMinAllowed;
+        
+        bool printInterference;
+        Tick finalSimTick;
         
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
@@ -130,7 +135,9 @@ class AdaptiveMHA : public SimObject{
                     bool _useFairAMHA,
                     int _resetCounter,
                     double _reductionThreshold,
-                    double _interferencePointMinAllowed);
+                    double _interferencePointMinAllowed,
+                    bool _printInterference,
+                    Tick _finalSimTick);
         
         ~AdaptiveMHA();
         
@@ -143,7 +150,14 @@ class AdaptiveMHA : public SimObject{
             assert(bus != NULL);
         }
         
+        void registerInterconnect(Interconnect* _interconnect){
+            interconnect = _interconnect;
+            assert(interconnect != NULL);
+        }
+        
         void handleSampleEvent(Tick time);
+        
+        void handleInterferenceDumpEvent();
         
         int getCPUCount(){
             return adaptiveMHAcpuCount;
@@ -226,6 +240,28 @@ class AdaptiveMHASampleEvent : public Event
 
         virtual const char *description(){
             return "AdaptiveMHASampleEvent";
+        }
+};
+
+class AdaptiveMHADumpInterferenceEvent : public Event
+{
+
+    public:
+        
+        AdaptiveMHA* adaptiveMHA;
+        
+        AdaptiveMHADumpInterferenceEvent(AdaptiveMHA* _adaptiveMHA)
+            : Event(&mainEventQueue), adaptiveMHA(_adaptiveMHA)
+        {
+        }
+        
+        void process(){
+            adaptiveMHA->handleInterferenceDumpEvent();
+            delete this;
+        }
+
+        virtual const char *description(){
+            return "AdaptiveMHADumpInterferenceEvent";
         }
 };
 

@@ -69,6 +69,8 @@ class TimingMemoryController;
 
 using namespace std;
 
+typedef enum{BUS_INTERFERENCE, CONFLICT_INTERFERENCE, HIT_TO_MISS_INTERFERENCE} interference_type;
+
 /**
  * A arbitrated split transaction bus model.
  */
@@ -79,6 +81,10 @@ class Bus : public BaseHier
     TimingMemoryController *simMemoryController;
     Tick detailedSimulationStart;
     int bank_count;
+    
+    std::vector<std::vector<int> > busInterference;
+    std::vector<std::vector<int> > conflictInterference;
+    std::vector<std::vector<int> > hitToMissInterference;
     
   public:
     /** Width of the bus in bytes. */
@@ -283,6 +289,14 @@ class Bus : public BaseHier
     std::vector<int> getDataUsePerCPUId();
     void resetAdaptiveStats();
     
+    
+    std::vector<std::vector<int> > retrieveBusInterferenceStats();
+    void resetBusInterferenceStats();
+    std::vector<std::vector<int> > retrieveConflictInterferenceStats();
+    void resetConflictInterferenceStats();
+    std::vector<std::vector<int> > retrieveHitToMissInterferenceStats();
+    void resetHitToMissInterferenceStats();
+    void addInterference(int victimID, int interfererID, interference_type iType);
 
   private:
     std::vector<int> perCPUDataBusUse;
