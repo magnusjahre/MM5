@@ -201,6 +201,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool isDDRTestReq;
     bool isMemTestReq;
     Tick virtualStartTime;
+    bool instructionMiss;
     
     /**
      * Contruct and initialize a memory request.
@@ -252,7 +253,8 @@ class MemReq : public FastAlloc, public RefCounted
           expectCompletionEvent(false),
           isDDRTestReq(false),
           isMemTestReq(false),
-          virtualStartTime(0)
+          virtualStartTime(0),
+          instructionMiss(false)
     {
     }
 
@@ -299,6 +301,7 @@ class MemReq : public FastAlloc, public RefCounted
         isDDRTestReq = r.isDDRTestReq;
         isMemTestReq = r.isMemTestReq;
         virtualStartTime = r.virtualStartTime;
+        instructionMiss = r.instructionMiss;
     }
 
     /**

@@ -311,6 +311,25 @@ BaseCache::regStats()
         .name(name() + ".congestion_delay")
         .desc("Additional delay due to congestion")
         ;
+    
+    cpuInterferenceCycles
+        .init(cpuCount)
+        .name(name() + ".cpu_interference_cycles")
+        .desc("total number of cycles the requests of a CPU was delayed")
+        .flags(total)
+        ;
+    
+    cpuCapacityInterference
+        .init(cpuCount)
+        .name(name() + ".cpu_capacity_interference")
+        .desc("total number of evictions by a different processor")
+        .flags(total)
+        ;
+    
+    recvMissResponses
+        .name(name() + ".miss_responses_recv")
+        .desc("Number of the issued misses where the response has arrived")
+        ;
 }
 
 void
@@ -399,6 +418,7 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     }
     
     if (!req->isUncacheable()) {
+        recvMissResponses++;
         missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
     }
     
@@ -448,6 +468,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
               interference[req->adaptiveMHASenderID][i] = curIP;
               delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
               interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
+              cpuInterferenceCycles[req->adaptiveMHASenderID] += curIP;
             }
         }
                 
@@ -513,5 +534,6 @@ BaseCache::resetCapacityInterferenceStats(){
 
 void
 BaseCache::addCapacityInterference(int victimID, int interfererID){
+    cpuCapacityInterference[victimID]++;
     interferenceEventsCapacity[victimID][interfererID]++;
 }

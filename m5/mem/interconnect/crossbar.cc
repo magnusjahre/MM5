@@ -76,8 +76,8 @@ Crossbar::arbitrate(Tick cycle){
     if(adaptiveMHA != NULL){
         for(int i=0;i<grantedCPUs.size();i++){
             
-            std::vector<bool> isBlocking(cpu_count, false);
-            std::vector<bool> isRead(cpu_count, false);
+            vector<bool> isBlocking(cpu_count, false);
+            vector<bool> isRead(cpu_count, false);
             
             if(!notGrantedReqs.empty()){
                 list<InterconnectRequest* >::iterator notGrantedIterator;
@@ -98,6 +98,9 @@ Crossbar::arbitrate(Tick cycle){
                             : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
                     
                     if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
+                        
+                        cpuInterferenceCycles[cpuID]++;
+                        
                         // only update values if we have not encountered a request from this processor before
                         if(!isBlocking[cpuID]){
                             isBlocking[cpuID] = true;

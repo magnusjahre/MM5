@@ -135,6 +135,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->isDDRTestReq = r->isDDRTestReq;
     req->isMemTestReq = r->isMemTestReq;
     req->virtualStartTime = r->virtualStartTime;
+    req->instructionMiss = r->instructionMiss;
     
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
@@ -197,6 +198,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->isDDRTestReq = from->isDDRTestReq;
     to->isMemTestReq = from->isMemTestReq;
     to->virtualStartTime = from->virtualStartTime;
+    to->instructionMiss = from->instructionMiss;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     

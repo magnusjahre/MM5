@@ -253,6 +253,27 @@ Bus::regStats()
             .name(name() + ".constructive_interference_hits")
             .desc("The number of page hits due to constructive interference")
             ;
+    
+    cpuInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_interference_bus")
+        .desc("aggregated delay due to serialization on bus")
+        .flags(total)
+        ;
+    
+    cpuConflictInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_interference_conflict")
+        .desc("aggregated delay due to bus conflicts")
+        .flags(total)
+        ;
+    
+    cpuHtMInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_interference_htm")
+        .desc("aggregated delay due to hits becoming misses")
+        .flags(total)
+        ;
 }
 
 void
@@ -649,6 +670,23 @@ Bus::addInterference(int victimID, int interfererID, interference_type iType){
             break;
         case HIT_TO_MISS_INTERFERENCE:
             hitToMissInterference[victimID][interfererID]++;
+            break;
+        default:
+            fatal("Unknown interference type");
+    }
+}
+
+void
+Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
+    switch(iType){
+        case BUS_INTERFERENCE:
+            cpuInterferenceCycles[victimID] += delay;
+            break;
+        case CONFLICT_INTERFERENCE:
+            cpuConflictInterferenceCycles[victimID] += delay;
+            break;
+        case HIT_TO_MISS_INTERFERENCE:
+            cpuHtMInterferenceCycles[victimID] += delay;
             break;
         default:
             fatal("Unknown interference type");

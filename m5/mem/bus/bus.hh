@@ -135,6 +135,10 @@ class Bus : public BaseHier
     
     Stats::Scalar<> interferenceRemovedHits;
     Stats::Scalar<> constructiveInterferenceHits;
+    
+    Stats::Vector<> cpuInterferenceCycles;
+    Stats::Vector<> cpuConflictInterferenceCycles;
+    Stats::Vector<> cpuHtMInterferenceCycles;
 
     /** The last cycle the data arbiter was run, used for debugging. */
     Tick runDataLast;
@@ -297,6 +301,7 @@ class Bus : public BaseHier
     std::vector<std::vector<int> > retrieveHitToMissInterferenceStats();
     void resetHitToMissInterferenceStats();
     void addInterference(int victimID, int interfererID, interference_type iType);
+    void addInterferenceCycles(int victimID, Tick delay, interference_type iType);
 
   private:
     std::vector<int> perCPUDataBusUse;

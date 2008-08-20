@@ -118,6 +118,12 @@ Interconnect::regStats(){
         .flags(total)
         ;
     
+    cpuInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_interference_cycles")
+        .desc("total number of cycles the requests of a CPU was delayed")
+        .flags(total)
+        ;
     
     /* Other statistics */
     avgTotalDelayCyclesPerRequest
@@ -133,6 +139,11 @@ Interconnect::regStats(){
     requests
             .name(name() + ".requests")
             .desc("total number of requests")
+            ;
+    
+    masterRequests
+            .name(name() + ".master_requests")
+            .desc("total number of requests from a master")
             ;
     
     arbitratedRequests
@@ -237,6 +248,7 @@ Interconnect::incNullRequests(){
 void
 Interconnect::request(Tick time, int fromID){
     
+    if(allInterfaces[fromID]->isMaster()) masterRequests++;
     requests++;
     
     if(requestQueue.empty() || requestQueue.back()->time < time){

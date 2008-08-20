@@ -91,6 +91,9 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
         // make sure owner ID is copied to the new request
         // necessary for the AdaptiveMHA
         req->adaptiveMHASenderID = target->adaptiveMHASenderID;
+        
+//         if(cache->isInstructionCache) req->instructionMiss = true;
+//         else req->instructionMiss = target->instructionMiss;
     }
 }
 
@@ -124,6 +127,8 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->enteredMemSysAt = target->enteredMemSysAt;
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     
+//     if(cache->isInstructionCache) req->instructionMiss = true;
+//     else req->instructionMiss = target->instructionMiss;
 }
 
 void
