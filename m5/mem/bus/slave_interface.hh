@@ -67,7 +67,7 @@ class SlaveInterface : public BusInterface<BusType>
      * @param mem_trace The memory trace to write references to.
      */
     SlaveInterface(const std::string &name, HierParams *hier, MemType *_mem, 
-		   BusType *bus, MemTraceWriter *mem_trace);
+		   BusType *bus, MemTraceWriter *mem_trace, bool isShadow = false);
 
     /**
      * Destructor.

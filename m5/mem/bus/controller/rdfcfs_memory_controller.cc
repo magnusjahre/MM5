@@ -314,7 +314,6 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     for(int i=0;i<readBankInterference.size();i++){
         if(readBankInterference[i] > 0){
             interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
-            bus->addInterferenceCycles(i, 120, CONFLICT_INTERFERENCE);
             delayedIsRead[i][req->adaptiveMHASenderID] = true;
             bus->addInterference(i, req->adaptiveMHASenderID, CONFLICT_INTERFERENCE);
         }
@@ -324,7 +323,6 @@ RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
     if(!isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
         && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
         //NOTE: might want to add these to measurements
-        bus->addInterferenceCycles(req->adaptiveMHASenderID, 200, HIT_TO_MISS_INTERFERENCE);
         bus->incInterferenceMisses();
         bus->addInterference(req->adaptiveMHASenderID, 
                              getLastActivatedBy(getMemoryBankID(req->paddr)), 
@@ -359,7 +357,6 @@ RDFCFSTimingMemoryController::hasReadyRequestWaiting(MemReqPtr& req, std::list<M
         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
             if(isReady(tmp)){
                 // interference on bus
-                bus->addInterferenceCycles(tmp->adaptiveMHASenderID, 40, BUS_INTERFERENCE);
                 retval[tmp->adaptiveMHASenderID] = true;
             }
         }
@@ -407,6 +404,21 @@ RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<M
     for(int i=0;i<localCpuCnt;i++) retval[i] = retval[i] >> 1;
     
     return retval;
+}
+
+void
+RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
+    //NOTE: this method is called at the tick the memory transaction starts
+    // therefore, all reqs in the queue have actually delayed by this req
+    
+    std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
+    while(tmpIterator != readQueue.end()){
+        MemReqPtr tmpReq = *tmpIterator;
+        if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
+            tmpReq->busDelay += lat;
+        }
+        tmpIterator++;
+    }
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

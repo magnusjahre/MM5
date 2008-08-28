@@ -47,6 +47,8 @@ template <class BusType>
 class BusInterface : public BaseInterface
 {
   protected:
+    bool isShadow;
+      
     /** The bus this interface is connected to. */
     BusType *bus;
     
@@ -97,7 +99,7 @@ class BusInterface : public BaseInterface
      * @param master True if this interface is a master interface.
      */
     BusInterface(const std::string &name, HierParams *hier, BusType *bus,
-		 bool master);
+		 bool master, bool _isShadow = false);
 
     /**
      * Return the bus id of this interface.

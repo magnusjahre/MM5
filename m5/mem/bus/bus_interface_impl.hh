@@ -43,11 +43,17 @@ using namespace std;
 
 template <class BusType>
 BusInterface<BusType>::BusInterface(const string &name, HierParams *hier,
-				    BusType *_bus, bool master)
+                                    BusType *_bus, bool master, bool _isShadow)
     : BaseInterface(name, hier), bus(_bus)
 {
-    id = bus->registerInterface(this, master);
-    bus->rangeChange();
+    isShadow = _isShadow;
+    if(_isShadow){
+        id = 42;
+    }
+    else{
+        id = bus->registerInterface(this, master);
+        bus->rangeChange();
+    }
 }
 
 template <class BusType>

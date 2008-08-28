@@ -51,8 +51,9 @@ SlaveInterface<MemType, BusType>::SlaveInterface(const string &name,
 						 HierParams *hier,
 						 MemType *_mem,
 						 BusType *bus,
-						 MemTraceWriter *mem_trace)
-    : BusInterface<BusType>(name, hier, bus, false), mem(_mem),
+						 MemTraceWriter *mem_trace,
+                                                 bool isShadow)
+    : BusInterface<BusType>(name, hier, bus, false, isShadow), mem(_mem),
       memTrace(mem_trace)
 {
 }
@@ -66,6 +67,8 @@ SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 {
     int retval;
     bool already_satisfied = req->isSatisfied();
+    
+   
     assert(!already_satisfied);
 
     if (this->inRange(req->paddr)) {
@@ -125,7 +128,7 @@ template <class MemType, class BusType>
 void
 SlaveInterface<MemType, BusType>::respond(MemReqPtr &req, Tick time)
 {
-	this->bus->latencyCalculated(req, time);
+    this->bus->latencyCalculated(req, time, this->isShadow);
 }
 
 template <class MemType, class BusType>

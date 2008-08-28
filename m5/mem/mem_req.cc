@@ -136,6 +136,8 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->isMemTestReq = r->isMemTestReq;
     req->virtualStartTime = r->virtualStartTime;
     req->instructionMiss = r->instructionMiss;
+    req->busDelay = r->busDelay;
+    req->shadowCtrlID = r->shadowCtrlID;
     
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
@@ -199,11 +201,13 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->isMemTestReq = from->isMemTestReq;
     to->virtualStartTime = from->virtualStartTime;
     to->instructionMiss = from->instructionMiss;
+    to->busDelay = from->busDelay;
+    to->shadowCtrlID = from->shadowCtrlID;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     
-    to->data = new uint8_t[from->size];
     if (from->data != NULL) {
+        to->data = new uint8_t[from->size];
         memcpy(to->data, from->data, from->size);
     }
     

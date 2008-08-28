@@ -203,6 +203,9 @@ class MemReq : public FastAlloc, public RefCounted
     Tick virtualStartTime;
     bool instructionMiss;
     
+    Tick busDelay;
+    int shadowCtrlID;
+    
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -254,7 +257,9 @@ class MemReq : public FastAlloc, public RefCounted
           isDDRTestReq(false),
           isMemTestReq(false),
           virtualStartTime(0),
-          instructionMiss(false)
+          instructionMiss(false),
+          busDelay(0),
+          shadowCtrlID(-1)
     {
     }
 
@@ -302,6 +307,8 @@ class MemReq : public FastAlloc, public RefCounted
         isMemTestReq = r.isMemTestReq;
         virtualStartTime = r.virtualStartTime;
         instructionMiss = r.instructionMiss;
+        busDelay = r.busDelay;
+        shadowCtrlID = r.shadowCtrlID;
     }
 
     /**

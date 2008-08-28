@@ -129,6 +129,10 @@ class TimingMemoryController : public SimObject
     bool isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID);
     
     int getLastActivatedBy(int bank);
+    
+    virtual void addInterference(MemReqPtr &req, Tick lat){
+        fatal("not implemented");
+    }
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

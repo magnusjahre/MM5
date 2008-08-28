@@ -11,7 +11,8 @@ class BaseL1Cache(BaseCache):
     block_size = 64
     mshrs = 16
     write_buffers = 8
-    tgts_per_mshr = 4
+    #tgts_per_mshr = 4
+    tgts_per_mshr = 64 #Eliminates target blocking FIXME!!!
     cpu_count = int(env['NP'])
     is_shared = False
     simulate_contention = False

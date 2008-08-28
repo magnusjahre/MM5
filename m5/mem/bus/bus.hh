@@ -52,6 +52,11 @@
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/bus/controller/memory_controller.hh"
 
+#include "base/compression/null_compression.hh"
+#include "mem/timing/simple_mem_bank.hh"
+
+#include "mem/bus/slave_interface.hh"
+
 //NOTE: these should _never_ be defined when running experiments!
 // #define DO_BUS_TRACE 1
 // #define INJECT_TEST_REQUESTS 1
@@ -85,6 +90,12 @@ class Bus : public BaseHier
     std::vector<std::vector<int> > busInterference;
     std::vector<std::vector<int> > conflictInterference;
     std::vector<std::vector<int> > hitToMissInterference;
+    
+    std::vector<TimingMemoryController* > shadowControllers;
+    std::vector<SimpleMemBank<NullCompression>* > shadowMemories;
+    std::vector<SlaveInterface<SimpleMemBank<NullCompression>, Bus>* > shadowSlaveInterfaces;
+    std::vector<MemoryControllerEvent* > shadowEvents;
+    std::vector<std::map<Addr, int> > aloneLatencyStorage;
     
   public:
     /** Width of the bus in bytes. */
@@ -274,9 +285,9 @@ class Bus : public BaseHier
     
     void incrementBlockedCycles(Tick cycles);
 
-    void handleMemoryController(void);
+    void handleMemoryController(bool isShadow, int ctrlID);
 
-    void latencyCalculated(MemReqPtr &req, Tick time);
+    void latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow);
     
     void switchMemoryController();
     
@@ -427,6 +438,8 @@ class Bus : public BaseHier
 	return busCycle * clockRate;
     }
     
+    void buildShadowControllers(int np, HierParams* hp);
+    
 #ifdef INJECT_TEST_REQUESTS
     void generateRequests();
 #endif
@@ -546,16 +559,18 @@ class DeliverEvent : public Event
 class MemoryControllerEvent : public Event
 {
     Bus *bus;
+    bool isShadow;
+    int controllerID;
+    
   public:
     // constructor
     /** A simple constructor. */
-    MemoryControllerEvent(Bus *_bus)
-	: Event(&mainEventQueue, Memory_Controller_Pri), bus(_bus)
+    MemoryControllerEvent(Bus *_bus, bool _isShadow, int _controllerID)
+	: Event(&mainEventQueue, Memory_Controller_Pri), bus(_bus), isShadow(_isShadow), controllerID(_controllerID)
     {
     }
 
     // event execution function
-    /** Calls BusInterface::deliver() */
     void process();
     /**
      * Returns the string description of this event.
@@ -570,6 +585,7 @@ class MemoryControllerEvent : public Event
 class MemoryControllerSwitchEvent : public Event
 {
     Bus *bus;
+    
     public:
     // constructor
     /** A simple constructor. */
