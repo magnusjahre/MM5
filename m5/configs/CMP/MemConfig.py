@@ -10,7 +10,7 @@ class BaseL1Cache(BaseCache):
     assoc = 8
     block_size = 64
     
-    #Eliminates target blocking FIXME!!!
+    #Eliminates blocking FIXME!!!
     mshrs = 64
     write_buffers = 64
     tgts_per_mshr = 64 
