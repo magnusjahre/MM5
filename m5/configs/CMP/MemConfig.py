@@ -9,10 +9,16 @@ class BaseL1Cache(BaseCache):
     size = '64kB'
     assoc = 8
     block_size = 64
-    mshrs = 16
-    write_buffers = 8
+    
+    #Eliminates target blocking FIXME!!!
+    mshrs = 64
+    write_buffers = 64
+    tgts_per_mshr = 64 
+    
+    #mshrs = 16
+    #write_buffers = 8
     #tgts_per_mshr = 4
-    tgts_per_mshr = 64 #Eliminates target blocking FIXME!!!
+
     cpu_count = int(env['NP'])
     is_shared = False
     simulate_contention = False
@@ -30,9 +36,15 @@ class L2Bank(BaseCache):
     assoc = 16
     block_size = 64
     latency = 18 * Parent.clock.period
-    mshrs = 8
-    tgts_per_mshr = 4
-    write_buffers = 16
+    
+    mshrs = 64
+    tgts_per_mshr = 64
+    write_buffers = 64
+    
+    #mshrs = 8
+    #tgts_per_mshr = 4
+    #write_buffers = 16
+    
     cpu_count = int(env['NP'])
     is_shared = True
     is_read_only = False
@@ -124,6 +136,7 @@ class ConventionalMemBus(Bus):
 class ReadyFirstMemoryController(RDFCFSMemoryController):
     readqueue_size = 64
     writequeue_size = 64
+    
     reserved_slots = 2
     
 class FastForwardMemoryController(RDFCFSMemoryController):

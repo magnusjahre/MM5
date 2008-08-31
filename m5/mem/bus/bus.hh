@@ -95,7 +95,7 @@ class Bus : public BaseHier
     std::vector<SimpleMemBank<NullCompression>* > shadowMemories;
     std::vector<SlaveInterface<SimpleMemBank<NullCompression>, Bus>* > shadowSlaveInterfaces;
     std::vector<MemoryControllerEvent* > shadowEvents;
-    std::vector<std::map<Addr, int> > aloneLatencyStorage;
+    std::vector<std::map<Addr, int> > latencyStorage;
     
   public:
     /** Width of the bus in bytes. */
@@ -150,6 +150,10 @@ class Bus : public BaseHier
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuConflictInterferenceCycles;
     Stats::Vector<> cpuHtMInterferenceCycles;
+    
+    Stats::Vector<> shadowCtrlPageHits;
+    Stats::Vector<> shadowCtrlAccesses;
+    Stats::Vector<> shadowUseCycles;
 
     /** The last cycle the data arbiter was run, used for debugging. */
     Tick runDataLast;

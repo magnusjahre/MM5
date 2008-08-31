@@ -12,6 +12,7 @@ TimingMemoryController::TimingMemoryController(std::string _name)
     : SimObject(_name) {
   isBlockedFlag = false;
   isPrewriteBlockedFlag = false;
+  isShadow = false;
 }
 
 /** Frees locally allocated memory. */

@@ -74,6 +74,9 @@ Crossbar::arbitrate(Tick cycle){
     
     //measure interference
     if(adaptiveMHA != NULL){
+        
+        vector<int> interferenceDelay(cpu_count, 0);
+        
         for(int i=0;i<grantedCPUs.size();i++){
             
             vector<bool> isBlocking(cpu_count, false);
@@ -86,33 +89,34 @@ Crossbar::arbitrate(Tick cycle){
                 while(notGrantedIterator != notGrantedReqs.end()){
                     InterconnectRequest* tmpReq = *notGrantedIterator;
                     
-                    int cpuID = -1;
-                    (allInterfaces[tmpReq->fromID]->isMaster() 
-                            ? cpuID = interconnectIDToProcessorIDMap[tmpReq->fromID] 
-                            : cpuID = interconnectIDToProcessorIDMap[getDestinationId(tmpReq->fromID)]);
-                    assert(cpuID >= 0 && cpuID < cpu_count);
-                    
-                    int bankID = -1;
-                    (allInterfaces[tmpReq->fromID]->isMaster() 
-                            ? bankID = interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)] + cpu_count
-                            : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
-                    
-                    if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
+                    if(tmpReq->time <= candiateReqTime){
+                        int tmpDestID = getDestinationId(tmpReq->fromID);
                         
-                        cpuInterferenceCycles[cpuID]++;
+                        int cpuID = -1;
+                        (allInterfaces[tmpReq->fromID]->isMaster() 
+                                ? cpuID = interconnectIDToProcessorIDMap[tmpReq->fromID] 
+                                : cpuID = interconnectIDToProcessorIDMap[tmpDestID]);
+                        assert(cpuID >= 0 && cpuID < cpu_count);
                         
-                        // only update values if we have not encountered a request from this processor before
-                        if(!isBlocking[cpuID]){
-                            isBlocking[cpuID] = true;
+                        int bankID = -1;
+                        (allInterfaces[tmpReq->fromID]->isMaster() 
+                                ? bankID = interconnectIDToL2IDMap[tmpDestID] + cpu_count
+                                : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
+                        
+                        if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
+                            interferenceDelay[cpuID] = 1;
                             
-                            MemCmd delayedCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
-                            if(delayedCmd == Read) isRead[cpuID] = true;
-                            else isRead[cpuID] = false;
+                            // only update values if we have not encountered a request from this processor before
+                            if(!isBlocking[cpuID]){
+                                isBlocking[cpuID] = true;
+                                
+                                MemCmd delayedCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
+                                if(delayedCmd == Read) isRead[cpuID] = true;
+                                else isRead[cpuID] = false;
+                            }
+    
                         }
-
                     }
-                    
-                    
                     notGrantedIterator++;
                 }
                 
@@ -134,6 +138,28 @@ Crossbar::arbitrate(Tick cycle){
                                                   INTERCONNECT_INTERFERENCE,
                                                   delayedIsRead);
             }
+        }
+        
+        // Check for delays due to blocking (assume this is interference)
+        list<InterconnectRequest* >::iterator blockingNotGrantIterator;
+        blockingNotGrantIterator = notGrantedReqs.begin();
+                
+        while(blockingNotGrantIterator != notGrantedReqs.end()){
+            InterconnectRequest* tmpReq = *blockingNotGrantIterator;
+            
+            if(tmpReq->time <= candiateReqTime){
+                
+                if(allInterfaces[tmpReq->fromID]->isMaster() && 
+                   blockedInterfaces[interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)]]){
+                    interferenceDelay[interconnectIDToProcessorIDMap[tmpReq->fromID]] = 1;
+                }
+            
+            }
+            blockingNotGrantIterator++;
+        }
+        
+        for(int i=0;i<cpu_count;i++){
+            cpuInterferenceCycles[i] += interferenceDelay[i];
         }
     }
     
@@ -178,30 +204,20 @@ Crossbar::doStandardArbitration(Tick candiateReqTime,
                 // check if destination is blocked
             if(!(allInterfaces[toInterfaceID]->isMaster()) 
                  && blockedInterfaces[interconnectIDToL2IDMap[toInterfaceID]]){
-                    // the destination cache is blocked, so we can not deliver to it
+                // the destination cache is blocked, so we can not deliver to it
                 notGrantedReqs.push_back(req);
                 continue;
-                 }
+            }
+            
+            // check if the request can be granted access
+            bool grantAccess = checkCrossbarState(req,toInterfaceID,&occupiedEndNodes,&busIsUsed,cycle);
                 
-                // check if the request can be granted access
-                 bool grantAccess = checkCrossbarState(req,
-                         toInterfaceID,
-                         &occupiedEndNodes,
-                         &busIsUsed,
-                         cycle);
-                
-                 if(grantAccess){
-                     grantInterface(req,
-                                    toInterfaceID,
-                                    cycle,
-                                    grantedCPUs,
-                                    toBanks,
-                                    destinationAddrs,
-                                    currentCommands);
-                 }
-                 else{
-                     notGrantedReqs.push_back(req);
-                 }
+            if(grantAccess){
+                grantInterface(req,toInterfaceID,cycle,grantedCPUs,toBanks,destinationAddrs,currentCommands);
+            }
+            else{
+                notGrantedReqs.push_back(req);
+            }
         }
         else{
                 // not ready

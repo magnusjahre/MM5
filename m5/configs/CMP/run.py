@@ -309,14 +309,22 @@ elif env['BENCHMARK'] in single_core.configuration:
         fwticks = int(env['FASTFORWARDTICKS'])
     fwticks = fwticks
     
-    simulateCycles = int(env['SIMULATETICKS'])
-    if 'ISEXPERIMENT' in env:
-        warmup = 1000000
-        simulateCycles = int(env['SIMULATETICKS'] + warmup)
-        Statistics.dump_reset = True
-        Statistics.dump_cycle = fwticks + warmup
+    warmup = 0
+    if 'SIMULATETICKS' in env:
+        assert 'SIMINTS' not in env
+        simulateCycles = int(env['SIMULATETICKS'])
+        if 'ISEXPERIMENT' in env:
+            simulateCycles = int(env['SIMULATETICKS'] + warmup)
+            Statistics.dump_reset = True
+            Statistics.dump_cycle = fwticks + warmup
+        else:
+            warmup = 0
+            
     else:
-        warmup = 0
+        assert 'SIMULATETICKS' not in env
+        simulateCycles = 300000000 # max cycles, hopefully not necessary
+        for cpu in root.detailedCPU:
+            cpu.max_insts_any_thread = int(env['SIMINSTS'])
     
     root.sampler = Sampler()
     root.sampler.phase0_cpus = Parent.simpleCPU
@@ -369,8 +377,8 @@ else:
     
     simulateStart = max(fwCycles)
     if 'ISEXPERIMENT' in env:
-        # add 10M cycles warm-up to avoid startup effects (and to make sure that stats are reset only once)
-        warmup = 1000000
+        # warm up removed as it will influence alone and shared configs differently
+        warmup = 0
         simulateCycles = int(env['SIMULATETICKS']) + warmup
         Statistics.dump_reset = True
         Statistics.dump_cycle = simulateStart + warmup
@@ -482,6 +490,11 @@ root.toMemBus.adaptive_mha = root.adaptiveMHA
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()
+    if "RQS" in env:
+        root.toMemBus.memory_controller.readqueue_size = int(env["RQS"])
+    if "WQS" in env:
+        root.toMemBus.memory_controller.writequeue_size = int(env["WQS"])
+        
 elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
     root.toMemBus.memory_controller = InOrderMemoryController()
 elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":

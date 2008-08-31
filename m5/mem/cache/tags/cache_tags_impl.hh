@@ -581,6 +581,10 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
     if(!cache->isShared){
         writeback->adaptiveMHASenderID = cache->cacheCpuID;
     }
+    else{
+        assert(blk->origRequestingCpuID != -1);
+        writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
+    }
     
     blk->status &= ~BlkDirty;
     return writeback;

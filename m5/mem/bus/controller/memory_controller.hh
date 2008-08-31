@@ -44,6 +44,8 @@ class TimingMemoryController : public SimObject
     bool isPrewriteBlockedFlag;
     BaseInterface *mem_interface;
     
+    bool isShadow;
+    
     Stats::Scalar<> pageHits;
     Stats::Formula pageHitRate;
     
@@ -132,6 +134,10 @@ class TimingMemoryController : public SimObject
     
     virtual void addInterference(MemReqPtr &req, Tick lat){
         fatal("not implemented");
+    }
+    
+    void setShadow(){
+        isShadow = true;
     }
 };
 

@@ -106,7 +106,8 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     }
     
     // estimate interference caused by this request
-    if(retval->cmd == Read || retval->cmd == Writeback){
+    if((retval->cmd == Read || retval->cmd == Writeback) && !isShadow){
+        assert(!isShadow);
         estimateInterference(retval);
         bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
                                      isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
