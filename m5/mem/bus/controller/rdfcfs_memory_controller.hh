@@ -73,5 +73,13 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual void setOpenPages(std::list<Addr> pages);
     
     virtual void addInterference(MemReqPtr &req, Tick lat);
+    
+    virtual int getReadQueueLength(){
+        return readqueue_size;
+    }
+    
+    virtual int getWriteQueueLength(){
+        return writequeue_size;
+    }
 
 };

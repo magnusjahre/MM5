@@ -83,8 +83,6 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
     
-    buildShadowControllers(cpu_count, hier_params);
-    
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -141,6 +139,8 @@ Bus::Bus(const string &_name,
 //     MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
 //     ctrlSwitch->schedule(_switch_at);
     detailedSimulationStart = _switch_at;
+    
+    buildShadowControllers(cpu_count, hier_params);
     
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -408,9 +408,13 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         assert(req->adaptiveMHASenderID != -1);
         MemReqPtr shadowReq = new MemReq();
         copyRequest(shadowReq, req, cpu_count);
-        shadowControllers[shadowReq->adaptiveMHASenderID]->insertRequest(shadowReq);
-        if(!shadowEvents[shadowReq->adaptiveMHASenderID]->scheduled()){
-            shadowEvents[shadowReq->adaptiveMHASenderID]->schedule(curTick);
+        
+        // if the controller is blocked, we cannot issue the request
+        if(!shadowControllers[shadowReq->adaptiveMHASenderID]->isBlocked()){
+            shadowControllers[shadowReq->adaptiveMHASenderID]->insertRequest(shadowReq);
+            if(!shadowEvents[shadowReq->adaptiveMHASenderID]->scheduled()){
+                shadowEvents[shadowReq->adaptiveMHASenderID]->schedule(curTick);
+            }
         }
     }
     
@@ -814,7 +818,8 @@ Bus::buildShadowControllers(int np, HierParams* hp){
         for(int i=0;i<np;i++){
             stringstream ctrlName;
             ctrlName << "ShadowController" << np;
-            RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(), 64, 64, 0);
+            RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
+                    memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0);
             shadowControllers.push_back(tmpCtrl);
             tmpCtrl->registerBus(this, np);
             tmpCtrl->setShadow();

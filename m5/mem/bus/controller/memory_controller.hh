@@ -139,6 +139,14 @@ class TimingMemoryController : public SimObject
     void setShadow(){
         isShadow = true;
     }
+    
+    virtual int getReadQueueLength(){
+        return 0;
+    }
+    
+    virtual int getWriteQueueLength(){
+        return 0;
+    }
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__
