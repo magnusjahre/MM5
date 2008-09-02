@@ -263,6 +263,10 @@ class BaseCache : public BaseMem {
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuCapacityInterference;
     
+    Stats::Vector<> extraMissLatency;
+    Stats::Vector<> numExtraMisses;
+    Stats::Vector<> privateMissSharedHit;
+    
     Stats::Scalar<> recvMissResponses;
 
     /**

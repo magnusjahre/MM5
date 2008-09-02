@@ -97,6 +97,8 @@ class Bus : public BaseHier
     std::vector<MemoryControllerEvent* > shadowEvents;
     std::vector<std::map<Addr, int> > latencyStorage;
     
+    bool infiniteBW;
+    
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -151,6 +153,8 @@ class Bus : public BaseHier
     Stats::Vector<> cpuConflictInterferenceCycles;
     Stats::Vector<> cpuHtMInterferenceCycles;
     
+    Stats::Vector<> blockingInterferenceCycles;
+    
     Stats::Vector<> shadowCtrlPageHits;
     Stats::Vector<> shadowCtrlAccesses;
     Stats::Vector<> shadowUseCycles;
@@ -176,7 +180,8 @@ class Bus : public BaseHier
         int bank_count,
         Tick _switch_at,
         TimingMemoryController* _fwController,
-        TimingMemoryController* _memoryController);
+        TimingMemoryController* _memoryController,
+        bool _infiniteBW);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -209,7 +214,7 @@ class Bus : public BaseHier
      * Decide which outstanding request to service.
      * Also reschedules the arbiter event if needed.
      */
-    void arbitrateAddrBus(int interfaceid);
+    void arbitrateAddrBus(int interfaceid, Tick requestedAt);
 
     /**
      * Decide which outstanding request to service.

@@ -11,4 +11,5 @@ class Bus(BaseHier):
     switch_at = Param.Int("Tick to switch memory controllers")
     fast_forward_controller = Param.TimingMemoryController("Memory controller used in fast-forwarding")
     memory_controller = Param.TimingMemoryController("Memory Controller Object")
+    infinite_bw = Param.Bool("Infinite bandwidth and only page hits")
 

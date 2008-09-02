@@ -486,6 +486,10 @@ for bank in root.l2:
 # set up memory bus and memory controller
 root.toMemBus = ConventionalMemBus()
 root.toMemBus.adaptive_mha = root.adaptiveMHA
+
+if "INFINITE-MEM-BW" in env:
+    root.toMemBus.infinite_bw = True
+
 #root.toMemBus.fast_forward_controller = FastForwardMemoryController()
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":

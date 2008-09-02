@@ -326,6 +326,27 @@ BaseCache::regStats()
         .flags(total)
         ;
     
+    extraMissLatency
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_latency")
+        .desc("extra latency due to blocks being evicted from the cache")
+        .flags(total)
+        ;
+    
+    numExtraMisses
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_misses")
+        .desc("number of extra misses measured with shadow tags")
+        .flags(total)
+        ;
+    
+    privateMissSharedHit
+        .init(cpuCount)
+        .name(name() + ".private_miss_shared_hit")
+        .desc("number of misses which are hits in the shared cache but misses in the shadow tags")
+        .flags(total)
+        ;
+    
     recvMissResponses
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")

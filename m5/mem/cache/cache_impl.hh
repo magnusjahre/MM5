@@ -85,7 +85,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     // init shadowtags
 #ifdef USE_CACHE_LRU
     
-    if(params.useMTPPartitioning){
+    if(isShared){
         shadowTags.resize(params.cpu_count, NULL);
         for(int i=0;i<params.cpu_count;i++){
             shadowTags[i] = new LRU(tags->getNumSets(),
@@ -94,14 +94,20 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     hitLatency,
                                     params.bankCount,
                                     true);
+            
             shadowTags[i]->setCache(this, false);
         }
         
-        repartEvent = new CacheRepartitioningEvent(this);
-        repartEvent->schedule(params.uniformPartitioningStart);
+        if(params.useMTPPartitioning){
+            repartEvent = new CacheRepartitioningEvent(this);
+            repartEvent->schedule(params.uniformPartitioningStart);
+        }
+        else{
+            repartEvent = NULL;
+        }
     }
     else{
-       repartEvent = NULL;
+        repartEvent = NULL;
     }
 #else
     repartEvent = NULL;
@@ -262,12 +268,13 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     }
     
     //shadow tag access
+    bool shadowHit = false;
     if(!shadowTags.empty()){
         // access tags to update LRU stack
         assert(isShared);
-        if(req->adaptiveMHASenderID != -1){
-            shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
-        }
+        assert(req->adaptiveMHASenderID != -1);
+        LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
+        shadowHit = (shadowBlk != NULL);
     }
     
     // update hit statistics
@@ -375,6 +382,11 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
             }
         }
         
+        if(isShared && !shadowHit){
+            assert(req->adaptiveMHASenderID = -1);
+            privateMissSharedHit[req->adaptiveMHASenderID]++;
+        }
+        
 	// Hit
 	hits[req->cmd.toIndex()][req->thread_num]++;
 	// clear dirty bit if write through
@@ -413,8 +425,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         missesPerCPU[cacheCpuID]++;
     }
 
+
     if(simulateContention){
         Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
+        if(isShared && shadowHit) req->interferenceMissAt = issueAt;
         missQueue->handleMiss(req, size, issueAt);
     }
     else missQueue->handleMiss(req, size, curTick + hitLatency);
@@ -512,18 +526,24 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
     
     //shadow replacement
     if(!shadowTags.empty()){
-        if(req->adaptiveMHASenderID != -1){
-            LRU::BlkList shadow_compress_list;
-            MemReqList shadow_writebacks;
-            LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
-            
-            // set block values to the values of the new occupant
-            shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
-            shadowBlk->asid = req->asid;
-            assert(req->xc || !doData());
-            shadowBlk->xc = req->xc;
-            shadowBlk->status = BlkValid;
-        }
+        assert(req->adaptiveMHASenderID != -1);
+        
+        LRU::BlkList shadow_compress_list;
+        MemReqList shadow_writebacks;
+        LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
+        
+        // set block values to the values of the new occupant
+        shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
+        shadowBlk->asid = req->asid;
+        assert(req->xc || !doData());
+        shadowBlk->xc = req->xc;
+        shadowBlk->status = BlkValid;
+    }
+    
+    if(req->interferenceMissAt > 0 && isShared){
+        assert(req->adaptiveMHASenderID != -1);
+        extraMissLatency[req->adaptiveMHASenderID] += (curTick + hitLatency) - req->interferenceMissAt;
+        numExtraMisses[req->adaptiveMHASenderID]++;
     }
     
     MemReqPtr copy_request;

@@ -75,13 +75,15 @@ Bus::Bus(const string &_name,
          int _bank_count,
          Tick _switch_at,
          TimingMemoryController* _fwController,
-         TimingMemoryController* _memoryController)
+         TimingMemoryController* _memoryController,
+         bool _infiniteBW)
     : BaseHier(_name, hier_params)
 {
     width = _width;
     clockRate = _clock;
     cpu_count = _cpu_count;
     bank_count = _bank_count;
+    infiniteBW = _infiniteBW;
     
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -272,6 +274,13 @@ Bus::regStats()
         .flags(total)
         ;
     
+    blockingInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".blocking_interference_cycles")
+        .desc("aggregated delay due to bus blocking")
+        .flags(total)
+        ;
+    
     cpuHtMInterferenceCycles
         .init(cpu_count)
         .name(name() + ".cpu_interference_htm")
@@ -328,37 +337,39 @@ Bus::requestAddrBus(int id, Tick time)
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
-
+    
     AddrArbiterEvent *eventptr = new AddrArbiterEvent(this,id,time);
     
     need_to_sort = true;
 
     if (!arbiter_scheduled_flag) {
-       assert(arb_events.empty());
-       assert(time >= curTick);
-       eventptr->schedule(time);
-       arbiter_scheduled_flag = true;
-       currently_scheduled = eventptr;
-    } else if (currently_scheduled->original_time > time) {
-      currently_scheduled->deschedule();
-      arb_events.push_back(currently_scheduled);
-      assert(time >= curTick);
-      eventptr->schedule(time);
-      currently_scheduled = eventptr;
-      assert(arbiter_scheduled_flag);
-    } else {
-       arb_events.push_back(eventptr);
+        assert(arb_events.empty());
+        assert(time >= curTick);
+        eventptr->schedule(time);
+        arbiter_scheduled_flag = true;
+        currently_scheduled = eventptr;
     }
-
+    else if (currently_scheduled->original_time > time) {
+        currently_scheduled->deschedule();
+        arb_events.push_back(currently_scheduled);
+        assert(time >= curTick);
+        eventptr->schedule(time);
+        currently_scheduled = eventptr;
+        assert(arbiter_scheduled_flag);
+    }
+    else {
+        arb_events.push_back(eventptr);
+    }
+    
     livearbs++;
 }
 
 void
-Bus::arbitrateAddrBus(int interfaceid)
+Bus::arbitrateAddrBus(int interfaceid, Tick requestedAt)
 {
     DPRINTF(Bus, "addr bus granted to id %d\n", interfaceid);
     livearbs--;
-    interfaces[interfaceid]->grantAddr();
+    interfaces[interfaceid]->grantAddr(requestedAt);
 }
 
 void
@@ -377,6 +388,12 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         DPRINTF(Bus, "null request");
         return false;
     }
+    
+    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read){
+        //TODO: might need to check if the processor can be blamed for creating the blocking
+        assert(req->adaptiveMHASenderID != -1);
+        blockingInterferenceCycles[req->adaptiveMHASenderID] += curTick - origReqTime;
+    }
 
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
@@ -391,9 +408,9 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     // Warm up code that removes the effects of contention (possible to compare shared and alone configurations)
     // Infinite bandwidth, all requests are page hits
-    if(curTick < detailedSimulationStart){
+    if(curTick < detailedSimulationStart || infiniteBW){
         
-        if (req->cmd == Read) { 
+        if (req->cmd == Read) {
             assert(req->busId < interfaces.size() && req->busId > -1);
             DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
             deliverevent->schedule(origReqTime + WARMUP_LATENCY);
@@ -410,11 +427,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         copyRequest(shadowReq, req, cpu_count);
         
         // if the controller is blocked, we cannot issue the request
-        if(!shadowControllers[shadowReq->adaptiveMHASenderID]->isBlocked()){
+        // extra misses due to sharing do not exist in the private memory system
+        if(!shadowControllers[shadowReq->adaptiveMHASenderID]->isBlocked() &&
+           req->interferenceMissAt == 0){
+            req->givenToShadow = true;
             shadowControllers[shadowReq->adaptiveMHASenderID]->insertRequest(shadowReq);
             if(!shadowEvents[shadowReq->adaptiveMHASenderID]->scheduled()){
                 shadowEvents[shadowReq->adaptiveMHASenderID]->schedule(curTick);
             }
+        }
+        else{
+            // keep this request out of the interference measurements
+            req->givenToShadow = false;
         }
     }
     
@@ -579,12 +603,13 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
             
-        if(cpu_count > 1){
+        if(cpu_count > 1 && req->givenToShadow){
             int sharedLatency = time - req->inserted_into_memory_controller;
             
             if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) != 
                latencyStorage[req->adaptiveMHASenderID].end()){
                 
+                assert(req->givenToShadow);
                 int aloneLatency = latencyStorage[req->adaptiveMHASenderID][req->paddr];
                 
                 // shared reqs might be faster than reqs that are alone
@@ -594,6 +619,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
                 latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
             }
             else{
+                assert(req->givenToShadow);
                 // alone req has not been issued, store shared latency
                 latencyStorage[req->adaptiveMHASenderID][req->paddr] = sharedLatency;
             }
@@ -991,7 +1017,7 @@ AddrArbiterEvent::process()
         }
     } else {
         arbitrationLoopCounter = 0;
-        bus->arbitrateAddrBus(interfaceid);
+        bus->arbitrateAddrBus(interfaceid, this->original_time);
         if (!bus->arb_events.empty()) {
             if (bus->need_to_sort) {
                 bus->arb_events.sort(event_compare());
@@ -1129,6 +1155,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<Tick> switch_at;
     SimObjectParam<TimingMemoryController *> fast_forward_controller;
     SimObjectParam<TimingMemoryController *> memory_controller;
+    Param<bool> infinite_bw;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1145,7 +1172,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM(bank_count, "Number of L2 cache banks"),
     INIT_PARAM_DFLT(switch_at, "Tick where memorycontroller is switched", 0),
     INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
-    INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL)
+    INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
+    INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1161,7 +1189,8 @@ CREATE_SIM_OBJECT(Bus)
                    bank_count,
                    switch_at,
                    fast_forward_controller,
-                   memory_controller);
+                   memory_controller,
+                   infinite_bw);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

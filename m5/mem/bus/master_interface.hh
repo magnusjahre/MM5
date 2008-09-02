@@ -74,7 +74,7 @@ class MasterInterface : public BusInterface<BusType>
      * request from the memory and forwards it on the bus.
      * @return True if a another request is outstanding.
      */
-    virtual bool grantAddr();
+    virtual bool grantAddr(Tick requestedAt);
 
     /**
      * Deliver a response to the connected memory.

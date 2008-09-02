@@ -52,13 +52,13 @@ MasterInterface<MemType, BusType>::MasterInterface(const string &name,
 
 template<class MemType, class BusType>
 bool
-MasterInterface<MemType, BusType>::grantAddr()
+MasterInterface<MemType, BusType>::grantAddr(Tick requestedAt)
 {
     MemReqPtr req = mem->getMemReq();
     if (req) {
         req->busId = this->id;
     }
-    bool successful = this->bus->sendAddr(req, curTick);
+    bool successful = this->bus->sendAddr(req, requestedAt);
     mem->sendResult(req, successful);
     return mem->doMasterRequest();
 }

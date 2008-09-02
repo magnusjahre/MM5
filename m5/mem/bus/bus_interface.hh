@@ -138,6 +138,11 @@ class BusInterface : public BaseInterface
      * @return True if a another request is outstanding.
      */
     virtual bool grantAddr();
+    
+    virtual bool grantAddr(Tick requestedAt){
+        fatal("BusInterface: grantAddr(reqAt) should never be called");
+        return false;
+    }
 
     /**
      * Called when this interface gets the data bus.
