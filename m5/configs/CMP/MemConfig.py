@@ -41,7 +41,7 @@ class L2Bank(BaseCache):
     tgts_per_mshr = 64
     write_buffers = 64
     
-    #mshrs = 8
+    #mshrs = 16
     #tgts_per_mshr = 4
     #write_buffers = 16
     

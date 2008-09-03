@@ -461,7 +461,8 @@ env.Append(CPPPATH='.')
 # Debug binary
 debugEnv = env.Copy(OBJSUFFIX='.do')
 debugEnv.Label = 'debug'
-debugEnv.Append(CCFLAGS=Split('-g -gstabs+ -O0'))
+#debugEnv.Append(CCFLAGS=Split('-g -gstabs+ -O0'))
+debugEnv.Append(CCFLAGS=Split('-g -O0'))
 debugEnv.Append(CPPDEFINES='DEBUG')
 tlist = debugEnv.Program(target = 'm5.debug',
                          source = make_objs(sources, debugEnv))
@@ -479,7 +480,8 @@ testEnv.M5Binary = tlist[0]
 # Optimized binary
 optEnv = env.Copy()
 optEnv.Label = 'opt'
-optEnv.Append(CCFLAGS=Split('-g -O5'))
+#optEnv.Append(CCFLAGS=Split('-g -O5'))
+optEnv.Append(CCFLAGS=Split('-g -O3'))
 tlist = optEnv.Program(target = 'm5.opt',
                        source = make_objs(sources, optEnv))
 optEnv.M5Binary = tlist[0]

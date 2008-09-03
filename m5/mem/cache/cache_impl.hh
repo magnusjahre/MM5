@@ -266,7 +266,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     if(!isShared){
         req->adaptiveMHASenderID = cacheCpuID;
     }
-    
+    else{
+        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+    }
+
     //shadow tag access
     bool shadowHit = false;
     if(!shadowTags.empty()){
@@ -360,7 +363,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     
     if(isShared){
         assert(req->adaptiveMHASenderID != -1);
-        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
         accessesPerCPU[req->adaptiveMHASenderID]++;
     }
     else{
@@ -383,7 +385,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
         }
         
         if(isShared && !shadowHit){
-            assert(req->adaptiveMHASenderID = -1);
+            assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
             privateMissSharedHit[req->adaptiveMHASenderID]++;
         }
         
