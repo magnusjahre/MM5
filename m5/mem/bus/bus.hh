@@ -97,6 +97,11 @@ class Bus : public BaseHier
     std::vector<MemoryControllerEvent* > shadowEvents;
     std::vector<std::map<Addr, int> > latencyStorage;
     
+    std::vector<int> currentShadowReqReadCount;
+    std::vector<int> currentShadowReqWriteCount;
+    std::vector<Tick> shadowBlockedAt;
+    std::vector<bool> shadowIsBlocked;
+    
     bool infiniteBW;
     
   public:
@@ -158,6 +163,8 @@ class Bus : public BaseHier
     Stats::Vector<> shadowCtrlPageHits;
     Stats::Vector<> shadowCtrlAccesses;
     Stats::Vector<> shadowUseCycles;
+    
+    Stats::Vector<> shadowBlockedCycles;
 
     /** The last cycle the data arbiter was run, used for debugging. */
     Tick runDataLast;

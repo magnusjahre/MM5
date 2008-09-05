@@ -89,6 +89,11 @@ Bus::Bus(const string &_name,
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     
+    currentShadowReqReadCount = vector<int>(cpu_count, 0);
+    currentShadowReqWriteCount = vector<int>(cpu_count, 0);
+    shadowBlockedAt = vector<Tick>(cpu_count, 0);
+    shadowIsBlocked = vector<bool>(cpu_count, false);
+    
     if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
     else adaptiveMHA = NULL;
     
@@ -308,6 +313,13 @@ Bus::regStats()
         .desc("number of cycles the shadow controller uses its shadow bus")
         .flags(total)
         ;
+    
+    shadowBlockedCycles
+        .init(cpu_count)
+        .name(name() + ".shadow_blocked_cycles")
+        .desc("the estimated number of cycles a shadow controller would have been blocked")
+        .flags(total)
+        ;
 }
 
 void
@@ -427,6 +439,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         assert(req->adaptiveMHASenderID != -1);
         MemReqPtr shadowReq = new MemReq();
         copyRequest(shadowReq, req, cpu_count);
+        
+        if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]++;
+        else currentShadowReqWriteCount[req->adaptiveMHASenderID]++;
+        
+        if((currentShadowReqReadCount[req->adaptiveMHASenderID] > memoryController->getReadQueueLength() ||
+           currentShadowReqWriteCount[req->adaptiveMHASenderID] > memoryController->getWriteQueueLength()) && 
+           !shadowIsBlocked[req->adaptiveMHASenderID]){
+            assert(!shadowIsBlocked[req->adaptiveMHASenderID]);
+
+            shadowIsBlocked[req->adaptiveMHASenderID] = true;
+            shadowBlockedAt[req->adaptiveMHASenderID] = curTick;
+        }
         
         // if the controller is blocked, we cannot issue the request
         // extra misses due to sharing do not exist in the private memory system
@@ -559,6 +583,21 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         return;
     }
     
+    if(req->cmd != Activate && req->cmd != Close){
+        
+        if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]--;
+        else currentShadowReqWriteCount[req->adaptiveMHASenderID]--;
+        
+        if((currentShadowReqReadCount[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() &&
+            currentShadowReqWriteCount[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength()) && 
+            shadowIsBlocked[req->adaptiveMHASenderID]){
+            assert(shadowIsBlocked[req->adaptiveMHASenderID]);
+            shadowIsBlocked[req->adaptiveMHASenderID] = false;
+            
+            shadowBlockedCycles[req->adaptiveMHASenderID] += curTick - shadowBlockedAt[req->adaptiveMHASenderID];
+        }
+    }
+    
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
@@ -619,6 +658,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
                 Tick interference = sharedLatency - aloneLatency;
                 addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
                 latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
+                
             }
             else{
                 assert(req->givenToShadow);

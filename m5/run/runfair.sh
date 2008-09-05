@@ -7,7 +7,7 @@ bms="perlbmk0 ammp0 parser0 mgrid0"
 wl="fair01"
 
 #args="-EINFINITE-MEM-BW"
-args="-ECACHE-PARTITIONING=StaticUniform"
+#args="-ECACHE-PARTITIONING=StaticUniform"
 #args=""
 
 rm stats_*txt
