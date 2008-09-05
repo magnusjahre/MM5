@@ -93,6 +93,8 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
         req->adaptiveMHASenderID = target->adaptiveMHASenderID;
         req->interferenceMissAt = target->interferenceMissAt;
         
+        req->finishedInCacheAt = target->finishedInCacheAt;
+        
 //         if(cache->isInstructionCache) req->instructionMiss = true;
 //         else req->instructionMiss = target->instructionMiss;
     }
@@ -128,6 +130,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->enteredMemSysAt = target->enteredMemSysAt;
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     req->interferenceMissAt = target->interferenceMissAt;
+    req->finishedInCacheAt = target->finishedInCacheAt;
     
 //     if(cache->isInstructionCache) req->instructionMiss = true;
 //     else req->instructionMiss = target->instructionMiss;

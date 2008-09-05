@@ -97,8 +97,9 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
     if(mem->isMultiprogWorkload && mem->isCache()){
         
         /* move each application into its separate address space */
-        int cpuId = mem->cacheCpuID;
-        int cpu_count = mem->cpuCount;
+        int cpuId = mem->memoryAddressOffset;
+        int cpu_count = mem->memoryAddressParts;
+        assert(cpuId != -1 && cpu_count != -1);
         
         if(cpu_count > 8  && !issuedWarning){
             warn("Multiprogram workload hack has not been tested for more than 8 CPUs, proceed with caution :-)");
@@ -149,6 +150,11 @@ MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
       }
     }
 #endif
+    
+//     if(time - req->enteredMemSysAt > 3 && mem->cacheCpuID == 2){
+//         Tick lat = time - req->enteredMemSysAt;
+//         cout << curTick << " " << mem->name() << ": request took " << lat << ", addr " << req->paddr << ", deliver at " << time << "\n";
+//     }
     
     if(mem->isMultiprogWorkload && mem->isCache()){
         //restore the old CPU private address

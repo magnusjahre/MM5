@@ -386,6 +386,7 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 MSHR*
 MissQueue::allocateWrite(MemReqPtr &req, int size, Tick time)
 {
+    req->finishedInCacheAt = curTick;
     MSHR* mshr = wb.allocate(req,req->size);
     mshr->order = order++;
     if (cache->doData()){
@@ -473,7 +474,6 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 	return;
     }
     
-
     mshr = allocateMiss(req, size, time);
 }
 
@@ -503,21 +503,24 @@ MissQueue::getMemReq()
     MemReqPtr mqReq = mq.getReq();
     MemReqPtr wbReq = wb.getReq();
     
-    if(mqReq && mqReq->time <= curTick 
-       && wbReq && wbReq->time <= curTick){
+    if(mqReq) assert(mqReq->finishedInCacheAt != 0);
+    if(wbReq) assert(wbReq->finishedInCacheAt != 0);
+    
+    if(mqReq && mqReq->finishedInCacheAt <= curTick 
+       && wbReq && wbReq->finishedInCacheAt <= curTick){
         
         // POLICY: in allocation order in each queue, oldest first intra queue
-        if(mqReq->time <= wbReq->time) req = mqReq;
+        if(mqReq->finishedInCacheAt <= wbReq->finishedInCacheAt) req = mqReq;
         else req = wbReq;
         
-        //assert(prevTime <= req->time);
-        prevTime = req->time;
+        assert(prevTime <= req->finishedInCacheAt);
+        prevTime = req->finishedInCacheAt;
 
     }
-    else if(mqReq && mqReq->time <= curTick){
+    else if(mqReq && mqReq->finishedInCacheAt <= curTick){
         req = mqReq;
     }
-    else if(wbReq && wbReq->time <= curTick){
+    else if(wbReq && wbReq->finishedInCacheAt <= curTick){
         req = wbReq;
     }
 

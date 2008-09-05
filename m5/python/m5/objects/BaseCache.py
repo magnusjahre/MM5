@@ -74,6 +74,8 @@ class BaseCache(BaseMem):
     cpu_count = Param.Int("The number of cpus in the system") # Magnus
     cpu_id = Param.Int("The processor id of the owner CPU (only set this for L1 data caches)") # Magnus
     multiprog_workload = Param.Bool("True if this is a multiprogram workload") # Magnus
+    memory_address_offset = Param.Int("the index of this processors memory space")
+    memory_address_parts = Param.Int("the number address spaces to divide the memory into")
     
     #directory_protocol = Param.DirectoryProtocol(NULL, "Directory protocol for this cache") # Magnus
     is_shared = Param.Bool("True if this cache is shared by more than one core") # Magnus

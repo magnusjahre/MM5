@@ -437,7 +437,6 @@ FullCPU::FullCPU(Params *p,
 	used_fp_physical_regs[i] = 0;
     }
 
-
     expected_inorder_seq_num = 1;
 
     //
@@ -721,8 +720,6 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
     doCheckpointInsts = false;
     doQuiesce = false;
 #endif
-
-//     cout << "takin' ova\n";
     
     assert(!tickEvent.scheduled());
     assert(oldCPU->execContexts.size() == execContexts.size());

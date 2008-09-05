@@ -430,7 +430,7 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     Tick originalReqTime = time;
     
     // assumes that the targets are delivered to the interconnect in parallel
-    if(simulateContention && !moreTargetsToService){
+    if(simulateContention && !moreTargetsToService && curTick >= detailedSimulationStartTick){
         time = updateAndStoreInterference(req, time);
     }
     

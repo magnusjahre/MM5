@@ -47,8 +47,8 @@ using namespace std;
 void
 SyscallDesc::doSyscall(int callnum, Process *process, ExecContext *xc)
 {
-    DPRINTFR(SyscallVerbose, "%s: syscall %s called\n",
-	     xc->cpu->name(), name);
+    DPRINTFR(SyscallVerbose, "%s: syscall %s called at %d\n",
+	     xc->cpu->name(), name, curTick);
 
     SyscallReturn retval = (*funcPtr)(this, callnum, process, xc);
 

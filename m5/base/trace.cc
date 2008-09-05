@@ -160,6 +160,7 @@ PrintfRecord::~PrintfRecord()
 void
 PrintfRecord::dump(ostream &os)
 {
+    
     string fmt = "";
 
     if (!name.empty()) {
@@ -173,7 +174,7 @@ PrintfRecord::dump(ostream &os)
     }
 
     fmt += format;
-
+    
     args.dump(os, fmt);
     os.flush();
 }

@@ -190,6 +190,17 @@ for i in xrange(int(env['NP'])):
     root.detailedCPU[i].cpu_id = i
     root.L1dcaches[i].cpu_id = i
     root.L1icaches[i].cpu_id = i
+    root.L1dcaches[i].memory_address_offset = i
+    root.L1dcaches[i].memory_address_parts = int(env['NP'])
+    root.L1icaches[i].memory_address_offset = i
+    root.L1icaches[i].memory_address_parts = int(env['NP'])
+
+if int(env['NP']) == 1:
+    assert 'MEMORY-ADDRESS-OFFSET' in env and 'MEMORY-ADDRESS-PARTS' in env
+    root.L1dcaches[0].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
+    root.L1dcaches[0].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
+    root.L1icaches[0].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
+    root.L1icaches[0].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
 
 if l1mshrsData != -1:
     for l1 in root.L1dcaches:
@@ -429,7 +440,8 @@ root.setInterconnect(env['INTERCONNECT'],
                      icProfileStart,
                      moduloAddr,
                      useFairAdaptiveMHA,
-                     fairCrossbar)
+                     fairCrossbar,
+                     cacheProfileStart)
 
 root.setL2Banks()
 if env['PROTOCOL'] in directory_protocols:

@@ -408,6 +408,8 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     // Warm up code that removes the effects of contention (possible to compare shared and alone configurations)
     // Infinite bandwidth, all requests are page hits
+    
+    
     if(curTick < detailedSimulationStart || infiniteBW){
         
         if (req->cmd == Read) {

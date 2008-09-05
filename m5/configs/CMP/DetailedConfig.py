@@ -73,7 +73,7 @@ class DetailedStandAlone(Root):
     #def setNumCPUs(self, numCPUs):
         #self.interconnect.L1CacheCount = (numCPUs*2)
         
-    def setInterconnect(self, optionString, L2BankCount, profileStart, moduloAddr, useFairAMHA, useFairCrossbar):
+    def setInterconnect(self, optionString, L2BankCount, profileStart, moduloAddr, useFairAMHA, useFairCrossbar, detailedStartTick):
         if optionString == 'bus':
             self.interconnect = ToL2Bus()
             self.createL2(True, L2BankCount, moduloAddr)
@@ -83,6 +83,7 @@ class DetailedStandAlone(Root):
         elif optionString == 'crossbar':
             self.interconnect = InterconnectCrossbar()
             self.interconnect.use_NFQ_arbitration = useFairCrossbar
+            self.interconnect.detailed_sim_start_tick = detailedStartTick
             self.createL2(False, L2BankCount, moduloAddr)
         elif optionString == 'ideal':
             self.interconnect = InterconnectIdeal()

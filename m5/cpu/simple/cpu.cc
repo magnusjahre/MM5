@@ -768,7 +768,9 @@ SimpleCPU::tick()
 	// decode the instruction
 	inst = gtoh(inst);
 	curStaticInst = StaticInst<TheISA>::decode(inst);
-
+        
+//         if(curTick >= 245000) cout << curTick << " " << name() << ": " << curStaticInst->disassemble(xc->regs.pc) << "\n";
+        
 	traceData = Trace::getInstRecord(curTick, xc, this, curStaticInst,
 					 xc->regs.pc);
 

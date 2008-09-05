@@ -79,11 +79,15 @@ class Crossbar : public Interconnect
                               std::vector<Addr> &destinationAddrs,
                               std::vector<MemCmd> &currentCommands);
         
+        void doWarmUpArbitration(Tick cycle, Tick candidateTime);
+        
         struct reqLess : public std::binary_function<InterconnectRequest*, InterconnectRequest* ,bool> {
             bool operator()(InterconnectRequest* a, InterconnectRequest* b){
                 return a->time < b->time;
             }
         };
+        
+        Tick detailedSimStartTick;
         
     public:
         
@@ -113,7 +117,8 @@ class Crossbar : public Interconnect
                  int _cpu_count,
                  HierParams *_hier,
                  AdaptiveMHA* _adaptiveMHA,
-                 bool _useNFQArbitration);
+                 bool _useNFQArbitration,
+                 Tick _detailedSimStartTick);
         
         /**
         * This destructor deletes the request queues that are dynamically

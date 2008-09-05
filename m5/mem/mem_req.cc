@@ -140,6 +140,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->shadowCtrlID = r->shadowCtrlID;
     req->givenToShadow = r->givenToShadow;
     req->interferenceMissAt = r->interferenceMissAt;
+    req->finishedInCacheAt = r->finishedInCacheAt;
     
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
@@ -207,6 +208,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->shadowCtrlID = from->shadowCtrlID;
     to->givenToShadow = from->givenToShadow;
     to->interferenceMissAt = from->interferenceMissAt;
+    to->finishedInCacheAt = from->finishedInCacheAt;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     

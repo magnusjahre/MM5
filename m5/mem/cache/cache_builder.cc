@@ -132,6 +132,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<Interconnect *> in_interconnect;
     SimObjectParam<Interconnect *> out_interconnect;
     Param<int> cpu_count;
+    Param<int> memory_address_offset;
+    Param<int> memory_address_parts;
     Param<int> cpu_id;
     Param<bool> multiprog_workload;
     
@@ -215,6 +217,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(in_interconnect, "incoming interconnect object", NULL),
     INIT_PARAM_DFLT(out_interconnect, "outgoing interconnect object", NULL),
     INIT_PARAM_DFLT(cpu_count, "the number of CPUs in the system", -1),
+    INIT_PARAM_DFLT(memory_address_offset, "the index of this processors memory space" , -1),
+    INIT_PARAM_DFLT(memory_address_parts, "the number address spaces to divide the memory into" , -1),
     INIT_PARAM_DFLT(cpu_id, "the ID of the processor that owns this cache", -1),
     INIT_PARAM_DFLT(multiprog_workload, "true if this is a multiprogrammed workload", false),
     
@@ -340,7 +344,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick, memory_address_offset, memory_address_parts); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

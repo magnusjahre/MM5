@@ -208,6 +208,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool givenToShadow;
     
     Tick interferenceMissAt;
+    Tick finishedInCacheAt;
     
     /**
      * Contruct and initialize a memory request.
@@ -264,7 +265,8 @@ class MemReq : public FastAlloc, public RefCounted
           busDelay(0),
           shadowCtrlID(-1),
           givenToShadow(false),
-          interferenceMissAt(0)
+          interferenceMissAt(0),
+          finishedInCacheAt(0)
     {
     }
 
@@ -316,6 +318,7 @@ class MemReq : public FastAlloc, public RefCounted
         shadowCtrlID = r.shadowCtrlID;
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;
+        finishedInCacheAt = r.finishedInCacheAt;
     }
 
     /**

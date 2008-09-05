@@ -12,7 +12,8 @@ Crossbar::Crossbar(const std::string &_name,
                    int _cpu_count,
                    HierParams *_hier,
                    AdaptiveMHA* _adaptiveMHA,
-                   bool _useNFQArbitration)
+                   bool _useNFQArbitration,
+                   Tick _detailedSimStartTick)
     : Interconnect(_name,
                    _width, 
                    _clock, 
@@ -26,6 +27,8 @@ Crossbar::Crossbar(const std::string &_name,
     nextBusFreeTime = 0;
     doProfiling = false;
     
+    detailedSimStartTick = _detailedSimStartTick;
+    
     interferenceEvents = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     
     doFairArbitration = _useNFQArbitration;
@@ -33,15 +36,51 @@ Crossbar::Crossbar(const std::string &_name,
 }
 
 void
+Crossbar::doWarmUpArbitration(Tick cycle, Tick candidateTime){
+    
+    list<InterconnectRequest* >::iterator queueIterator = requestQueue.begin();
+    
+    while(queueIterator != requestQueue.end()){
+        
+        InterconnectRequest* req = *queueIterator;
+            
+        if(req->time <= candidateTime){
+            allInterfaces[req->fromID]->grantData();
+            delete req; 
+            queueIterator = requestQueue.erase(queueIterator);
+        }
+        else{
+            queueIterator++;
+        }
+    }
+    
+    assert(isSorted(&requestQueue));
+    if(!requestQueue.empty()){
+        if(requestQueue.front()->time <= candidateTime){
+            scheduleArbitrationEvent(cycle+1);
+        }
+        else{
+            scheduleArbitrationEvent(requestQueue.front()->time + arbitrationDelay);
+        }
+    }
+    
+}
+
+void
 Crossbar::arbitrate(Tick cycle){
+    
+    Tick candiateReqTime = cycle - arbitrationDelay;
+    
+    if(curTick < detailedSimStartTick){
+        doWarmUpArbitration(cycle, candiateReqTime);
+        return;
+    }
     
     list<InterconnectRequest* > notGrantedReqs;
     vector<bool> occupiedEndNodes(cpu_count + slaveInterfaces.size(), false);
     
     bool busIsUsed = false;
     if(cycle <= nextBusFreeTime) busIsUsed = true;
-    
-    Tick candiateReqTime = cycle - arbitrationDelay;
     
     vector<int> grantedCPUs;
     vector<int> toBanks;
@@ -647,6 +686,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<bool> use_NFQ_arbitration;
+    Param<Tick> detailed_sim_start_tick;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -659,7 +699,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
                     "Hierarchy global variables",
                     &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
-    INIT_PARAM_DFLT(use_NFQ_arbitration, "If true, Network Fair Queuing arbitration is used", false)
+    INIT_PARAM_DFLT(use_NFQ_arbitration, "If true, Network Fair Queuing arbitration is used", false),
+    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts")
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
@@ -672,7 +713,8 @@ CREATE_SIM_OBJECT(Crossbar)
                         cpu_count,
                         hier,
                         adaptive_mha,
-                        use_NFQ_arbitration);
+                        use_NFQ_arbitration,
+                        detailed_sim_start_tick);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)

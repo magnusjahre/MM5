@@ -65,6 +65,7 @@ MSHRQueue::getReq() const
     if (pendingList.empty()) {
         return NULL;
     }
+    
     MSHR* mshr = pendingList.front();
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     

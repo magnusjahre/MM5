@@ -360,8 +360,12 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         int maxBlks = -1;
         if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
             //HACK HACK HACK HACK !!!!!!
-            if(cache->cpuCount == 1) maxBlks = (int) ((double) assoc / 4.0); //HACK HACK HACK: Should be parametrized
-            else maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+            if(cache->cpuCount == 1){
+                maxBlks = (int) ((double) assoc / 4.0); //HACK HACK HACK: Should be parametrized
+            }
+            else{
+                maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+            }
         }
         else{
             maxBlks = currentMTPPartition[fromProc];

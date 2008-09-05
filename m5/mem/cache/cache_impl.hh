@@ -78,6 +78,8 @@ Cache(const std::string &_name, HierParams *hier_params,
     
     idIsSet = false;
     cacheCpuID = params.cpu_id;
+    memoryAddressOffset = params.memoryAddressOffset;
+    memoryAddressParts = params.memoryAddressParts;
     
     simulateContention = params.simulateContention;
     useStaticPartInWarmup = params.useStaticPartInWarmup;
@@ -125,7 +127,6 @@ Cache(const std::string &_name, HierParams *hier_params,
         mtpEpochSize = 0;
     }
     curMTPPartition = 0;
-    
     
     if(params.isShared){
         profileFileName = name() + "CapacityProfile.txt";
@@ -395,7 +396,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	if (!req->cmd.isNoResponse()){
 	    respond(req, curTick+lat);
         }
-        else if(simulateContention) updateInterference(req);
+        else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
 
 	return MA_HIT;
     }
@@ -428,12 +429,16 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     }
 
 
-    if(simulateContention){
+    if(simulateContention && curTick >= detailedSimulationStartTick){
         Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
-        if(isShared && shadowHit) req->interferenceMissAt = issueAt;
+        if(isShared && shadowHit && !useUniformPartitioning) req->interferenceMissAt = issueAt;
+        req->finishedInCacheAt = issueAt;
         missQueue->handleMiss(req, size, issueAt);
     }
-    else missQueue->handleMiss(req, size, curTick + hitLatency);
+    else{
+        req->finishedInCacheAt = curTick + hitLatency;
+        missQueue->handleMiss(req, size, curTick + hitLatency);
+    }
     
     return MA_CACHE_MISS;
 }
@@ -542,7 +547,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
         shadowBlk->status = BlkValid;
     }
     
-    if(req->interferenceMissAt > 0 && isShared){
+    if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
         assert(req->adaptiveMHASenderID != -1);
         extraMissLatency[req->adaptiveMHASenderID] += (curTick + hitLatency) - req->interferenceMissAt;
         numExtraMisses[req->adaptiveMHASenderID]++;
@@ -1460,7 +1465,7 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::respond(MemReqPtr &req, Tick time)
 {
-    if(simulateContention) time = updateAndStoreInterference(req, time);
+    if(simulateContention && curTick >= detailedSimulationStartTick) time = updateAndStoreInterference(req, time);
     si->respond(req,time);
 }
 

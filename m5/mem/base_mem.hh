@@ -64,6 +64,9 @@ class BaseMem : public BaseHier
     bool isMultiprogWorkload;
     int cacheCpuID;
     
+    int memoryAddressOffset;
+    int memoryAddressParts;
+    
   protected:
     /** The hit latency of this memory. */
     int hitLatency;
