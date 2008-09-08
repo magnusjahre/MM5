@@ -78,7 +78,7 @@ exitNow(const string &cause, int exit_code)
     ParamContext::cleanupAllContexts();
 
     // print simulation stats
-    Stats::DumpNow();
+//     Stats::DumpNow();
 
     Time now(true);
 

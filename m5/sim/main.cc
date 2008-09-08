@@ -96,7 +96,7 @@ void
 exitNowHandler(int sigtype)
 {
     if(sigtype == 15){ 
-        cout << "SIGTERM recieved, dumping stats and terminating...\n";
+        cout << "SIGTERM recieved, terminating...\n";
     }
     
     async_event = true;
