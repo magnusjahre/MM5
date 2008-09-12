@@ -99,6 +99,7 @@ class TimingMemoryController : public SimObject
 
     // Get the corresponding page to a memory request
     Addr getPage(MemReqPtr &req);
+    Addr getPage(Addr req);
     Addr getPageAddr(Addr addr);
 
     // Check if the request is contacting an active page

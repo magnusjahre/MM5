@@ -1,14 +1,16 @@
 #!/bin/bash
 
-#bms="facerec0 art0 applu0 equake0"
-#wl="fair06"
 
-bms="perlbmk0 ammp0 parser0 mgrid0"
-wl="fair01"
+wl=$3
+bms=`python -c "import fairmha.getInterference as g;g.getBenchmarks('$wl',True,4)"`
+args=$4
 
-#args="-EINFINITE-MEM-BW"
-#args="-ECACHE-PARTITIONING=StaticUniform"
-#args=""
+echo
+echo "Running statistics test..."
+echo
+echo "Workload:   $wl"
+echo "Benchmarks: $bms"
+echo "Extra args: $args"
 
 rm stats_*txt
 rm -Rf runtmp

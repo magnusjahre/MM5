@@ -74,7 +74,7 @@ class TimingMemoryController;
 
 using namespace std;
 
-typedef enum{BUS_INTERFERENCE, CONFLICT_INTERFERENCE, HIT_TO_MISS_INTERFERENCE} interference_type;
+typedef enum{BUS_INTERFERENCE, CONFLICT_INTERFERENCE, HIT_TO_MISS_INTERFERENCE, ESTIMATED_INTERFERENCE} interference_type;
 
 /**
  * A arbitrated split transaction bus model.
@@ -103,6 +103,26 @@ class Bus : public BaseHier
     std::vector<bool> shadowIsBlocked;
     
     bool infiniteBW;
+    
+    class PrivateStorageEntry{
+        public:
+            Tick arrived_shared_at;
+            Tick private_arrival_estimate;
+            Tick private_fin_at;
+            Addr address;
+            Addr page;
+            int bankID;
+            bool isRead;
+            bool isPageHit;
+            
+            PrivateStorageEntry(Tick as, Tick ap, Tick fp, Addr addr, bool r);
+            PrivateStorageEntry(Tick shared_arr, Addr addr, bool _isRead, Addr _page, int _bank, Tick estArrTime);
+    };
+    
+    int pendingPrivateEstimationSize;
+    std::vector<std::vector<PrivateStorageEntry> > pendingPrivateEstimationStorage;
+    int finishedPrivateEstimationSize;
+    std::vector<std::vector<PrivateStorageEntry> > finishedPrivateEstimationStorage;
     
   public:
     /** Width of the bus in bytes. */
@@ -157,6 +177,9 @@ class Bus : public BaseHier
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuConflictInterferenceCycles;
     Stats::Vector<> cpuHtMInterferenceCycles;
+    
+    Stats::Vector<> estimatedInterferenceCycles;
+    Stats::Vector<> estimatedInterferenceReqs;
     
     Stats::Vector<> blockingInterferenceCycles;
     
@@ -455,6 +478,12 @@ class Bus : public BaseHier
     }
     
     void buildShadowControllers(int np, HierParams* hp);
+    
+    int estimatePrivateInterference(MemReqPtr& req);
+    int getAloneLatencyOffset(MemReqPtr& req);
+    PrivateStorageEntry getNextRequest(std::vector<PrivateStorageEntry>& queue, vector<Addr>& activeBanks, vector<Tick>& activatedAt);
+    bool activateCloseEnough(PrivateStorageEntry& entry, Tick activatedAt);
+    bool activateCloseEnoughForConflict(PrivateStorageEntry& entry, Tick activatedAt);
     
 #ifdef INJECT_TEST_REQUESTS
     void generateRequests();

@@ -68,6 +68,12 @@ TimingMemoryController::getPage(MemReqPtr &req)
     return (req->paddr >> mem_interface->getPageSize());
 }
 
+Addr
+TimingMemoryController::getPage(Addr addr)
+{
+    return (addr >> mem_interface->getPageSize());
+}
+
 
 Addr
 TimingMemoryController::getPageAddr(Addr addr)
