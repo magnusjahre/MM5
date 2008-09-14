@@ -20,6 +20,7 @@ enum InterferenceType{
     INTERCONNECT_INTERFERENCE,
     L2_INTERFERENCE,
     MEMORY_INTERFERENCE,
+    L2_CAPACITY_INTERFERENCE,
     INTERFERENCE_COUNT
 };
 
@@ -55,6 +56,7 @@ class AdaptiveMHA : public SimObject{
         std::string memTraceFileName;
         std::string adaptiveMHATraceFileName;
         std::string ipcTraceFileName;
+        std::string aloneInterferenceFileName;
         
         bool firstSample;
         
@@ -117,6 +119,18 @@ class AdaptiveMHA : public SimObject{
         };
         
         std::map<Addr,delayEntry> oracleStorage;
+        
+        Tick startRunning;
+        int dumpAtNumReqs;
+        
+        std::vector<Tick> busInterference;
+        std::vector<Tick> l2CapInterference;
+        std::vector<Tick> l2BwInterference;
+        std::vector<Tick> interconnectInterference;
+        
+        std::vector<Tick> totalAloneDelay;
+        std::vector<int> numberOfAloneRequests;
+        std::vector<int> dumpCount;
     
     public:
         
@@ -137,7 +151,8 @@ class AdaptiveMHA : public SimObject{
                     double _reductionThreshold,
                     double _interferencePointMinAllowed,
                     bool _printInterference,
-                    Tick _finalSimTick);
+                    Tick _finalSimTick,
+                    int _numReqsBetweenIDumps);
         
         ~AdaptiveMHA();
         
@@ -180,6 +195,10 @@ class AdaptiveMHA : public SimObject{
                                   InterferenceType type,
                                   std::vector<std::vector<bool> > nextIsRead);
         void addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead);
+        
+        void addAloneInterference(int extraDelay, int victimCPU, InterferenceType type);
+        void dumpAloneInterference(int cpuID);
+        void addRequestLatency(Tick latency, int cpuID);
         
     private:
         

@@ -549,8 +549,14 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
     
     if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
         assert(req->adaptiveMHASenderID != -1);
-        extraMissLatency[req->adaptiveMHASenderID] += (curTick + hitLatency) - req->interferenceMissAt;
+        int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
+        extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
+        adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
         numExtraMisses[req->adaptiveMHASenderID]++;
+    }
+    
+    if(!isShared){
+        adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
     }
     
     MemReqPtr copy_request;

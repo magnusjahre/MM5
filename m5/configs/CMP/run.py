@@ -218,6 +218,8 @@ if l1mshrsInst != -1:
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
 root.adaptiveMHA.sampleFrequency = 500000
+if 'DUMP-INTERFERENCE' in env:
+    root.adaptiveMHA.numReqsBetweenIDumps = int(env['DUMP-INTERFERENCE'])
     
 for cpu in root.detailedCPU:
     cpu.adaptiveMHA = root.adaptiveMHA

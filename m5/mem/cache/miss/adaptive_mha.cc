@@ -9,6 +9,7 @@
 using namespace std;
 
 #include "fair_mha.cc"
+#include "interference.cc"
 
 AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          double _lowThreshold,
@@ -24,7 +25,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          double _reductionThreshold,
                          double _interferencePointMinAllowed,
                          bool _printInterference,
-                         Tick _finalSimTick)
+                         Tick _finalSimTick,
+                         int _numReqsBetweenIDumps)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -76,6 +78,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         start = start + (sampleFrequency - (start % sampleFrequency));
     }
     assert(start % sampleFrequency == 0);
+    startRunning = start;
     
     firstSample = true;
             
@@ -127,6 +130,26 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     ipcfile.flush();
     ipcfile.close();
     
+    dumpAtNumReqs = _numReqsBetweenIDumps;
+    
+    aloneInterferenceFileName = "InterferenceTrace.txt";
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        stringstream filename;
+        filename << "CPU" << i << aloneInterferenceFileName;
+        ofstream interferencefile(filename.str().c_str());
+        interferencefile << "Requests;Avg shared latency;Avg interference;Bus;L2 Cap;L2 BW;Interconnect\n";
+        interferencefile.flush();
+        interferencefile.close();
+    }
+    
+    busInterference.resize(adaptiveMHAcpuCount, 0);
+    l2CapInterference.resize(adaptiveMHAcpuCount, 0);
+    l2BwInterference.resize(adaptiveMHAcpuCount, 0);
+    interconnectInterference.resize(adaptiveMHAcpuCount, 0);
+    
+    totalAloneDelay.resize(adaptiveMHAcpuCount, 0);
+    numberOfAloneRequests.resize(adaptiveMHAcpuCount, 0);
+    dumpCount.resize(adaptiveMHAcpuCount, 0);
 }
         
 AdaptiveMHA::~AdaptiveMHA(){
@@ -439,6 +462,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<double> minInterferencePointAllowed;
     Param<bool> printInterference;
     Param<Tick> finalSimTick;
+    Param<int> numReqsBetweenIDumps;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -455,7 +479,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM_DFLT(reductionThreshold, "The percentage reduction in interference points needed to accept a reduction", 0.1),
     INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0),
     INIT_PARAM_DFLT(printInterference, "True if the total interference stats should be printed", false),
-    INIT_PARAM_DFLT(finalSimTick, "Tick at which interference stats are printed", 0)
+    INIT_PARAM_DFLT(finalSimTick, "Tick at which interference stats are printed", 0),
+    INIT_PARAM_DFLT(numReqsBetweenIDumps, "The number of memory requests between each interference dump", 1000)
             
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
@@ -476,7 +501,8 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            reductionThreshold,
                            minInterferencePointAllowed,
                            printInterference,
-                           finalSimTick);
+                           finalSimTick,
+                           numReqsBetweenIDumps);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

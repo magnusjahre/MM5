@@ -490,6 +490,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
               delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
               interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
               cpuInterferenceCycles[req->adaptiveMHASenderID] += curIP;
+              if(curIP > 0) adaptiveMHA->addAloneInterference(curIP, req->adaptiveMHASenderID, L2_INTERFERENCE);
             }
         }
                 

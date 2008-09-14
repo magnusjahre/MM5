@@ -16,3 +16,4 @@ class AdaptiveMHA(SimObject):
     minInterferencePointAllowed = Param.Float("Lowest relative interference point that will count as interference")
     printInterference = Param.Bool("True if the total interference stats should be printed")
     finalSimTick = Param.Tick("Tick at which interference stats are printed")
+    numReqsBetweenIDumps = Param.Int("The number of memory requests between each interference dump")

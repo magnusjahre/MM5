@@ -114,9 +114,10 @@ class Bus : public BaseHier
             int bankID;
             bool isRead;
             bool isPageHit;
+            int cpuID;
             
             PrivateStorageEntry(Tick as, Tick ap, Tick fp, Addr addr, bool r);
-            PrivateStorageEntry(Tick shared_arr, Addr addr, bool _isRead, Addr _page, int _bank, Tick estArrTime);
+            PrivateStorageEntry(Tick shared_arr, Addr addr, bool _isRead, Addr _page, int _bank, Tick estArrTime, int cpuID);
     };
     
     int pendingPrivateEstimationSize;
@@ -480,10 +481,11 @@ class Bus : public BaseHier
     void buildShadowControllers(int np, HierParams* hp);
     
     int estimatePrivateInterference(MemReqPtr& req);
-    int getAloneLatencyOffset(MemReqPtr& req);
+    Tick getAloneArrival(MemReqPtr& req);
     PrivateStorageEntry getNextRequest(std::vector<PrivateStorageEntry>& queue, vector<Addr>& activeBanks, vector<Tick>& activatedAt);
-    bool activateCloseEnough(PrivateStorageEntry& entry, Tick activatedAt);
+    bool activateCloseEnough(PrivateStorageEntry& entry, Tick activatedAt, int cpuID);
     bool activateCloseEnoughForConflict(PrivateStorageEntry& entry, Tick activatedAt);
+    int getOverlapEstimate(Tick prevFinAt, Tick nextArrival);
     
 #ifdef INJECT_TEST_REQUESTS
     void generateRequests();

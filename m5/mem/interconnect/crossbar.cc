@@ -199,6 +199,9 @@ Crossbar::arbitrate(Tick cycle){
         
         for(int i=0;i<cpu_count;i++){
             cpuInterferenceCycles[i] += interferenceDelay[i];
+            if(interferenceDelay[i] > 0){
+                adaptiveMHA->addAloneInterference(interferenceDelay[i], i, INTERCONNECT_INTERFERENCE);
+            }
         }
     }
     
