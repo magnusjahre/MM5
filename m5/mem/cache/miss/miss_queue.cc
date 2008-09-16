@@ -447,7 +447,9 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
             if (mshr->getNumTargets() == numTarget) {
                 noTargetMSHR = mshr;
                 cache->setBlocked(Blocked_NoTargets);
-                mq.moveToFront(mshr);
+                
+                // this call creates deadlocks, not neccessary with new getMemReq impl
+                //mq.moveToFront(mshr);
             }
             return;
             
@@ -512,10 +514,9 @@ MissQueue::getMemReq()
         // POLICY: in allocation order in each queue, oldest first intra queue
         if(mqReq->finishedInCacheAt <= wbReq->finishedInCacheAt) req = mqReq;
         else req = wbReq;
-        
+
         assert(prevTime <= req->finishedInCacheAt);
         prevTime = req->finishedInCacheAt;
-
     }
     else if(mqReq && mqReq->finishedInCacheAt <= curTick){
         req = mqReq;
@@ -538,7 +539,11 @@ MissQueue::getMemReq()
         }
       }
     }
-    
+        
+//     if(!cache->isReadOnly && !req){
+//         if(mqReq || wbReq) fatal("not issuing with valid request, will create deadlock");
+//     }
+
     return req;
 }
 
