@@ -217,7 +217,9 @@ if l1mshrsInst != -1:
 # might only be used for tracing memory bus usage
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
-root.adaptiveMHA.sampleFrequency = 500000
+#root.adaptiveMHA.sampleFrequency = 500000
+root.adaptiveMHA.sampleFrequency = 100000
+
 if 'DUMP-INTERFERENCE' in env:
     root.adaptiveMHA.numReqsBetweenIDumps = int(env['DUMP-INTERFERENCE'])
     
@@ -508,11 +510,6 @@ if "INFINITE-MEM-BW" in env:
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()
-    if "RQS" in env:
-        root.toMemBus.memory_controller.readqueue_size = int(env["RQS"])
-    if "WQS" in env:
-        root.toMemBus.memory_controller.writequeue_size = int(env["WQS"])
-        
 elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
     root.toMemBus.memory_controller = InOrderMemoryController()
 elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
