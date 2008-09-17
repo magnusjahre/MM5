@@ -18,7 +18,7 @@ class BaseL1Cache(BaseCache):
     mshrs = 16
     write_buffers = 8
     #tgts_per_mshr = 4
-    tgts_per_mshr = 16
+    tgts_per_mshr = 8
 
     cpu_count = int(env['NP'])
     is_shared = False
@@ -33,10 +33,10 @@ class DL1(BaseL1Cache):
     is_read_only = False
 
 class L2Bank(BaseCache):
-    size = '2MB' # 1MB * 4 banks = 4MB total cache size
-    assoc = 16
+    size = '1MB' #'2MB' # 1MB * 4 banks = 4MB total cache size
+    assoc = 8 #16
     block_size = 64
-    latency = 18 * Parent.clock.period
+    latency = 14 * Parent.clock.period
     
     #mshrs = 64
     #tgts_per_mshr = 64
@@ -44,7 +44,7 @@ class L2Bank(BaseCache):
     
     mshrs = 16
     #tgts_per_mshr = 4
-    tgts_per_mshr = 16
+    tgts_per_mshr = 8
     write_buffers = 16
     
     cpu_count = int(env['NP'])
