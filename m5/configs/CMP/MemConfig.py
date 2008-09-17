@@ -136,8 +136,11 @@ class ConventionalMemBus(Bus):
     bank_count = 4
 
 class ReadyFirstMemoryController(RDFCFSMemoryController):
-    readqueue_size = 64
-    writequeue_size = 64
+    #readqueue_size = 64
+    #writequeue_size = 64
+    
+    readqueue_size = 16
+    writequeue_size = 16
     
     reserved_slots = 2
     
@@ -150,8 +153,10 @@ class InOrderMemoryController(FCFSMemoryController):
     queue_size = 64
     
 class FairNFQMemoryController(NFQMemoryController):
-    rd_queue_size = 64
-    wr_queue_size = 64
+    #rd_queue_size = 64
+    #wr_queue_size = 64
+    rd_queue_size = 16
+    wr_queue_size = 16
     starvation_prevention_thres = 0
     num_cpus = int(env["NP"])
     processor_priority = 1
