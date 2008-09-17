@@ -133,9 +133,9 @@ class TimingMemoryController : public SimObject
     
     int getLastActivatedBy(int bank);
     
-    virtual void addInterference(MemReqPtr &req, Tick lat){
-        fatal("not implemented");
-    }
+//     virtual void addInterference(MemReqPtr &req, Tick lat){
+//         fatal("not implemented");
+//     }
     
     void setShadow(){
         isShadow = true;

@@ -407,20 +407,20 @@ RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<M
     return retval;
 }
 
-void
-RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
-    //NOTE: this method is called at the tick the memory transaction starts
-    // therefore, all reqs in the queue have actually delayed by this req
-    
-    std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
-    while(tmpIterator != readQueue.end()){
-        MemReqPtr tmpReq = *tmpIterator;
-        if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
-            tmpReq->busDelay += lat;
-        }
-        tmpIterator++;
-    }
-}
+// void
+// RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
+//     //NOTE: this method is called at the tick the memory transaction starts
+//     // therefore, all reqs in the queue have actually delayed by this req
+//     
+//     std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
+//     while(tmpIterator != readQueue.end()){
+//         MemReqPtr tmpReq = *tmpIterator;
+//         if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
+//             tmpReq->busDelay += lat;
+//         }
+//         tmpIterator++;
+//     }
+// }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

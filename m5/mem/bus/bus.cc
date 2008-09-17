@@ -664,7 +664,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
         }
         
-        memoryController->addInterference(req, time - curTick);
+//         memoryController->addInterference(req, time - curTick);
     }
     
 #ifdef INJECT_TEST_REQUESTS
@@ -674,7 +674,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     
     if (req->cmd == Read) {
         assert(req->busId < interfaces.size() && req->busId > -1);
-        assert(req->busDelay <= time - req->inserted_into_memory_controller);
+//         assert(req->busDelay <= time - req->inserted_into_memory_controller);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
         
