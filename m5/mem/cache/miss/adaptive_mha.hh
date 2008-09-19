@@ -89,6 +89,8 @@ class AdaptiveMHA : public SimObject{
         bool printInterference;
         Tick finalSimTick;
         
+        bool useAvgLat;
+        
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
             std::vector<std::vector<Tick> > l2Delay;
@@ -204,7 +206,7 @@ class AdaptiveMHA : public SimObject{
         
         void doFairAMHA();
         
-        void doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers);
+        void doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, std::vector<double> avgQueueLatencies);
 
         void throughputDecreaseNumMSHRs(std::vector<int> currentVector);
         

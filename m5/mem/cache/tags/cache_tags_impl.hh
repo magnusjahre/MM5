@@ -583,7 +583,10 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
     }
     else{
         assert(blk->origRequestingCpuID != -1);
-        writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
+        
+        //FIXME: commented out for AMHA, we don't have owner information
+        writeback->adaptiveMHASenderID = -1;
+//         writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
     }
     
     blk->status &= ~BlkDirty;

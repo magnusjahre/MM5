@@ -420,7 +420,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         return false;
     }
     
-    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read){
+    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read && req->adaptiveMHASenderID != -1){
         assert(req->adaptiveMHASenderID != -1);
         blockingInterferenceCycles[req->adaptiveMHASenderID] += curTick - origReqTime;
     }
@@ -450,7 +450,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     // Insert request into memory controller
     memoryController->insertRequest(req);
-    if(cpu_count > 1){
+    if(cpu_count > 1 && req->adaptiveMHASenderID != -1){
         assert(req->adaptiveMHASenderID != -1);
         
         // keep interference misses out of the private mem sys

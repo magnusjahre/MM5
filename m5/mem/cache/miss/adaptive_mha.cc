@@ -41,6 +41,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     reductionThreshold = _reductionThreshold;
     interferencePointMinAllowed = _interferencePointMinAllowed;
     
+    useAvgLat = true; // FIXME: parameterize
+    
     printInterference = _printInterference;
     finalSimTick = _finalSimTick;
     if(printInterference){
@@ -269,7 +271,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     // analyse data according to selected scheme
     if(!onlyTraceBus){
         if(useFairAMHA && ! wasFirst) doFairAMHA();
-        else doThroughputAMHA(dataBusUtil, dataUsers);
+        else doThroughputAMHA(dataBusUtil, dataUsers, avgQueueDelayPerUser);
         
         if(wasFirst){
             ofstream fairfile("fairAlgTrace.txt");
@@ -319,14 +321,24 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 
 
 void
-AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers){
+AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, vector<double> avgQueueLatencies){
+    
+    double desicionValue = dataBusUtil;
+
+    if(useAvgLat){
+        double tmpMax = 0.0;
+        for(int i=0;i<avgQueueLatencies.size();i++){
+            if(avgQueueLatencies[i] > tmpMax) tmpMax = avgQueueLatencies[i];
+        }
+        desicionValue = tmpMax;
+    }
     
     bool decreaseCalled = false;
-    if(dataBusUtil >= highThreshold){
+    if(desicionValue >= highThreshold){
         throughputDecreaseNumMSHRs(dataUsers);
         decreaseCalled = true;
     }
-    if(dataBusUtil <= lowThreshold){
+    if(desicionValue <= lowThreshold){
         throughputIncreaseNumMSHRs();
     }
         
