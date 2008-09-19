@@ -17,7 +17,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
                                          int _spt,
                                          int _numCPUs,
                                          int _processorPriority,
-                                         int _writePriority)
+                                         int _writePriority,
+                                         bool _infWriteBW)
     : TimingMemoryController(_name) {
     
     readQueueLength = _rdQueueLength;
@@ -47,6 +48,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
     queuedReads = 0;
     queuedWrites = 0;
     starvationCounter = 0;
+    
+    infiniteWriteBW = _infWriteBW;
 }
 
 NFQMemoryController::~NFQMemoryController(){
@@ -57,6 +60,11 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
 
     req->inserted_into_memory_controller = curTick;
     assert(req->cmd == Read || req->cmd == Writeback);
+    
+    if(infiniteWriteBW && req->cmd == Writeback){
+        return 0;
+    }
+    
     req->cmd == Read ? queuedReads++ : queuedWrites++;
     
     Tick minTag = getMinStartTag();
@@ -413,6 +421,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(NFQMemoryController)
     Param<int> num_cpus;
     Param<int> processor_priority;
     Param<int> writeback_priority;
+    Param<bool> inf_write_bw;
 END_DECLARE_SIM_OBJECT_PARAMS(NFQMemoryController)
 
 
@@ -422,7 +431,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
     INIT_PARAM_DFLT(starvation_prevention_thres, "Starvation Prevention Threshold", 1),
     INIT_PARAM_DFLT(num_cpus, "Number of CPUs", -1),
     INIT_PARAM_DFLT(processor_priority, "The priority given to writeback requests", -1),
-    INIT_PARAM_DFLT(writeback_priority, "The priority given to writeback requests", -1)
+    INIT_PARAM_DFLT(writeback_priority, "The priority given to writeback requests", -1),
+    INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false)
+            
 END_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
 
 
@@ -434,7 +445,8 @@ CREATE_SIM_OBJECT(NFQMemoryController)
                                    starvation_prevention_thres,
                                    num_cpus,
                                    processor_priority,
-                                   writeback_priority);
+                                   writeback_priority,
+                                   inf_write_bw);
 }
 
 REGISTER_SIM_OBJECT("NFQMemoryController", NFQMemoryController)

@@ -18,6 +18,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     std::list<MemReqPtr> writeQueue;
     MemReqPtr lastIssuedReq;
     bool lastIsWrite;
+    bool infiniteWriteBW;
 
     std::list<MemReqPtr>::iterator queueIterator;
 
@@ -53,7 +54,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     RDFCFSTimingMemoryController(std::string _name,
                                  int _readqueue_size,
                                  int _writequeue_size,
-                                 int _reserved_slots);
+                                 int _reserved_slots,
+                                 bool _infinite_write_bw);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();

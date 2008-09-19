@@ -9,3 +9,4 @@ class NFQMemoryController(TimingMemoryController):
     num_cpus = Param.Int("Number of CPUs")
     processor_priority = Param.Int("Priority given to requests from a given processors")
     writeback_priority = Param.Int("Priority given to writebacks with no processor identification")
+    inf_write_bw = Param.Bool("Infinite writeback bandwidth")

@@ -35,6 +35,8 @@ class NFQMemoryController : public TimingMemoryController
         
         int starvationCounter;
         
+        bool infiniteWriteBW;
+        
     private:
         Tick getMinStartTag();
     
@@ -61,7 +63,8 @@ class NFQMemoryController : public TimingMemoryController
                             int _spt,
                             int _numCPUs,
                             int _processorPriority,
-                            int _writePriority);
+                            int _writePriority,
+                            bool _infiniteWriteBW);
     
         /** Frees locally allocated memory. */
         ~NFQMemoryController();

@@ -50,7 +50,8 @@ class L2Bank(BaseCache):
     cpu_count = int(env['NP'])
     is_shared = True
     is_read_only = False
-    simulate_contention = True
+    #simulate_contention = True
+    simulate_contention = False #FIXME
     
     def setModuloAddr(self, bankID, bank_count):
         self.do_modulo_addr = True
@@ -141,8 +142,9 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
     
     readqueue_size = 16
     writequeue_size = 16
-    
     reserved_slots = 2
+    
+    inf_write_bw = True
     
 class FastForwardMemoryController(RDFCFSMemoryController):
     readqueue_size = 64
@@ -161,6 +163,8 @@ class FairNFQMemoryController(NFQMemoryController):
     num_cpus = int(env["NP"])
     processor_priority = 1
     writeback_priority = 1
+    
+    inf_write_bw = True
     
 class ThroughputNFQMemoryController(NFQMemoryController):
     rd_queue_size = 64

@@ -1116,7 +1116,7 @@ Bus::buildShadowControllers(int np, HierParams* hp){
             stringstream ctrlName;
             ctrlName << "ShadowController" << np;
             RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
-                    memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0);
+                    memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0, false);
             shadowControllers.push_back(tmpCtrl);
             tmpCtrl->registerBus(this, np);
             tmpCtrl->setShadow();
