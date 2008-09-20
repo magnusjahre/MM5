@@ -217,8 +217,8 @@ if l1mshrsInst != -1:
 # might only be used for tracing memory bus usage
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
-#root.adaptiveMHA.sampleFrequency = 500000
-root.adaptiveMHA.sampleFrequency = 100000
+root.adaptiveMHA.sampleFrequency = 500000
+#root.adaptiveMHA.sampleFrequency = 100000
 
 if 'DUMP-INTERFERENCE' in env:
     root.adaptiveMHA.numReqsBetweenIDumps = int(env['DUMP-INTERFERENCE'])
