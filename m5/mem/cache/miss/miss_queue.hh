@@ -371,6 +371,20 @@ class MissQueue
         }
     }
     
+    void incrementNumMSHRsByOne(bool onMSHRs){
+        assert(onMSHRs);
+        mq.incrementNumMSHRsByOne();
+    }
+    
+    void decrementNumMSHRsByOne(bool onMSHRs){
+        assert(onMSHRs);
+        
+        mq.decrementNumMSHRsByOne();
+        if(mq.isFull() && !cache->isBlockedNoMSHRs()){
+            cache->setBlocked(Blocked_NoMSHRs);
+        }
+    }
+    
     int getCurrentMSHRCount(bool onMSHRs){
         if(onMSHRs) return mq.getCurrentMSHRCount();
         else return wb.getCurrentMSHRCount();

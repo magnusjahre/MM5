@@ -253,6 +253,14 @@ class MSHRQueue {
         numMSHRs = newCount + numReserve -1;
     }
     
+    void incrementNumMSHRsByOne(){
+        numMSHRs++;
+    }
+    
+    void decrementNumMSHRsByOne(){
+        numMSHRs--;
+    }
+    
     int getCurrentMSHRCount(){
         return (numMSHRs - numReserve) + 1;
     }

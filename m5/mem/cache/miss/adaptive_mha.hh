@@ -35,6 +35,8 @@ class AdaptiveMHA : public SimObject{
         int neededRepeatDecisions;
         
         bool useFairAMHA;
+        bool useAvgLat;
+        bool useTwoPhaseThroughput;
         
         int maxMshrs;
         int maxWB;
@@ -89,7 +91,7 @@ class AdaptiveMHA : public SimObject{
         bool printInterference;
         Tick finalSimTick;
         
-        bool useAvgLat;
+        
         
         struct delayEntry{
             std::vector<std::vector<Tick> > cbDelay;
@@ -133,6 +135,14 @@ class AdaptiveMHA : public SimObject{
         std::vector<Tick> totalAloneDelay;
         std::vector<int> numberOfAloneRequests;
         std::vector<int> dumpCount;
+        
+        // Two phase AMHA vars
+        std::vector<double> lastIPCs;
+        int lastDesicionID;
+        bool lastWasDecrease;
+        bool inPhaseOne;
+        int twoPhaseResetCount;
+        std::vector<bool> tfamhaBlacklist;
     
     public:
         
@@ -207,6 +217,16 @@ class AdaptiveMHA : public SimObject{
         void doFairAMHA();
         
         void doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, std::vector<double> avgQueueLatencies);
+        
+        void doTwoPhaseThroughputAMHA(std::vector<int> dataUsers, std::vector<double> avgQueueLatencies, std::vector<double> curIPCs);
+        
+        int findMaxNotBlacklisted(std::vector<int> dataUsers);
+        
+        void getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase);
+        
+        bool acceptSpeedup(std::vector<double> aCurIPCs);
+        
+        void changeNumMSHRs(int id, bool increment, bool exponential);
 
         void throughputDecreaseNumMSHRs(std::vector<int> currentVector);
         

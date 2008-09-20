@@ -547,6 +547,8 @@ class BaseCache : public BaseMem {
     // Adaptive MHA methods
     virtual void incrementNumMSHRs(bool onMSHRs) = 0;
     virtual void decrementNumMSHRs(bool onMSHRs) = 0;
+    virtual void incrementNumMSHRsByOne(bool onMSHRs) = 0;
+    virtual void decrementNumMSHRsByOne(bool onMSHRs) = 0;
     virtual int getCurrentMSHRCount(bool onMSHRs) = 0;
     
     virtual std::vector<int> perCoreOccupancy() = 0;

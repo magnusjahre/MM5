@@ -262,6 +262,14 @@ public:
         fatal("Makes no sense");
     }
     
+    void incrementNumMSHRsByOne(bool onMSHRs){
+        fatal("Makes no sense");
+    }
+    
+    void decrementNumMSHRsByOne(bool onMSHRs){
+        fatal("Makes no sense");
+    }
+    
     int getCurrentMSHRCount(bool onMSHRs){
         fatal("Makes no sense");
         return 0;

@@ -379,6 +379,14 @@ class Cache : public BaseCache
         missQueue->decrementNumMSHRs(onMSHRs);
     }
     
+    virtual void incrementNumMSHRsByOne(bool onMSHRs){
+        missQueue->incrementNumMSHRsByOne(onMSHRs);
+    }
+    
+    virtual void decrementNumMSHRsByOne(bool onMSHRs){
+        missQueue->decrementNumMSHRsByOne(onMSHRs);
+    }
+    
     virtual int getCurrentMSHRCount(bool onMSHRs){
         return missQueue->getCurrentMSHRCount(onMSHRs);
     }
