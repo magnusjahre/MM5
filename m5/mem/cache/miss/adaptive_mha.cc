@@ -26,7 +26,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          double _interferencePointMinAllowed,
                          bool _printInterference,
                          Tick _finalSimTick,
-                         int _numReqsBetweenIDumps)
+                         int _numReqsBetweenIDumps,
+                         double _tpUtilizationLimit)
         : SimObject(name)
 {
     adaptiveMHAcpuCount = cpu_count;
@@ -43,7 +44,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     
     useAvgLat = false; // FIXME: parameterize
     useTwoPhaseThroughput = true; // FIXME: parameterize
-    
+    tpUtilizationLimit = _tpUtilizationLimit;
+
+
     printInterference = _printInterference;
     finalSimTick = _finalSimTick;
     if(printInterference){
@@ -159,8 +162,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     lastDesicionID = 0;
     lastWasDecrease = false;
     inPhaseOne = true;
-    twoPhaseResetCount = 0;
+    twoPhaseResetCount = 1;
     tfamhaBlacklist.resize(adaptiveMHAcpuCount, false);
+    useAMHAInSession = true;
 }
         
 AdaptiveMHA::~AdaptiveMHA(){
@@ -281,7 +285,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     if(!onlyTraceBus){
         if(useFairAMHA && !wasFirst) doFairAMHA();
         else{
-            if(useTwoPhaseThroughput) if(!wasFirst) doTwoPhaseThroughputAMHA(dataUsers, avgQueueDelayPerUser, IPCs);
+          if(useTwoPhaseThroughput) if(!wasFirst) doTwoPhaseThroughputAMHA(dataUsers, avgQueueDelayPerUser, IPCs, dataBusUtil);
             else doThroughputAMHA(dataBusUtil, dataUsers, avgQueueDelayPerUser);
         }
         
@@ -361,17 +365,20 @@ AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, ve
 }
 
 void 
-AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQueueLatencies, vector<double> curIPCs){
+AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQueueLatencies, vector<double> curIPCs, double dataBusUtil){
     
     
     //NOTE: repeats are used to store the number of events between full resets
     //NOTE: high thres is the average latency that determines the border between inc and dec of MSHRs in phase two
     //NOTE: low thres gives the speedup needed to accept a change
     assert(highThreshold > 0.0);
-    
-    if(twoPhaseResetCount == neededRepeatDecisions){
 
+    assert(neededRepeatDecisions > 2);
+
+    if(twoPhaseResetCount == neededRepeatDecisions){
+      
         inPhaseOne = true;
+        useAMHAInSession = true;
         for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
         twoPhaseResetCount = 0;
         
@@ -384,17 +391,28 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
         }
         
         // make first phase one desicion
-        int decrID = findMaxNotBlacklisted(dataUsers);
-        assert(decrID != -1);
-        changeNumMSHRs(decrID, false, true);
-        lastDesicionID = decrID;
-        lastWasDecrease = true;
+        // int decrID = findMaxNotBlacklisted(dataUsers);
+//         assert(decrID != -1);
+//         changeNumMSHRs(decrID, false, true);
+//         lastDesicionID = decrID;
+//         lastWasDecrease = true;
     }
     else{
-    
+      if(useAMHAInSession){
         if(inPhaseOne){
             
-            if(twoPhaseResetCount > 0){
+            if(twoPhaseResetCount == 1){
+              if(dataBusUtil < tpUtilizationLimit){
+                useAMHAInSession = false;
+                twoPhaseResetCount++;
+                return;
+              }
+              else{
+                useAMHAInSession = true;
+              }
+            }
+
+            if(twoPhaseResetCount > 1){
                 
                 assert(lastWasDecrease);
                 assert(lastDesicionID != -1);
@@ -459,6 +477,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 }
             }
         }
+      }
     }
 
     // update storage
@@ -712,6 +731,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
     Param<bool> printInterference;
     Param<Tick> finalSimTick;
     Param<int> numReqsBetweenIDumps;
+    Param<double> tpUtilizationLimit;
 END_DECLARE_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
@@ -729,8 +749,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0),
     INIT_PARAM_DFLT(printInterference, "True if the total interference stats should be printed", false),
     INIT_PARAM_DFLT(finalSimTick, "Tick at which interference stats are printed", 0),
-    INIT_PARAM_DFLT(numReqsBetweenIDumps, "The number of memory requests between each interference dump", 1000)
-            
+  INIT_PARAM_DFLT(numReqsBetweenIDumps, "The number of memory requests between each interference dump", 1000),
+    INIT_PARAM_DFLT(tpUtilizationLimit, "TP-AMHA only runs if utilization is higher than this param", 0.4)        
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
@@ -751,7 +771,8 @@ CREATE_SIM_OBJECT(AdaptiveMHA)
                            minInterferencePointAllowed,
                            printInterference,
                            finalSimTick,
-                           numReqsBetweenIDumps);
+                           numReqsBetweenIDumps,
+                           tpUtilizationLimit);
 }
 
 REGISTER_SIM_OBJECT("AdaptiveMHA", AdaptiveMHA)

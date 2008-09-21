@@ -217,8 +217,11 @@ if l1mshrsInst != -1:
 # might only be used for tracing memory bus usage
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
-root.adaptiveMHA.sampleFrequency = 500000
-#root.adaptiveMHA.sampleFrequency = 100000
+
+if 'AMHA-PERIOD' in env:
+    root.adaptiveMHA.sampleFrequency = int(env['AMHA-PERIOD'])
+else:
+    root.adaptiveMHA.sampleFrequency = 500000
 
 if 'DUMP-INTERFERENCE' in env:
     root.adaptiveMHA.numReqsBetweenIDumps = int(env['DUMP-INTERFERENCE'])
@@ -238,6 +241,10 @@ if useAdaptiveMHA:
     root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
     root.adaptiveMHA.onlyTraceBus = False
     root.adaptiveMHA.useFairMHA = False
+
+    if "ADAPTIVE-MHA-LIMIT" in env:
+        root.adaptiveMHA.tpUtilizationLimit = float(env["ADAPTIVE-MHA-LIMIT"])
+    
 elif useFairAdaptiveMHA:
     root.adaptiveMHA.lowThreshold = 0.0 # not used
     root.adaptiveMHA.highThreshold = 1.0 # not used

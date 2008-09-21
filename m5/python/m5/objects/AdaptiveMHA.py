@@ -17,3 +17,5 @@ class AdaptiveMHA(SimObject):
     printInterference = Param.Bool("True if the total interference stats should be printed")
     finalSimTick = Param.Tick("Tick at which interference stats are printed")
     numReqsBetweenIDumps = Param.Int("The number of memory requests between each interference dump")
+    tpUtilizationLimit = Param.Float("TP-AMHA only runs if utilization is higher than this param")        
+

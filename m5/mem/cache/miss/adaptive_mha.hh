@@ -143,6 +143,8 @@ class AdaptiveMHA : public SimObject{
         bool inPhaseOne;
         int twoPhaseResetCount;
         std::vector<bool> tfamhaBlacklist;
+        bool useAMHAInSession;
+        double tpUtilizationLimit;
     
     public:
         
@@ -164,7 +166,8 @@ class AdaptiveMHA : public SimObject{
                     double _interferencePointMinAllowed,
                     bool _printInterference,
                     Tick _finalSimTick,
-                    int _numReqsBetweenIDumps);
+                    int _numReqsBetweenIDumps,
+                    double _tpUtilizationLimit);
         
         ~AdaptiveMHA();
         
@@ -218,7 +221,7 @@ class AdaptiveMHA : public SimObject{
         
         void doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, std::vector<double> avgQueueLatencies);
         
-        void doTwoPhaseThroughputAMHA(std::vector<int> dataUsers, std::vector<double> avgQueueLatencies, std::vector<double> curIPCs);
+        void doTwoPhaseThroughputAMHA(std::vector<int> dataUsers, std::vector<double> avgQueueLatencies, std::vector<double> curIPCs, double dataBusUtil);
         
         int findMaxNotBlacklisted(std::vector<int> dataUsers);
         
