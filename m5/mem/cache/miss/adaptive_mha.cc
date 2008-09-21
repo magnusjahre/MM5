@@ -421,6 +421,9 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                     lastDesicionID = desID;
                     lastWasDecrease = !inc;
                 }
+                else{
+                    lastDesicionID = -1;
+                }
                 
             }
             else{
