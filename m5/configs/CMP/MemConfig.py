@@ -136,9 +136,6 @@ class ConventionalMemBus(Bus):
     bank_count = 4
 
 class ReadyFirstMemoryController(RDFCFSMemoryController):
-    #readqueue_size = 64
-    #writequeue_size = 64
-    
     readqueue_size = 64
     writequeue_size = 64
     reserved_slots = 2

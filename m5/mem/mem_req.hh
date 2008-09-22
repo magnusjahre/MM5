@@ -210,6 +210,8 @@ class MemReq : public FastAlloc, public RefCounted
     Tick interferenceMissAt;
     Tick finishedInCacheAt;
     
+    int memBusBlockedWaitCycles;
+    
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -266,7 +268,8 @@ class MemReq : public FastAlloc, public RefCounted
           shadowCtrlID(-1),
           givenToShadow(false),
           interferenceMissAt(0),
-          finishedInCacheAt(0)
+          finishedInCacheAt(0),
+          memBusBlockedWaitCycles(0)
     {
     }
 
@@ -319,6 +322,7 @@ class MemReq : public FastAlloc, public RefCounted
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;
         finishedInCacheAt = r.finishedInCacheAt;
+        memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;
     }
 
     /**

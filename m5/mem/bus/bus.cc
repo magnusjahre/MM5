@@ -420,6 +420,8 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         return false;
     }
     
+    req->memBusBlockedWaitCycles = curTick - origReqTime;
+    
     if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read && req->adaptiveMHASenderID != -1){
         assert(req->adaptiveMHASenderID != -1);
         blockingInterferenceCycles[req->adaptiveMHASenderID] += curTick - origReqTime;
@@ -561,7 +563,7 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 
         if(request->cmd != Activate && request->cmd != Close){
             assert(request->inserted_into_memory_controller > 0);
-            int queue_lat = curTick - request->inserted_into_memory_controller;
+            int queue_lat = (curTick - request->inserted_into_memory_controller) + request->memBusBlockedWaitCycles;
             totalQueueCycles += queue_lat;
             if(request->adaptiveMHASenderID != -1){
                 perCPUQueueCycles[request->adaptiveMHASenderID] += queue_lat;

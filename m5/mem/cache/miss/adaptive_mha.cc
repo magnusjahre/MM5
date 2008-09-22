@@ -374,6 +374,9 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
     assert(highThreshold > 0.0);
 
     assert(neededRepeatDecisions > 2);
+    
+    double maxlat = 0.0;
+    for(int i=0;i<avgQueueLatencies.size();i++) if(avgQueueLatencies[i] > maxlat) maxlat = avgQueueLatencies[i];
 
     if(twoPhaseResetCount == neededRepeatDecisions){
       
@@ -402,14 +405,14 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
         if(inPhaseOne){
             
             if(twoPhaseResetCount == 1){
-              if(dataBusUtil < tpUtilizationLimit){
-                useAMHAInSession = false;
-                twoPhaseResetCount++;
-                return;
-              }
-              else{
-                useAMHAInSession = true;
-              }
+                if(maxlat < highThreshold){
+                    useAMHAInSession = false;
+                    twoPhaseResetCount++;
+                    return;
+                }
+                else{
+                    useAMHAInSession = true;
+                }
             }
 
             if(twoPhaseResetCount > 1){
