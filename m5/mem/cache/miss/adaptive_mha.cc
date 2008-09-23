@@ -752,8 +752,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
     INIT_PARAM_DFLT(minInterferencePointAllowed, "Lowest relative interference point that will count as interference", 1.0),
     INIT_PARAM_DFLT(printInterference, "True if the total interference stats should be printed", false),
     INIT_PARAM_DFLT(finalSimTick, "Tick at which interference stats are printed", 0),
-  INIT_PARAM_DFLT(numReqsBetweenIDumps, "The number of memory requests between each interference dump", 1000),
-    INIT_PARAM_DFLT(tpUtilizationLimit, "TP-AMHA only runs if utilization is higher than this param", 0.4)        
+    INIT_PARAM_DFLT(numReqsBetweenIDumps, "The number of memory requests between each interference dump", 1000),
+    INIT_PARAM_DFLT(tpUtilizationLimit, "TP-AMHA only runs if utilization is higher than this param", 0.4)
 END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
