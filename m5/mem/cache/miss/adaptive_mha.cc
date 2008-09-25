@@ -165,6 +165,21 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     twoPhaseResetCount = 1;
     tfamhaBlacklist.resize(adaptiveMHAcpuCount, false);
     useAMHAInSession = true;
+    
+    firstPhaseStep = 0;
+    firstPhaseTwo = false;
+    throughputMeasurements.resize(5, -1.0);
+    
+    speedDifferences.resize(5, vector<double>(adaptiveMHAcpuCount, -1.0));
+    
+    stepMapping.resize(5,0);
+    stepMapping[0] = 0;
+    stepMapping[1] = 1;
+    stepMapping[2] = 2;
+    stepMapping[3] = 3;
+    stepMapping[4] = 4;
+    
+    performanceOrdering.resize(adaptiveMHAcpuCount, -1);
 }
         
 AdaptiveMHA::~AdaptiveMHA(){
@@ -371,26 +386,28 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
     //NOTE: repeats are used to store the number of events between full resets
     //NOTE: high thres is the average latency that determines the border between inc and dec of MSHRs in phase two
     //NOTE: low thres gives the speedup needed to accept a change
-    assert(highThreshold > 0.0);
+//     assert(highThreshold > 0.0);
 
     assert(neededRepeatDecisions > 2);
     
 //     double maxlat = 0.0;
-    double sum = 0.0;
-    for(int i=0;i<avgQueueLatencies.size();i++){
-      sum += avgQueueLatencies[i];
-//       if(avgQueueLatencies[i] > maxlat){
-//         maxlat = avgQueueLatencies[i];
-//       }
-    }
-    double avglat = sum / avgQueueLatencies.size();
+//     double sum = 0.0;
+//     for(int i=0;i<avgQueueLatencies.size();i++){
+//       sum += avgQueueLatencies[i];
+// //       if(avgQueueLatencies[i] > maxlat){
+// //         maxlat = avgQueueLatencies[i];
+// //       }
+//     }
+//     double avglat = sum / avgQueueLatencies.size();
 
+    
     if(twoPhaseResetCount == neededRepeatDecisions){
       
         inPhaseOne = true;
         useAMHAInSession = true;
         for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
         twoPhaseResetCount = 0;
+        firstPhaseStep = 0;
         
         
         // restore all caches to their original configs
@@ -412,7 +429,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
         if(inPhaseOne){
             
             if(twoPhaseResetCount == 1){
-                if(avglat < highThreshold){
+                if(dataBusUtil < tpUtilizationLimit){
                     useAMHAInSession = false;
                     twoPhaseResetCount++;
                     return;
@@ -422,61 +439,150 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 }
             }
 
-            if(twoPhaseResetCount > 1){
-                
-                assert(lastWasDecrease);
-                assert(lastDesicionID != -1);
-                
-                if(!acceptSpeedup(curIPCs)){
-                    //rollback and blacklist
-                    tfamhaBlacklist[lastDesicionID] = true;
-                    changeNumMSHRs(lastDesicionID, true, true);
+            // NOTE: might want to use rollback checks in the first phase
+//             if(twoPhaseResetCount > 1){
+//                 
+//                 assert(lastWasDecrease);
+//                 assert(lastDesicionID != -1);
+//                 
+//                 if(!acceptSpeedup(curIPCs)){
+//                     //rollback and blacklist
+//                     tfamhaBlacklist[lastDesicionID] = true;
+//                     changeNumMSHRs(lastDesicionID, true, true);
+//                 }
+//             }
+            
+//             int decrID = findMaxNotBlacklisted(dataUsers);
+//             if(decrID == -1){
+            
+            // start from full MSHR count for simplicity
+            for(int i=0;i<dataCaches.size();i++){
+                while(dataCaches[i]->getCurrentMSHRCount(true) < maxMshrs){
+                    changeNumMSHRs(i, true, false);
                 }
             }
             
-            int decrID = findMaxNotBlacklisted(dataUsers);
-            if(decrID == -1){
-                // all cpus are blacklisted, enter phase two
+            // store IPC
+            for(int i=0;i<curIPCs.size();i++){
+                speedDifferences[firstPhaseStep][i] = curIPCs[i];
+            }
+                
+            // compute weighted speedup relative to 16 MSHR config
+            double sum = 0.0;
+            for(int i=0;i<curIPCs.size();i++){
+                sum += (curIPCs[i] / speedDifferences[0][i]);
+            }
+            throughputMeasurements[firstPhaseStep] = sum;
+            
+            if(firstPhaseStep == stepMapping.size()-1){
+                
+                // first phase finished
+                
+                // find best symmetric MHA
+                double max = throughputMeasurements[0] + lowThreshold;
+                int maxid = 0;
+                for(int i=1;i<throughputMeasurements.size();i++){
+                    if(throughputMeasurements[i] > max){
+                        max = throughputMeasurements[i];
+                        maxid = i;
+                    }
+                }
+                
+                vector<double> speedups(adaptiveMHAcpuCount, false);
+                for(int i=0;i<speedups.size();i++){
+                    speedups[i] = speedDifferences[maxid][i] / speedDifferences[0][i];
+                }
+                
+                vector<bool> marked(adaptiveMHAcpuCount, false);
+                for(int i=0;i<performanceOrdering.size();i++){
+                    double tmpmax = 0.0;
+                    int tmpmaxid = -1;
+                    for(int j=0;j<speedups.size();j++){
+                        if(!marked[j]){
+                            if(tmpmax < speedups[j]){
+                                tmpmax = speedups[j];
+                                tmpmaxid = j;
+                            }
+                        }
+                    }
+                    assert(tmpmaxid != -1);
+                    
+                    marked[tmpmaxid] = true;
+                    performanceOrdering[i] = tmpmaxid;
+                }
+                
+                // implement best scheme
+                int decreaseOps = stepMapping[maxid];
+                for(int i=0;i<dataCaches.size();i++){
+                    for(int j=0;j<decreaseOps;j++){
+                        changeNumMSHRs(i, false, true);
+                    }
+                }
+                
+                // enter phase two
                 inPhaseOne = false;
-                
+                firstPhaseTwo = true;
+                lastDesicionID = 0;
                 for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
-                
-                bool inc = false;
-                int desID = -1;
-                getPhaseTwoAction(avgQueueLatencies, &desID, &inc);
-                if(desID != -1){
-                    changeNumMSHRs(desID, inc, false);
-                    lastDesicionID = desID;
-                    lastWasDecrease = !inc;
-                }
-                else{
-                    lastDesicionID = -1;
-                }
+//                 
+//                 bool inc = false;
+//                 int desID = -1;
+//                 getPhaseTwoAction(avgQueueLatencies, &desID, &inc, dataBusUtil);
+//                 if(desID != -1){
+//                     changeNumMSHRs(desID, inc, false);
+//                     lastDesicionID = desID;
+//                     lastWasDecrease = !inc;
+//                 }
+//                 else{
+//                     lastDesicionID = -1;
+//                 }
                 
             }
             else{
-                changeNumMSHRs(decrID, false, true);
-                lastDesicionID = decrID;
-                lastWasDecrease = true;
+                
+                // create new symmetric MHA for next phase
+                int decreaseOps = stepMapping[firstPhaseStep+1];
+                for(int i=0;i<dataCaches.size();i++){
+                    for(int j=0;j<decreaseOps;j++){
+                        changeNumMSHRs(i, false, true);
+                    }
+                }
+                
             }
+            firstPhaseStep++;
+            
+//             else{
+//                 changeNumMSHRs(decrID, false, true);
+//                 lastDesicionID = decrID;
+//                 lastWasDecrease = true;
+//             }
+            
+            
         }
         else{
             
-            if(lastDesicionID != -1){
+            if(lastDesicionID != -1){ 
 
-                if(!acceptSpeedup(curIPCs)){
-                    // speedup does not outweigh slowdown, rollback
-                    tfamhaBlacklist[lastDesicionID] = true;
-                    // inc = !lastWasDecrease, we need !inc, i.e. lastWasDecrease
-                    changeNumMSHRs(lastDesicionID, lastWasDecrease, false);
+                if(firstPhaseTwo){
+                    firstPhaseTwo = false;
+                }
+                else{
+                    if(!acceptSpeedup(curIPCs)){
+                        // speedup does not outweigh slowdown, rollback
+                        tfamhaBlacklist[lastDesicionID] = true;
+                        // inc = !lastWasDecrease, we need !inc, i.e. lastWasDecrease
+//                         changeNumMSHRs(lastDesicionID, lastWasDecrease, false);
+                        changeNumMSHRs(lastDesicionID, lastWasDecrease, true); // attempt a more aggressive p2
+                    }
                 }
                 
                 bool inc = false;
                 int desID = -1;
-                getPhaseTwoAction(avgQueueLatencies, &desID, &inc);
+                getPhaseTwoAction(avgQueueLatencies, &desID, &inc, dataBusUtil);
                 
                 if(desID != -1){
-                    changeNumMSHRs(desID, inc, false);
+//                     changeNumMSHRs(desID, inc, false);
+                    changeNumMSHRs(desID, inc, true); // attempt a more aggressive p2
                     lastDesicionID = desID;
                     lastWasDecrease = !inc;
                 }
@@ -540,26 +646,18 @@ AdaptiveMHA::acceptSpeedup(vector<double> curIPCs){
 int 
 AdaptiveMHA::findMaxNotBlacklisted(std::vector<int> dataUsers){
     
-    int maxval = 0;
-    int maxid = -1;
-    
     for(int i=0;i<dataUsers.size();i++){
         if(!tfamhaBlacklist[i] && dataCaches[i]->getCurrentMSHRCount(true) > 1){
-            if(dataUsers[i] > maxval){
-                maxval = dataUsers[i];
-                maxid = i;
-            }
+            return i;
         }
     }
-    return maxid;
+    return -1;
 }
 
 void 
-AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase){
-    double maxlat = 0.0;
-    int maxid = -1;
-    
-    if(maxlat < highThreshold){
+AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase, double dataBusUtil){
+
+    if(dataBusUtil < tpUtilizationLimit){
         // low latencies, attempt increase
         *increase = true;
     }
@@ -568,19 +666,17 @@ AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* 
         *increase = false;
     }
     
-    for(int i=0;i<avgLatencies.size();i++){
-        if(!tfamhaBlacklist[i]){
-            if(dataCaches[i]->getCurrentMSHRCount(true) > 1 && !*increase) continue;
-            if(dataCaches[i]->getCurrentMSHRCount(true) == maxMshrs && *increase) continue; 
+    for(int i=0;i<adaptiveMHAcpuCount;i++){
+        int searchID = performanceOrdering[i];
+        if(!tfamhaBlacklist[searchID]){
+            if(dataCaches[searchID]->getCurrentMSHRCount(true) == 1 && !*increase) continue;
+            if(dataCaches[searchID]->getCurrentMSHRCount(true) == maxMshrs && *increase) continue; 
             
-            if(avgLatencies[i] > maxlat){
-                maxlat = avgLatencies[i];
-                maxid = i;
-            }
+            *id = searchID;
+            return;
         }
     }
-    
-    *id = maxid;
+    *id = -1;
 }
 
 void 

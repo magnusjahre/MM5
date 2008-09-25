@@ -145,6 +145,14 @@ class AdaptiveMHA : public SimObject{
         std::vector<bool> tfamhaBlacklist;
         bool useAMHAInSession;
         double tpUtilizationLimit;
+        
+        int firstPhaseStep;
+        std::vector<double> throughputMeasurements;
+        std::vector<std::vector<double> > speedDifferences;
+        std::vector<int> stepMapping;
+        bool firstPhaseTwo;
+        std::vector<int> performanceOrdering;
+    
     
     public:
         
@@ -225,7 +233,7 @@ class AdaptiveMHA : public SimObject{
         
         int findMaxNotBlacklisted(std::vector<int> dataUsers);
         
-        void getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase);
+        void getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase, double dataBusUtil);
         
         bool acceptSpeedup(std::vector<double> aCurIPCs);
         
