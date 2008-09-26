@@ -180,6 +180,11 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     stepMapping[4] = 4;
     
     performanceOrdering.resize(adaptiveMHAcpuCount, -1);
+    
+    ofstream amhatrace("amhaTrace.txt");
+    amhatrace << "EXECUTION TRACE FOR ADAPTIVE MHA\n\n";
+    amhatrace.flush();
+    amhatrace.close();
 }
         
 AdaptiveMHA::~AdaptiveMHA(){
@@ -400,9 +405,12 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
 //     }
 //     double avglat = sum / avgQueueLatencies.size();
 
+    ofstream amhatrace("amhaTrace.txt", ofstream::app);
+    amhatrace << "\nAMHA Running at tick " << curTick << "\n";
     
     if(twoPhaseResetCount == neededRepeatDecisions){
       
+        amhatrace << "Reset count is " << twoPhaseResetCount << ", resetting AMHA\n";
         inPhaseOne = true;
         useAMHAInSession = true;
         for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
@@ -430,11 +438,13 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
             
             if(twoPhaseResetCount == 1){
                 if(dataBusUtil < tpUtilizationLimit){
+                    amhatrace << "Data bus utilization is " << dataBusUtil << ", limit " << tpUtilizationLimit << ", disabling AMHA\n";
                     useAMHAInSession = false;
                     twoPhaseResetCount++;
                     return;
                 }
                 else{
+                    amhatrace << "Data bus utilization is " << dataBusUtil << ", limit " << tpUtilizationLimit << ", AMHA in use\n";
                     useAMHAInSession = true;
                 }
             }
@@ -462,10 +472,13 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 }
             }
             
+            amhatrace << "Current IPC measurements: ";
             // store IPC
             for(int i=0;i<curIPCs.size();i++){
                 speedDifferences[firstPhaseStep][i] = curIPCs[i];
+                amhatrace << curIPCs[i] << " ";
             }
+            amhatrace << "\n";
                 
             // compute weighted speedup relative to 16 MSHR config
             double sum = 0.0;
@@ -473,6 +486,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 sum += (curIPCs[i] / speedDifferences[0][i]);
             }
             throughputMeasurements[firstPhaseStep] = sum;
+            amhatrace << "Estimated throughput in phase "<< firstPhaseStep << ": " << sum << "\n";
             
             if(firstPhaseStep == stepMapping.size()-1){
                 
@@ -487,11 +501,15 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                         maxid = i;
                     }
                 }
+                amhatrace << "First phase finished, best phase was" << maxid << "\n";
                 
+                amhatrace << "Speedups vs 16 MHA:";
                 vector<double> speedups(adaptiveMHAcpuCount, false);
                 for(int i=0;i<speedups.size();i++){
                     speedups[i] = speedDifferences[maxid][i] / speedDifferences[0][i];
+                    amhatrace << speedups[i] << " ";
                 }
+                amhatrace << "\n";
                 
                 vector<bool> marked(adaptiveMHAcpuCount, false);
                 for(int i=0;i<performanceOrdering.size();i++){
@@ -567,7 +585,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                     firstPhaseTwo = false;
                 }
                 else{
-                    if(!acceptSpeedup(curIPCs)){
+                    if(!acceptSpeedup(curIPCs, amhatrace)){
                         // speedup does not outweigh slowdown, rollback
                         tfamhaBlacklist[lastDesicionID] = true;
                         // inc = !lastWasDecrease, we need !inc, i.e. lastWasDecrease
@@ -579,6 +597,8 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 bool inc = false;
                 int desID = -1;
                 getPhaseTwoAction(avgQueueLatencies, &desID, &inc, dataBusUtil);
+                
+                amhatrace << "Phase two decision: " << (inc ? "increase" : "decrease") << " " << desID << "\n";
                 
                 if(desID != -1){
 //                     changeNumMSHRs(desID, inc, false);
@@ -599,10 +619,13 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
     // update storage
     twoPhaseResetCount++;
     for(int i=0;i<curIPCs.size();i++) lastIPCs[i] = curIPCs[i];
+    
+    amhatrace.flush();
+    amhatrace.close();
 }
 
 bool
-AdaptiveMHA::acceptSpeedup(vector<double> curIPCs){
+AdaptiveMHA::acceptSpeedup(vector<double> curIPCs, std::ofstream &amhatrace){
     
     assert(lastDesicionID != -1);
     
@@ -612,34 +635,45 @@ AdaptiveMHA::acceptSpeedup(vector<double> curIPCs){
     double diff = 0.0;
     
     if(lastWasDecrease){
+        
+        amhatrace << "Last was decrease, speedups: ";
+        
         double sum = 0.0;
         for(int i=0;i<curIPCs.size();i++){
             if(i != lastDesicionID){
                 double speedup = (curIPCs[i] / lastIPCs[i]) - 1;
+                amhatrace << speedup << " ";
                 if(speedup > 0.0) sum += speedup;
             }
         }
         
         double degr = (curIPCs[lastDesicionID] / lastIPCs[lastDesicionID]) - 1;
+        amhatrace << "\nDegradation: " << degr << "\n";
         if(degr > 0.0) degr = 0.0;
         assert(degr <= 0.0);
         diff = sum + degr;
         
     }
     else{
+        
+        amhatrace << "Last was increase, degradations: ";
+        
         double dsum = 0.0;
         for(int i=0;i<curIPCs.size();i++){
             if(i != lastDesicionID){
                 double speedup = (curIPCs[i] / lastIPCs[i]) - 1;
+                amhatrace << speedup << " ";
                 if(speedup < 0.0) dsum += speedup;
             }
         }
         
         if(dsum > 0.0) dsum = 0.0;
         double speedup = (curIPCs[lastDesicionID] / lastIPCs[lastDesicionID]) - 1;
+        amhatrace << "\nSpeedup is " << speedup << "\n";
         diff = speedup + dsum;
     }
     
+    amhatrace << "Difference is " << diff << ", low thres " << lowThreshold << ", returning "<< (diff > lowThreshold ? "true" : "false") << "\n";
     return diff > lowThreshold;
 }
 

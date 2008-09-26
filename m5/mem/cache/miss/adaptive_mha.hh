@@ -235,7 +235,7 @@ class AdaptiveMHA : public SimObject{
         
         void getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase, double dataBusUtil);
         
-        bool acceptSpeedup(std::vector<double> aCurIPCs);
+        bool acceptSpeedup(std::vector<double> aCurIPCs, std::ofstream &amhatrace);
         
         void changeNumMSHRs(int id, bool increment, bool exponential);
 
