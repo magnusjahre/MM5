@@ -33,10 +33,10 @@ class DL1(BaseL1Cache):
     is_read_only = False
 
 class L2Bank(BaseCache):
-    size = '1MB' #'2MB' # 1MB * 4 banks = 4MB total cache size
-    assoc = 8 #16
+    size = '2MB' # 1MB * 4 banks = 4MB total cache size
+    assoc = 16
     block_size = 64
-    latency = 14 * Parent.clock.period
+    latency = 18 * Parent.clock.period
     
     #mshrs = 64
     #tgts_per_mshr = 64
