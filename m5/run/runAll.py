@@ -2,8 +2,8 @@
 import popen2
 import re
 
-fw = 1000000
-sim = 100000
+fw = 10000000
+sim = 1000000
 nums = range(1,41)
 errorpat = re.compile("CPU[0-9].*%")
 
