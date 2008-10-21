@@ -431,7 +431,11 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
     if(simulateContention && curTick >= detailedSimulationStartTick){
         Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
-        if(isShared && shadowHit && !useUniformPartitioning) req->interferenceMissAt = issueAt;
+        
+        if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning){
+            req->interferenceMissAt = issueAt;
+        }
+        
         req->finishedInCacheAt = issueAt;
         missQueue->handleMiss(req, size, issueAt);
     }
