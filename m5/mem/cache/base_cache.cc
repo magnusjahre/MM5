@@ -488,9 +488,13 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
 
               interference[req->adaptiveMHASenderID][i] = curIP;
               delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
-              interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
-              cpuInterferenceCycles[req->adaptiveMHASenderID] += curIP;
-              if(curIP > 0) adaptiveMHA->addAloneInterference(curIP, req->adaptiveMHASenderID, L2_INTERFERENCE);
+              
+              assert(req->cmd == Read || req->cmd == Writeback);
+              if(req->cmd == Read){
+                interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
+                cpuInterferenceCycles[req->adaptiveMHASenderID] += curIP;
+                if(curIP > 0) adaptiveMHA->addAloneInterference(curIP, req->adaptiveMHASenderID, L2_INTERFERENCE);
+              }
             }
         }
                 

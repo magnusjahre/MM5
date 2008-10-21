@@ -129,31 +129,38 @@ Crossbar::arbitrate(Tick cycle){
                     InterconnectRequest* tmpReq = *notGrantedIterator;
                     
                     if(tmpReq->time <= candiateReqTime){
-                        int tmpDestID = getDestinationId(tmpReq->fromID);
                         
-                        int cpuID = -1;
-                        (allInterfaces[tmpReq->fromID]->isMaster() 
-                                ? cpuID = interconnectIDToProcessorIDMap[tmpReq->fromID] 
-                                : cpuID = interconnectIDToProcessorIDMap[tmpDestID]);
-                        assert(cpuID >= 0 && cpuID < cpu_count);
+                        MemCmd curCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
+                        assert(curCmd == Read || curCmd == Writeback);
+                        if(curCmd == Read){
+                            int tmpDestID = getDestinationId(tmpReq->fromID);
                         
-                        int bankID = -1;
-                        (allInterfaces[tmpReq->fromID]->isMaster() 
-                                ? bankID = interconnectIDToL2IDMap[tmpDestID] + cpu_count
-                                : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
-                        
-                        if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
-                            interferenceDelay[cpuID] = 1;
+                            int cpuID = -1;
+                            (allInterfaces[tmpReq->fromID]->isMaster() 
+                                    ? cpuID = interconnectIDToProcessorIDMap[tmpReq->fromID] 
+                                    : cpuID = interconnectIDToProcessorIDMap[tmpDestID]);
+                            assert(cpuID >= 0 && cpuID < cpu_count);
                             
-                            // only update values if we have not encountered a request from this processor before
-                            if(!isBlocking[cpuID]){
-                                isBlocking[cpuID] = true;
+                            int bankID = -1;
+                            (allInterfaces[tmpReq->fromID]->isMaster() 
+                                    ? bankID = interconnectIDToL2IDMap[tmpDestID] + cpu_count
+                                    : bankID = interconnectIDToL2IDMap[tmpReq->fromID] + cpu_count);
+                            
+                            
+                            if(bankID == toBanks[i] && cpuID != grantedCPUs[i]){
                                 
-                                MemCmd delayedCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
-                                if(delayedCmd == Read) isRead[cpuID] = true;
-                                else isRead[cpuID] = false;
+                                interferenceDelay[cpuID] = 1;
+                                
+                                // only update values if we have not encountered a request from this processor before
+                                if(!isBlocking[cpuID]){
+                                    isBlocking[cpuID] = true;
+                                    
+                                    MemCmd delayedCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
+                                    if(delayedCmd == Read) isRead[cpuID] = true;
+                                    else isRead[cpuID] = false;
+                                }
+        
                             }
-    
                         }
                     }
                     notGrantedIterator++;
@@ -188,10 +195,15 @@ Crossbar::arbitrate(Tick cycle){
             
             if(tmpReq->time <= candiateReqTime){
                 
+                MemCmd curCmd = allInterfaces[tmpReq->fromID]->getCurrentCommand();
+                assert(curCmd == Read || curCmd == Writeback);
+                
                 if(allInterfaces[tmpReq->fromID]->isMaster() && 
+                   curCmd == Read &&
                    blockedInterfaces[interconnectIDToL2IDMap[getDestinationId(tmpReq->fromID)]]){
                     interferenceDelay[interconnectIDToProcessorIDMap[tmpReq->fromID]] = 1;
                 }
+                
             
             }
             blockingNotGrantIterator++;

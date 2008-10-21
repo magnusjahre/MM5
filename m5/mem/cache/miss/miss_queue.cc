@@ -539,11 +539,7 @@ MissQueue::getMemReq()
         }
       }
     }
-        
-//     if(!cache->isReadOnly && !req){
-//         if(mqReq || wbReq) fatal("not issuing with valid request, will create deadlock");
-//     }
-
+    
     return req;
 }
 

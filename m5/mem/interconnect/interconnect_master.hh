@@ -143,7 +143,6 @@ class InterconnectMaster : public InterconnectInterface
         std::string getCacheName(){
             return thisCache->name();
         }
-
 };
 
 #endif // __INTERCONNECT_MASTER_HH__

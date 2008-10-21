@@ -4,6 +4,7 @@ void
 AdaptiveMHA::addAloneInterference(int extraDelay, int victimCPU, InterferenceType type){
     
     if(curTick > startRunning){
+        
         switch(type){
             case MEMORY_INTERFERENCE:
                 busInterference[victimCPU] += extraDelay;
@@ -27,6 +28,7 @@ void
 AdaptiveMHA::addRequestLatency(Tick latency, int cpuID){
     
     if(curTick > startRunning){
+        
         totalAloneDelay[cpuID] += latency;
         numberOfAloneRequests[cpuID]++;
         
