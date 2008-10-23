@@ -151,7 +151,8 @@ baseFlags = [
     'MemoryController',
     'DRAM',
     'Blocking',
-    'MTP'
+    'MTP',
+    'Crossbar'
     ]
 
 #

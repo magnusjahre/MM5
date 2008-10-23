@@ -136,29 +136,6 @@ class InterconnectSlave : public InterconnectInterface
             return false;
         }
         
-        std::pair<Addr, int> getTargetAddr(){
-            assert(!responseQueue.empty());
-            return std::pair<Addr, int>(responseQueue.front()->req->paddr,
-                                        responseQueue.front()->req->fromInterfaceID);
-        }
-        
-        MemCmd getCurrentCommand(){
-            assert(!responseQueue.empty());
-            return responseQueue.front()->req->cmd;
-        }
-        
-        /**
-        * This method is used to find the destination interface of the request
-        * at the head of response queue. This information is stored in the 
-        * request, so this method simply accesses this information.
-        *
-        * @return The destination interface.
-        */
-        int getTargetId(){
-            assert(!responseQueue.empty());
-            return responseQueue.front()->req->fromInterfaceID;
-        }
-        
         /**
         * Retrieves the name of the associated cache.
         *
@@ -184,8 +161,6 @@ class InterconnectSlave : public InterconnectInterface
         * @return True if this interface is responsible for this address.
         */
         virtual bool inRange(Addr addr);
-        
-        virtual int getRequestDestination(int numberInQueue);
 
 };
 

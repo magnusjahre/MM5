@@ -26,68 +26,37 @@
 *
 * @author Magnus Jahre
 */
+
+class CrossbarArbitrationEvent;
+
 class Crossbar : public Interconnect
 {
     
     private:
-        
-        bool isFirstRequest;
-        Tick nextBusFreeTime;
-        
-        bool doProfiling;
-        std::vector<int> channelUseCycles;
-        
-        bool doFairArbitration;
-        std::vector<Tick> virtualFinishTimes;
-        
-        std::vector<std::vector<int> > interferenceEvents;
-        
-        bool checkCrossbarState(InterconnectRequest* req,
-                                int toInterfaceID,
-                                std::vector<bool>* state,
-                                bool* busIsUsed,
-                                Tick cycle);
-        
-        Tick getMinStartTag();
-        
-        void grantInterface(InterconnectRequest* req,
-                            int toInterfaceID,
-                            Tick cycle,
-                            std::vector<int> &grantedCPUs,
-                            std::vector<int> &toBanks,
-                            std::vector<Addr> &destinationAddrs,
-                            std::vector<MemCmd> &currentCommands,
-                            int position = 0);
-        
-        void doStandardArbitration(Tick candiateReqTime,
-                                   std::list<InterconnectRequest* > &notGrantedReqs,
-                                   Tick cycle,
-                                   bool& busIsUsed,
-                                   std::vector<bool>& occupiedEndNodes,
-                                   std::vector<int> &grantedCPUs,
-                                   std::vector<int> &toBanks,
-                                   std::vector<Addr> &destinationAddrs,
-                                   std::vector<MemCmd> &currentCommands);
-        
-        void doNFQArbitration(Tick candiateReqTime,
-                              std::list<InterconnectRequest* > &notGrantedReqs,
-                              Tick cycle,
-                              bool& busIsUsed,
-                              std::vector<bool>& occupiedEndNodes,
-                              std::vector<int> &grantedCPUs,
-                              std::vector<int> &toBanks,
-                              std::vector<Addr> &destinationAddrs,
-                              std::vector<MemCmd> &currentCommands);
-        
-        void doWarmUpArbitration(Tick cycle, Tick candidateTime);
-        
-        struct reqLess : public std::binary_function<InterconnectRequest*, InterconnectRequest* ,bool> {
-            bool operator()(InterconnectRequest* a, InterconnectRequest* b){
-                return a->time < b->time;
-            }
-        };
-        
         Tick detailedSimStartTick;
+        int crossbarTransferDelay;
+        
+        std::vector<list<std::pair<MemReqPtr, int> > > crossbarRequests;
+        std::vector<list<std::pair<MemReqPtr, int> > > crossbarResponses;
+        
+        std::vector<list<std::pair<MemReqPtr, Tick> > > slaveDeliveryBuffer;
+        std::vector<int> notRetrievedRequests;
+        std::vector<int> requestsInProgress;
+        
+        int perEndPointQueueSize;
+        int requestOccupancyTicks;
+        int requestL2BankCount;
+        std::vector<bool> blockedLocalQueues;
+        
+        CrossbarArbitrationEvent* crossbarArbEvent;
+        
+        bool attemptDelivery(std::list<std::pair<MemReqPtr, int> >* currentQueue, int* crossbarState, bool toSlave);
+        
+        int addBlockedInterfaces();
+        
+        void retriveAdditionalRequests();
+        
+        std::vector<int> findServiceOrder(std::vector<std::list<std::pair<MemReqPtr, int> > >* currentQueue);
         
     public:
         
@@ -125,6 +94,8 @@ class Crossbar : public Interconnect
         * allocated when the first request is recieved.
         */
         ~Crossbar(){ }
+        
+        void request(Tick time, int fromID);
 
         /**
         * The send method is called when an interface is granted access and
@@ -147,7 +118,10 @@ class Crossbar : public Interconnect
         *
         * @param cycle The clock cycle the method was called.
         */
-        void arbitrate(Tick cycle);
+        void arbitrate(Tick time);
+        
+        void retriveRequest(int fromInterface);
+        
         
         /**
         * This method tries to deliver as many requests as possible to its
@@ -178,8 +152,8 @@ class Crossbar : public Interconnect
         */
         int getChannelCount(){
             //one channel for all cpus, all banks and one coherence bus
-            channelUseCycles.resize(cpu_count + slaveInterfaces.size() + 1,0);
-            return cpu_count + slaveInterfaces.size() + 1;
+            fatal("no");
+            return 0;
         }
         
         /**
@@ -206,6 +180,87 @@ class Crossbar : public Interconnect
         virtual std::vector<std::vector<int> > retrieveInterferenceStats();
         
         virtual void resetInterferenceStats();
+        
+        virtual void clearBlocked(int fromInterface);
+        
+        void setBlockedLocal(int fromCPUId);
+        void clearBlockedLocal(int fromCPUId);
+};
+
+class CrossbarRetrieveReqEvent : public Event
+{
+    
+    public:
+        
+        Crossbar* cb;
+        int fromID;
+        
+        CrossbarRetrieveReqEvent(Crossbar* _cb, int _fid)
+            : Event(&mainEventQueue)
+        {
+            cb = _cb;
+            fromID = _fid;
+        }
+
+        void process(){
+            cb->retriveRequest(fromID);
+            delete this;
+        }
+
+        const char *description(){
+            return "Crossbar retrive event\n";
+        }
+};
+
+class CrossbarArbitrationEvent : public Event
+{
+    
+    public:
+        
+        Crossbar* cb;
+        
+        CrossbarArbitrationEvent(Crossbar* _cb)
+            : Event(&mainEventQueue, Memory_Controller_Pri)
+        {
+            cb = _cb;
+        }
+
+        void process(){
+            cb->arbitrate(curTick);
+        }
+        
+
+        const char *description(){
+            return "Crossbar deliver event\n";
+        }
+};
+
+class CrossbarDeliverEvent : public Event
+{
+    
+    public:
+        
+        Crossbar* cb;
+        MemReqPtr req;
+        bool toSlave;
+        
+        CrossbarDeliverEvent(Crossbar* _cb, MemReqPtr& _req, bool _toSlave)
+            : Event(&mainEventQueue)
+        {
+            cb = _cb;
+            req = _req;
+            toSlave = _toSlave;
+        }
+
+        void process(){
+            if(toSlave) cb->deliver(req, curTick, req->toInterfaceID, req->fromInterfaceID);
+            else cb->deliver(req, curTick, req->fromInterfaceID, req->toInterfaceID);
+            delete this;
+        }
+
+        const char *description(){
+            return "Crossbar arbitration event\n";
+        }
 };
 
 #endif // __CROSSBAR_HH__

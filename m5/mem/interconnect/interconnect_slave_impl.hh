@@ -20,9 +20,6 @@ InterconnectSlave<MemType>::InterconnectSlave(const string &name,
                                                       true,
                                                       cache->getProcessorID());
     thisCache->setInterfaceID(interfaceID);
-    
-    if(trace_on) cout << "InterconnectSlave with id " << interfaceID 
-                      << " created\n";
 
 }
 
@@ -38,10 +35,6 @@ InterconnectSlave<MemType>::access(MemReqPtr &req){
     
     if (this->inRange(req->paddr)) {
         assert(!blocked);
-
-        if(trace_on) cout << "TRACE: SLAVE_ACCESS from id " 
-                          << req->fromInterfaceID << " addr " << req->paddr 
-                          << " at " << curTick << "\n";
         
         thisCache->access(req);
 
@@ -64,10 +57,6 @@ void
 InterconnectSlave<MemType>::respond(MemReqPtr &req, Tick time){
     
     if (!req->cmd.isNoResponse()) {
-        if(trace_on) cout << "TRACE: SLAVE_RESPONSE " << req->cmd.toString() 
-                          << " from id " << req->fromInterfaceID 
-                          << " addr " << req->paddr 
-                          << " at " << curTick << "\n";
         
         // handle directory requests
         if(req->toProcessorID != -1){
@@ -157,12 +146,5 @@ InterconnectSlave<MemType>::inRange(Addr addr)
         }
         return false;
     }
-}
-
-template<class MemType>
-int
-InterconnectSlave<MemType>::getRequestDestination(int numberInQueue){
-    assert(numberInQueue >= 0 && numberInQueue < responseQueue.size());
-    return responseQueue[numberInQueue]->req->fromInterfaceID;
 }
 

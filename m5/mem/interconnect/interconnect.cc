@@ -21,6 +21,8 @@ Interconnect::Interconnect(const std::string &_name,
     arbitrationDelay = _arbDelay;
     cpu_count = _cpu_count;
     
+    processorIDToInterconnectIDs.resize(cpu_count, list<int>());
+    
     if(_adaptiveMHA != NULL){
         adaptiveMHA = _adaptiveMHA;
         adaptiveMHA->registerInterconnect(this);
@@ -216,15 +218,14 @@ Interconnect::registerInterface(InterconnectInterface* interface,
     
     if(processorID != -1){
         assert(processorID >= 0);
-        processorIDToInterconnectIDMap.insert(
-                make_pair(processorID, totalInterfaceCount));
-        interconnectIDToProcessorIDMap.insert(
-                make_pair(totalInterfaceCount, processorID));
+        
+        processorIDToInterconnectIDs[processorID].push_back(totalInterfaceCount);
+        interconnectIDToProcessorIDMap.insert(make_pair(totalInterfaceCount, processorID));
     }
     else{
         assert(isL2);
-        interconnectIDToL2IDMap.insert(
-                make_pair(totalInterfaceCount, slaveInterfaceCount));
+        interconnectIDToL2IDMap.insert(make_pair(totalInterfaceCount, slaveInterfaceCount));
+        L2IDMapToInterconnectID.insert(make_pair(slaveInterfaceCount, totalInterfaceCount));
         blockedInterfaces.push_back(false);
     }
     assert(blockedInterfaces.size() == slaveInterfaces.size());
@@ -308,7 +309,7 @@ Interconnect::setBlocked(int fromInterface){
     int blockedL2ID = interconnectIDToL2IDMap[fromInterface];
     assert(!blockedInterfaces[blockedL2ID]);
     blockedInterfaces[blockedL2ID] = true;
-    DPRINTF(Blocking, "Blocking the Interconnect\n");
+    DPRINTF(Blocking, "Blocking the interconnect for slave %d\n", blockedL2ID);
 }
         
 void
@@ -317,59 +318,39 @@ Interconnect::clearBlocked(int fromInterface){
     int unblockedL2ID = interconnectIDToL2IDMap[fromInterface];
     assert(blockedInterfaces[unblockedL2ID]);
     blockedInterfaces[unblockedL2ID] = false;
-    DPRINTF(Blocking, "Unblocking the Interconnect\n");
+    DPRINTF(Blocking, "Unblocking the interconnect for slave %d\n", unblockedL2ID);
 }
 
 int
 Interconnect::getInterconnectID(int processorID){
     if(processorID == -1) return -1;
     
-    map<int,int>::iterator tmp = 
-            processorIDToInterconnectIDMap.find(processorID);
+    fatal("conversion from proc ID to interconnect id is broken");
+//     map<int,int>::iterator tmp = processorIDToInterconnectIDMap.find(processorID);
     
     // make sure at least one result is returned
-    assert(tmp != processorIDToInterconnectIDMap.end());
+//     assert(tmp != processorIDToInterconnectIDMap.end());
 
-    return tmp->second;
+//     return tmp->second;
+    return -1;
 }
 
 int
 Interconnect::getDestinationId(int fromID){
-    
-    if(allInterfaces[fromID]->isMaster()){
-        
-        pair<Addr,int> tmp = allInterfaces[fromID]->getTargetAddr();
-        Addr targetAddr = tmp.first;
-        int toInterfaceId = tmp.second;
-        
-        // The request was a null request, remove
-        if(targetAddr == 0) return -1;
-        
-        // we allready know the to interface id if it's an L1 to L1 transfer
-        if(toInterfaceId != -1) return toInterfaceId;
-        
-        return getTarget(targetAddr);
-    }
-    
-    int retID = allInterfaces[fromID]->getTargetId();
-    assert(retID != -1);
-    return retID;
+    fatal("ni");
+    return 0;
 }
 
 Addr
 Interconnect::getDestinationAddr(int fromID){
-
-    pair<Addr,int> tmp = allInterfaces[fromID]->getTargetAddr();
-    Addr targetAddr = tmp.first;
-    
-    assert(targetAddr != 0);
-    
-    return targetAddr;
+    fatal("ni");
+    return 0;
 }
 
 MemCmd
 Interconnect::getCurrentCommand(int fromID){
-    return allInterfaces[fromID]->getCurrentCommand();
+    fatal("ni");
+    return InvalidCmd;
 }
 
 void

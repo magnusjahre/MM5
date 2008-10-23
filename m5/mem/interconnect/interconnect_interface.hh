@@ -263,33 +263,7 @@ class InterconnectInterface : public BaseInterface
         * @return True if the interface is a master interface
         */
         virtual bool isMaster() = 0;
-        
-        /**
-        * This method accesses the cache and finds out which interface the
-        * next request should be sent to. Then, it returns a pair of the 
-        * address and the destination interface.
-        *
-        * Note that the destination interface might be -1. In this case, the
-        * interconnect must find the destination itself by inspecting the 
-        * destination address.
-        *
-        * @return The address and the destination interface. If the destination
-        *         is -1, the interconnect must derive the destination based on
-        *         the requested address.
-        */
-        virtual std::pair<Addr, int> getTargetAddr() = 0;
-        
-        virtual MemCmd getCurrentCommand() = 0;
-        
-        /**
-        * This method returns the ID of the destination interface of the 
-        * request at the front of the request queue in a slave interface.
-        *
-        * @return The destination of the next request to be sent from a slave
-        *         interface.
-        */
-        virtual int getTargetId() = 0;
-        
+
         /**
         * Convenience method that returns the name of the cache associated with
         * a given interface.
@@ -297,10 +271,11 @@ class InterconnectInterface : public BaseInterface
         * @return The name of the cache associated with a given interface.
         */
         virtual std::string getCacheName() = 0;
-        
-        virtual int getRequestDestination(int numberInQueue){
-            fatal("getRequestDestination should only be called on a InterconnectSlave");
-            return -1;
+
+        virtual MemReqPtr getPendingRequest(){
+            MemReqPtr tmp;
+            fatal("Not implemented");
+            return tmp;
         }
 
 };

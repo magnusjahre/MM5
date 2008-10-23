@@ -29,13 +29,6 @@ class InterconnectMaster : public InterconnectInterface
     private:
 
         MemType* thisCache;
-        
-        Addr currentAddr;
-        int currentToCpuId;
-        bool currentValsValid;
-        
-        //debug
-        std::vector<std::pair<Addr, Tick>* > outstandingRequestAddrs;
     
     public:
         /**
@@ -108,23 +101,6 @@ class InterconnectMaster : public InterconnectInterface
         }
         
         /**
-        * This method accesses the cache and finds out which interface the
-        * next request should be sent to. Then, it returns a pair of the 
-        * address and the destination interface.
-        *
-        * Note that the destination interface might be -1. In this case, the
-        * interconnect must find the destination itself by inspecting the 
-        * destination address.
-        *
-        * @return The address and the destination interface. If the destination
-        *         is -1, the interconnect must derive the destination based on
-        *         the requested address.
-        */
-        std::pair<Addr, int> getTargetAddr();
-        
-        MemCmd getCurrentCommand();
-        
-        /**
         * This method is only valid for slave interfaces and produces a fatal
         * error message if it is called.
         *
@@ -143,6 +119,8 @@ class InterconnectMaster : public InterconnectInterface
         std::string getCacheName(){
             return thisCache->name();
         }
+        
+        virtual MemReqPtr getPendingRequest();
 };
 
 #endif // __INTERCONNECT_MASTER_HH__

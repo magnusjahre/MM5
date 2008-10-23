@@ -62,9 +62,10 @@ class Interconnect : public BaseHier
         
         AdaptiveMHA* adaptiveMHA;
         
-        std::map<int, int> processorIDToInterconnectIDMap;
+        std::vector<std::list<int> > processorIDToInterconnectIDs;
         std::map<int, int> interconnectIDToProcessorIDMap;
         std::map<int, int> interconnectIDToL2IDMap;
+        std::map<int, int> L2IDMapToInterconnectID;
         
         class InterconnectRequest;
         class InterconnectDelivery;

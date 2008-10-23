@@ -384,9 +384,8 @@ BaseCache::clearBlocked(BlockedCause cause)
     
     blocked &= ~flag;
     blockedSnoop &= ~flag;
-    DPRINTF(Cache,"Unblocking for cause %s, causes left=%i\n", 
-            cause, blocked);
-    DPRINTF(Blocking, "Unblocking for cause %s, causes left=%i\n", cause, blocked);
+    DPRINTF(Cache,"Unblocking for cause %s\n", cause);
+    DPRINTF(Blocking, "Unblocking for cause %s\n", cause);
     if (!isBlocked()) {
         blocked_cycles[cause] += curTick - blockedCycle;
         DPRINTF(Cache,"Unblocking from all causes\n");
