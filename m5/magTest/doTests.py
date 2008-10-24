@@ -34,7 +34,13 @@ buses = ['RDFCFS']
 
 #benchmarks = ['Cholesky', 'FFT', 'LUContig', 'LUNoncontig', 'Radix', 'Barnes', 'FMM', 'OceanContig', 'OceanNoncontig', 'Raytrace', 'WaterNSquared', 'WaterSpatial']
 
-benchmarks = range(1,41)
+nums = range(1,41)
+benchmarks = []
+for i in nums:
+  if i < 10:
+    benchmarks.append("fair0"+str(i))
+  else:
+    benchmarks.append("fair"+str(i))
 
 correct_pattern = re.compile(successString)
 lost_req_pattern = re.compile(lostString)
