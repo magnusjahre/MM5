@@ -70,6 +70,8 @@ Crossbar::retriveRequest(int fromInterface){
 void
 Crossbar::send(MemReqPtr& req, Tick time, int fromID){
     
+    req->inserted_into_crossbar = curTick;
+    
     assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
     int resources = 0;
     
@@ -91,7 +93,7 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
         DPRINTF(Crossbar, "Inserting request from master %d, cpu %d, addr %x\n", fromID, interconnectIDToProcessorIDMap[fromID], req->paddr);
         
         if(!crossbarRequests[req->adaptiveMHASenderID].empty()){
-            assert(crossbarRequests[req->adaptiveMHASenderID].back().first->finishedInCacheAt <= req->finishedInCacheAt);
+            assert(crossbarRequests[req->adaptiveMHASenderID].back().first->inserted_into_crossbar <= req->inserted_into_crossbar);
         }
         crossbarRequests[req->adaptiveMHASenderID].push_back(pair<MemReqPtr, int>(req, resources));
     
@@ -107,7 +109,7 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
         DPRINTF(Crossbar, "Inserting request from slave %d, cpu %d, addr %x\n", fromID, interconnectIDToProcessorIDMap[fromID], req->paddr);
         
         if(!crossbarResponses[bankID].empty()){
-            assert(crossbarResponses[bankID].back().first->finishedInCacheAt <= req->finishedInCacheAt);
+            assert(crossbarResponses[bankID].back().first->inserted_into_crossbar <= req->inserted_into_crossbar);
         }
         crossbarResponses[bankID].push_back(pair<MemReqPtr, int>(req, resources));
     }
@@ -163,9 +165,9 @@ Crossbar::findServiceOrder(std::vector<std::list<std::pair<MemReqPtr, int> > >* 
         for(int j=0;j<currentQueue->size();j++){
             if(!marked[j] && !(*currentQueue)[j].empty()){
                 MemReqPtr req = (*currentQueue)[j].front().first;
-                if(req->finishedInCacheAt < min){
+                if(req->inserted_into_crossbar < min){
                     minIndex = j;
-                    min = req->finishedInCacheAt;
+                    min = req->inserted_into_crossbar;
                 }
             }
         }

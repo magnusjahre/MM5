@@ -125,6 +125,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->enteredMemSysAt = r->enteredMemSysAt;
     req->writebackGeneratedAt = r->writebackGeneratedAt;
     req->inserted_into_memory_controller = r->inserted_into_memory_controller;
+    req->inserted_into_crossbar = r->inserted_into_crossbar;
     req->pc = r->pc;
     req->offset = r->offset;
     req->writeMiss = r->writeMiss;
@@ -193,6 +194,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->enteredMemSysAt = from->enteredMemSysAt;
     to->writebackGeneratedAt = from->writebackGeneratedAt;
     to->inserted_into_memory_controller = from->inserted_into_memory_controller;
+    to->inserted_into_crossbar = from->inserted_into_crossbar;
     to->pc = from->pc;
     to->offset = from->offset;
     to->cmd = from->cmd;

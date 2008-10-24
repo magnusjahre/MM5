@@ -188,6 +188,7 @@ class MemReq : public FastAlloc, public RefCounted
     Tick writebackGeneratedAt;
     
     Tick inserted_into_memory_controller;
+    Tick inserted_into_crossbar;
 
     /** program counter of initiating access; for tracing/debugging */
     Addr pc;
@@ -256,6 +257,7 @@ class MemReq : public FastAlloc, public RefCounted
           enteredMemSysAt(0),
           writebackGeneratedAt(0),
           inserted_into_memory_controller(0),
+          inserted_into_crossbar(0),
 	  pc(0),
 	  offset(0),
 	  data(NULL),
@@ -309,6 +311,7 @@ class MemReq : public FastAlloc, public RefCounted
         enteredMemSysAt = r.enteredMemSysAt;
         writebackGeneratedAt = r.writebackGeneratedAt;
         inserted_into_memory_controller = r.inserted_into_memory_controller;
+        inserted_into_crossbar = r.inserted_into_crossbar;
         pc = r.pc;
         offset = r.offset;
         data = r.data;
