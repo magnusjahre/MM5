@@ -217,54 +217,58 @@ Crossbar::addBlockedInterfaces(){
 void 
 Crossbar::retriveAdditionalRequests(){
     
-    fatal("implement lowest first retrieval for interfaces that share a queue");
+    bool allZero = true;
+    for(int i=0;i<allInterfaces.size();i++){
+        if(!allInterfaces[i]->isMaster()){
+            assert(notRetrievedRequests[i] == 0);
+        }
+        if(notRetrievedRequests[i] > 0) allZero = false;
+    }
     
-    // for all processors, retrieve as many requests as possible without filling the queues
-    // FIFO ordering between interfaces!!
-    
-//     int minIndex = -1;
-//     Tick lowest = 100000000000000000ull;
-//     
-//     stringstream tmp;
-//     int chkCnt = 0;
-//     
-//     for(int i=0;i<notRetrievedRequests.size();i++){
-//         
-//         if(notRetrievedRequests[i] > 0){
-//             
-//             assert(allInterfaces[i]->isMaster());
-//             int fromCPU = interconnectIDToProcessorIDMap[i];
-//             
-//             if(!blockedLocalQueues[fromCPU]){
-//                 MemReqPtr req = allInterfaces[i]->getPendingRequest();
-//                 if(req){
-//                     chkCnt++;
-//                     tmp << curTick << " Req from " << i << ", ready at tick " << req->finishedInCacheAt << "\n";
-//                     
-//                     if(req->finishedInCacheAt < lowest){
-//                         tmp << curTick << " Lowest!\n";
-//                         lowest = req->finishedInCacheAt;
-//                         minIndex = i;
-//                     }
-//                 }
-//                 else{
-//                     // null request, just grant access
-//                     bool res = allInterfaces[i]->grantData();
-//                     assert(!res);
-//                 }
-//             }
-//             
-//         }
-//     }
-//     
-//     
-//     if(minIndex != -1){
-//         tmp << curTick << " Granting interface " << minIndex << "\n";
-//         allInterfaces[minIndex]->grantData();
-//         notRetrievedRequests[minIndex]--;
-//     }
-    
-//     if(chkCnt > 1) cout << tmp.str() << "\n";
+    if(!allZero){
+        
+        for(int i=0;i<cpu_count;i++){
+            assert(processorIDToInterconnectIDs[i].size() == 2);
+            int firstInterfaceID = processorIDToInterconnectIDs[i].front();
+            int secondInterfaceID = processorIDToInterconnectIDs[i].back();
+
+            while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
+                   && !blockedLocalQueues[i]){
+                
+                MemReqPtr firstReq = allInterfaces[firstInterfaceID]->getPendingRequest();
+                MemReqPtr secondReq = allInterfaces[secondInterfaceID]->getPendingRequest();
+                int grantedID = -1;
+                
+                if(notRetrievedRequests[firstInterfaceID] > 0 && notRetrievedRequests[secondInterfaceID] == 0){
+                    allInterfaces[firstInterfaceID]->grantData();
+                    grantedID = firstInterfaceID;
+                }
+                else if(notRetrievedRequests[firstInterfaceID] == 0 && notRetrievedRequests[secondInterfaceID] > 0){
+                    allInterfaces[secondInterfaceID]->grantData();
+                    grantedID = secondInterfaceID;
+                }
+                else{
+                    assert(notRetrievedRequests[firstInterfaceID] > 0);
+                    assert(notRetrievedRequests[secondInterfaceID] > 0);
+                    
+                    Tick firstTime = firstReq ? firstReq->finishedInCacheAt : 0;
+                    Tick secondTime = secondReq ? secondReq->finishedInCacheAt : 0;
+                    
+                    if(firstTime <= secondTime){
+                        allInterfaces[firstInterfaceID]->grantData();
+                        grantedID = firstInterfaceID;
+                    }
+                    else{
+                        allInterfaces[secondInterfaceID]->grantData();
+                        grantedID = secondInterfaceID;
+                    }
+                }
+                
+                notRetrievedRequests[grantedID]--;
+                DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d, queued %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID], crossbarRequests[i].size());
+            }
+        }
+    }
     
 }
 
