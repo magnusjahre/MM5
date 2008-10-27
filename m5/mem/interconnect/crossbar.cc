@@ -58,8 +58,12 @@ Crossbar::retriveRequest(int fromInterface){
     
     DPRINTF(Crossbar, "Request recieved from interface %d, cpu %d\n", fromInterface, interconnectIDToProcessorIDMap[fromInterface]);
     
-    if(!blockedLocalQueues[interconnectIDToProcessorIDMap[fromInterface]] ||
-       !allInterfaces[fromInterface]->isMaster()){
+    if(!allInterfaces[fromInterface]->isMaster()){
+        allInterfaces[fromInterface]->grantData();
+        return;
+    }
+    
+    if(!blockedLocalQueues[interconnectIDToProcessorIDMap[fromInterface]]){
         allInterfaces[fromInterface]->grantData();
     }
     else{
@@ -322,7 +326,7 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             assert(slaveDeliveryBuffer[toSlaveID].size() <= crossbarTransferDelay / requestOccupancyTicks);
         }
         else{
-            
+            assert(slaveDeliveryBuffer[toSlaveID].empty());
             allInterfaces[toID]->access(req);
             requestsInProgress[toSlaveID]--;
         }
@@ -345,7 +349,7 @@ Crossbar::clearBlocked(int fromInterface){
         requestsInProgress[unblockedSlaveID]--;
 
         // the interface is blocked again, stop sending requests
-        if(res = BA_BLOCKED) break;
+        if(res == BA_BLOCKED) break;
     }
 }
 
