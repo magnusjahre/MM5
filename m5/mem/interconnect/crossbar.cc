@@ -49,6 +49,7 @@ Crossbar::Crossbar(const std::string &_name,
 
 void
 Crossbar::request(Tick cycle, int fromID){
+    requests++;
     CrossbarRetrieveReqEvent* event = new CrossbarRetrieveReqEvent(this, fromID);
     event->schedule(cycle);
 }
@@ -75,6 +76,12 @@ void
 Crossbar::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
+    
+    if(allInterfaces[fromID]->isMaster()){
+        assert(curTick >= req->finishedInCacheAt);
+        entryDelay += curTick - req->finishedInCacheAt;
+    }
+    entryRequests++;
     
     assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
     int resources = 0;
@@ -286,14 +293,19 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
             CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, currentQueue->front().first, toSlave);
             delivery->schedule(curTick + crossbarTransferDelay);
             
-            int fromCPU = currentQueue->front().first->adaptiveMHASenderID;
+            MemReqPtr req = currentQueue->front().first;
+            
+            totalArbQueueCycles += curTick - req->inserted_into_crossbar;
+            arbitratedRequests++;
+            
+            int fromCPU = req->adaptiveMHASenderID;
             
             if(toSlave){
-                int toSlaveID = interconnectIDToL2IDMap[currentQueue->front().first->toInterfaceID];
+                int toSlaveID = interconnectIDToL2IDMap[req->toInterfaceID];
                 requestsInProgress[toSlaveID]++;
             }
             
-            DPRINTF(Crossbar, "Granting access to proc %d, addr %x, cb state %x, deliver at %d\n", fromCPU, currentQueue->front().first->paddr, *crossbarState, curTick + crossbarTransferDelay);
+            DPRINTF(Crossbar, "Granting access to proc %d, addr %x, cb state %x, deliver at %d\n", fromCPU, req->paddr, *crossbarState, curTick + crossbarTransferDelay);
             
             if(blockedLocalQueues[fromCPU] &&
                 crossbarRequests[fromCPU].size() < perEndPointQueueSize){
@@ -314,8 +326,12 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     
     DPRINTF(Crossbar, "Delivering to %d from %d, proc %d, addr %x\n", toID, fromID, req->adaptiveMHASenderID, req->paddr);
     
+    totalTransferCycles += crossbarTransferDelay;
+    sentRequests++;
+
     if(allInterfaces[toID]->isMaster()){
         allInterfaces[toID]->deliver(req);
+        deliverBufferRequests++;
     }
     else{
         int toSlaveID = interconnectIDToL2IDMap[toID];
@@ -329,6 +345,7 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             assert(slaveDeliveryBuffer[toSlaveID].empty());
             allInterfaces[toID]->access(req);
             requestsInProgress[toSlaveID]--;
+            deliverBufferRequests++;
         }
     }
 }
@@ -342,6 +359,11 @@ Crossbar::clearBlocked(int fromInterface){
     
     while(!slaveDeliveryBuffer[unblockedSlaveID].empty()){
         DPRINTF(Crossbar, "Issuing queued request, %d reqs left for slave %d\n",requestsInProgress[unblockedSlaveID]-1, unblockedSlaveID);
+        
+        Tick queuedAt = slaveDeliveryBuffer[unblockedSlaveID].front().second;
+        deliverBufferDelay += curTick - queuedAt;
+        deliverBufferRequests++;
+        
         
         MemAccessResult res = allInterfaces[fromInterface]->access(slaveDeliveryBuffer[unblockedSlaveID].front().first);
         slaveDeliveryBuffer[unblockedSlaveID].pop_front();

@@ -15,10 +15,10 @@ class BaseL1Cache(BaseCache):
     #write_buffers = 64
     #tgts_per_mshr = 64 
     
-    mshrs = 16
+    mshrs = 4
     write_buffers = 8
-    #tgts_per_mshr = 4
-    tgts_per_mshr = 8
+    tgts_per_mshr = 4
+    #tgts_per_mshr = 8
 
     cpu_count = int(env['NP'])
     is_shared = False
@@ -42,15 +42,15 @@ class L2Bank(BaseCache):
     #tgts_per_mshr = 64
     #write_buffers = 64
     
-    mshrs = 16
-    #tgts_per_mshr = 4
-    tgts_per_mshr = 8
+    mshrs = 4
+    tgts_per_mshr = 4
+    #tgts_per_mshr = 8
     write_buffers = 16
     
     cpu_count = int(env['NP'])
     is_shared = True
     is_read_only = False
-    simulate_contention = True
+    simulate_contention = False # done in new crossbar impl
     
     def setModuloAddr(self, bankID, bank_count):
         self.do_modulo_addr = True

@@ -55,6 +55,40 @@ Interconnect::regStats(){
     using namespace Stats;
     
     
+    entryDelay
+        .name(name() + ".total_entry_delay")
+        .desc("total number of cycles before a request was granted access to the crossbar")
+        ;
+    
+    entryRequests
+        .name(name() + ".total_entry_requests")
+        .desc("total number of requests in entry delay measurements")
+        ;
+    
+    avgDelayBeforeEntry
+            .name(name() + ".avg_delay_before_entry")
+            .desc("average number of wait cycles before entry to crossbar per requests")
+            ;
+    
+    avgDelayBeforeEntry = entryDelay / entryRequests;
+    
+    deliverBufferDelay
+        .name(name() + ".deliver_buffer_delay")
+        .desc("total number of cycles spent in the delivery buffer")
+        ;
+            
+    deliverBufferRequests
+        .name(name() + ".deliver_buffer_requests")
+        .desc("total number of delivered requests")
+        ;
+            
+    avgDeliverBufferDelay
+            .name(name() + ".avg_deliver_buffer_delay")
+            .desc("average delivery buffer delay per request")
+            ;
+    
+    avgDeliverBufferDelay = deliverBufferDelay / deliverBufferRequests;
+    
     /* Arbitration */
     totalArbitrationCycles
         .name(name() + ".total_arbitration_cycles")

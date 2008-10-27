@@ -105,6 +105,16 @@ class Interconnect : public BaseHier
         Stats::Scalar<> numClearBlocked;
         Stats::Scalar<> numSetBlocked;
         
+        Stats::Scalar<> entryDelay;
+        Stats::Scalar<> entryRequests;
+        Stats::Formula avgDelayBeforeEntry;
+        
+        Stats::Scalar<> deliverBufferDelay;
+        Stats::Scalar<> deliverBufferRequests;
+        Stats::Formula avgDeliverBufferDelay;
+        
+        
+        
         /**
         * Convenience class that represents a transfer request.
         */

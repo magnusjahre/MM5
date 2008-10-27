@@ -430,6 +430,7 @@ BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
     
     // assumes that the targets are delivered to the interconnect in parallel
     if(simulateContention && !moreTargetsToService && curTick >= detailedSimulationStartTick){
+        fatal("contentention implementation is broken by new crossbar");
         time = updateAndStoreInterference(req, time);
     }
     
