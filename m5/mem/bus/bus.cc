@@ -627,10 +627,16 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         if((currentShadowReqReadCount[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() &&
             currentShadowReqWriteCount[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength()) && 
             shadowIsBlocked[req->adaptiveMHASenderID]){
+            
             assert(shadowIsBlocked[req->adaptiveMHASenderID]);
+            
             shadowIsBlocked[req->adaptiveMHASenderID] = false;
             
-            shadowBlockedCycles[req->adaptiveMHASenderID] += curTick - shadowBlockedAt[req->adaptiveMHASenderID];
+            double blockingThreshold = 0.8;
+            if(currentShadowReqReadCount[req->adaptiveMHASenderID] >= 
+               blockingThreshold * memoryController->getReadQueueLength()){
+                shadowBlockedCycles[req->adaptiveMHASenderID] += curTick - shadowBlockedAt[req->adaptiveMHASenderID];
+            }
         }
     }
     

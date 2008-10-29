@@ -133,6 +133,29 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
 void
 Crossbar::arbitrate(Tick time){
     
+    if(curTick < detailedSimStartTick){
+        
+        // infinite bw in warm-up, deliver all pending requests
+        for(int i=0;i<crossbarResponses.size();i++){
+            while(!crossbarResponses[i].empty()){
+                CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, crossbarResponses[i].front().first, false);
+                delivery->schedule(curTick + crossbarTransferDelay);
+                crossbarResponses[i].pop_front();
+            }
+        }
+        
+        for(int i=0;i<crossbarRequests.size();i++){
+            while(!crossbarRequests[i].empty()){
+                
+                CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, crossbarRequests[i].front().first, true);
+                delivery->schedule(curTick + crossbarTransferDelay);
+                requestsInProgress[interconnectIDToL2IDMap[crossbarRequests[i].front().first->toInterfaceID]]++;
+                crossbarRequests[i].pop_front();
+            }
+        }
+        return;
+    }
+    
     // initialize crossbar state with information about the blocked interfaces
     int masterToSlaveCrossbarState = addBlockedInterfaces();
     int slaveToMasterCrossbarState = 0;
