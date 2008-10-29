@@ -148,3 +148,9 @@ InterconnectSlave<MemType>::inRange(Addr addr)
     }
 }
 
+template<class MemType>
+int
+InterconnectSlave<MemType>::assignBlockingBlame(){
+    return thisCache->assignBlockingBlame();
+}
+

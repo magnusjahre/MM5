@@ -1790,6 +1790,25 @@ Cache<TagStore,Buffering,Coherence>::addPendingRequest(Addr address, MemReqPtr& 
         }
     }
 }
+template<class TagStore, class Buffering, class Coherence>
+int 
+Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
+    assert(isShared);
+
+    double threshold = 0.8;
+    
+    if(isBlockedNoMSHRs()){
+        return missQueue->assignBlockingBlame(true, false, threshold);
+    }
+    else if(isBlockedNoTargets()){
+        return missQueue->assignBlockingBlame(true, true, threshold);
+    }
+    else if(isBlockedNoWBBuffers()){
+        return missQueue->assignBlockingBlame(false, false, threshold);
+    }
+    fatal("assigning blocking blame but we are not blocked");
+    return -1;
+}
 
 #endif
 

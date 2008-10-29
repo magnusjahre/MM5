@@ -390,6 +390,7 @@ class MissQueue
         else return wb.getCurrentMSHRCount();
     }
     
+    int assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
 };
 
 #endif //__MISS_QUEUE_HH__

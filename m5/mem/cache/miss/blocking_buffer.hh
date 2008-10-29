@@ -274,6 +274,11 @@ public:
         fatal("Makes no sense");
         return 0;
     }
+    
+    int assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
+        fatal("Makes no sense");
+        return -1;
+    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__

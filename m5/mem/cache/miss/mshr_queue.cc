@@ -334,3 +334,47 @@ MSHRQueue::squash(int thread_number)
 	}
     }
 }
+
+int 
+MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold){
+    
+    MSHR::ConstIterator i = allocatedList.begin();
+    MSHR::ConstIterator end = allocatedList.end();
+    
+    if(blockedMSHRs){
+        
+        vector<int> ownedBy(cache->cpuCount, 0);
+        
+        for (; i != end; ++i) {
+            MSHR *mshr = *i;
+            ownedBy[mshr->req->adaptiveMHASenderID]++;
+        }
+        
+        for(int i=0;i<ownedBy.size();i++){
+            if(ownedBy[i] >= (threshold * getCurrentMSHRCount())){
+                return i;
+            }
+        }
+        return -1;
+        
+    }
+    else{
+        
+        // with the current impl, L2 never should not block for targets
+        
+        MSHR* tgtMSHR = NULL;
+        
+        for (; i != end; ++i) {
+            MSHR *mshr = *i;
+            if(mshr->getNumTargets() == maxTargets){
+                assert(tgtMSHR == NULL);
+                tgtMSHR = mshr;
+            }
+        }
+        assert(tgtMSHR != NULL);
+        
+        return tgtMSHR->req->adaptiveMHASenderID;
+    }
+    return -1;
+    
+}

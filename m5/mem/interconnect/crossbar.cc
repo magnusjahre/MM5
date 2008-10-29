@@ -33,7 +33,7 @@ Crossbar::Crossbar(const std::string &_name,
     requestL2BankCount = 4;
     crossbarResponses = vector<list<pair<MemReqPtr, int> > >(requestL2BankCount, list<pair<MemReqPtr, int> >());
     
-    slaveDeliveryBuffer = vector<list<pair<MemReqPtr, Tick> > >(requestL2BankCount, list<pair<MemReqPtr, Tick> >());
+    slaveDeliveryBuffer = vector<list<DeliveryBufferEntry> >(requestL2BankCount, list<DeliveryBufferEntry>());
     
     blockedLocalQueues = vector<bool>(_cpu_count, false);
     requestsInProgress = vector<int>(requestL2BankCount, 0);
@@ -282,7 +282,6 @@ Crossbar::retriveAdditionalRequests(){
             }
         }
     }
-    
 }
 
 bool
@@ -315,7 +314,63 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
             *crossbarState |= currentQueue->front().second; 
             currentQueue->pop_front();
             
+            // check interference if from slave 
+            if(!toSlave && !currentQueue->empty()){
+                list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
+                for( ; it != currentQueue->end(); it++){
+                    int toID = it->first->adaptiveMHASenderID;
+                    assert(it->first->cmd == Read);
+                    if(toID != req->adaptiveMHASenderID){
+                        cpuInterferenceCycles[toID] += requestOccupancyTicks;
+                        adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
+                    }
+                }
+            }
+            
             return true;
+        }
+        else{
+            
+            if(toSlave){
+                // Interference: empty pipe stage, all waiting requests are delayed
+                int waitingReads = 0;
+                int senderCPUID = currentQueue->front().first->adaptiveMHASenderID;
+                
+                //NOTE: how should we handle reads that have not been accepted yet?
+                list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
+                for( ; it != currentQueue->end(); it++){
+                    MemCmd cmd = it->first->cmd;
+                    assert(cmd == Read || cmd == Writeback);
+                    if(cmd == Read) waitingReads++;
+                }
+                
+                int extraDelay = requestOccupancyTicks * waitingReads;
+                cpuInterferenceCycles[senderCPUID] += extraDelay;
+                adaptiveMHA->addAloneInterference(extraDelay, senderCPUID, INTERCONNECT_INTERFERENCE);
+
+            }
+            else{
+                
+                if(currentQueue->size() > 1){
+                    // since this is an output conflict, the first request is from the same CPU as the one it is in conflict with
+                    // however, other queued requests might be to different processors
+                    
+                    int firstCPUID = currentQueue->front().first->adaptiveMHASenderID;
+                    list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
+                    
+                    it++; //skip first
+                    for( ; it != currentQueue->end(); it++){
+                        int toID = it->first->adaptiveMHASenderID;
+                        assert(it->first->cmd == Read);
+                        if(toID != firstCPUID){
+                            cpuInterferenceCycles[toID] += requestOccupancyTicks;
+                            adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
+                        }
+                    }
+                }
+            }
+
+
         }
     }
     return false;
@@ -336,7 +391,9 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     else{
         int toSlaveID = interconnectIDToL2IDMap[toID];
         if(blockedInterfaces[toSlaveID]){
-            slaveDeliveryBuffer[toSlaveID].push_back(pair<MemReqPtr, Tick>(req, curTick));
+
+            DeliveryBufferEntry entry(req, curTick, allInterfaces[toID]->assignBlockingBlame());
+            slaveDeliveryBuffer[toSlaveID].push_back(entry);
             
             DPRINTF(Crossbar, "Delivery queued, %d requests in buffer for slave %d\n", slaveDeliveryBuffer[toSlaveID].size(), toSlaveID);
             assert(slaveDeliveryBuffer[toSlaveID].size() <= crossbarTransferDelay / requestOccupancyTicks);
@@ -360,12 +417,21 @@ Crossbar::clearBlocked(int fromInterface){
     while(!slaveDeliveryBuffer[unblockedSlaveID].empty()){
         DPRINTF(Crossbar, "Issuing queued request, %d reqs left for slave %d\n",requestsInProgress[unblockedSlaveID]-1, unblockedSlaveID);
         
-        Tick queuedAt = slaveDeliveryBuffer[unblockedSlaveID].front().second;
+        DeliveryBufferEntry entry = slaveDeliveryBuffer[unblockedSlaveID].front();
+        MemReqPtr req = entry.req;
+        Tick queuedAt = entry.enteredAt;
+        
         deliverBufferDelay += curTick - queuedAt;
         deliverBufferRequests++;
         
+        assert(req->cmd == Read || req->cmd == Writeback);
+        if(entry.blockingBlameID != req->adaptiveMHASenderID && req->cmd == Read){
+            Tick extraDelay = curTick - queuedAt;
+            cpuInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
+            adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
+        }
         
-        MemAccessResult res = allInterfaces[fromInterface]->access(slaveDeliveryBuffer[unblockedSlaveID].front().first);
+        MemAccessResult res = allInterfaces[fromInterface]->access(req);
         slaveDeliveryBuffer[unblockedSlaveID].pop_front();
         
         requestsInProgress[unblockedSlaveID]--;
@@ -402,13 +468,11 @@ Crossbar::writeChannelDecriptor(std::ofstream &stream){
 std::vector<std::vector<int> > 
 Crossbar::retrieveInterferenceStats(){
     vector<std::vector<int> > retval(cpu_count, vector<int>(cpu_count, 0));
-    warn("cb retrive interference stats not impl");
     return retval;
 }
 
 void 
 Crossbar::resetInterferenceStats(){
-    warn("cb reset interference stats not impl");
 }
 
 

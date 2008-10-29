@@ -354,6 +354,8 @@ class Cache : public BaseCache
         return tags->getNumSets();
     }
     
+    int assignBlockingBlame();
+    
     virtual void handleProfileEvent();
     
     virtual void handleRepartitioningEvent();

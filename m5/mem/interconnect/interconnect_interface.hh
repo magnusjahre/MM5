@@ -277,6 +277,11 @@ class InterconnectInterface : public BaseInterface
             fatal("Not implemented");
             return tmp;
         }
+        
+        virtual int assignBlockingBlame(){
+            fatal("assignBlockingBlame() can only be used on slave interfaces");
+            return -1;
+        }
 
 };
 

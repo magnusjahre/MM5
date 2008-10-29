@@ -831,3 +831,9 @@ MissQueue::havePending()
 {
     return mq.havePending() || wb.havePending() || prefetcher->havePending();
 }
+
+int
+MissQueue::assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
+    if(blockedForMiss) return mq.assignBlockingBlame(numTarget, !blockedForTargets, threshold);
+    return wb.assignBlockingBlame(numTarget, !blockedForTargets, threshold);
+}

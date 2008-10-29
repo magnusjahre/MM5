@@ -36,10 +36,22 @@ class Crossbar : public Interconnect
         Tick detailedSimStartTick;
         int crossbarTransferDelay;
         
+        struct DeliveryBufferEntry{
+            MemReqPtr req;
+            Tick enteredAt;
+            int blockingBlameID;
+            
+            DeliveryBufferEntry(MemReqPtr& _req, Tick _enteredAt, int _blockingBlameID){
+                req = _req;
+                enteredAt = _enteredAt;
+                blockingBlameID = _blockingBlameID;
+            }
+        };
+        
         std::vector<list<std::pair<MemReqPtr, int> > > crossbarRequests;
         std::vector<list<std::pair<MemReqPtr, int> > > crossbarResponses;
         
-        std::vector<list<std::pair<MemReqPtr, Tick> > > slaveDeliveryBuffer;
+        std::vector<list<DeliveryBufferEntry> > slaveDeliveryBuffer;
         std::vector<int> notRetrievedRequests;
         std::vector<int> requestsInProgress;
         

@@ -365,6 +365,11 @@ class BaseCache : public BaseMem {
         uint8_t flag = 1 << Blocked_NoWBBuffers;
         return (blocked & flag);
     }
+    
+    bool isBlockedNoTargets(){
+        uint8_t flag = 1 << Blocked_NoTargets;
+        return (blocked & flag);
+    }
 
     /**
      * Returns true if the cache is blocked for snoops.

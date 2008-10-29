@@ -265,6 +265,8 @@ class MSHRQueue {
         return (numMSHRs - numReserve) + 1;
     }
     
+    int assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold);
+    
     void printMSHRQueue(){
         std::cout << "Allocated list:\n";
         MSHR::ConstIterator i = allocatedList.begin();
