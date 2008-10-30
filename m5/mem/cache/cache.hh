@@ -49,6 +49,8 @@
 #include "mem/cache/tags/lru.hh"
 #include "mem/config/cache.hh"
 
+#include "mem/cache/multiple_time_sharing_partitions.hh"
+
 // forward declarations
 class Bus;
 class ExecContext;
@@ -67,13 +69,8 @@ class Cache : public BaseCache
     bool idIsSet;
     std::string profileFileName;
     
-    // MTP variables
     CacheRepartitioningEvent* repartEvent;
-    std::vector<std::vector<double> > misscurves;
-    std::vector<vector<int> > mtpPartitions;
-    int mtpPhase;
-    int curMTPPartition;
-    Tick mtpEpochSize;
+    MultipleTimeSharingParititions* mtp;
     
   public:
     /** Define the type of cache block to use. */
@@ -355,6 +352,8 @@ class Cache : public BaseCache
     }
     
     int assignBlockingBlame();
+    
+    virtual void setMTPPartition(std::vector<int> setQuotas);
     
     virtual void handleProfileEvent();
     

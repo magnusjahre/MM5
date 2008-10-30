@@ -535,6 +535,8 @@ class BaseCache : public BaseMem {
     void resetCapacityInterferenceStats();
     void addCapacityInterference(int victimID, int interfererID);
     
+    virtual void setMTPPartition(std::vector<int> setQuotas) = 0;
+    
     virtual void handleProfileEvent() = 0;
     
     virtual void handleRepartitioningEvent() = 0;

@@ -159,6 +159,10 @@ class MissQueue
     Stats::Vector<> soft_prefetch_mshr_full;
 
     Stats::Scalar<> mshr_no_allocate_misses;
+    
+    Stats::Scalar<> sum_roundtrip_latency;
+    Stats::Scalar<> num_roundtrip_responses;
+    Stats::Formula avg_roundtrip_latency;
 
     /**
      * @}

@@ -70,7 +70,7 @@ SimObject::SimObject(Params *p)
 #ifdef DEBUG
     doDebugBreak = false;
 #endif
-
+    
     doRecordEvent = !Stats::event_ignore.match(name());
     simObjectList.push_back(this);
 }
@@ -178,8 +178,8 @@ SimObject::resetAllStats()
     SimObjectList::iterator end = simObjectList.end();
 
     for (; i != end; ++i) {
-	SimObject *obj = *i;
-	obj->resetStats();
+        SimObject *obj = *i;
+        obj->resetStats();
     }
 }
 

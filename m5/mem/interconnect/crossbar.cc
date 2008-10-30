@@ -408,6 +408,7 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     sentRequests++;
 
     if(allInterfaces[toID]->isMaster()){
+        
         allInterfaces[toID]->deliver(req);
         deliverBufferRequests++;
     }

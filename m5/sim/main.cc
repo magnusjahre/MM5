@@ -387,7 +387,9 @@ main(int argc, char **argv)
     Stats::check();
 
     // Reset to put the stats in a consistent state.
+    Stats::setStatsResetState(false);
     Stats::reset();
+    Stats::setStatsResetState(false);
 
     warn("Entering event queue.  Starting simulation...\n");
     SimStartup();

@@ -335,6 +335,22 @@ MissQueue::regStats(const string &name)
 	.desc("Number of misses that were no-allocate")
 	;
 
+    sum_roundtrip_latency
+        .name(name +".sum_roundtrip_latency")
+        .desc("Total latency experienced by requests sent from this cache")
+        ;
+    num_roundtrip_responses
+        .name(name +".num_roundtrip_responses")
+        .desc("Number of responses reflected in the roundtrip latency")
+        ;
+    
+    avg_roundtrip_latency
+        .name(name +".avg_roundtrip_latency")
+        .desc("Average latency experienced by requests sent from this cache")
+        ;
+    
+    avg_roundtrip_latency = sum_roundtrip_latency / num_roundtrip_responses;
+    
 }
 
 void
@@ -638,8 +654,13 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
     
     if (req->isCacheFill() && !req->isNoAllocate()) {
         
-        mshr_miss_latency[mshr->originalCmd][req->thread_num] +=
-	    curTick - req->time;
+        
+        mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
+        
+        //NOTE: finishedInCacheAt is written in the L2 and cannot be used
+        sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
+        num_roundtrip_responses++;
+        
 	// targets were handled in the cache tags
 	if (mshr == noTargetMSHR) {
 	    // we always clear at least one target

@@ -682,16 +682,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     
     if (req->cmd == Read) {
         assert(req->busId < interfaces.size() && req->busId > -1);
-//         assert(req->busDelay <= time - req->inserted_into_memory_controller);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
         
         int sharedLatency = time - req->inserted_into_memory_controller;
-        
-//         if(cpu_count > 1 && req->interferenceMissAt == 0){
-//             int aloneLat = estimatePrivateInterference(req);
-//             addInterferenceCycles(req->adaptiveMHASenderID, sharedLatency - aloneLat, ESTIMATED_INTERFERENCE);
-//         }
             
         if(cpu_count > 1 && req->givenToShadow){
             

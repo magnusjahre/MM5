@@ -63,6 +63,7 @@ class SimObject : public Serializable, protected StartupCallback
     const Params *params() const { return _params; }
 
   private:
+    
     friend class Serializer;
 
     typedef std::vector<SimObject *> SimObjectList;

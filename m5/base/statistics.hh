@@ -2849,6 +2849,7 @@ class Temp
  */
 
 void check();
+void setStatsResetState(bool newVal);
 void reset();
 void registerResetCallback(Callback *cb);
 
