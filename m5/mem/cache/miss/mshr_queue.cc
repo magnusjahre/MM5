@@ -273,7 +273,7 @@ MSHRQueue::markInService(MSHR* mshr)
     }
     mshr->inService = true;
     pendingList.erase(mshr->readyIter);
-    mshr->readyIter = NULL;
+    mshr->readyIter = (list<MSHR*>::iterator) NULL;
     inServiceMSHRs += 1;
     //pendingList.pop_front();
     
@@ -285,7 +285,7 @@ MSHRQueue::markPending(MSHR* mshr, MemCmd cmd)
     
     assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
     
-    assert(mshr->readyIter == NULL);
+    assert(mshr->readyIter == (list<MSHR*>::iterator) NULL);
     mshr->req->cmd = cmd;
     mshr->req->flags &= ~SATISFIED;
     mshr->inService = false;

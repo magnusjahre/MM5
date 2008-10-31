@@ -56,6 +56,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <climits>
 
 #include "base/cprintf.hh"
 #include "base/intmath.hh"

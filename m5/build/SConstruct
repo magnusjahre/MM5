@@ -175,7 +175,8 @@ env.Append(ENV = { 'M5_EXT' : EXT_SRCDIR })
 # Set up default C++ compiler flags
 env.Append(CCFLAGS='-pipe')
 env.Append(CCFLAGS='-fno-strict-aliasing')
-env.Append(CCFLAGS=Split('-Wall -Wno-sign-compare -Werror -Wundef'))
+#env.Append(CCFLAGS=Split('-Wall -Wno-sign-compare -Werror -Wundef'))
+env.Append(CCFLAGS=Split('-fpermissive -Wno-deprecated'))
 if sys.platform == 'cygwin':
     # cygwin has some header file issues...
     env.Append(CCFLAGS=Split("-Wno-uninitialized"))

@@ -31,6 +31,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstdlib>
 
 #include "base/cprintf.hh"
 #include "base/hostinfo.hh"

@@ -219,7 +219,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         assert (page == openpage[bank]);
         number_of_writes++;
         switch (Bankstate[bank]) {
-            case DDR2Read: 
+            case DDR2Read:
+            {
                 Bankstate[bank] = DDR2Written;
                 int readCmdToWriteStartLat = read_to_write_turnaround + CAS_latency - 1*bus_to_cpu_factor;
                 int curOffset = curTick - readyTime[bank];
@@ -232,18 +233,21 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 number_of_writes_hit++;
                 number_of_slow_write_hits++;
                 break;
-
+            }
             case DDR2Active:
+            {
                 Bankstate[bank] = DDR2Written;
                 int writeLatency = CAS_latency - 1*bus_to_cpu_factor;
                 readyTime[bank] = activateTime[bank] + writeLatency;
                 latency = data_time;
                 break;
-    
+            }
             case DDR2Written:
+            {
                 latency = data_time;
                 number_of_writes_hit++;
                 break;
+            }
 
             default:
                 fatal("Unknown state!");

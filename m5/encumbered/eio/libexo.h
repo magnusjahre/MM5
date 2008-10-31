@@ -73,6 +73,7 @@
 #define __LIBEXO_H__
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "sim/host.hh"
 #include "encumbered/eio/alpha_exo.h"

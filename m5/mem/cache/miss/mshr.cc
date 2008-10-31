@@ -144,8 +144,8 @@ MSHR::deallocate()
     assert(ntargets == 0);
     req = NULL;
     inService = false;
-    allocIter = NULL;
-    readyIter = NULL;
+//     allocIter = NULL;
+//     readyIter = NULL;
 }
 
 /*

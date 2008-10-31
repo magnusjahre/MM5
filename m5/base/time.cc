@@ -33,7 +33,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <iostream>
-#include <string>
+// #include <string>
+#include <cstring>
 
 #include "base/time.hh"
 

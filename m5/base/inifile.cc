@@ -46,7 +46,8 @@
 #include <iostream>
 
 #include <vector>
-#include <string>
+// #include <string>
+#include <cstring>
 
 #include "base/inifile.hh"
 #include "base/str.hh"
