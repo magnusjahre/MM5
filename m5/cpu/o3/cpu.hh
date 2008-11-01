@@ -291,7 +291,7 @@ class FullO3CPU : public BaseFullCPU
     typename CPUPolicy::RenameMap renameMap;
 
     /** The re-order buffer. */
-    typename CPUPolicy::ROB rob;
+    typename CPUPolicy::ROB_TYPE rob;
 
   public:
     /** Typedefs from the Impl to get the structs that each of the

@@ -61,8 +61,8 @@ class InstructionQueue
     typedef typename Impl::DynInstPtr DynInstPtr;
     typedef typename Impl::Params Params;
 
-    typedef typename Impl::CPUPol::MemDepUnit MemDepUnit;
-    typedef typename Impl::CPUPol::IssueStruct IssueStruct;
+    typedef typename Impl::CPUPol::MemDepUnit_TYPE MemDepUnit;
+    typedef typename Impl::CPUPol::IssueStruct_TYPE IssueStruct;
     typedef typename Impl::CPUPol::TimeStruct TimeStruct;
 
     // Typedef of iterator through the list of instructions.  Might be

@@ -61,7 +61,7 @@ class SimpleCommit
     typedef typename Impl::Params Params;
     typedef typename Impl::CPUPol CPUPol;
 
-    typedef typename CPUPol::ROB ROB;
+    typedef typename CPUPol::ROB_TYPE ROB;
 
     typedef typename CPUPol::TimeStruct TimeStruct;
     typedef typename CPUPol::IEWStruct IEWStruct;

@@ -56,12 +56,12 @@ class SimpleIEW
 
     typedef typename CPUPol::IQ IQ;
     typedef typename CPUPol::RenameMap RenameMap;
-    typedef typename CPUPol::LDSTQ LDSTQ;
+    typedef typename CPUPol::LDSTQ_TYPE LDSTQ;
 
     typedef typename CPUPol::TimeStruct TimeStruct;
     typedef typename CPUPol::IEWStruct IEWStruct;
     typedef typename CPUPol::RenameStruct RenameStruct;
-    typedef typename CPUPol::IssueStruct IssueStruct;
+    typedef typename CPUPol::IssueStruct_TYPE IssueStruct;
 
     friend class Impl::FullCPU;
   public:

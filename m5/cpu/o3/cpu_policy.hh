@@ -57,10 +57,10 @@ struct SimpleCPUPolicy
     typedef PhysRegFile<Impl> RegFile;
     typedef SimpleFreeList FreeList;
     typedef SimpleRenameMap RenameMap;
-    typedef ROB<Impl> ROB;
+    typedef ROB<Impl> ROB_TYPE;
     typedef InstructionQueue<Impl> IQ;
-    typedef MemDepUnit<StoreSet, Impl> MemDepUnit;
-    typedef LDSTQ<Impl> LDSTQ;
+    typedef MemDepUnit<StoreSet, Impl> MemDepUnit_TYPE;
+    typedef LDSTQ<Impl> LDSTQ_TYPE;
     
     typedef SimpleFetch<Impl> Fetch;
     typedef SimpleDecode<Impl> Decode;
@@ -81,7 +81,7 @@ struct SimpleCPUPolicy
     typedef SimpleIEWSimpleCommit<Impl> IEWStruct;
 
     /** The struct for communication within the IEW stage. */
-    typedef IssueStruct<Impl> IssueStruct;
+    typedef IssueStruct<Impl> IssueStruct_TYPE;
 
     /** The struct for all backwards communication. */
     typedef TimeBufStruct TimeStruct;
