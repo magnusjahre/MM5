@@ -802,7 +802,7 @@ class FullCPU : public BaseCPU
 
       public:
 
-	PCSampleEvent::PCSampleEvent(int _interval, FullCPU *_cpu);
+	PCSampleEvent(int _interval, FullCPU *_cpu);
 
 	~PCSampleEvent() { }
 

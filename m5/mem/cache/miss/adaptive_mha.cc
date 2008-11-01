@@ -305,8 +305,12 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     if(!onlyTraceBus){
         if(useFairAMHA && !wasFirst) doFairAMHA();
         else{
-          if(useTwoPhaseThroughput) if(!wasFirst) doTwoPhaseThroughputAMHA(dataUsers, avgQueueDelayPerUser, IPCs, dataBusUtil);
-            else doThroughputAMHA(dataBusUtil, dataUsers, avgQueueDelayPerUser);
+            if(useTwoPhaseThroughput) {
+                if(!wasFirst) doTwoPhaseThroughputAMHA(dataUsers, avgQueueDelayPerUser, IPCs, dataBusUtil);
+            }
+            else{
+                doThroughputAMHA(dataBusUtil, dataUsers, avgQueueDelayPerUser);
+            }
         }
         
         if(wasFirst){

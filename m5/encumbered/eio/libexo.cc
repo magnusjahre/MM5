@@ -69,15 +69,15 @@ using namespace std;
 
 /* EXO term classes print strings */
 char *exo_class_str[ec_NUM] = {
-  "integer",
-  "address",
-  "float",
-  "char",
-  "string"
-  "list",
-  "array",
-  "token",
-  "blob"
+    (char*) "integer",
+    (char*) "address",
+    (char*) "float",
+    (char*) "char",
+    (char*) "string",
+    (char*) "list",
+    (char*) "array",
+    (char*) "token",
+    (char*) "blob"
 };
 
 #define ULL_MAX		(ULL(9223372036854775807) * ULL(2) + 1)
@@ -984,7 +984,7 @@ exo_read(FILE *stream)
 	    ent = exo_new(ec_integer, int_val);
 	  }
 	else
-	  exo_err("cannot parse integer literal");
+	  exo_err((char*) "cannot parse integer literal");
       }
       break;
 
@@ -1001,7 +1001,7 @@ exo_read(FILE *stream)
 	    ent = exo_new(ec_address, addr_val);
 	  }
 	else
-	  exo_err("cannot parse address literal");
+	  exo_err((char*) "cannot parse address literal");
       }
       break;
 
@@ -1018,7 +1018,7 @@ exo_read(FILE *stream)
 	    ent = exo_new(ec_float, float_val);
 	  }
 	else
-	  exo_err("cannot parse floating point literal");
+	  exo_err((char*) "cannot parse floating point literal");
       }
       break;
 
@@ -1028,7 +1028,7 @@ exo_read(FILE *stream)
 
 	c = intern_char(tok_buf, &endp);
 	if (!endp)
-	  exo_err("cannot convert character literal");
+	  exo_err((char*) "cannot convert character literal");
 	ent = exo_new(ec_char, c);
       }
       break;
@@ -1048,7 +1048,7 @@ exo_read(FILE *stream)
       break;
 
     case lex_byte:
-      exo_err("unexpected blob byte encountered");
+      exo_err((char*) "unexpected blob byte encountered");
       break;
 
     case '(':
@@ -1063,7 +1063,7 @@ exo_read(FILE *stream)
 	    do {
 	      elt = exo_read(stream);
 	      if (!elt)
-		exo_err("unexpected end-of-file");
+		exo_err((char*) "unexpected end-of-file");
 	      ent->as_list.head =
 		exo_chain(ent->as_list.head, elt);
 
@@ -1076,20 +1076,20 @@ exo_read(FILE *stream)
 	/* read tail delimiter */
 	tok = yylex();
 	if (tok != ')')
-	  exo_err("expected ')'");
+	  exo_err((char*) "expected ')'");
       }
       break;
 
     case ')':
-      exo_err("unexpected ')' encountered");
+      exo_err((char*) "unexpected ')' encountered");
       break;
 
     case '<':
-      exo_err("unexpected '<' encountered");
+      exo_err((char*) "unexpected '<' encountered");
       break;
 
     case '>':
-      exo_err("unexpected '>' encountered");
+      exo_err((char*) "unexpected '>' encountered");
       break;
 
     case '{':
@@ -1100,7 +1100,7 @@ exo_read(FILE *stream)
 	/* get the size */
 	elt = exo_read(stream);
 	if (!elt || elt->ec != ec_integer)
-	  exo_err("badly formed array size");
+	  exo_err((char*) "badly formed array size");
 
 	/* record the size of the array/blob */
 	size = (int)elt->as_integer.val;
@@ -1111,7 +1111,7 @@ exo_read(FILE *stream)
 	/* read the array delimiters */
 	tok = yylex();
 	if (tok != '}')
-	  exo_err("expected '}'");
+	  exo_err((char*) "expected '}'");
 
 	tok = yylex();
 	switch (tok)
@@ -1127,7 +1127,7 @@ exo_read(FILE *stream)
 		cnt = 0;
 		do {
 		  if (cnt == ent->as_array.size)
-		    exo_err("too many initializers for array");
+		    exo_err((char*) "too many initializers for array");
 
 		  /* NULL element? */
 		  if (yy_nextchar() == ',')
@@ -1138,7 +1138,7 @@ exo_read(FILE *stream)
 		    {
 		      elt = exo_read(stream);
 		      if (!elt)
-			exo_err("unexpected end-of-file");
+			exo_err((char*) "unexpected end-of-file");
 		    }
 		  SET_EXO_ARR(ent, cnt, elt);
 		  cnt++;
@@ -1152,7 +1152,7 @@ exo_read(FILE *stream)
 	    /* read tail delimiter */
 	    tok = yylex();
 	    if (tok != ']')
-	      exo_err("expected ']'");
+	      exo_err((char*) "expected ']'");
 	    break;
 
 	  case '<': /* blob definition */
@@ -1173,22 +1173,22 @@ exo_read(FILE *stream)
 		  if (tok == lex_byte)
 		    {
 		      if (cnt == ent->as_blob.size)
-			exo_err("too many initializers for blob");
+			exo_err((char*) "too many initializers for blob");
 
 		      /* attempt hex conversion */
 		      errno = 0;
 		      byte_val = strtoul(yytext, &endp, /* parse base */16);
 		      if (errno != 0 || *endp != '\0')
-			exo_err("cannot parse blob byte literal");
+			exo_err((char*) "cannot parse blob byte literal");
 		      if (byte_val > 255)
-			panic("bogus byte value");
+			panic((char*) "bogus byte value");
 		      ent->as_blob.data[cnt] = byte_val;
 		      cnt++;
 		    }
 		  else if (tok == '>')
 		    break;
 		  else
-		    exo_err("unexpected character in blob");
+		    exo_err((char*) "unexpected character in blob");
 		}
 	      }
 
@@ -1199,17 +1199,17 @@ exo_read(FILE *stream)
 	    break;
 
 	  default:
-	    exo_err("expected '[' or '<'");
+	    exo_err((char*) "expected '[' or '<'");
 	  }
       }
       break;
 
     case '}':
-      exo_err("unexpected '}' encountered");
+      exo_err((char*) "unexpected '}' encountered");
       break;
 
     case ',':
-      exo_err("unexpected ',' encountered");
+      exo_err((char*) "unexpected ',' encountered");
       break;
 
     case '[':
@@ -1220,7 +1220,7 @@ exo_read(FILE *stream)
 	/* compute the array size */
 	list = NULL;
 	if (yy_nextchar() == ']')
-	  exo_err("unsized array has no initializers");
+	  exo_err((char*) "unsized array has no initializers");
 
 	cnt = 0;
 	do {
@@ -1233,7 +1233,7 @@ exo_read(FILE *stream)
 	    {
 	      elt = exo_read(stream);
 	      if (!elt)
-		exo_err("unexpected end-of-file");
+		exo_err((char*) "unexpected end-of-file");
 	    }
 	  cnt++;
 	  list = exo_chain(list, elt);
@@ -1246,7 +1246,7 @@ exo_read(FILE *stream)
 	/* read tail delimiter */
 	tok = yylex();
 	if (tok != ']')
-	  exo_err("expected ']'");
+	  exo_err((char*) "expected ']'");
 
 	/* create the array */
 	assert(cnt > 0);
@@ -1272,7 +1272,7 @@ exo_read(FILE *stream)
       break;
 
     case ']':
-      exo_err("unexpected ']' encountered");
+      exo_err((char*) "unexpected ']' encountered");
       break;
 
     case lex_eof:

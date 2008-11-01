@@ -116,7 +116,7 @@ abortHandler(int sigtype)
 }
 
 /// Simulator executable name
-char *myProgName = "";
+char *myProgName = (char*) "";
 
 /// Show brief help message.
 void
@@ -333,7 +333,7 @@ main(int argc, char **argv)
 
     char *env = getenv("CONFIG_OUTPUT");
     if (!env)
-	env = "config.out";
+	env = (char*) "config.out";
     configStream = simout.find(env);
 
     if (!configfile_found)

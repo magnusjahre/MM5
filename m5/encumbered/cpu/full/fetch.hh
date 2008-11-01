@@ -114,8 +114,8 @@ struct FetchQueue
     short num_total() { return num_valid + num_reserved + num_squashed; }
     short num_total(unsigned t)
     {
-	assert(mt_frontend && t == num_threads ||
-	       !mt_frontend && t >= 0 && t <= num_threads);
+	assert((mt_frontend && t == num_threads) ||
+	       (!mt_frontend && t >= 0 && t <= num_threads));
 	return num_valid_thread[t] + num_reserved_thread[t]
 	    + num_squashed_thread[t];
     }
@@ -123,8 +123,8 @@ struct FetchQueue
     short num_available() { return num_valid + num_squashed; }
     short num_available(unsigned t)
     {
-	assert(mt_frontend && t == num_threads ||
-	       !mt_frontend && t >= 0 && t <= num_threads);
+	assert((mt_frontend && t == num_threads) ||
+	       (!mt_frontend && t >= 0 && t <= num_threads));
 	return num_valid_thread[t] + num_squashed_thread[t];
     }
 

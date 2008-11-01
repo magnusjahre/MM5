@@ -270,7 +270,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
 		    "Hierarchy global variables",
 		    &defaultHierParams),
     INIT_PARAM_DFLT(addr_range, "The address range in bytes", 
-		    vector<Range<Addr> >(1,RangeIn(0, MaxAddr))),
+		    vector<Range<Addr> >(1,RangeIn((Addr)0, MaxAddr))),
     INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),
     INIT_PARAM_DFLT(split, "Whether this is a partitioned cache", false),
     INIT_PARAM_DFLT(split_size, "the number of \"ways\" belonging to the LRU partition", 0),

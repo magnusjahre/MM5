@@ -214,9 +214,9 @@ RoundDown(T val, T align)
 inline bool
 IsHex(char c)
 {
-    return c >= '0' && c <= '9' ||
-	c >= 'A' && c <= 'F' ||
-	c >= 'a' && c <= 'f';
+    return (c >= '0' && c <= '9') ||
+	(c >= 'A' && c <= 'F') ||
+	(c >= 'a' && c <= 'f');
 }
 
 inline bool

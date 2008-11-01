@@ -210,7 +210,7 @@ CircleBuf::write(const char *b, int len)
 	_rollover = true;
     }
 
-    if (old_start > old_stop && old_start < _stop ||
-	old_start < old_stop && _stop < old_stop)
-	_start = _stop + 1;
+    if ((old_start > old_stop && old_start < _stop) ||
+	(old_start < old_stop && _stop < old_stop))
+        _start = _stop + 1;
 }

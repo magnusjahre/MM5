@@ -266,8 +266,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         || (oldState == DDR2Written && curState == DDR2Written)){
         readyTime[bank] += data_time;
     }
-    else if(oldState == DDR2Read && curState == DDR2Written
-            || oldState == DDR2Written && curState == DDR2Read){
+    else if((oldState == DDR2Read && curState == DDR2Written)
+            || (oldState == DDR2Written && curState == DDR2Read)){
         readyTime[bank] = curTick + (latency - data_time);
     }
 

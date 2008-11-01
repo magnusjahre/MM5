@@ -114,8 +114,8 @@ FetchQueue::init(FullCPU *cpu, int _size, int _num_threads)
 void
 FetchQueue::reserve(int thread)
 {
-    assert(mt_frontend && thread == num_threads ||
-	   !mt_frontend && thread >= 0 && thread <= num_threads);
+    assert((mt_frontend && thread == num_threads) ||
+	   (!mt_frontend && thread >= 0 && thread <= num_threads));
     assert(num_total() < size);
 
     num_reserved++;

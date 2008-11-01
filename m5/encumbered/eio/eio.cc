@@ -79,13 +79,13 @@ static struct {
   char *ext;
   char *cmd;
 } gzcmds[] = {
-  /* type */	/* extension */		/* command */
-  { "r",	".gz",			"%s -dc %s" },
-  { "rb",	".gz",			"%s -dc %s" },
-  { "r",	".Z",			"%s -dc %s" },
-  { "rb",	".Z",			"%s -dc %s" },
-  { "w",	".gz",			"%s > %s" },
-  { "wb",	".gz",			"%s > %s" }
+       /* type */       /* extension */     /* command */
+    { (char*) "r",      (char*) ".gz",      (char*) "%s -dc %s" },
+    { (char*) "rb",     (char*)".gz",       (char*) "%s -dc %s" },
+    { (char*) "r",      (char*)".Z",        (char*) "%s -dc %s" },
+    { (char*)"rb",      (char*)".Z",        (char*) "%s -dc %s" },
+    { (char*) "w",      (char*)".gz",       (char*) "%s > %s" },
+    { (char*) "wb",     (char*)".gz",       (char*) "%s > %s" }
 };
 
 #ifndef GZIP_PATH

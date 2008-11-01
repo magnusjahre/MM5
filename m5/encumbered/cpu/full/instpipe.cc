@@ -262,7 +262,7 @@ InstructionPipe::dump(unsigned stage)
     cout << "Stage: " << stage << "(" << packets[s].count()
 	 << "instructions)" << endl;
 
-    packets[s].dump("  ");
+    packets[s].dump((char*) "  ");
 }
 
 

@@ -115,14 +115,14 @@ IniFile::loadCPP(const string &file, vector<char *> &cppArgs)
 	char **args = new char *[arg_count + 20];
 
 	int nextArg = 0;
-	args[nextArg++] = "g++";
-	args[nextArg++] = "-E";
-	args[nextArg++] = "-P";
-	args[nextArg++] = "-nostdinc";
-	args[nextArg++] = "-nostdinc++";
-	args[nextArg++] = "-x";
-	args[nextArg++] = "c++";
-	args[nextArg++] = "-undef";
+	args[nextArg++] = (char*) "g++";
+        args[nextArg++] = (char*) "-E";
+        args[nextArg++] = (char*) "-P";
+        args[nextArg++] = (char*) "-nostdinc";
+        args[nextArg++] = (char*) "-nostdinc++";
+        args[nextArg++] = (char*) "-x";
+        args[nextArg++] = (char*) "c++";
+        args[nextArg++] = (char*) "-undef";
 
 	for (int i = 0; i < arg_count; i++)
 	    args[nextArg++] = cppArgs[i];

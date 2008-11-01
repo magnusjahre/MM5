@@ -460,7 +460,7 @@ def make_objs(sources, env):
 env.Append(CPPPATH='.')
 
 # Debug binary
-debugEnv = env.Copy(OBJSUFFIX='.do')
+debugEnv = env.Clone(OBJSUFFIX='.do')
 debugEnv.Label = 'debug'
 #debugEnv.Append(CCFLAGS=Split('-g -gstabs+ -O0'))
 debugEnv.Append(CCFLAGS=Split('-g -O0'))
@@ -470,7 +470,7 @@ tlist = debugEnv.Program(target = 'm5.debug',
 debugEnv.M5Binary = tlist[0]
 
 # Test binary
-testEnv = env.Copy(OBJSUFFIX='.to')
+testEnv = env.Clone(OBJSUFFIX='.to')
 testEnv.Label = 'test'
 testEnv.Append(CCFLAGS=Split('-g -gstabs+ -O0'))
 testEnv.Append(CPPDEFINES=Split('DEBUG MAGTEST'))
@@ -479,7 +479,7 @@ tlist = testEnv.Program(target = 'm5.test',
 testEnv.M5Binary = tlist[0]
 
 # Optimized binary
-optEnv = env.Copy()
+optEnv = env.Clone()
 optEnv.Label = 'opt'
 #optEnv.Append(CCFLAGS=Split('-g -O5'))
 optEnv.Append(CCFLAGS=Split('-g -O3'))
@@ -488,7 +488,7 @@ tlist = optEnv.Program(target = 'm5.opt',
 optEnv.M5Binary = tlist[0]
 
 # "Fast" binary
-fastEnv = env.Copy(OBJSUFFIX='.fo')
+fastEnv = env.Clone(OBJSUFFIX='.fo')
 fastEnv.Label = 'fast'
 fastEnv.Append(CCFLAGS=Split('-O5'))
 fastEnv.Append(CPPDEFINES='NDEBUG')
@@ -500,7 +500,7 @@ tlist = fastEnv.Command(target = 'm5.fast',
 fastEnv.M5Binary = tlist[0]
 
 # Profiled binary
-profEnv = env.Copy(OBJSUFFIX='.po')
+profEnv = env.Clone(OBJSUFFIX='.po')
 profEnv.Label = 'prof'
 profEnv.Append(CCFLAGS=Split('-O5 -g -pg'), LINKFLAGS='-pg')
 tlist = profEnv.Program(target = 'm5.prof',

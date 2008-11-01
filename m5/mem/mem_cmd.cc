@@ -39,10 +39,27 @@
 
 char*
 MemCmd::strings[NUM_MEM_CMDS] = {
-    "badMemCmd", "read", "write", "swpf", "hwpf", "writeback",
-    "invalidate", "readEx", "writeInv", "upgrade", "copy", "squash",
-    "directory writeback", "directory redirected read", "directory owner transfer",
-    "directory owner writeback", "directory sharer writeback", "new owner multicast", "Close memory page", "Activate memory page", "Prewrite cache block"
+    (char*) "badMemCmd",
+    (char*) "read",
+    (char*) "write",
+    (char*) "swpf",
+    (char*) "hwpf",
+    (char*) "writeback",
+    (char*) "invalidate",
+    (char*) "readEx",
+    (char*) "writeInv",
+    (char*) "upgrade",
+    (char*) "copy",
+    (char*) "squash",
+    (char*) "directory writeback",
+    (char*) "directory redirected read",
+    (char*) "directory owner transfer",
+    (char*) "directory owner writeback",
+    (char*) "directory sharer writeback",
+    (char*) "new owner multicast",
+    (char*) "Close memory page",
+    (char*) "Activate memory page",
+    (char*) "Prewrite cache block"
 };
 
 int

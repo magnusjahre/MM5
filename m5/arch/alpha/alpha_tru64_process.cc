@@ -1122,7 +1122,7 @@ class Tru64 {
 	    abort();
 	}
 
-	if (thread_index < 0 | thread_index > process->numCpus()) {
+	if ((thread_index < 0) || (thread_index > process->numCpus()) ){
 	    cerr << "nxm_thread_create: bad thread index " << thread_index
 		 << endl;
 	    abort();

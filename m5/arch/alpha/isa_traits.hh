@@ -194,7 +194,7 @@ static const Addr PageOffset = PageBytes - 1;
 
     static inline bool isCallerSaveIntegerRegister(unsigned int reg) {
 	panic("register classification not implemented");
-	return (reg >= 1 && reg <= 8 || reg >= 22 && reg <= 25 || reg == 27);
+	return ((reg >= 1 && reg <= 8) || (reg >= 22 && reg <= 25) || reg == 27);
     }
 
     static inline bool isCalleeSaveIntegerRegister(unsigned int reg) {
@@ -293,7 +293,7 @@ const int ArgumentReg0 = TheISA::ArgumentReg0;
 const int ArgumentReg1 = TheISA::ArgumentReg1;
 const int ArgumentReg2 = TheISA::ArgumentReg2;
 const int BranchPredAddrShiftAmt = TheISA::BranchPredAddrShiftAmt;
-const int MaxAddr = (Addr)-1;
+const Addr MaxAddr = (Addr)-1;
 
 #if !FULL_SYSTEM
 class SyscallReturn {

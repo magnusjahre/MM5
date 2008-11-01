@@ -148,7 +148,7 @@ class MemoryInterface : public MemInterface
 
     virtual void getRange(std::list<Range<Addr> > &range_list)
     {
-	range_list.push_back(RangeIn(0,MaxAddr));
+	range_list.push_back(RangeIn((Addr) 0, MaxAddr));
     }
     
     void handleTestEvent(Tick time);

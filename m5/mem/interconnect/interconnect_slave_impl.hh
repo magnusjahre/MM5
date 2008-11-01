@@ -129,7 +129,7 @@ InterconnectSlave<MemType>::inRange(Addr addr)
         assert(localBlkSize != 0);
         while((localBlkSize >>= 1) != 1) bitCnt++;
         
-        assert((thisCache->getBlockSize()-1 & addr) == 0);
+        assert(((thisCache->getBlockSize()-1) & addr) == 0);
         assert(bankID != -1);
         assert(bankCount != -1);
         

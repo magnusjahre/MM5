@@ -41,6 +41,6 @@ std::string &hostname();
 uint64_t procInfo(char *filename, char *target);
 
 inline uint64_t memUsage()
-{ return procInfo("/proc/self/status", "VmSize:"); }
+{ return procInfo((char*) "/proc/self/status", (char*) "VmSize:"); }
 
 #endif // __HOSTINFO_HH__

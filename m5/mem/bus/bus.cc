@@ -1107,7 +1107,7 @@ Bus::buildShadowControllers(int np, HierParams* hp){
         params.in = this;
         params.snarf_updates = false;
         params.do_writes = false;
-        params.addrRange = vector<Range<Addr> >(1, RangeIn(0, MaxAddr));
+        params.addrRange = vector<Range<Addr> >(1, RangeIn((Addr) 0, MaxAddr));
         params.num_banks = 8;
         params.RAS_latency = 4;
         params.CAS_latency = 4;

@@ -1149,11 +1149,14 @@ BranchPred::update( int thread,	/* thread ID */
 			    conf_table[pred_state_idx]++;
 		    } else {
 			// incorrect prediction
-			if (conf_pred_ctr_type == CNT_SAT)
-			    if (conf_table[pred_state_idx] > 0)
+			if (conf_pred_ctr_type == CNT_SAT){
+			    if (conf_table[pred_state_idx] > 0){
 				conf_table[pred_state_idx]--;
-			else
+                            }
+                        }
+			else{
 			    conf_table[pred_state_idx] = 0;
+                        }
 		    }
 		}
 	    }

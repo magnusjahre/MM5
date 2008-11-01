@@ -241,8 +241,8 @@ class ExecContext
 #endif
 
 	// put the asid in the upper 16 bits of the paddr
-	req->paddr = req->vaddr & ~((Addr)0xffff << sizeof(Addr) * 8 - 16);
-	req->paddr = req->paddr | (Addr)req->asid << sizeof(Addr) * 8 - 16;
+	req->paddr = req->vaddr & ~((Addr)0xffff << ((sizeof(Addr) * 8) - 16));
+	req->paddr = req->paddr | ((Addr)req->asid << ((sizeof(Addr) * 8) - 16)) ;
 	return No_Fault;
     }
     Fault translateInstReq(MemReqPtr &req)

@@ -185,10 +185,10 @@ class StandardIQ : public BaseIQ
 
     virtual unsigned ready_count() {return ready_list->count(); }
 
-    virtual void StandardIQ::regModelStats(unsigned num_threads);
-    virtual void StandardIQ::regModelFormulas(unsigned num_threads);
+    virtual void regModelStats(unsigned num_threads);
+    virtual void regModelFormulas(unsigned num_threads);
 
-    virtual void StandardIQ::tick_model_stats();
+    virtual void tick_model_stats();
 
     virtual iterator squash(iterator &e);
 

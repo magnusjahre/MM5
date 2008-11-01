@@ -236,7 +236,7 @@ SeznecIQ::schedule_inst(SeznecIQ::iterator &p)
     //  Check to see if we've passed the active_line
     //
     if (use_line == active_line_index ||
-	use_line > active_line_index && max_line < active_line_index)
+	(use_line > active_line_index && max_line < active_line_index))
 	rv.valid = false;
 
     return rv;

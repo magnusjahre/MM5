@@ -91,7 +91,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
 		    true),
     INIT_PARAM_DFLT(do_writes, "update memory",false),
     INIT_PARAM_DFLT(addr_range, "Address range",
-		    vector<Range<Addr> >(1, RangeIn(0, MaxAddr))),
+		    vector<Range<Addr> >(1, RangeIn((Addr)0, MaxAddr))),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(compressed, "This memory stores compressed data.", false),
     INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),

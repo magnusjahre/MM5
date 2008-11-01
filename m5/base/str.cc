@@ -122,8 +122,7 @@ __to_number(string value, T &retval)
     static const int bits = sizeof(T) * 8;
     static const T hexmax = maxnum & (((T)1 << (bits - 4 - sign)) - 1);
     static const T octmax = maxnum & (((T)1 << (bits - 3 - sign)) - 1);
-    static const T signmax =
-	(sign) ? maxnum & (((T)1 << (bits - 1)) - 1) : maxnum;
+    static const T signmax = (sign) ? maxnum & (((T)1 << (bits - 1)) - 1) : maxnum;
     static const T decmax = signmax / 10;
 
 #if 0

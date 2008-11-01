@@ -39,11 +39,19 @@
 /// application on the host machine.
 
 #include <errno.h>
-#include <string>
-#ifdef __CYGWIN32__
-#include <sys/fcntl.h>	// for O_BINARY
-#endif
+// #include <string>
+// #include <cstdlib>
+// #include <cstdio>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/uio.h>
+
+// #ifdef __CYGWIN32__
+// #include <sys/fcntl.h>	// for O_BINARY
+// #endif
+// #include <sys/uio.h>
 
 #include "base/intmath.hh"	// for RoundUp
 #include "mem/functional/functional.hh"

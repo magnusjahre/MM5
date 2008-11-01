@@ -113,7 +113,7 @@ CheckSwapEvent::process()
     long swap;
 
     /*  returns free swap in KBytes  */
-    swap = procInfo("/proc/meminfo", "SwapFree:");
+    swap = procInfo((char*) "/proc/meminfo", (char*) "SwapFree:");
 
     if (swap < 1000)
 	ccprintf(cerr, "\a\a\aWarning! Swap space is low (%d)\n", swap);

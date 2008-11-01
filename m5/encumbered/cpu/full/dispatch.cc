@@ -2093,7 +2093,7 @@ FullCPU::choose_chain(DynInst *inst, unsigned cluster)
     //   (3)  It is a load
     //   (4)  The chain depth reported is greater than max_chain_depth
     //
-    if (CHAIN_HEAD_IND_INSTS && pending_ideps == 0 && inst->numDestRegs() > 0
+    if ((CHAIN_HEAD_IND_INSTS && pending_ideps == 0 && inst->numDestRegs() > 0)
 	|| chained_ideps > 1 || inst_is_load
 #if 0
 	|| max_latency_depth > max_chain_depth

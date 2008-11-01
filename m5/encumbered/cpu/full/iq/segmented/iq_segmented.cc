@@ -694,7 +694,7 @@ unsigned SegmentedIQ::choose_dest_segment(iq_iterator &p)
 	    //      OR
 	    //  there are no open slots...
 	    //
-	    if (bypass_slot_checking && slots < cpu->issue_width ||
+	    if ((bypass_slot_checking && slots < cpu->issue_width) ||
 		slots == 0)
 	    {
 		//  We need to try to go back one segment...

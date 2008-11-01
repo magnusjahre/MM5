@@ -41,7 +41,7 @@ SegChainInfoEntry::tick(bool pipelined_mode) {
     if (head_promoted) {
 	if (pipelined_mode) {
 	    // since the head has moved down one
-	    head_prom_sr |= 1 << head_level + 1;
+	    head_prom_sr |= 1 << (head_level + 1);
 	} else
 	    head_prom_sr = 1;
 
