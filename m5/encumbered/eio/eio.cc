@@ -221,7 +221,8 @@ eio_valid(const string &fname)
 	return false;
 
     /* read and check EIO file header */
-    fgets(buf, 512, fd);
+    char* res = fgets(buf, 512, fd);
+    if(res == NULL) fatal("eio fgets() caused an error");
 
     /* check the header */
     if (strcmp(buf, EIO_FILE_HEADER))
@@ -531,7 +532,8 @@ EioProcess::read_trace(RegFile *regs,	/* registers to update */
 		int real_fd = sim_fd(tgt_fd);
 
 		if (real_fd >= 0) {
-		    write(real_fd, blob->as_blob.data, blob->as_blob.size);
+		    ssize_t res = write(real_fd, blob->as_blob.data, blob->as_blob.size);
+                    if(res == -1) fatal("eio write caused an error");
 		}
 	    }
 	}

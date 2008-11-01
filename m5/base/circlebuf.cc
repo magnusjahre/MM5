@@ -39,6 +39,7 @@
 #include "base/circlebuf.hh"
 #include "base/cprintf.hh"
 #include "base/intmath.hh"
+#include "base/misc.hh"
 
 using namespace std;
 
@@ -60,8 +61,12 @@ CircleBuf::dump()
     cprintf("start = %10d, stop = %10d, buflen = %10d\n",
 	    _start, _stop, _buflen);
     fflush(stdout);
-    ::write(STDOUT_FILENO, _buf, _buflen);
-    ::write(STDOUT_FILENO, "<\n", 2);
+    
+    ssize_t res = ::write(STDOUT_FILENO, _buf, _buflen);
+    if(res == -1) fatal("circ buffer write failed");
+    
+    res = ::write(STDOUT_FILENO, "<\n", 2);
+    if(res == -1) fatal("circ buffer write failed");
 }
 
 void
@@ -107,19 +112,24 @@ CircleBuf::read(int fd, int len)
 
     if (_stop > _start) {
 	len = min(len, _stop - _start);
-	::write(fd, _buf + _start, len);
+        ssize_t res = ::write(fd, _buf + _start, len);
+        if(res == -1) fatal("circ buffer write failed");
 	_start += len;
     }
     else {
 	int endlen = _buflen - _start;
 	if (endlen > len) {
-	    ::write(fd, _buf + _start, len);
+            ssize_t res = ::write(fd, _buf + _start, len);
+            if(res == -1) fatal("circ buffer write failed");
 	    _start += len;
 	}
 	else {
-	    ::write(fd, _buf + _start, endlen);
+            ssize_t res = ::write(fd, _buf + _start, endlen);
+            if(res == -1) fatal("circ buffer write failed");
+            
 	    _start = min(len - endlen, _stop);
-	    ::write(fd, _buf, _start);
+	    res = ::write(fd, _buf, _start);
+            if(res == -1) fatal("circ buffer write failed");
 	}
     }
 }
@@ -130,11 +140,14 @@ CircleBuf::read(int fd)
     _size = 0;
 
     if (_stop > _start) {
-	::write(fd, _buf + _start, _stop - _start);
+	ssize_t res = ::write(fd, _buf + _start, _stop - _start);
+        if(res == -1) fatal("circ buffer write failed");
     }
     else {
-	::write(fd, _buf + _start, _buflen - _start);
-	::write(fd, _buf, _stop);
+	ssize_t res = ::write(fd, _buf + _start, _buflen - _start);
+        if(res == -1) fatal("circ buffer write failed");
+	res = ::write(fd, _buf, _stop);
+        if(res == -1) fatal("circ buffer write failed");
     }
 
     _start = _stop;
@@ -159,10 +172,13 @@ CircleBuf::read(ostream &out)
 void
 CircleBuf::readall(int fd)
 {
-    if (_rollover)
-	::write(fd, _buf + _stop, _buflen - _stop);
+    if (_rollover){
+        ssize_t res = ::write(fd, _buf + _stop, _buflen - _stop);
+        if(res == -1) fatal("circ buffer write failed");
+    }
 
-    ::write(fd, _buf, _stop);
+    ssize_t res = ::write(fd, _buf, _stop);
+    if(res == -1) fatal("circ buffer write failed");
     _start = _stop;
 }
 

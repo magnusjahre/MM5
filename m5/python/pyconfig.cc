@@ -52,7 +52,8 @@ PythonConfig::PythonConfig()
 {
     // Add directory where m5 was invoked to Python path.
     char path[FILENAME_MAX];
-    getcwd(path, sizeof(path));
+    char* ret = getcwd(path, sizeof(path));
+    if(ret == NULL) fatal("PythonConfig getcwd error");
     addPath(path);
 }
 

@@ -227,10 +227,11 @@ SeznecIQ::schedule_inst(SeznecIQ::iterator &p)
 	use_line -= num_lines;
 
     //  Assume we're ok for now
-    new_slot_t rv;
+    new_slot_t rv = new_slot_t();
     rv.valid = true;
     rv.schedule_line = max_line;
     rv.result_line = use_line;
+    rv.reg = 0;
 
     //
     //  Check to see if we've passed the active_line

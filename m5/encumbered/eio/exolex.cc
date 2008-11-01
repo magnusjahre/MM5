@@ -580,11 +580,22 @@ YY_MALLOC_DECL
 
 /* Copy whatever the last rule matched to the standard output. */
 
-#ifndef ECHO
+
+// #ifndef ECHO
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO (void) fwrite( yytext, yyleng, 1, yyout )
+// #define ECHO (void) fwrite( yytext, yyleng, 1, yyout )
+// #endif
+
+#ifndef ECHO
+#define ECHO \
+    {\
+        size_t res = fwrite( yytext, yyleng, 1, yyout );\
+        if(res == 0){\
+            YY_FATAL_ERROR( "lexer fwrite call failed" );\
+        }\
+    }
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
