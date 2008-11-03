@@ -6,8 +6,14 @@ AdaptiveMHA::addAloneInterference(int extraDelay, int victimCPU, InterferenceTyp
     if(curTick > startRunning){
         
         switch(type){
-            case MEMORY_INTERFERENCE:
+            case MEMORY_SERIALIZATION_INTERFERENCE:
                 busInterference[victimCPU] += extraDelay;
+                break;
+            case MEMORY_BLOCKED_INTERFERENCE:
+                busBlockedInterference[victimCPU] += extraDelay;
+                break;
+            case MEMORY_PRIVATE_BLOCKED_INTERFERENCE:
+                busPrivateBlockedInterference[victimCPU] -= extraDelay;
                 break;
             case L2_CAPACITY_INTERFERENCE:
                 l2CapInterference[victimCPU] += extraDelay;
@@ -42,6 +48,8 @@ AdaptiveMHA::dumpAloneInterference(int cpuID){
     // compute values
     Tick totalInterference = 0;
     totalInterference += busInterference[cpuID];
+    totalInterference += busBlockedInterference[cpuID];
+    totalInterference += busPrivateBlockedInterference[cpuID];
     totalInterference += l2CapInterference[cpuID];
     totalInterference += l2BwInterference[cpuID];
     totalInterference += interconnectInterference[cpuID];
@@ -62,6 +70,8 @@ AdaptiveMHA::dumpAloneInterference(int cpuID){
     interferencefile << avgSharedLat << ";";
     interferencefile << avgInterferenceLat << ";";
     interferencefile << busInterference[cpuID] << ";";
+    interferencefile << busBlockedInterference[cpuID] << ";";
+    interferencefile << busPrivateBlockedInterference[cpuID] << ";";
     interferencefile << l2CapInterference[cpuID] << ";";
     interferencefile << l2BwInterference[cpuID] << ";";
     interferencefile << interconnectInterference[cpuID] << "\n";
@@ -70,6 +80,8 @@ AdaptiveMHA::dumpAloneInterference(int cpuID){
     
     // reset storage
     busInterference[cpuID] = 0;
+    busBlockedInterference[cpuID] = 0;
+    busPrivateBlockedInterference[cpuID] = 0;
     l2CapInterference[cpuID] = 0;
     l2BwInterference[cpuID] = 0;
     interconnectInterference[cpuID] = 0;

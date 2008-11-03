@@ -19,8 +19,11 @@ class AdaptiveMHASampleEvent;
 enum InterferenceType{
     INTERCONNECT_INTERFERENCE,
     L2_INTERFERENCE,
-    MEMORY_INTERFERENCE,
+    MEMORY_SERIALIZATION_INTERFERENCE,
+    MEMORY_BLOCKED_INTERFERENCE,
+    MEMORY_PRIVATE_BLOCKED_INTERFERENCE,
     L2_CAPACITY_INTERFERENCE,
+    MEMORY_INTERFERENCE, // not used in new interference measurements
     INTERFERENCE_COUNT
 };
 
@@ -128,6 +131,8 @@ class AdaptiveMHA : public SimObject{
         int dumpAtNumReqs;
         
         std::vector<Tick> busInterference;
+        std::vector<Tick> busBlockedInterference;
+        std::vector<Tick> busPrivateBlockedInterference;
         std::vector<Tick> l2CapInterference;
         std::vector<Tick> l2BwInterference;
         std::vector<Tick> interconnectInterference;

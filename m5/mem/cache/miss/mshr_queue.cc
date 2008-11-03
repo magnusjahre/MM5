@@ -355,6 +355,7 @@ MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double thresho
                 return i;
             }
         }
+        
         return -1;
         
     }

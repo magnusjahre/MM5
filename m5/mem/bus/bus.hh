@@ -74,7 +74,14 @@ class TimingMemoryController;
 
 using namespace std;
 
-typedef enum{BUS_INTERFERENCE, CONFLICT_INTERFERENCE, HIT_TO_MISS_INTERFERENCE, ESTIMATED_INTERFERENCE} interference_type;
+typedef enum{
+    BUS_INTERFERENCE,
+    BUS_BLOCKING_INTERFERENCE,
+    BUS_PRIVATE_BLOCKING_INTERFERENCE,
+    CONFLICT_INTERFERENCE,
+    HIT_TO_MISS_INTERFERENCE,
+    ESTIMATED_INTERFERENCE
+} interference_type;
 
 /**
  * A arbitrated split transaction bus model.
@@ -103,6 +110,8 @@ class Bus : public BaseHier
     std::vector<bool> shadowIsBlocked;
     
     bool infiniteBW;
+    
+//     double blockingInterferenceMultFactor;;
     
     class PrivateStorageEntry{
         public:

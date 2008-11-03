@@ -422,11 +422,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     req->memBusBlockedWaitCycles = curTick - origReqTime;
     
-    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read && req->adaptiveMHASenderID != -1){
-        assert(req->adaptiveMHASenderID != -1);
-        blockingInterferenceCycles[req->adaptiveMHASenderID] += curTick - origReqTime;
-    }
-
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
@@ -448,6 +443,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         }
         
         return true;
+    }
+    
+    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
+       && req->adaptiveMHASenderID != -1 && cpu_count > 1){
+        
+        double threshold = 1.0 / (double) cpu_count;
+        if((double) currentShadowReqReadCount[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
+            && (double) currentShadowReqWriteCount[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
+            
+            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+            
+        }
     }
     
     // Insert request into memory controller
@@ -589,7 +596,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             assert(time > curTick);
             
             if(req->cmd == Read){
+                
                 int aloneLat = time - req->inserted_into_memory_controller;
+                
                 if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) ==
                 latencyStorage[req->adaptiveMHASenderID].end()){
                     latencyStorage[req->adaptiveMHASenderID][req->paddr] = aloneLat;
@@ -619,7 +628,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         return;
     }
     
-    if(req->cmd != Activate && req->cmd != Close){
+    
+    
+    if(req->cmd != Activate && req->cmd != Close && cpu_count > 1){
         
         if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]--;
         else currentShadowReqWriteCount[req->adaptiveMHASenderID]--;
@@ -632,11 +643,11 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             
             shadowIsBlocked[req->adaptiveMHASenderID] = false;
             
-            double blockingThreshold = 0.8;
-            if(currentShadowReqReadCount[req->adaptiveMHASenderID] >= 
-               blockingThreshold * memoryController->getReadQueueLength()){
-                shadowBlockedCycles[req->adaptiveMHASenderID] += curTick - shadowBlockedAt[req->adaptiveMHASenderID];
-            }
+            Tick delayEstimate = (curTick - shadowBlockedAt[req->adaptiveMHASenderID]) 
+                                 * currentShadowReqReadCount[req->adaptiveMHASenderID];
+//                                  * cpu_count;
+            
+            addInterferenceCycles(req->adaptiveMHASenderID, delayEstimate, BUS_PRIVATE_BLOCKING_INTERFERENCE);
         }
     }
     
@@ -686,7 +697,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         deliverevent->schedule(time);
         
         int sharedLatency = time - req->inserted_into_memory_controller;
-            
+        
         if(cpu_count > 1 && req->givenToShadow){
             
             if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) != 
@@ -1081,8 +1092,16 @@ void
 Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
     switch(iType){
         case BUS_INTERFERENCE:
-            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_INTERFERENCE);
+            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_SERIALIZATION_INTERFERENCE);
             cpuInterferenceCycles[victimID] += delay;
+            break;
+        case BUS_BLOCKING_INTERFERENCE:
+            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_BLOCKED_INTERFERENCE);
+            blockingInterferenceCycles[victimID] += delay;
+            break;
+        case BUS_PRIVATE_BLOCKING_INTERFERENCE:
+            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_PRIVATE_BLOCKED_INTERFERENCE);
+            shadowBlockedCycles[victimID] += delay;
             break;
         case CONFLICT_INTERFERENCE:
             cpuConflictInterferenceCycles[victimID] += delay;
@@ -1116,7 +1135,7 @@ Bus::buildShadowControllers(int np, HierParams* hp){
         
         for(int i=0;i<np;i++){
             stringstream ctrlName;
-            ctrlName << "ShadowController" << np;
+            ctrlName << "ShadowController" << i;
             RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
                     memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0, false);
             shadowControllers.push_back(tmpCtrl);
@@ -1124,12 +1143,12 @@ Bus::buildShadowControllers(int np, HierParams* hp){
             tmpCtrl->setShadow();
             
             stringstream memName;
-            memName << "ShadowMemory" << np;
+            memName << "ShadowMemory" << i;
             SimpleMemBank<NullCompression>* tmpMem = new SimpleMemBank<NullCompression>(memName.str(), hp, params);
             shadowMemories.push_back(tmpMem);
             
             stringstream slaveName;
-            slaveName << "ShadowSlaveInterface" << np;
+            slaveName << "ShadowSlaveInterface" << i;
             SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave = 
                     new SlaveInterface<SimpleMemBank<NullCompression>, Bus>(slaveName.str(), hp, tmpMem, this, false, true);
             shadowSlaveInterfaces.push_back(tmpSlave);

@@ -143,12 +143,14 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         stringstream filename;
         filename << "CPU" << i << aloneInterferenceFileName;
         ofstream interferencefile(filename.str().c_str());
-        interferencefile << "Requests;Avg shared latency;Avg interference;Bus;L2 Cap;L2 BW;Interconnect\n";
+        interferencefile << "Requests;Avg shared latency;Avg interference;Bus;Bus Blocking;Bus Private Blocking;L2 Cap;L2 BW;Interconnect\n";
         interferencefile.flush();
         interferencefile.close();
     }
     
     busInterference.resize(adaptiveMHAcpuCount, 0);
+    busBlockedInterference.resize(adaptiveMHAcpuCount, 0);
+    busPrivateBlockedInterference.resize(adaptiveMHAcpuCount, 0);
     l2CapInterference.resize(adaptiveMHAcpuCount, 0);
     l2BwInterference.resize(adaptiveMHAcpuCount, 0);
     interconnectInterference.resize(adaptiveMHAcpuCount, 0);

@@ -338,7 +338,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
             currentQueue->pop_front();
             
             // check interference if from slave 
-            if(!toSlave && !currentQueue->empty()){
+            if(!toSlave && !currentQueue->empty() && cpu_count > 1){
                 list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
                 for( ; it != currentQueue->end(); it++){
                     int toID = it->first->adaptiveMHASenderID;
@@ -353,41 +353,42 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
             return true;
         }
         else{
-            
-            if(toSlave){
-                // Interference: empty pipe stage, all waiting requests are delayed
-                int waitingReads = 0;
-                int senderCPUID = currentQueue->front().first->adaptiveMHASenderID;
-                
-                //NOTE: how should we handle reads that have not been accepted yet?
-                list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
-                for( ; it != currentQueue->end(); it++){
-                    MemCmd cmd = it->first->cmd;
-                    assert(cmd == Read || cmd == Writeback);
-                    if(cmd == Read) waitingReads++;
-                }
-                
-                int extraDelay = requestOccupancyTicks * waitingReads;
-                cpuInterferenceCycles[senderCPUID] += extraDelay;
-                adaptiveMHA->addAloneInterference(extraDelay, senderCPUID, INTERCONNECT_INTERFERENCE);
-
-            }
-            else{
-                
-                if(currentQueue->size() > 1){
-                    // since this is an output conflict, the first request is from the same CPU as the one it is in conflict with
-                    // however, other queued requests might be to different processors
+            if(cpu_count > 1){
+                if(toSlave){
+                    // Interference: empty pipe stage, all waiting requests are delayed
+                    int waitingReads = 0;
+                    int senderCPUID = currentQueue->front().first->adaptiveMHASenderID;
                     
-                    int firstCPUID = currentQueue->front().first->adaptiveMHASenderID;
+                    //NOTE: how should we handle reads that have not been accepted yet?
                     list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
-                    
-                    it++; //skip first
                     for( ; it != currentQueue->end(); it++){
-                        int toID = it->first->adaptiveMHASenderID;
-                        assert(it->first->cmd == Read);
-                        if(toID != firstCPUID){
-                            cpuInterferenceCycles[toID] += requestOccupancyTicks;
-                            adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
+                        MemCmd cmd = it->first->cmd;
+                        assert(cmd == Read || cmd == Writeback);
+                        if(cmd == Read) waitingReads++;
+                    }
+                    
+                    int extraDelay = requestOccupancyTicks * waitingReads;
+                    cpuInterferenceCycles[senderCPUID] += extraDelay;
+                    adaptiveMHA->addAloneInterference(extraDelay, senderCPUID, INTERCONNECT_INTERFERENCE);
+    
+                }
+                else{
+                    
+                    if(currentQueue->size() > 1){
+                        // since this is an output conflict, the first request is from the same CPU as the one it is in conflict with
+                        // however, other queued requests might be to different processors
+                        
+                        int firstCPUID = currentQueue->front().first->adaptiveMHASenderID;
+                        list<pair<MemReqPtr, int> >::iterator it = currentQueue->begin();
+                        
+                        it++; //skip first
+                        for( ; it != currentQueue->end(); it++){
+                            int toID = it->first->adaptiveMHASenderID;
+                            assert(it->first->cmd == Read);
+                            if(toID != firstCPUID){
+                                cpuInterferenceCycles[toID] += requestOccupancyTicks;
+                                adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
+                            }
                         }
                     }
                 }
@@ -449,7 +450,7 @@ Crossbar::clearBlocked(int fromInterface){
         deliverBufferRequests++;
         
         assert(req->cmd == Read || req->cmd == Writeback);
-        if(entry.blockingBlameID != req->adaptiveMHASenderID && req->cmd == Read){
+        if(entry.blockingBlameID != req->adaptiveMHASenderID && req->cmd == Read && cpu_count > 1){
             Tick extraDelay = curTick - queuedAt;
             cpuInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
             adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
