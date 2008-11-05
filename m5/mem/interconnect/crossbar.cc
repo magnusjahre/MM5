@@ -28,7 +28,7 @@ Crossbar::Crossbar(const std::string &_name,
     crossbarRequests = vector<list<pair<MemReqPtr, int> > >(_cpu_count, list<pair<MemReqPtr, int> >());
     
     
-    perEndPointQueueSize = 16; // FIXME: parameterize
+    perEndPointQueueSize = 64; //16; // FIXME: parameterize
     requestOccupancyTicks = 2; // FIXME: parameterize
     requestL2BankCount = 4;
     crossbarResponses = vector<list<pair<MemReqPtr, int> > >(requestL2BankCount, list<pair<MemReqPtr, int> >());
