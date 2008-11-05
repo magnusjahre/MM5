@@ -94,10 +94,10 @@ Bus::Bus(const string &_name,
     shadowBlockedAt = vector<Tick>(cpu_count, 0);
     shadowIsBlocked = vector<bool>(cpu_count, false);
     
-    pendingPrivateEstimationSize = 16; //FIXME
-    pendingPrivateEstimationStorage = vector<vector<PrivateStorageEntry> >(cpu_count, vector<PrivateStorageEntry>());
-    finishedPrivateEstimationSize = 16;
-    finishedPrivateEstimationStorage = vector<vector<PrivateStorageEntry> >(cpu_count, vector<PrivateStorageEntry>());
+//     pendingPrivateEstimationSize = 16; 
+//     pendingPrivateEstimationStorage = vector<vector<PrivateStorageEntry> >(cpu_count, vector<PrivateStorageEntry>());
+//     finishedPrivateEstimationSize = 16;
+//     finishedPrivateEstimationStorage = vector<vector<PrivateStorageEntry> >(cpu_count, vector<PrivateStorageEntry>());
     
     if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
     else adaptiveMHA = NULL;
@@ -298,20 +298,6 @@ Bus::regStats()
         .flags(total)
         ;
     
-    estimatedInterferenceCycles
-        .init(cpu_count)
-        .name(name() + ".estimated_interference")
-        .desc("interference cycles with the queue based estimation technique")
-        .flags(total)
-        ;
-    
-    estimatedInterferenceReqs
-            .init(cpu_count)
-            .name(name() + ".estimated_interference_requests")
-            .desc("number of reqs in the interference estimate")
-            .flags(total)
-            ;
-    
     shadowCtrlPageHits
         .init(cpu_count)
         .name(name() + ".shadow_ctrl_hits")
@@ -461,22 +447,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     memoryController->insertRequest(req);
     if(cpu_count > 1 && req->adaptiveMHASenderID != -1){
         assert(req->adaptiveMHASenderID != -1);
-        
-        // keep interference misses out of the private mem sys
-//         if(req->interferenceMissAt == 0){
-//             assert(req->cmd == Read || req->cmd == Writeback);
-//             pendingPrivateEstimationStorage[req->adaptiveMHASenderID].push_back(
-//                     PrivateStorageEntry(curTick,
-//                                         req->paddr,
-//                                         req->cmd == Read,
-//                                         memoryController->getPage(req),
-//                                         memoryController->getMemoryBankID(req->paddr),
-//                                         getAloneArrival(req),
-//                                         req->adaptiveMHASenderID
-//                                     ));
-//             
-//             assert(pendingPrivateEstimationStorage.size() <= pendingPrivateEstimationSize);
-//         }
         
         if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]++;
         else currentShadowReqWriteCount[req->adaptiveMHASenderID]++;
@@ -726,190 +696,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 }
 
 int
-Bus::estimatePrivateInterference(MemReqPtr& req){
-    
-    const int BANKS = 8;
-    
-    assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
-    assert(slaveInterfaces.size() == 1);
-    
-    vector<PrivateStorageEntry>& pendingQueue = pendingPrivateEstimationStorage[req->adaptiveMHASenderID];
-    vector<PrivateStorageEntry>& finQueue = finishedPrivateEstimationStorage[req->adaptiveMHASenderID];
-    vector<Tick> banksActiveAt(BANKS, 0);
-    vector<Addr> activePages(BANKS, 0);
-    
-    int toBank = memoryController->getMemoryBankID(req->paddr);
-    Addr toPage = memoryController->getPage(req);
-    
-    Tick lastFinAt = 0;
-    Tick lastBank = -1;
-    for(int i=0;i<finQueue.size();i++){
-        PrivateStorageEntry tmp = finQueue[i];
-        toBank = memoryController->getMemoryBankID(tmp.address);
-        toPage = memoryController->getPage(tmp.address);
-        activePages[toBank] = toPage;
-        banksActiveAt[toBank] = tmp.private_fin_at - slaveInterfaces[0]->getDataTransTime();
-        
-        if(tmp.private_fin_at > lastFinAt){
-            lastFinAt = tmp.private_fin_at;
-            lastBank = tmp.bankID;
-        }
-    }
-    
-    PrivateStorageEntry* requestedEntryPtr = NULL;
-    bool alreadyFinished = false;
-    for(int i=0;i<finQueue.size();i++){
-        PrivateStorageEntry& tmp = finQueue[i];
-        if(tmp.address == req->paddr){
-            alreadyFinished = true;
-            requestedEntryPtr = &tmp;
-            break;
-        }
-    }
-    
-
-    if(!alreadyFinished){
-        bool issuing = true;
-        while(issuing){
-            PrivateStorageEntry curServiced = getNextRequest(pendingQueue, activePages, banksActiveAt);
-            
-            Tick lastFinPrev = lastFinAt;
-            if(lastFinAt < curServiced.private_arrival_estimate){
-                lastFinAt = curServiced.private_arrival_estimate;
-            }
-            
-            if(curServiced.isPageHit){
-                curServiced.private_fin_at = lastFinAt + 40;
-            }
-            else{
-                if(lastBank == curServiced.bankID){
-                    // this is a page conflict if the activate is sufficiently near
-                    if(activateCloseEnoughForConflict(curServiced, banksActiveAt[curServiced.bankID])){
-                        curServiced.private_fin_at = lastFinAt + 160;
-                    }
-                    else{
-                        curServiced.private_fin_at = lastFinAt + 120;
-                    }
-                }
-                else{
-                    int overlap = getOverlapEstimate(lastFinPrev, curServiced.private_arrival_estimate);
-                    curServiced.private_fin_at = lastFinAt + 120 - overlap;
-                }
-            }
-            
-            finQueue.push_back(curServiced);
-            lastFinAt = curServiced.private_fin_at;
-            
-            if(curServiced.address == req->paddr){
-                issuing = false;
-                requestedEntryPtr = &curServiced;
-            }
-        }
-    }
-    
-    int privateLat = requestedEntryPtr->private_fin_at - requestedEntryPtr->private_arrival_estimate;
-    assert(requestedEntryPtr->address != 0);
-    
-    return privateLat;
-}
-
-int
-Bus::getOverlapEstimate(Tick prevFinAt, Tick nextArrival){
-    
-//     Tick arrivalWSlowdown = (Tick) ( (double) nextArrival * 0.9);
-//     Tick prevFinWSlowdown = (Tick) ( (double) prevFinAt * 0.9);
-    
-    if(prevFinAt > nextArrival){
-        int overlap = prevFinAt - nextArrival;
-        if(overlap > 40) return 40;
-        return overlap;
-    }
-    
-    return 0;
-}
-
-Tick
-Bus::getAloneArrival(MemReqPtr& req){
-    
-//     int reqs = (int) estimatedInterferenceReqs[req->adaptiveMHASenderID].value();
-//     if(reqs == 0) return curTick;
-//     
-//     int avgInterference = (int) (estimatedInterferenceCycles[req->adaptiveMHASenderID].value() / reqs);
-//     
-//     return curTick - avgInterference;
-    
-    return curTick;
-}
-
-Bus::PrivateStorageEntry
-Bus::getNextRequest(vector<PrivateStorageEntry>& queue, vector<Addr>& activeBanks, vector<Tick>& activatedAt){
-    
-    // 1. Ready reads
-    for(int i=0;i<queue.size();i++){
-        PrivateStorageEntry tmp = queue[i];
-        assert(tmp.page != 0);
-        assert(tmp.bankID != -1);
-        if(tmp.isRead && tmp.page == activeBanks[tmp.bankID] && activateCloseEnough(tmp, activatedAt[tmp.bankID], tmp.cpuID)){
-            tmp.isPageHit = true;
-            queue.erase(queue.begin()+i);
-            return tmp;
-        }
-    }
-    
-    // 2. Ready writes
-    for(int i=0;i<queue.size();i++){
-        PrivateStorageEntry tmp = queue[i];
-        assert(tmp.page != 0);
-        assert(tmp.bankID != -1);
-        if(!tmp.isRead && tmp.page == activeBanks[tmp.bankID] && activateCloseEnough(tmp, activatedAt[tmp.bankID], tmp.cpuID)){
-            tmp.isPageHit = true;
-            queue.erase(queue.begin()+i);
-            return tmp;
-        }
-    }
-    
-    // 3. Oldest read
-    for(int i=0;i<queue.size();i++){
-        PrivateStorageEntry tmp = queue[i];
-        if(tmp.isRead){
-            queue.erase(queue.begin()+i);
-            return tmp;
-        }
-    }
-    
-    // choose oldest write
-    assert(queue.size() >= 1);
-    PrivateStorageEntry oldest = queue[0];
-    assert(!oldest.isRead);
-    queue.erase(queue.begin());
-    return oldest;
-}
-
-bool
-Bus::activateCloseEnough(PrivateStorageEntry& entry, Tick activatedAt, int cpuID){
-    
-    // TODO: we might want to add a slowdown factor
-    // i.e the reqs are to far apart in the shared system but not in the real private system
-//     Tick lastReqFinAt = activatedAt + slaveInterfaces[0]->getDataTransTime();
-//     
-//     int reqs = (int) estimatedInterferenceReqs[cpuID].value();
-//     if(reqs == 0) return lastReqFinAt >= entry.private_arrival_estimate;
-//     
-//     int avgInterference = (int) (estimatedInterferenceCycles[cpuID].value() / reqs);
-// 
-//     return lastReqFinAt >= (entry.private_arrival_estimate - avgInterference);
-    
-    Tick lastReqFinAt = activatedAt + slaveInterfaces[0]->getDataTransTime();
-    return lastReqFinAt >= entry.private_arrival_estimate;
-}
-
-bool
-Bus::activateCloseEnoughForConflict(PrivateStorageEntry& entry, Tick activatedAt){
-    //TODO: implement
-    return false;
-}
-
-int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
     assert(numInterfaces == interfaces.size());
@@ -1109,10 +895,6 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
         case HIT_TO_MISS_INTERFERENCE:
             cpuHtMInterferenceCycles[victimID] += delay;
             break;
-        case ESTIMATED_INTERFERENCE:
-            estimatedInterferenceCycles[victimID] += delay;
-            estimatedInterferenceReqs[victimID]++;
-            break;
         default:
             fatal("Unknown interference type");
     }
@@ -1288,27 +1070,6 @@ Bus::writeTraceFileLine(Addr address, int bank, Addr page, Tick latency, MemCmd 
     file.close();
 }
 #endif
-
-Bus::PrivateStorageEntry::PrivateStorageEntry(Tick as, Tick ap, Tick fp, Addr addr, bool r){
-    arrived_shared_at = as;
-    private_arrival_estimate = ap;
-    private_fin_at = fp;
-    address = addr;
-    isRead = r;
-    isPageHit = false;
-}
-            
-Bus::PrivateStorageEntry::PrivateStorageEntry(Tick shared_arr, Addr addr, bool _isRead, Addr _page, int _bank, Tick estArrTime, int _cpuID){
-    arrived_shared_at = shared_arr;
-    private_arrival_estimate = estArrTime;
-    private_fin_at = 0;
-    address = addr;
-    page = _page;
-    bankID = _bank;
-    isRead = _isRead;
-    isPageHit = false;
-    cpuID = _cpuID;
-}
 
 // Event implementations
 void
