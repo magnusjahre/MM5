@@ -19,6 +19,11 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     MemReqPtr lastIssuedReq;
     bool lastIsWrite;
     bool infiniteWriteBW;
+    
+    Tick currentDeliveredReqAt;
+    int currentOccupyingCPUID;
+    Tick lastDeliveredReqAt;
+    int lastOccupyingCPUID;
 
     std::list<MemReqPtr>::iterator queueIterator;
 
@@ -37,11 +42,12 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     bool getReady(MemReqPtr& req);
     bool getOther(MemReqPtr& req);
     
-    void estimateInterference(MemReqPtr& req);
+    // NOTE: used in first FAMHA paper but is outdated
+//     void estimateInterference(MemReqPtr& req);
+//     std::vector<bool> hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue);
+//     std::vector<int> computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue);
     
-    std::vector<bool> hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue);
-    
-    std::vector<int> computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue);
+//     void estimatePrivateServiceLatency(MemReqPtr& req);
     
   public:
 
@@ -83,5 +89,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual int getWriteQueueLength(){
         return writequeue_size;
     }
+    
+    virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
 };

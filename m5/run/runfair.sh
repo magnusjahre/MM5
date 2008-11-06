@@ -59,3 +59,5 @@ echo
 echo "Error Summary:"
 python -c "import fairmha.getInterference as g; g.printError('stats_$wl.txt', $fileArray, 4)"
 echo
+python -c "import fairmha.getInterference as g;g.printBusErrors('stats_$wl.txt', $fileArray)"
+echo

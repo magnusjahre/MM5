@@ -205,6 +205,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool instructionMiss;
     
     Tick busDelay;
+    Tick busQueueInterference;
     int shadowCtrlID;
     bool givenToShadow;
     
@@ -267,6 +268,7 @@ class MemReq : public FastAlloc, public RefCounted
           virtualStartTime(0),
           instructionMiss(false),
           busDelay(0),
+          busQueueInterference(0),
           shadowCtrlID(-1),
           givenToShadow(false),
           interferenceMissAt(0),
@@ -321,6 +323,7 @@ class MemReq : public FastAlloc, public RefCounted
         virtualStartTime = r.virtualStartTime;
         instructionMiss = r.instructionMiss;
         busDelay = r.busDelay;
+        busQueueInterference = r.busQueueInterference;
         shadowCtrlID = r.shadowCtrlID;
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;

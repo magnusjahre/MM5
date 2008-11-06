@@ -155,6 +155,7 @@ class SlaveInterface : public BusInterface<BusType>
     virtual bool isReady(MemReqPtr &req);
     virtual int getPageSize();
     virtual int getMemoryBankID(Addr addr);
+    virtual Tick getBankActivatedAt(int bankID);
 
     virtual Tick calculateLatency(MemReqPtr &req);
     

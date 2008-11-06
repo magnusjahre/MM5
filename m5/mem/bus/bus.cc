@@ -89,10 +89,10 @@ Bus::Bus(const string &_name,
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     
-    currentShadowReqReadCount = vector<int>(cpu_count, 0);
-    currentShadowReqWriteCount = vector<int>(cpu_count, 0);
-    shadowBlockedAt = vector<Tick>(cpu_count, 0);
-    shadowIsBlocked = vector<bool>(cpu_count, false);
+//     currentShadowReqReadCount = vector<int>(cpu_count, 0);
+//     currentShadowReqWriteCount = vector<int>(cpu_count, 0);
+//     shadowBlockedAt = vector<Tick>(cpu_count, 0);
+//     shadowIsBlocked = vector<bool>(cpu_count, false);
     
 //     pendingPrivateEstimationSize = 16; 
 //     pendingPrivateEstimationStorage = vector<vector<PrivateStorageEntry> >(cpu_count, vector<PrivateStorageEntry>());
@@ -152,7 +152,7 @@ Bus::Bus(const string &_name,
 //     ctrlSwitch->schedule(_switch_at);
     detailedSimulationStart = _switch_at;
     
-    buildShadowControllers(cpu_count, hier_params);
+//     buildShadowControllers(cpu_count, hier_params);
     
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -325,6 +325,77 @@ Bus::regStats()
         .desc("the estimated number of cycles a shadow controller would have been blocked")
         .flags(total)
         ;
+    
+    predictedServiceLatencySum
+        .init(cpu_count)
+        .name(name() + ".predicted_service_latency")
+        .desc("The predicted private service latency")
+        .flags(total)
+        ;
+    
+    numServiceLatencyRequests
+        .init(cpu_count)
+        .name(name() + ".service_latency_requests")
+        .desc("Number of requests in service latency measurements")
+        .flags(total)
+        ;
+    
+    avgPredictedServiceLatency
+        .name(name() + ".avg_predicted_service_latency")
+        .desc("The average predicted private service latency")
+        ;
+    
+    avgPredictedServiceLatency = predictedServiceLatencySum / numServiceLatencyRequests;
+    
+    actualServiceLatencySum
+        .name(name() + ".actual_service_latency")
+        .desc("The actual service latency")
+        ;
+    
+    actualServiceLatencyRequests
+        .name(name() + ".actual_service_latency_requests")
+        .desc("Number of requests in the actual service latency measurements")
+        ;
+    
+    avgActualServiceLatency
+        .name(name() + ".avg_actual_service_latency")
+        .desc("The average actual service latency")
+        ;
+    
+    avgActualServiceLatency = actualServiceLatencySum / actualServiceLatencyRequests;
+    
+    estimatedPrivateQueueLatency
+        .init(cpu_count)
+        .name(name() + ".estimated_private_queue_latency")
+        .desc("Estimated private queue latency")
+        .flags(total)
+        ;
+    
+    estimatedPrivateQueueRequests
+        .init(cpu_count)
+        .name(name() + ".estimated_private_queue_requests")
+        .desc("Number of requests in the private queue latency measurements")
+        .flags(total)
+        ;
+    
+    avgEstimatedPrivateQueueLatency
+        .name(name() + ".avg_estimated_private_queue_latency")
+        .desc("Average estimated private queue latency")
+        ;
+    
+    avgEstimatedPrivateQueueLatency = estimatedPrivateQueueLatency / estimatedPrivateQueueRequests;
+    
+    actualQueueDelayRequests
+            .name(name() + ".actual_queue_delay_requests")
+            .desc("Number of requests in the actual queue delay measurements")
+            ;
+    
+    avgActualQueueDelay
+            .name(name() + ".avg_actual_queue_delay")
+            .desc("The average actual queue delay")
+            ;
+    
+    avgActualQueueDelay = actualQueueDelaySum / actualQueueDelayRequests;
 }
 
 void
@@ -434,52 +505,57 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
         
-        double threshold = 1.0 / (double) cpu_count;
-        if((double) currentShadowReqReadCount[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
-            && (double) currentShadowReqWriteCount[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
+        //TODO: only add this quantity if this proc is not responsible for the blocking
+//         addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+        
+//         double threshold = 1.0 / (double) cpu_count;
+//         if((double) currentShadowReqReadCount[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
+//             && (double) currentShadowReqWriteCount[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
             
-            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
             
-        }
+            
+//         }
     }
     
     // Insert request into memory controller
+    cout << curTick << ": request recieved from CPU " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
     memoryController->insertRequest(req);
-    if(cpu_count > 1 && req->adaptiveMHASenderID != -1){
-        assert(req->adaptiveMHASenderID != -1);
-        
-        if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]++;
-        else currentShadowReqWriteCount[req->adaptiveMHASenderID]++;
-        
-        if((currentShadowReqReadCount[req->adaptiveMHASenderID] > memoryController->getReadQueueLength() ||
-           currentShadowReqWriteCount[req->adaptiveMHASenderID] > memoryController->getWriteQueueLength()) && 
-           !shadowIsBlocked[req->adaptiveMHASenderID]){
-            assert(!shadowIsBlocked[req->adaptiveMHASenderID]);
-
-            shadowIsBlocked[req->adaptiveMHASenderID] = true;
-            shadowBlockedAt[req->adaptiveMHASenderID] = curTick;
-        }
-        
-        // if the controller is blocked, we cannot issue the request
-        // extra misses due to sharing do not exist in the private memory system
-        if(!shadowControllers[req->adaptiveMHASenderID]->isBlocked() &&
-           req->interferenceMissAt == 0){
-            
-            req->givenToShadow = true;
-            
-            MemReqPtr shadowReq = new MemReq();
-            copyRequest(shadowReq, req, cpu_count);
-            shadowControllers[shadowReq->adaptiveMHASenderID]->insertRequest(shadowReq);
-            
-            if(!shadowEvents[shadowReq->adaptiveMHASenderID]->scheduled()){
-                shadowEvents[shadowReq->adaptiveMHASenderID]->schedule(curTick);
-            }
-        }
-        else{
-            // keep this request out of the interference measurements
-            req->givenToShadow = false;
-        }
-    }
+    
+//     if(cpu_count > 1 && req->adaptiveMHASenderID != -1){
+//         assert(req->adaptiveMHASenderID != -1);
+//         
+//         if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]++;
+//         else currentShadowReqWriteCount[req->adaptiveMHASenderID]++;
+//         
+//         if((currentShadowReqReadCount[req->adaptiveMHASenderID] > memoryController->getReadQueueLength() ||
+//            currentShadowReqWriteCount[req->adaptiveMHASenderID] > memoryController->getWriteQueueLength()) && 
+//            !shadowIsBlocked[req->adaptiveMHASenderID]){
+//             assert(!shadowIsBlocked[req->adaptiveMHASenderID]);
+// 
+//             shadowIsBlocked[req->adaptiveMHASenderID] = true;
+//             shadowBlockedAt[req->adaptiveMHASenderID] = curTick;
+//         }
+//         
+//         // if the controller is blocked, we cannot issue the request
+//         // extra misses due to sharing do not exist in the private memory system
+//         if(!shadowControllers[req->adaptiveMHASenderID]->isBlocked() &&
+//            req->interferenceMissAt == 0){
+//             
+//             req->givenToShadow = true;
+//             
+//             MemReqPtr shadowReq = new MemReq();
+//             copyRequest(shadowReq, req, cpu_count);
+//             shadowControllers[shadowReq->adaptiveMHASenderID]->insertRequest(shadowReq);
+//             
+//             if(!shadowEvents[shadowReq->adaptiveMHASenderID]->scheduled()){
+//                 shadowEvents[shadowReq->adaptiveMHASenderID]->schedule(curTick);
+//             }
+//         }
+//         else{
+//             // keep this request out of the interference measurements
+//             req->givenToShadow = false;
+//         }
+//     }
     
     totalRequests++;
 
@@ -506,16 +582,16 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 void
 Bus::handleMemoryController(bool isShadow, int ctrlID)
 {
-    if(isShadow){
-        if(shadowControllers[ctrlID]->hasMoreRequests()){
-            MemReqPtr shadowReq = shadowControllers[ctrlID]->getRequest();
-            
-            shadowReq->shadowCtrlID = ctrlID;
-            shadowSlaveInterfaces[ctrlID]->access(shadowReq);
-        }
-        return;
-    }
-    
+//     if(isShadow){
+//         if(shadowControllers[ctrlID]->hasMoreRequests()){
+//             MemReqPtr shadowReq = shadowControllers[ctrlID]->getRequest();
+//             
+//             shadowReq->shadowCtrlID = ctrlID;
+//             shadowSlaveInterfaces[ctrlID]->access(shadowReq);
+//         }
+//         return;
+//     }
+//     
     if (memoryController->hasMoreRequests()) {
         
         MemReqPtr &request = memoryController->getRequest();
@@ -561,65 +637,63 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow) 
 {
 
-    if(fromShadow){
-        if(req->cmd != Activate && req->cmd != Close){
-            assert(time > curTick);
-            
-            if(req->cmd == Read){
-                
-                int aloneLat = time - req->inserted_into_memory_controller;
-                
-                if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) ==
-                latencyStorage[req->adaptiveMHASenderID].end()){
-                    latencyStorage[req->adaptiveMHASenderID][req->paddr] = aloneLat;
-                }
-                else{
-                    // request allready issued on the shared bus (but not necessarily finished)
-                    assert(latencyStorage[req->adaptiveMHASenderID][req->paddr] != 0);
-                    int sharedLatency = latencyStorage[req->adaptiveMHASenderID][req->paddr];
-                    int aloneLatency = time - req->inserted_into_memory_controller;
-                    Tick interference = sharedLatency - aloneLatency;
-                    
-                    addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
-                    latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
-                }
-            }
-            assert(req->cmd == Read || req->cmd == Writeback);
-            
-            //stats
-            shadowUseCycles[req->adaptiveMHASenderID] += time - curTick;
-            shadowCtrlAccesses[req->adaptiveMHASenderID]++;
-            assert(slaveInterfaces.size() == 1);
-            if(time - curTick == slaveInterfaces[0]->getDataTransTime()){ //HACK
-                shadowCtrlPageHits[req->adaptiveMHASenderID]++;
-            }
-        }
-        shadowEvents[req->shadowCtrlID]->schedule(time);
-        return;
-    }
-    
-    
-    
-    if(req->cmd != Activate && req->cmd != Close && cpu_count > 1){
-        
-        if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]--;
-        else currentShadowReqWriteCount[req->adaptiveMHASenderID]--;
-        
-        if((currentShadowReqReadCount[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() &&
-            currentShadowReqWriteCount[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength()) && 
-            shadowIsBlocked[req->adaptiveMHASenderID]){
-            
-            assert(shadowIsBlocked[req->adaptiveMHASenderID]);
-            
-            shadowIsBlocked[req->adaptiveMHASenderID] = false;
-            
-            Tick delayEstimate = (curTick - shadowBlockedAt[req->adaptiveMHASenderID]) 
-                                 * currentShadowReqReadCount[req->adaptiveMHASenderID];
-//                                  * cpu_count;
-            
-            addInterferenceCycles(req->adaptiveMHASenderID, delayEstimate, BUS_PRIVATE_BLOCKING_INTERFERENCE);
-        }
-    }
+//     if(fromShadow){
+//         if(req->cmd != Activate && req->cmd != Close){
+//             assert(time > curTick);
+//             
+//             if(req->cmd == Read){
+//                 
+//                 int aloneLat = time - req->inserted_into_memory_controller;
+//                 
+//                 if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) ==
+//                 latencyStorage[req->adaptiveMHASenderID].end()){
+//                     latencyStorage[req->adaptiveMHASenderID][req->paddr] = aloneLat;
+//                 }
+//                 else{
+//                     // request allready issued on the shared bus (but not necessarily finished)
+//                     assert(latencyStorage[req->adaptiveMHASenderID][req->paddr] != 0);
+//                     int sharedLatency = latencyStorage[req->adaptiveMHASenderID][req->paddr];
+//                     int aloneLatency = time - req->inserted_into_memory_controller;
+//                     Tick interference = sharedLatency - aloneLatency;
+//                     
+//                     addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
+//                     latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
+//                 }
+//             }
+//             assert(req->cmd == Read || req->cmd == Writeback);
+//             
+//             //stats
+//             shadowUseCycles[req->adaptiveMHASenderID] += time - curTick;
+//             shadowCtrlAccesses[req->adaptiveMHASenderID]++;
+//             assert(slaveInterfaces.size() == 1);
+//             if(time - curTick == slaveInterfaces[0]->getDataTransTime()){ //HACK
+//                 shadowCtrlPageHits[req->adaptiveMHASenderID]++;
+//             }
+//         }
+//         shadowEvents[req->shadowCtrlID]->schedule(time);
+//         return;
+//     }
+//     
+//     if(req->cmd != Activate && req->cmd != Close && cpu_count > 1){
+//         
+//         if(req->cmd == Read) currentShadowReqReadCount[req->adaptiveMHASenderID]--;
+//         else currentShadowReqWriteCount[req->adaptiveMHASenderID]--;
+//         
+//         if((currentShadowReqReadCount[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() &&
+//             currentShadowReqWriteCount[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength()) && 
+//             shadowIsBlocked[req->adaptiveMHASenderID]){
+//             
+//             assert(shadowIsBlocked[req->adaptiveMHASenderID]);
+//             
+//             shadowIsBlocked[req->adaptiveMHASenderID] = false;
+//             
+//             Tick delayEstimate = (curTick - shadowBlockedAt[req->adaptiveMHASenderID]) 
+//                                  * currentShadowReqReadCount[req->adaptiveMHASenderID];
+// //                                  * cpu_count;
+//             
+//             addInterferenceCycles(req->adaptiveMHASenderID, delayEstimate, BUS_PRIVATE_BLOCKING_INTERFERENCE);
+//         }
+//     }
     
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
@@ -661,34 +735,64 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->isDDRTestReq) return;
 #endif
     
+    if((req->cmd == Read || req->cmd == Write) && curTick > 1000000){
+        cout << curTick << ": Req from cpu " << req->adaptiveMHASenderID << ", fin at "<< time << " queue lat " <<  curTick - req->inserted_into_memory_controller << ", service time " << time - curTick << " , addr " << req->paddr << ", bank " << memoryController->getMemoryBankID(req->paddr) << "\n";
+    }
+    
+    if((req->cmd == Read || req->cmd == Write) && cpu_count > 1){
+        memoryController->computeInterference(req, time - curTick);
+    }
+    
     if (req->cmd == Read) {
+        
+        Tick serviceLatency = time - curTick;
+        Tick queueLatency = curTick - req->inserted_into_memory_controller;
+        
+        if(cpu_count > 1){
+            assert(req->adaptiveMHASenderID != -1);
+            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += queueLatency - req->busQueueInterference;
+            estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
+            
+            predictedServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency + req->busDelay;
+            numServiceLatencyRequests[req->adaptiveMHASenderID]++;
+            
+            cout << curTick << ": Predicted service latency " << serviceLatency + req->busDelay << ", pred queue lat " << queueLatency - req->busQueueInterference << "\n";
+        }
+        
+        actualServiceLatencySum += serviceLatency;
+        actualServiceLatencyRequests++;
+        
+        actualQueueDelaySum += queueLatency;
+        actualQueueDelayRequests++;
+        
+        
         assert(req->busId < interfaces.size() && req->busId > -1);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
         
-        int sharedLatency = time - req->inserted_into_memory_controller;
-        
-        if(cpu_count > 1 && req->givenToShadow){
-            
-            if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) != 
-               latencyStorage[req->adaptiveMHASenderID].end()){
-                
-                assert(req->givenToShadow);
-                int aloneLatency = latencyStorage[req->adaptiveMHASenderID][req->paddr];
-                
-                // shared reqs might be faster than reqs that are alone
-                // if the alone req has been issued, we know its latency and can account for it
-                Tick interference = sharedLatency - aloneLatency;
-                addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
-                latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
-                
-            }
-            else{
-                assert(req->givenToShadow);
-                // alone req has not been issued, store shared latency
-                latencyStorage[req->adaptiveMHASenderID][req->paddr] = sharedLatency;
-            }
-        }
+//         int sharedLatency = time - req->inserted_into_memory_controller;
+//         
+//         if(cpu_count > 1 && req->givenToShadow){
+//             
+//             if(latencyStorage[req->adaptiveMHASenderID].find(req->paddr) != 
+//                latencyStorage[req->adaptiveMHASenderID].end()){
+//                 
+//                 assert(req->givenToShadow);
+//                 int aloneLatency = latencyStorage[req->adaptiveMHASenderID][req->paddr];
+//                 
+//                 // shared reqs might be faster than reqs that are alone
+//                 // if the alone req has been issued, we know its latency and can account for it
+//                 Tick interference = sharedLatency - aloneLatency;
+//                 addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
+//                 latencyStorage[req->adaptiveMHASenderID].erase(req->paddr);
+//                 
+//             }
+//             else{
+//                 assert(req->givenToShadow);
+//                 // alone req has not been issued, store shared latency
+//                 latencyStorage[req->adaptiveMHASenderID][req->paddr] = sharedLatency;
+//             }
+//         }
     }
     else if(req->cmd == Writeback && adaptiveMHA != NULL && req->adaptiveMHASenderID != -1){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->writebackGeneratedAt, req->paddr, false);
@@ -900,49 +1004,49 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
     }
 }
 
-void
-Bus::buildShadowControllers(int np, HierParams* hp){
-    
-    if(np > 1){
-        BaseMemory::Params params;
-        params.in = this;
-        params.snarf_updates = false;
-        params.do_writes = false;
-        params.addrRange = vector<Range<Addr> >(1, RangeIn((Addr) 0, MaxAddr));
-        params.num_banks = 8;
-        params.RAS_latency = 4;
-        params.CAS_latency = 4;
-        params.precharge_latency = 4;
-        params.min_activate_to_precharge_latency = 12;
-        
-        for(int i=0;i<np;i++){
-            stringstream ctrlName;
-            ctrlName << "ShadowController" << i;
-            RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
-                    memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0, false);
-            shadowControllers.push_back(tmpCtrl);
-            tmpCtrl->registerBus(this, np);
-            tmpCtrl->setShadow();
-            
-            stringstream memName;
-            memName << "ShadowMemory" << i;
-            SimpleMemBank<NullCompression>* tmpMem = new SimpleMemBank<NullCompression>(memName.str(), hp, params);
-            shadowMemories.push_back(tmpMem);
-            
-            stringstream slaveName;
-            slaveName << "ShadowSlaveInterface" << i;
-            SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave = 
-                    new SlaveInterface<SimpleMemBank<NullCompression>, Bus>(slaveName.str(), hp, tmpMem, this, false, true);
-            shadowSlaveInterfaces.push_back(tmpSlave);
-            tmpCtrl->registerInterface(tmpSlave);
-            tmpMem->setSlaveInterface(tmpSlave);
-            
-            shadowEvents.push_back(new MemoryControllerEvent(this, true, i));
-        }
-        
-        latencyStorage.resize(np, map<Addr, int>());
-    }
-}
+// void
+// Bus::buildShadowControllers(int np, HierParams* hp){
+//     
+//     if(np > 1){
+//         BaseMemory::Params params;
+//         params.in = this;
+//         params.snarf_updates = false;
+//         params.do_writes = false;
+//         params.addrRange = vector<Range<Addr> >(1, RangeIn((Addr) 0, MaxAddr));
+//         params.num_banks = 8;
+//         params.RAS_latency = 4;
+//         params.CAS_latency = 4;
+//         params.precharge_latency = 4;
+//         params.min_activate_to_precharge_latency = 12;
+//         
+//         for(int i=0;i<np;i++){
+//             stringstream ctrlName;
+//             ctrlName << "ShadowController" << i;
+//             RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
+//                     memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0, false);
+//             shadowControllers.push_back(tmpCtrl);
+//             tmpCtrl->registerBus(this, np);
+//             tmpCtrl->setShadow();
+//             
+//             stringstream memName;
+//             memName << "ShadowMemory" << i;
+//             SimpleMemBank<NullCompression>* tmpMem = new SimpleMemBank<NullCompression>(memName.str(), hp, params);
+//             shadowMemories.push_back(tmpMem);
+//             
+//             stringstream slaveName;
+//             slaveName << "ShadowSlaveInterface" << i;
+//             SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave = 
+//                     new SlaveInterface<SimpleMemBank<NullCompression>, Bus>(slaveName.str(), hp, tmpMem, this, false, true);
+//             shadowSlaveInterfaces.push_back(tmpSlave);
+//             tmpCtrl->registerInterface(tmpSlave);
+//             tmpMem->setSlaveInterface(tmpSlave);
+//             
+//             shadowEvents.push_back(new MemoryControllerEvent(this, true, i));
+//         }
+//         
+//         latencyStorage.resize(np, map<Addr, int>());
+//     }
+// }
 
 #ifdef INJECT_TEST_REQUESTS
 void

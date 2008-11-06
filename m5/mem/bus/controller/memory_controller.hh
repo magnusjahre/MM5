@@ -30,12 +30,27 @@ class TimingMemoryController : public SimObject
   private:
     Tick totalBlocktime;
     
-    std::vector<std::vector<Addr> > cpuLastActivated;
-    std::vector<Addr> lastActivated;
-    std::vector<Addr> lastActivatedBy;
+    
     
   protected:
-      
+    
+    
+    std::vector<Addr> currentActivated;
+    std::vector<Addr> currentActivatedBy;
+    std::vector<Tick> currentActivatedAt;
+    std::vector<Tick> currentActivatedFirstUse;
+    
+    std::vector<std::vector<Addr> > cpuCurrentActivated;
+    std::vector<std::vector<Tick> > cpuCurrentActivatedAt;
+    std::vector<std::vector<bool> > cpuCurrentActivatedFirstUse;
+    
+    std::vector<Addr> lastActivated;
+    std::vector<Addr> lastActivatedBy;
+    std::vector<Tick> lastActivatedAt;
+    
+    std::vector<std::vector<Addr> > cpuLastActivated;
+    std::vector<std::vector<Tick> > cpuLastActivatedAt;
+    
     Bus* bus;
     int memCtrCPUCount;
       
@@ -124,12 +139,20 @@ class TimingMemoryController : public SimObject
     int getMemoryBankID(Addr addr){
         return mem_interface->getMemoryBankID(addr);
     }
+
+    Tick getBankActivatedAt(int bankID){
+        return mem_interface->getBankActivatedAt(bankID);
+    }
     
     void currentActivationAddress(int cpuID, Addr addr, int bank);
     
     bool isPageHit(Addr addr, int bank);
     
+    bool isPageConflict(MemReqPtr& req);
+    
     bool isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID);
+    
+    bool isPageConflictOnPrivateSystem(MemReqPtr& req);
     
     int getLastActivatedBy(int bank);
     
@@ -147,6 +170,10 @@ class TimingMemoryController : public SimObject
     
     virtual int getWriteQueueLength(){
         return 0;
+    }
+    
+    virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+        fatal("computeInterferenece() in TimingMemoryController does not make sense");
     }
 };
 

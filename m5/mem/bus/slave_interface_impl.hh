@@ -198,3 +198,9 @@ int
 SlaveInterface<Mem, Bus>::getMemoryBankID(Addr addr){
     return mem->getMemoryBankID(addr);
 }
+
+template<class Mem, class Bus>
+Tick
+SlaveInterface<Mem, Bus>::getBankActivatedAt(int bankID){
+    return mem->getBankActivatedAt(bankID);
+}

@@ -138,6 +138,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->virtualStartTime = r->virtualStartTime;
     req->instructionMiss = r->instructionMiss;
     req->busDelay = r->busDelay;
+    req->busQueueInterference = r->busQueueInterference;
     req->shadowCtrlID = r->shadowCtrlID;
     req->givenToShadow = r->givenToShadow;
     req->interferenceMissAt = r->interferenceMissAt;
@@ -208,6 +209,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->virtualStartTime = from->virtualStartTime;
     to->instructionMiss = from->instructionMiss;
     to->busDelay = from->busDelay;
+    to->busQueueInterference = from->busQueueInterference;
     to->shadowCtrlID = from->shadowCtrlID;
     to->givenToShadow = from->givenToShadow;
     to->interferenceMissAt = from->interferenceMissAt;

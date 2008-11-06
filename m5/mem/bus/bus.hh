@@ -97,16 +97,16 @@ class Bus : public BaseHier
     std::vector<std::vector<int> > conflictInterference;
     std::vector<std::vector<int> > hitToMissInterference;
     
-    std::vector<TimingMemoryController* > shadowControllers;
-    std::vector<SimpleMemBank<NullCompression>* > shadowMemories;
-    std::vector<SlaveInterface<SimpleMemBank<NullCompression>, Bus>* > shadowSlaveInterfaces;
-    std::vector<MemoryControllerEvent* > shadowEvents;
-    std::vector<std::map<Addr, int> > latencyStorage;
-    
-    std::vector<int> currentShadowReqReadCount;
-    std::vector<int> currentShadowReqWriteCount;
-    std::vector<Tick> shadowBlockedAt;
-    std::vector<bool> shadowIsBlocked;
+//     std::vector<TimingMemoryController* > shadowControllers;
+//     std::vector<SimpleMemBank<NullCompression>* > shadowMemories;
+//     std::vector<SlaveInterface<SimpleMemBank<NullCompression>, Bus>* > shadowSlaveInterfaces;
+//     std::vector<MemoryControllerEvent* > shadowEvents;
+//     std::vector<std::map<Addr, int> > latencyStorage;
+//     
+//     std::vector<int> currentShadowReqReadCount;
+//     std::vector<int> currentShadowReqWriteCount;
+//     std::vector<Tick> shadowBlockedAt;
+//     std::vector<bool> shadowIsBlocked;
     
     bool infiniteBW;
     
@@ -176,6 +176,22 @@ class Bus : public BaseHier
     Tick runDataLast;
     /** The last cycle the address arbiter was run, used for debugging. */
     Tick runAddrLast;
+    
+    Stats::Vector<> predictedServiceLatencySum;
+    Stats::Vector<> numServiceLatencyRequests;
+    Stats::Formula avgPredictedServiceLatency;
+    
+    Stats::Scalar<> actualServiceLatencySum;
+    Stats::Scalar<> actualServiceLatencyRequests;
+    Stats::Formula avgActualServiceLatency;
+    
+    Stats::Vector<> estimatedPrivateQueueLatency;
+    Stats::Vector<> estimatedPrivateQueueRequests;
+    Stats::Formula avgEstimatedPrivateQueueLatency;
+    
+    Stats::Scalar<> actualQueueDelaySum;
+    Stats::Scalar<> actualQueueDelayRequests;
+    Stats::Formula avgActualQueueDelay;
     
     /** Added by magnus **/
 //     Stats::Scalar<> freeCycles;
@@ -460,7 +476,7 @@ class Bus : public BaseHier
 	return busCycle * clockRate;
     }
     
-    void buildShadowControllers(int np, HierParams* hp);
+//     void buildShadowControllers(int np, HierParams* hp);
     
 #ifdef INJECT_TEST_REQUESTS
     void generateRequests();

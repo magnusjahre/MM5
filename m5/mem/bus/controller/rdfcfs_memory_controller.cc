@@ -31,6 +31,12 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     lastIsWrite = false;
     
     infiniteWriteBW = _infinite_write_bw;
+    
+    currentDeliveredReqAt = 0;
+    currentOccupyingCPUID = -1;
+    
+    lastDeliveredReqAt = 0;
+    lastOccupyingCPUID = -1;
 
 }
 
@@ -111,9 +117,24 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     // estimate interference caused by this request
     if((retval->cmd == Read || retval->cmd == Writeback) && !isShadow){
         assert(!isShadow);
-        estimateInterference(retval);
+//         estimateInterference(retval); // NOTE: kept because the FAMHA code might be used again
+        
+//         if(retval->cmd == Read && bus->adaptiveMHA->getCPUCount() > 1){
+//             estimatePrivateServiceLatency(retval);
+//         }
+//         else{
+//             retval->busDelay = 0;
+//         }
+        
+        
         bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
                                      isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
+        
+        // store the ID of the CPU that used the bus prevoiusly and update current vals
+        lastDeliveredReqAt = currentDeliveredReqAt;
+        lastOccupyingCPUID = currentOccupyingCPUID;
+        currentDeliveredReqAt = curTick;
+        currentOccupyingCPUID = retval->adaptiveMHASenderID;
     }
     
     DPRINTF(MemoryController, "Returning command %s, addr %x\n", retval->cmd, retval->paddr);
@@ -291,139 +312,147 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
     DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
 }
 
-void
-RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
-    
-    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-    vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
-    vector<vector<bool> > delayedIsRead(localCpuCnt, vector<bool>(localCpuCnt, false));
-    int fromCPU = req->adaptiveMHASenderID;
-    
-    if(fromCPU == -1) return;
-    
-    // Interference due to bus capacity
-    vector<bool> readBusInterference = hasReadyRequestWaiting(req, readQueue);
-    assert(readBusInterference.size() == localCpuCnt);
-    for(int i=0;i<readBusInterference.size();i++){
-        if(readBusInterference[i]){
-            interference[i][req->adaptiveMHASenderID] += 40;
-            delayedIsRead[i][req->adaptiveMHASenderID] = true;
-            bus->addInterference(i, req->adaptiveMHASenderID, BUS_INTERFERENCE);
-        }
-    }
-    
-    // Interference due to bank conflicts
-    vector<int> readBankInterference = computeBankWaitingPara(req, readQueue);
-    assert(readBankInterference.size() == localCpuCnt);
-    for(int i=0;i<readBankInterference.size();i++){
-        if(readBankInterference[i] > 0){
-            interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
-            delayedIsRead[i][req->adaptiveMHASenderID] = true;
-            bus->addInterference(i, req->adaptiveMHASenderID, CONFLICT_INTERFERENCE);
-        }
-    }
-    
-    // Interference due to page hits becoming page misses
-    if(!isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
-        && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
-        //NOTE: might want to add these to measurements
-        bus->incInterferenceMisses();
-        bus->addInterference(req->adaptiveMHASenderID, 
-                             getLastActivatedBy(getMemoryBankID(req->paddr)), 
-                             HIT_TO_MISS_INTERFERENCE);
-    }
-    
-    // Detect constructive interference
-    if(isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
-       && !isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
-        //NOTE: might want to include these in the measuerements
-        bus->incConstructiveInterference();
-    }
-    
-    bus->adaptiveMHA->addInterferenceDelay(interference,
-                                           req->paddr,
-                                           req->cmd,
-                                           req->adaptiveMHASenderID,
-                                           MEMORY_INTERFERENCE,
-                                           delayedIsRead);
-}
-
-std::vector<bool> 
-RDFCFSTimingMemoryController::hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue){
-    
-    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-    list<MemReqPtr>::iterator tmpIterator;
-    vector<bool> retval = vector<bool>(localCpuCnt, false);
-    
-    for (tmpIterator = queue.begin(); tmpIterator != queue.end(); tmpIterator++) {
-        MemReqPtr& tmp = *tmpIterator;
-        
-        if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
-            if(isReady(tmp)){
-                // interference on bus
-                retval[tmp->adaptiveMHASenderID] = true;
-            }
-        }
-    }
-    return retval;
-}
-
-vector<int>
-RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue){
-    
-    const int BANKS = 8;
-    int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-    list<MemReqPtr>::iterator tmpIterator;
-    vector<vector<bool> > waitingForBanks(localCpuCnt, vector<bool>(BANKS, false));
-    vector<bool> waitingInSameBank = vector<bool>(localCpuCnt, false);
-    vector<int> retval = vector<int>(localCpuCnt, 0);
-    
-    stringstream banktrace;
-    
-    for(tmpIterator = queue.begin();tmpIterator != queue.end();tmpIterator++){
-        
-        MemReqPtr& tmp = *tmpIterator;
-        
-        if (tmp->adaptiveMHASenderID != -1) {
-            if(getMemoryBankID(tmp->paddr) != getMemoryBankID(req->paddr)){
-                waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp->paddr)] = true;
-            }
-            else{
-                waitingInSameBank[tmp->adaptiveMHASenderID] = true;
-            }
-        }
-    }
-    
-    for(int i=0;i<localCpuCnt;i++){
-        if(waitingInSameBank[i] && i != req->adaptiveMHASenderID){
-            for(int j=0;j<BANKS;j++){
-                if(waitingForBanks[i][j]){
-                    retval[i]++;
-                }
-            }
-        }
-    }
-    
-    // divide by 2
-    for(int i=0;i<localCpuCnt;i++) retval[i] = retval[i] >> 1;
-    
-    return retval;
-}
-
 // void
-// RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
-//     //NOTE: this method is called at the tick the memory transaction starts
-//     // therefore, all reqs in the queue have actually delayed by this req
+// RDFCFSTimingMemoryController::estimatePrivateServiceLatency(MemReqPtr& req){
 //     
-//     std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
-//     while(tmpIterator != readQueue.end()){
-//         MemReqPtr tmpReq = *tmpIterator;
-//         if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
-//             tmpReq->busDelay += lat;
+//     req->busDelay = 0;
+//     int toBank = getMemoryBankID(req->paddr);
+//     int fromCPU = req->adaptiveMHASenderID;
+//     assert(fromCPU != -1);
+//     
+//     cout << curTick << ": Req from " << fromCPU << " for bank " << toBank << ", estimating service latency...\n";
+//     
+//     if(isPageHitOnPrivateSystem(req->paddr, toBank, fromCPU)){
+//         cout << curTick << ": Hit!\n";
+//         if(isReady(req)){
+//             cout << curTick << ": Estimated page hit, hit in shared, no adjust\n";
 //         }
-//         tmpIterator++;
+//         else if(bankIsClosed(req)){
+//             fatal("priv hit, shared is closed --> adjustment needed");
+//         }
+//         else{
+//             assert(isActive(req));
+//             fatal("priv hit, shared is active --> adjustment needed");
+//         }
+//     }
+//     else if(isPageConflictOnPrivateSystem(req)){
+//         cout << curTick << ": Conflict!\n";
+//         if(isPageConflict(req)){
+//             Tick actuallyActivatedAt = getBankActivatedAt(toBank);
+//             cout << curTick << ": Conflict, bank activated at " << actuallyActivatedAt << "\n";
+//             if(actuallyActivatedAt < (curTick + 40)){
+//                 //page conflict, but latency was (at least partially) hidden
+//                 Tick additionalSharedDelay = actuallyActivatedAt - (curTick + 40);
+//                 req->busDelay = (-additionalSharedDelay);
+//                 cout << curTick << ": page conflict in both, overlapped in shared, correcting with " << additionalSharedDelay << " ticks\n";
+//             }
+//             else if(actuallyActivatedAt > (curTick + 40)){
+//                 fatal("stop here");
+//             }
+//             else{
+//                 cout << curTick << ": page conflict in both, no overlap, no correction needed\n";
+//             }
+//         }
+//         else{
+//             fatal("private conflict, shared non-conflict, help!");
+//         }
+//     }
+//     else{
+//         assert(!bankIsClosed(req));
+//         cout << curTick << ": Miss!\n";
+//         if(isActive(req)){
+//             // activation may be overlapped in the shared bus
+//             // NOTE: assumes no overlap in the private bus
+//             Tick commonActivateAt = curTick + 40;
+//             if(getBankActivatedAt(toBank) < commonActivateAt){
+//                 Tick overlap = commonActivateAt - getBankActivatedAt(toBank);
+//                 if(overlap > 80) req->busDelay = 80;
+//                 else req->busDelay = 80 - overlap;
+//             }
+//             else{
+//                 assert(getBankActivatedAt(toBank) == commonActivateAt);
+//             }
+//         }
+//         else{
+//             assert(isReady(req));
+//             fatal("priv miss, shared is ready --> adjustment needed");
+//         }
+//         cout << "returning a bus delay of " << req->busDelay << "\n";
 //     }
 // }
+
+void
+RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+    
+    //FIXME: how should additional L2 misses be handled
+    
+    int fromCPU = req->adaptiveMHASenderID;
+    list<MemReqPtr>::iterator readIter;
+    assert(fromCPU != -1);
+    
+    // 1. Intererference with requests from other CPUs
+    readIter = readQueue.begin();
+    for( ; readIter != readQueue.end(); readIter++){
+        MemReqPtr waitingReq = *readIter;
+        assert(waitingReq->adaptiveMHASenderID != -1);
+        if(waitingReq->adaptiveMHASenderID != fromCPU){
+            waitingReq->busQueueInterference += busOccupiedFor;
+            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, busOccupiedFor, BUS_INTERFERENCE);
+        }
+    }
+    
+    // 2. Interference due to non-synchronized arrivals
+    if(req->inserted_into_memory_controller > lastDeliveredReqAt
+       && lastOccupyingCPUID != fromCPU){
+        int extraLatency = curTick - req->inserted_into_memory_controller;
+        assert(extraLatency >= 0);
+        req->busQueueInterference += extraLatency;
+        bus->addInterferenceCycles(fromCPU, extraLatency, BUS_INTERFERENCE);
+    }
+    
+    
+    readIter = readQueue.begin();
+    for( ; readIter != readQueue.end(); readIter++){
+        MemReqPtr waitingReq = *readIter;
+        assert(waitingReq->adaptiveMHASenderID != -1);
+        if(waitingReq->adaptiveMHASenderID != fromCPU 
+           && waitingReq->inserted_into_memory_controller > lastDeliveredReqAt){
+            int extraLatency = curTick - waitingReq->inserted_into_memory_controller;
+            assert(extraLatency >= 0);
+            
+            waitingReq->busQueueInterference += extraLatency;
+            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, 
+                                       extraLatency,
+                                       BUS_INTERFERENCE);
+        }
+    }
+    
+    // 3. Correct service time measurement
+    req->busDelay = 0;
+    Tick privateLatencyEstimate = 0;
+    if(isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+        cout << curTick << ": private hit!\n";
+        privateLatencyEstimate = 40;
+    }
+    else if(isPageConflictOnPrivateSystem(req)){
+        cout << curTick << ": private conflict!\n";
+        privateLatencyEstimate = 160;
+    }
+    else{
+        cout << curTick << ": private miss!\n";
+        privateLatencyEstimate = 120;
+    }
+    
+    Tick latencyCorrection = 0;
+    if(privateLatencyEstimate != busOccupiedFor){
+        latencyCorrection = privateLatencyEstimate - busOccupiedFor;
+    }
+    
+    req->busDelay = latencyCorrection;
+    bus->addInterferenceCycles(fromCPU, privateLatencyEstimate, BUS_INTERFERENCE);
+}
+
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
@@ -459,3 +488,139 @@ REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController
 
 #endif //DOXYGEN_SHOULD_SKIP_THIS
 
+        
+// OLD CODE: kept for compatibilty reasons
+// 
+// void
+// RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
+        //     
+//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
+//     vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
+//     vector<vector<bool> > delayedIsRead(localCpuCnt, vector<bool>(localCpuCnt, false));
+//     int fromCPU = req->adaptiveMHASenderID;
+        //     
+//     if(fromCPU == -1) return;
+        //     
+//     // Interference due to bus capacity
+//     vector<bool> readBusInterference = hasReadyRequestWaiting(req, readQueue);
+//     assert(readBusInterference.size() == localCpuCnt);
+//     for(int i=0;i<readBusInterference.size();i++){
+//         if(readBusInterference[i]){
+//             interference[i][req->adaptiveMHASenderID] += 40;
+//             delayedIsRead[i][req->adaptiveMHASenderID] = true;
+//             bus->addInterference(i, req->adaptiveMHASenderID, BUS_INTERFERENCE);
+//         }
+//     }
+        //     
+//     // Interference due to bank conflicts
+//     vector<int> readBankInterference = computeBankWaitingPara(req, readQueue);
+//     assert(readBankInterference.size() == localCpuCnt);
+//     for(int i=0;i<readBankInterference.size();i++){
+//         if(readBankInterference[i] > 0){
+//             interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
+//             delayedIsRead[i][req->adaptiveMHASenderID] = true;
+//             bus->addInterference(i, req->adaptiveMHASenderID, CONFLICT_INTERFERENCE);
+//         }
+//     }
+        //     
+//     // Interference due to page hits becoming page misses
+//     if(!isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
+//         && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+//         //NOTE: might want to add these to measurements
+//         bus->incInterferenceMisses();
+//         bus->addInterference(req->adaptiveMHASenderID, 
+//                              getLastActivatedBy(getMemoryBankID(req->paddr)), 
+//                              HIT_TO_MISS_INTERFERENCE);
+//     }
+        //     
+//     // Detect constructive interference
+//     if(isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
+//        && !isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+//         //NOTE: might want to include these in the measuerements
+//         bus->incConstructiveInterference();
+//     }
+        //     
+//     bus->adaptiveMHA->addInterferenceDelay(interference,
+//                                            req->paddr,
+//                                            req->cmd,
+//                                            req->adaptiveMHASenderID,
+//                                            MEMORY_INTERFERENCE,
+//                                            delayedIsRead);
+// }
+        // 
+// std::vector<bool> 
+// RDFCFSTimingMemoryController::hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue){
+        //     
+//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
+//     list<MemReqPtr>::iterator tmpIterator;
+//     vector<bool> retval = vector<bool>(localCpuCnt, false);
+        //     
+//     for (tmpIterator = queue.begin(); tmpIterator != queue.end(); tmpIterator++) {
+//         MemReqPtr& tmp = *tmpIterator;
+        //         
+//         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
+//             if(isReady(tmp)){
+//                 // interference on bus
+//                 retval[tmp->adaptiveMHASenderID] = true;
+//             }
+//         }
+//     }
+//     return retval;
+// }
+        // 
+// vector<int>
+// RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue){
+        //     
+//     const int BANKS = 8;
+//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
+//     list<MemReqPtr>::iterator tmpIterator;
+//     vector<vector<bool> > waitingForBanks(localCpuCnt, vector<bool>(BANKS, false));
+//     vector<bool> waitingInSameBank = vector<bool>(localCpuCnt, false);
+//     vector<int> retval = vector<int>(localCpuCnt, 0);
+        //     
+//     stringstream banktrace;
+        //     
+//     for(tmpIterator = queue.begin();tmpIterator != queue.end();tmpIterator++){
+        //         
+//         MemReqPtr& tmp = *tmpIterator;
+        //         
+//         if (tmp->adaptiveMHASenderID != -1) {
+//             if(getMemoryBankID(tmp->paddr) != getMemoryBankID(req->paddr)){
+//                 waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp->paddr)] = true;
+//             }
+//             else{
+//                 waitingInSameBank[tmp->adaptiveMHASenderID] = true;
+//             }
+//         }
+//     }
+        //     
+//     for(int i=0;i<localCpuCnt;i++){
+//         if(waitingInSameBank[i] && i != req->adaptiveMHASenderID){
+//             for(int j=0;j<BANKS;j++){
+//                 if(waitingForBanks[i][j]){
+//                     retval[i]++;
+//                 }
+//             }
+//         }
+//     }
+        //     
+//     // divide by 2
+//     for(int i=0;i<localCpuCnt;i++) retval[i] = retval[i] >> 1;
+        //     
+//     return retval;
+// }
+
+// void
+// RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
+//     //NOTE: this method is called at the tick the memory transaction starts
+//     // therefore, all reqs in the queue have actually delayed by this req
+        //     
+//     std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
+//     while(tmpIterator != readQueue.end()){
+//         MemReqPtr tmpReq = *tmpIterator;
+//         if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
+//             tmpReq->busDelay += lat;
+//         }
+//         tmpIterator++;
+//     }
+// }

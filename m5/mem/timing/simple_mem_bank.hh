@@ -130,6 +130,10 @@ class SimpleMemBank : public BaseMemory
         return data_time; //converted to CPU cycles in the constructor
     }
     
+    Tick getBankActivatedAt(int bankID){
+        return activateTime[bankID];
+    }
+    
 };
 
 #endif

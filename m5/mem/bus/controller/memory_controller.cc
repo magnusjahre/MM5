@@ -23,10 +23,21 @@ void
 TimingMemoryController::registerBus(Bus* _bus, int cpuCount){ 
     bus = _bus; 
     memCtrCPUCount = cpuCount;
+    
     //FIXME: number of banks is hardcoded
+    cpuCurrentActivated.resize(cpuCount, std::vector<Addr>(8, 0));
+    cpuCurrentActivatedAt.resize(cpuCount, std::vector<Tick>(8, 0));
+    cpuCurrentActivatedFirstUse.resize(cpuCount, std::vector<bool>(8, true));
+    currentActivated.resize(8, 0);
+    currentActivatedBy.resize(8, 0);
+    currentActivatedAt.resize(8, 0);
+    currentActivatedFirstUse.resize(8, true);
+    
     cpuLastActivated.resize(cpuCount, std::vector<Addr>(8, 0));
+    cpuLastActivatedAt.resize(cpuCount, std::vector<Tick>(8, 0));
     lastActivated.resize(8, 0);
     lastActivatedBy.resize(8, 0);
+    lastActivatedAt.resize(8, 0);
 }
 
 void
@@ -84,43 +95,78 @@ TimingMemoryController::getPageAddr(Addr addr)
 void
 TimingMemoryController::currentActivationAddress(int cpuID, Addr addr, int bank){
     
-    //FIXME: number of banks is hardcoded
+    cout << curTick << ": Activating new page, bank "<< bank << " page " << getPage(addr) << "\n";
     
-    assert(bank >= 0 && bank < lastActivated.size());
-    lastActivated[bank] = addr;
-    lastActivatedBy[bank] = cpuID;
+    lastActivated[bank] = currentActivated[bank];
+    lastActivatedBy[bank] = currentActivatedBy[bank];
+    lastActivatedAt[bank] = currentActivatedAt[bank];
     if(cpuID >= 0){
-        assert(cpuID >=  0 && cpuID < cpuLastActivated.size());
-        assert(cpuLastActivated[0].size() == 8);
-        assert(bank >= 0 && bank < cpuLastActivated[0].size());
-        cpuLastActivated[cpuID][bank] = addr;
+        cpuLastActivated[cpuID][bank] = cpuCurrentActivated[cpuID][bank];
+        cpuLastActivatedAt[cpuID][bank] = cpuCurrentActivatedAt[cpuID][bank];
+    }
+    
+    currentActivated[bank] = getPage(addr);
+    currentActivatedBy[bank] = cpuID;
+    currentActivatedAt[bank] = curTick;
+    currentActivatedFirstUse[bank] = true;
+    if(cpuID >= 0){
+        cpuCurrentActivated[cpuID][bank] = getPage(addr);
+        cpuCurrentActivatedAt[cpuID][bank] = curTick;
+        cpuCurrentActivatedFirstUse[cpuID][bank] = true;
     }
 }
 
 int
 TimingMemoryController::getLastActivatedBy(int bank){
-    return lastActivatedBy[bank];
+    return currentActivatedBy[bank];
 }
+
+//NOTE: all hit estimators are idealized models, does not handle closing of pages
 
 bool 
 TimingMemoryController::isPageHit(Addr addr, int bank){
+    assert(bank >= 0 && bank < currentActivated.size());
     
-    //FIXME: number of banks is hardcoded
+    if(currentActivatedFirstUse[bank]){
+        currentActivatedFirstUse[bank] = false;
+        return false;
+    }
     
-    assert(bank >= 0 && bank < lastActivated.size());
-    return addr != lastActivated[bank];
+    return getPage(addr) != currentActivated[bank];
+}
+
+bool
+TimingMemoryController::isPageConflict(MemReqPtr& req){
+    assert(req->adaptiveMHASenderID != -1);
+    int bank = getMemoryBankID(req->paddr);
+    assert(currentActivated[bank] == getPage(req->paddr));
+    return getPage(req->paddr) != lastActivated[bank] && lastActivatedAt[bank] >= req->inserted_into_memory_controller;
 }
 
 bool
 TimingMemoryController::isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID){
+    if(cpuID == -1) return false;
+    cout << curTick << ": Page hit check, comparing " << getPage(addr) << " and " << cpuCurrentActivated[cpuID][bank] << "\n";
     
-    //FIXME: number of banks is hardcoded
+    if(cpuCurrentActivatedFirstUse[cpuID][bank]){
+        cpuCurrentActivatedFirstUse[cpuID][bank] = false;
+        return false;
+    }
+    
+    return getPage(addr) == cpuCurrentActivated[cpuID][bank];
+}
+
+bool 
+TimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
+    
+    int cpuID = req->adaptiveMHASenderID;
+    int bank = getMemoryBankID(req->paddr);
+    Addr addr = req->paddr;
     
     if(cpuID == -1) return false;
-    assert(cpuID >=  0 && cpuID < cpuLastActivated.size());
-    assert(cpuLastActivated[0].size() == 8);
-    assert(bank >= 0 && bank < cpuLastActivated[0].size());
-    return addr != cpuLastActivated[cpuID][bank];
+    
+    assert(currentActivated[bank] == getPage(req->paddr));
+    return getPage(addr) != cpuLastActivated[cpuID][bank] && cpuLastActivated[cpuID][bank] != 0;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
