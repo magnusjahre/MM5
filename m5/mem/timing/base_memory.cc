@@ -129,4 +129,99 @@ BaseMemory::regStats()
             .desc("number of accesses for each bank")
             .flags(total)
             ;
+    
+    pageConflicts
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".number_of_page_conflicts")
+        .desc("number of page conflits")
+        ;
+    
+    pageMisses
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".number_of_page_misses")
+        .desc("number of page misses")
+        ;
+    
+    pageHits
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".number_of_page_hits")
+        .desc("number of page hits")
+        ;
+    
+    pageConflictLatency
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".total_page_conflict_latency")
+        .desc("total page conflict latency")
+        ;
+    
+    pageConflictLatency.subname(0, "read");
+    pageConflictLatency.subname(1, "write");
+    
+    pageMissLatency
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".total_page_miss_latency")
+        .desc("total page miss latency")
+        ;
+    
+    pageMissLatency.subname(0, "read");
+    pageMissLatency.subname(1, "write");
+    
+    pageHitLatency
+        .init(DRAM_CMD_CNT)
+        .name(name() + ".total_page_hit_latency")
+        .desc("total page hit latency")
+        ;
+    
+    pageHitLatency.subname(0, "read");
+    pageHitLatency.subname(1, "write");
+    
+    avgPageConflictLatency
+        .name(name() + ".average_page_conflict_latency")
+        .desc("Average page conflict latency")
+        ;
+    
+    avgPageConflictLatency.subname(0, "read");
+    avgPageConflictLatency.subname(1, "write");
+    
+    avgPageConflictLatency = pageConflictLatency / pageConflicts;
+    
+    avgPageMissLatency
+        .name(name() + ".average_page_miss_latency")
+        .desc("Average page miss latency")
+        ;
+    
+    avgPageMissLatency.subname(0, "read");
+    avgPageMissLatency.subname(1, "write");
+    
+    avgPageMissLatency = pageMissLatency / pageMisses;
+    
+    avgPageHitLatency
+        .name(name() + ".average_page_hit_latency")
+        .desc("Average page hit latency")
+        ;
+    
+    avgPageHitLatency.subname(0, "read");
+    avgPageHitLatency.subname(1, "write");
+    
+    avgPageHitLatency = pageHitLatency / pageHits;
+    
+    pageConflictLatencyDistribution
+         .init(DRAM_CMD_CNT, 40, 250, 10)
+        .name(name() + ".conflict_distribution")
+        .desc("Conflict latency distribution")
+        .flags(total | pdf | cdf)
+        ;
+    
+    pageConflictLatencyDistribution.subname(0, "_read");
+    pageConflictLatencyDistribution.subname(1, "_write");
+    
+    pageMissLatencyDistribution
+        .init(DRAM_CMD_CNT, 40, 120, 10)
+        .name(name() + ".miss_distribution")
+        .desc("Miss latency distribution")
+        .flags(total | pdf | cdf)
+        ;
+    
+    pageMissLatencyDistribution.subname(0, "_read");
+    pageMissLatencyDistribution.subname(1, "_write");
 }

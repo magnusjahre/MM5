@@ -127,7 +127,7 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
         mem->addPendingRequest(req->paddr, req);
     }
 #endif
-
+    
     return mem->access(req);
 }
 

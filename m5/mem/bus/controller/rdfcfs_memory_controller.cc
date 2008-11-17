@@ -7,6 +7,13 @@
 
 #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
+#define DO_ESTIMATION_TRACE 1
+#define ESTIMATION_CPU_ID 3
+
+#ifdef DO_ESTIMATION_TRACE
+#include <fstream>
+#endif
+
 using namespace std;
 
 RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
@@ -37,6 +44,13 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     
     lastDeliveredReqAt = 0;
     lastOccupyingCPUID = -1;
+    
+#ifdef DO_ESTIMATION_TRACE
+    ofstream ofile("estimation_access_trace.txt");
+    ofile << "";
+    ofile.flush();
+    ofile.close();
+#endif
 
 }
 
@@ -426,20 +440,33 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
                                        BUS_INTERFERENCE);
         }
     }
+
     
     // 3. Correct service time measurement
+#ifdef DO_ESTIMATION_TRACE
+    bool isConflict = false;
+    bool isHit = false;
+#endif
+    
     req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
     if(isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
-        cout << curTick << ": private hit!\n";
         privateLatencyEstimate = 40;
+#ifdef DO_ESTIMATION_TRACE
+        isHit = true;
+#endif
     }
     else if(isPageConflictOnPrivateSystem(req)){
-        cout << curTick << ": private conflict!\n";
         privateLatencyEstimate = 160;
+#ifdef DO_ESTIMATION_TRACE
+        isConflict = true;
+#endif
     }
     else{
-        cout << curTick << ": private miss!\n";
+        if(curTick == 1004831){
+            cout << "is Miss!\n";
+        }
+        
         privateLatencyEstimate = 120;
     }
     
@@ -447,6 +474,23 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     if(privateLatencyEstimate != busOccupiedFor){
         latencyCorrection = privateLatencyEstimate - busOccupiedFor;
     }
+    
+    if(curTick == 1004831){
+        cout << curTick << ": request from " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
+    }
+    
+#ifdef DO_ESTIMATION_TRACE
+    if(req->adaptiveMHASenderID == ESTIMATION_CPU_ID){
+        ofstream ofile("estimation_access_trace.txt", ofstream::app);
+        ofile << curTick << ";" << req->paddr << ";" << getMemoryBankID(req->paddr) << ";";
+        if(isConflict) ofile << "conflict";
+        else if(isHit) ofile << "hit";
+        else ofile << "miss";
+        ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
+        ofile.flush();
+        ofile.close();
+    }
+#endif
     
     req->busDelay = latencyCorrection;
     bus->addInterferenceCycles(fromCPU, privateLatencyEstimate, BUS_INTERFERENCE);

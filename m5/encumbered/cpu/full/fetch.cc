@@ -1200,9 +1200,11 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 		fatal("Bad translation on instruction fetch, vaddr = 0x%x",
 		      req->vaddr);
 #endif
+            
 	    mem_access_result = icacheInterface->access(req);
 
 	    if (mem_access_result != MA_HIT) {
+                
 		/* if we missed in the I-cache, stop fetching after this
 		   block.   */
 		floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_IMISS;

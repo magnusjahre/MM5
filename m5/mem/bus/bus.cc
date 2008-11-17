@@ -518,7 +518,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     }
     
     // Insert request into memory controller
-    cout << curTick << ": request recieved from CPU " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
+//     cout << curTick << ": request recieved from CPU " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
     memoryController->insertRequest(req);
     
 //     if(cpu_count > 1 && req->adaptiveMHASenderID != -1){
@@ -735,9 +735,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->isDDRTestReq) return;
 #endif
     
-    if((req->cmd == Read || req->cmd == Write) && curTick > 1000000){
-        cout << curTick << ": Req from cpu " << req->adaptiveMHASenderID << ", fin at "<< time << " queue lat " <<  curTick - req->inserted_into_memory_controller << ", service time " << time - curTick << " , addr " << req->paddr << ", bank " << memoryController->getMemoryBankID(req->paddr) << "\n";
-    }
+//     if((req->cmd == Read || req->cmd == Write) && curTick > 1000000){
+//         cout << curTick << ": Req from cpu " << req->adaptiveMHASenderID << ", fin at "<< time << " queue lat " <<  curTick - req->inserted_into_memory_controller << ", service time " << time - curTick << " , addr " << req->paddr << ", bank " << memoryController->getMemoryBankID(req->paddr) << "\n";
+//     }
     
     if((req->cmd == Read || req->cmd == Write) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
@@ -756,7 +756,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             predictedServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency + req->busDelay;
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
             
-            cout << curTick << ": Predicted service latency " << serviceLatency + req->busDelay << ", pred queue lat " << queueLatency - req->busQueueInterference << "\n";
+//             cout << curTick << ": Predicted service latency " << serviceLatency + req->busDelay << ", pred queue lat " << queueLatency - req->busQueueInterference << "\n";
         }
         
         actualServiceLatencySum += serviceLatency;

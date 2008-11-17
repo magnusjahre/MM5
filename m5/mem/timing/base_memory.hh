@@ -47,6 +47,12 @@
 class Bus;
 class FunctionalMemory;
 
+typedef enum{
+    DRAM_READ,
+    DRAM_WRITE,
+    DRAM_CMD_CNT
+} DRAM_STATS_CMD;
+
 /**
  * A common base class for main memory objects.
  */
@@ -110,6 +116,21 @@ class BaseMemory : public BaseMem
     
     Stats::Vector<> accessesPerBank;
 
+    Stats::Vector<> pageConflicts;
+    Stats::Vector<> pageMisses;
+    Stats::Vector<> pageHits;
+    
+    Stats::Vector<> pageConflictLatency;
+    Stats::Vector<> pageMissLatency;
+    Stats::Vector<> pageHitLatency;
+    
+    Stats::Formula avgPageConflictLatency;
+    Stats::Formula avgPageMissLatency;
+    Stats::Formula avgPageHitLatency;
+    
+    Stats::VectorDistribution<> pageConflictLatencyDistribution;
+    Stats::VectorDistribution<> pageMissLatencyDistribution;
+    
   public:
     
     /**

@@ -95,7 +95,7 @@ TimingMemoryController::getPageAddr(Addr addr)
 void
 TimingMemoryController::currentActivationAddress(int cpuID, Addr addr, int bank){
     
-    cout << curTick << ": Activating new page, bank "<< bank << " page " << getPage(addr) << "\n";
+//     cout << curTick << ": Activating new page, bank "<< bank << " page " << getPage(addr) << "\n";
     
     lastActivated[bank] = currentActivated[bank];
     lastActivatedBy[bank] = currentActivatedBy[bank];
@@ -146,7 +146,6 @@ TimingMemoryController::isPageConflict(MemReqPtr& req){
 bool
 TimingMemoryController::isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID){
     if(cpuID == -1) return false;
-    cout << curTick << ": Page hit check, comparing " << getPage(addr) << " and " << cpuCurrentActivated[cpuID][bank] << "\n";
     
     if(cpuCurrentActivatedFirstUse[cpuID][bank]){
         cpuCurrentActivatedFirstUse[cpuID][bank] = false;
@@ -163,10 +162,16 @@ TimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
     int bank = getMemoryBankID(req->paddr);
     Addr addr = req->paddr;
     
+    if(curTick == 1004831){
+        cout << curTick << ": checking for conflict, page is " << getPage(addr) << " last act " << cpuLastActivated[cpuID][bank] << " at " << cpuLastActivatedAt[cpuID][bank] << ", req inserted into queue at " << req->inserted_into_memory_controller << "\n";
+    }
+    
     if(cpuID == -1) return false;
     
     assert(currentActivated[bank] == getPage(req->paddr));
-    return getPage(addr) != cpuLastActivated[cpuID][bank] && cpuLastActivated[cpuID][bank] != 0;
+    return getPage(addr) != cpuLastActivated[cpuID][bank] 
+            && cpuLastActivated[cpuID][bank] != 0 
+            && cpuLastActivatedAt[cpuID][bank] >= (curTick - 240);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

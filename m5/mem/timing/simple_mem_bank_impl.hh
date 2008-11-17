@@ -51,6 +51,12 @@
 #include "mem/timing/simple_mem_bank.hh"
 #include "sim/builder.hh"
 
+#define DO_HIT_TRACE 1
+
+#ifdef DO_HIT_TRACE
+#include <fstream>
+#endif
+
 using namespace std;
 
 template <class Compression>
@@ -78,6 +84,8 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     readyTime.resize(num_banks, 0);
     lastCmdFinish.resize(num_banks, 0);
 
+    bankInConflict.resize(num_banks, false);
+
     pagesize = 10; // 1kB = 2**10 from standard :-)
     internal_read_to_precharge = 3;
     data_time = 4; // Single channel = 4 (i.e. burst lenght 8), dual channel = 2
@@ -101,6 +109,13 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     read_to_write_turnaround *= bus_to_cpu_factor;
     data_time *= bus_to_cpu_factor;
     internal_row_to_row *= bus_to_cpu_factor;
+    
+#ifdef DO_HIT_TRACE
+    ofstream ofile("dram_access_trace.txt");
+    ofile << "";
+    ofile.flush();
+    ofile.close();
+#endif
 }
 
 /* Calculate latency for request */
@@ -154,6 +169,11 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     }
 
     if (req->cmd == Activate) {
+        
+        if(closeTime[bank] >= curTick && closeTime[bank] != 0){
+            bankInConflict[bank] = true;
+        }
+        
         active_bank_count++;
         // Max 4 banks can be active at any time according to DDR2 spec.
         assert(active_bank_count < 5);
@@ -183,7 +203,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         
 
     Tick latency = 0;
-
+    bool isHit = false;
     if (req->cmd == Read) {
         number_of_reads++;
         assert (page == openpage[bank]);
@@ -192,6 +212,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             case DDR2Read: 
                 latency = data_time;
                 number_of_reads_hit++;
+                isHit = true;
                 break;
             case DDR2Active :
                 Bankstate[bank] = DDR2Read;
@@ -246,6 +267,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             {
                 latency = data_time;
                 number_of_writes_hit++;
+                isHit = true;
                 break;
             }
 
@@ -254,12 +276,65 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
     }
 
+#ifdef DO_HIT_TRACE
+    bool isConfict = false;
+#endif
     assert(req->cmd == Writeback || req->cmd == Read);
     if (curTick < readyTime[bank]) {
         // Wait until activation completes;
         latency += readyTime[bank] - curTick;
         number_of_non_overlap_activate++;
+        
+        assert(!isHit);
+        if(bankInConflict[bank]){
+            
+#ifdef DO_HIT_TRACE
+            isConfict = true;
+#endif
+            
+            pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+            pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+            pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+        }
+        else{
+            pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+            pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+            pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+        }
     }
+    else{
+        if(bankInConflict[bank]){
+            assert(!isHit);
+            
+#ifdef DO_HIT_TRACE
+            isConfict = true;
+#endif
+            pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+            pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+            pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+        }
+        else if(isHit){
+            pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+            pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+        }
+        else{
+            pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+            pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+            pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+        }
+    }
+    bankInConflict[bank] = false;
+    
+#ifdef DO_HIT_TRACE
+    ofstream ofile("dram_access_trace.txt", ofstream::app);
+    ofile << curTick << ";" << req->paddr << ";" << bank << ";";
+    if(isConfict) ofile << "conflict";
+    else if(isHit) ofile << "hit";
+    else ofile << "miss";
+    ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
+    ofile.flush();
+    ofile.close();
+#endif
     
     DDR2State curState = Bankstate[bank];
     if((oldState == DDR2Read && curState == DDR2Read)

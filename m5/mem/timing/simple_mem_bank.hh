@@ -81,6 +81,8 @@ class SimpleMemBank : public BaseMemory
     std::vector<Tick> closeTime;
     std::vector<Addr> openpage;
     
+    std::vector<bool> bankInConflict;
+    
   protected:
     /** The compression algorithm. */
     Compression compress;
