@@ -51,7 +51,7 @@
 #include "mem/timing/simple_mem_bank.hh"
 #include "sim/builder.hh"
 
-#define DO_HIT_TRACE 1
+// #define DO_HIT_TRACE 1
 
 #ifdef DO_HIT_TRACE
 #include <fstream>

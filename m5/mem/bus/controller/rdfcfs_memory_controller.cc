@@ -7,7 +7,7 @@
 
 #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
-#define DO_ESTIMATION_TRACE 1
+// #define DO_ESTIMATION_TRACE 1
 #define ESTIMATION_CPU_ID 3
 
 #ifdef DO_ESTIMATION_TRACE
