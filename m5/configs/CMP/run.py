@@ -344,7 +344,7 @@ elif env['BENCHMARK'] in single_core.configuration:
             
     else:
         assert 'SIMULATETICKS' not in env
-        simulateCycles = 300000000 # max cycles, hopefully not necessary
+        simulateCycles = 1000000000 # max cycles, hopefully not necessary
         for cpu in root.detailedCPU:
             cpu.max_insts_any_thread = int(env['SIMINSTS'])
     
