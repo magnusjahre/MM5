@@ -463,20 +463,12 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 #endif
     }
     else{
-        if(curTick == 1004831){
-            cout << "is Miss!\n";
-        }
-        
         privateLatencyEstimate = 120;
     }
     
     Tick latencyCorrection = 0;
     if(privateLatencyEstimate != busOccupiedFor){
         latencyCorrection = privateLatencyEstimate - busOccupiedFor;
-    }
-    
-    if(curTick == 1004831){
-        cout << curTick << ": request from " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
     }
     
 #ifdef DO_ESTIMATION_TRACE

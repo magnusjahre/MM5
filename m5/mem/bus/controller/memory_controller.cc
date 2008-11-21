@@ -162,10 +162,6 @@ TimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
     int bank = getMemoryBankID(req->paddr);
     Addr addr = req->paddr;
     
-    if(curTick == 1004831){
-        cout << curTick << ": checking for conflict, page is " << getPage(addr) << " last act " << cpuLastActivated[cpuID][bank] << " at " << cpuLastActivatedAt[cpuID][bank] << ", req inserted into queue at " << req->inserted_into_memory_controller << "\n";
-    }
-    
     if(cpuID == -1) return false;
     
     assert(currentActivated[bank] == getPage(req->paddr));
