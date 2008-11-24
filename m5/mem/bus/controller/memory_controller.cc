@@ -146,7 +146,7 @@ TimingMemoryController::isPageConflict(MemReqPtr& req){
 bool
 TimingMemoryController::isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID){
     if(cpuID == -1) return false;
-    
+
     if(cpuCurrentActivatedFirstUse[cpuID][bank]){
         cpuCurrentActivatedFirstUse[cpuID][bank] = false;
         return false;

@@ -409,6 +409,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     for( ; readIter != readQueue.end(); readIter++){
         MemReqPtr waitingReq = *readIter;
         assert(waitingReq->adaptiveMHASenderID != -1);
+        assert(waitingReq->cmd == Read);
         if(waitingReq->adaptiveMHASenderID != fromCPU){
             waitingReq->busQueueInterference += busOccupiedFor;
             bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, busOccupiedFor, BUS_INTERFERENCE);
@@ -417,7 +418,8 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     // 2. Interference due to non-synchronized arrivals
     if(req->inserted_into_memory_controller > lastDeliveredReqAt
-       && lastOccupyingCPUID != fromCPU){
+       && lastOccupyingCPUID != fromCPU
+       && req->cmd == Read){
         int extraLatency = curTick - req->inserted_into_memory_controller;
         assert(extraLatency >= 0);
         req->busQueueInterference += extraLatency;
@@ -431,6 +433,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
         assert(waitingReq->adaptiveMHASenderID != -1);
         if(waitingReq->adaptiveMHASenderID != fromCPU 
            && waitingReq->inserted_into_memory_controller > lastDeliveredReqAt){
+            assert(waitingReq->cmd == Read);
             int extraLatency = curTick - waitingReq->inserted_into_memory_controller;
             assert(extraLatency >= 0);
             
@@ -457,13 +460,13 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 #endif
     }
     else if(isPageConflictOnPrivateSystem(req)){
-        privateLatencyEstimate = 160;
+        privateLatencyEstimate = 151;
 #ifdef DO_ESTIMATION_TRACE
         isConflict = true;
 #endif
     }
     else{
-        privateLatencyEstimate = 120;
+        privateLatencyEstimate = 110;
     }
     
     Tick latencyCorrection = 0;
@@ -484,8 +487,11 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     }
 #endif
     
-    req->busDelay = latencyCorrection;
-    bus->addInterferenceCycles(fromCPU, privateLatencyEstimate, BUS_INTERFERENCE);
+    if(req->cmd == Read){
+        req->busDelay = latencyCorrection;
+        bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
+    }
+
 }
 
 

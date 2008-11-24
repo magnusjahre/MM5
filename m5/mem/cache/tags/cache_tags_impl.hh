@@ -584,7 +584,7 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
     else{
         assert(blk->origRequestingCpuID != -1);
         
-        writeback->adaptiveMHASenderID = -1;
+//         writeback->adaptiveMHASenderID = -1;
         writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
     }
     

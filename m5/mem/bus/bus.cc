@@ -506,7 +506,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
         
         //TODO: only add this quantity if this proc is not responsible for the blocking
-//         addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+        addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
         
 //         double threshold = 1.0 / (double) cpu_count;
 //         if((double) currentShadowReqReadCount[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
@@ -636,7 +636,7 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 /* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow) 
 {
-
+    
 //     if(fromShadow){
 //         if(req->cmd != Activate && req->cmd != Close){
 //             assert(time > curTick);
@@ -695,6 +695,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 //         }
 //     }
     
+
+    if(req->cmd == Read || req->cmd == Writeback) assert(req->adaptiveMHASenderID != -1);
+
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
@@ -739,7 +742,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 //         cout << curTick << ": Req from cpu " << req->adaptiveMHASenderID << ", fin at "<< time << " queue lat " <<  curTick - req->inserted_into_memory_controller << ", service time " << time - curTick << " , addr " << req->paddr << ", bank " << memoryController->getMemoryBankID(req->paddr) << "\n";
 //     }
     
-    if((req->cmd == Read || req->cmd == Write) && cpu_count > 1){
+    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
     }
     
@@ -750,13 +753,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
+
             estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += queueLatency - req->busQueueInterference;
             estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
             
             predictedServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency + req->busDelay;
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
-            
-//             cout << curTick << ": Predicted service latency " << serviceLatency + req->busDelay << ", pred queue lat " << queueLatency - req->busQueueInterference << "\n";
         }
         
         actualServiceLatencySum += serviceLatency;
