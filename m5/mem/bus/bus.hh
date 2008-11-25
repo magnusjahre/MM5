@@ -97,6 +97,9 @@ class Bus : public BaseHier
     std::vector<std::vector<int> > conflictInterference;
     std::vector<std::vector<int> > hitToMissInterference;
     
+    std::vector<int> outstandingReads;
+    std::vector<int> outstandingWrites;
+
 //     std::vector<TimingMemoryController* > shadowControllers;
 //     std::vector<SimpleMemBank<NullCompression>* > shadowMemories;
 //     std::vector<SlaveInterface<SimpleMemBank<NullCompression>, Bus>* > shadowSlaveInterfaces;

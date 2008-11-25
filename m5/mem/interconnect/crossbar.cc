@@ -77,11 +77,25 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
     
+    // FIXME: what about entries from the slave side?
     if(allInterfaces[fromID]->isMaster()){
         assert(curTick >= req->finishedInCacheAt);
-        entryDelay += curTick - req->finishedInCacheAt;
+        int waitTime = curTick - req->finishedInCacheAt; 
+        entryDelay += waitTime;
+        
+        //FIXME: implement heuristic to check if this wait would happen when alone...
+        assert(req->cmd == Read || req->cmd == Writeback);
+        if(req->cmd == Read){
+            assert(req->adaptiveMHASenderID != -1);
+            cpuEntryInterferenceCycles[req->adaptiveMHASenderID] += waitTime;
+        }
+        
+        if(req->cmd == Read){
+            entryReadDelay += waitTime;
+        }
     }
     entryRequests++;
+    if(req->cmd == Read) entryReadRequests++;
     
     assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
     int resources = 0;
@@ -344,7 +358,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                     int toID = it->first->adaptiveMHASenderID;
                     assert(it->first->cmd == Read);
                     if(toID != req->adaptiveMHASenderID){
-                        cpuInterferenceCycles[toID] += requestOccupancyTicks;
+                        cpuTransferInterferenceCycles[toID] += requestOccupancyTicks;
                         adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
                     }
                 }
@@ -368,7 +382,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                     }
                     
                     int extraDelay = requestOccupancyTicks * waitingReads;
-                    cpuInterferenceCycles[senderCPUID] += extraDelay;
+                    cpuTransferInterferenceCycles[senderCPUID] += extraDelay;
                     adaptiveMHA->addAloneInterference(extraDelay, senderCPUID, INTERCONNECT_INTERFERENCE);
     
                 }
@@ -386,7 +400,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                             int toID = it->first->adaptiveMHASenderID;
                             assert(it->first->cmd == Read);
                             if(toID != firstCPUID){
-                                cpuInterferenceCycles[toID] += requestOccupancyTicks;
+                                cpuTransferInterferenceCycles[toID] += requestOccupancyTicks;
                                 adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
                             }
                         }
@@ -410,6 +424,12 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
 
     if(allInterfaces[toID]->isMaster()){
         
+        if(req->cmd == Read){
+            assert(req->adaptiveMHASenderID != -1);
+            perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
+            perCpuRequests[req->adaptiveMHASenderID]++;
+        }
+        
         allInterfaces[toID]->deliver(req);
         deliverBufferRequests++;
     }
@@ -424,6 +444,13 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             assert(slaveDeliveryBuffer[toSlaveID].size() <= crossbarTransferDelay / requestOccupancyTicks);
         }
         else{
+            
+            if(req->cmd == Read){
+                assert(req->adaptiveMHASenderID != -1);
+                perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
+                perCpuRequests[req->adaptiveMHASenderID]++;
+            }
+            
             assert(slaveDeliveryBuffer[toSlaveID].empty());
             allInterfaces[toID]->access(req);
             requestsInProgress[toSlaveID]--;
@@ -449,11 +476,19 @@ Crossbar::clearBlocked(int fromInterface){
         deliverBufferDelay += curTick - queuedAt;
         deliverBufferRequests++;
         
+        
+        
         assert(req->cmd == Read || req->cmd == Writeback);
         if(entry.blockingBlameID != req->adaptiveMHASenderID && req->cmd == Read && cpu_count > 1){
             Tick extraDelay = curTick - queuedAt;
-            cpuInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
+            cpuDeliveryInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
             adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
+        }
+        
+        assert(req->adaptiveMHASenderID != -1);
+        if(req->cmd == Read){
+            perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
+            perCpuRequests[req->adaptiveMHASenderID]++;
         }
         
         MemAccessResult res = allInterfaces[fromInterface]->access(req);

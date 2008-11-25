@@ -38,9 +38,9 @@ class L2Bank(BaseCache):
     block_size = 64
     latency = 18 * Parent.clock.period
     
-    mshrs = 64
-    tgts_per_mshr = 64
-    write_buffers = 64
+    mshrs = 1024
+    tgts_per_mshr = 1024
+    write_buffers = 1024
     
     #mshrs = 16
     #tgts_per_mshr = 4

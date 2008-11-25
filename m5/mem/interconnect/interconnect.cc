@@ -70,7 +70,23 @@ Interconnect::regStats(){
             .desc("average number of wait cycles before entry to crossbar per requests")
             ;
     
+    entryReadDelay
+        .name(name() + ".total_read_entry_delay")
+        .desc("total number of read cycles before a request was granted access to the crossbar")
+        ;
+    
+    entryReadRequests
+        .name(name() + ".total_read_entry_requests")
+        .desc("total number of read requests in entry delay measurements")
+        ;
+    
+    avgReadDelayBeforeEntry
+        .name(name() + ".avg_read_delay_before_entry")
+        .desc("average number of wait cycles before entry to crossbar per read requests")
+        ;
+    
     avgDelayBeforeEntry = entryDelay / entryRequests;
+    avgReadDelayBeforeEntry = entryReadDelay / entryRequests;
     
     deliverBufferDelay
         .name(name() + ".deliver_buffer_delay")
@@ -154,12 +170,56 @@ Interconnect::regStats(){
         .flags(total)
         ;
     
-    cpuInterferenceCycles
+    cpuEntryInterferenceCycles
         .init(cpu_count)
+        .name(name() + ".cpu_entry_interference_cycles")
+        .desc("total number of cycles the requests of a CPU was delayed before crossbar entry")
+        .flags(total)
+        ;
+    
+    cpuTransferInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_transfer_interference_cycles")
+        .desc("total number of interferece cycles the requests of a CPU due to crossbar queue")
+        .flags(total)
+        ;
+    
+    cpuDeliveryInterferenceCycles
+        .init(cpu_count)
+        .name(name() + ".cpu_delivery_interference_cycles")
+        .desc("total number of interferece cycles in the delivery buffer")
+        .flags(total)
+        ;
+    
+    cpuInterferenceCycles
         .name(name() + ".cpu_interference_cycles")
         .desc("total number of cycles the requests of a CPU was delayed")
         .flags(total)
         ;
+
+    cpuInterferenceCycles = cpuEntryInterferenceCycles + cpuTransferInterferenceCycles + cpuDeliveryInterferenceCycles;
+    
+    perCpuTotalDelay
+        .init(cpu_count)
+        .name(name() + ".cpu_total_delay_cycles")
+        .desc("total number of latency cycles")
+        .flags(total)
+        ;
+
+    perCpuRequests
+        .init(cpu_count)
+        .name(name() + ".cpu_total_delay_requests")
+        .desc("number of requests i the total delay measurements")
+        .flags(total)
+        ;
+
+    perCpuAvgDelay
+        .name(name() + ".cpu_avg_delay")
+        .desc("average delay per request for eachcpu")
+        .flags(total)
+        ;
+
+    perCpuAvgDelay = perCpuTotalDelay / perCpuRequests;
     
     /* Other statistics */
     avgTotalDelayCyclesPerRequest

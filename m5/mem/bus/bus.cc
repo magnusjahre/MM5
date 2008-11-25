@@ -136,6 +136,10 @@ Bus::Bus(const string &_name,
     perCPUDataBusUse.resize(cpu_count, 0);
     perCPUQueueCycles.resize(cpu_count, 0);
     perCPURequests.resize(cpu_count, 0);
+    
+    outstandingReads.resize(cpu_count, 0);
+    outstandingWrites.resize(cpu_count, 0);
+
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
     
 //     if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
@@ -505,17 +509,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
         
-        //TODO: only add this quantity if this proc is not responsible for the blocking
-        addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
-        
-//         double threshold = 1.0 / (double) cpu_count;
-//         if((double) currentShadowReqReadCount[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
-//             && (double) currentShadowReqWriteCount[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
+        double threshold = 0.75; //1.0 / (double) cpu_count;
+        if((double) outstandingReads[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
+            && (double) outstandingWrites[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
             
-            
-            
-//         }
+            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+        }
     }
+
+    assert(req->cmd == Read || req->cmd == Writeback);
+    assert(req->adaptiveMHASenderID != -1);
+    if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
+    else outstandingWrites[req->adaptiveMHASenderID]++;
     
     // Insert request into memory controller
 //     cout << curTick << ": request recieved from CPU " << req->adaptiveMHASenderID << ", addr " << req->paddr << "\n";
@@ -742,6 +747,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 //         cout << curTick << ": Req from cpu " << req->adaptiveMHASenderID << ", fin at "<< time << " queue lat " <<  curTick - req->inserted_into_memory_controller << ", service time " << time - curTick << " , addr " << req->paddr << ", bank " << memoryController->getMemoryBankID(req->paddr) << "\n";
 //     }
     
+    if(req->cmd == Read || req->cmd == Writeback){
+        assert(req->adaptiveMHASenderID != -1);
+        if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]--;
+        else outstandingWrites[req->adaptiveMHASenderID]--;
+    }
+
     if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
     }

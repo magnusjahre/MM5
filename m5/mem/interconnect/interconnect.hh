@@ -91,8 +91,16 @@ class Interconnect : public BaseHier
         
         Stats::Vector<> perCpuTotalTransferCycles;
         Stats::Vector<> perCpuTotalTransQueueCycles;
+       
         
-        Stats::Vector<> cpuInterferenceCycles;
+        Stats::Vector<> cpuEntryInterferenceCycles;
+        Stats::Vector<> cpuTransferInterferenceCycles;
+        Stats::Vector<> cpuDeliveryInterferenceCycles;
+        Stats::Formula cpuInterferenceCycles;
+        
+        Stats::Vector<> perCpuTotalDelay;
+        Stats::Vector<> perCpuRequests;
+        Stats::Formula  perCpuAvgDelay;
         
         Stats::Formula avgTotalDelayCyclesPerRequest;
         
@@ -108,6 +116,10 @@ class Interconnect : public BaseHier
         Stats::Scalar<> entryDelay;
         Stats::Scalar<> entryRequests;
         Stats::Formula avgDelayBeforeEntry;
+        
+        Stats::Scalar<> entryReadDelay;
+        Stats::Scalar<> entryReadRequests;
+        Stats::Formula avgReadDelayBeforeEntry;
         
         Stats::Scalar<> deliverBufferDelay;
         Stats::Scalar<> deliverBufferRequests;
