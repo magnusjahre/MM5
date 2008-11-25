@@ -411,8 +411,19 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
         assert(waitingReq->adaptiveMHASenderID != -1);
         assert(waitingReq->cmd == Read);
         if(waitingReq->adaptiveMHASenderID != fromCPU){
-            waitingReq->busQueueInterference += busOccupiedFor;
-            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, busOccupiedFor, BUS_INTERFERENCE);
+            int extraLatency = 0;
+            if(waitingReq->inserted_into_memory_controller <= lastDeliveredReqAt){
+                // already in queue
+                extraLatency = busOccupiedFor;
+            }
+            else{
+                // entered queue while this request was in service
+                int extraLatency = curTick - waitingReq->inserted_into_memory_controller;
+                assert(extraLatency >= 0);
+            }
+            
+            waitingReq->busQueueInterference += extraLatency;
+            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, extraLatency, BUS_INTERFERENCE);
         }
     }
     
@@ -425,25 +436,6 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
         req->busQueueInterference += extraLatency;
         bus->addInterferenceCycles(fromCPU, extraLatency, BUS_INTERFERENCE);
     }
-    
-    
-    readIter = readQueue.begin();
-    for( ; readIter != readQueue.end(); readIter++){
-        MemReqPtr waitingReq = *readIter;
-        assert(waitingReq->adaptiveMHASenderID != -1);
-        if(waitingReq->adaptiveMHASenderID != fromCPU 
-           && waitingReq->inserted_into_memory_controller > lastDeliveredReqAt){
-            assert(waitingReq->cmd == Read);
-            int extraLatency = curTick - waitingReq->inserted_into_memory_controller;
-            assert(extraLatency >= 0);
-            
-            waitingReq->busQueueInterference += extraLatency;
-            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, 
-                                       extraLatency,
-                                       BUS_INTERFERENCE);
-        }
-    }
-
     
     // 3. Correct service time measurement
 #ifdef DO_ESTIMATION_TRACE
@@ -488,6 +480,9 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 #endif
     
     if(req->cmd == Read){
+        
+//         if(req->adaptiveMHASenderID == 1) cout << curTick << ": correcting lat measurements by " << latencyCorrection << "\n";
+        
         req->busDelay = latencyCorrection;
         bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
     }

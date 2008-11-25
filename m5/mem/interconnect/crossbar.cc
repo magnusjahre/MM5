@@ -426,8 +426,9 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
         
         if(req->cmd == Read){
             assert(req->adaptiveMHASenderID != -1);
+            // the request was counted earlier, don't count it again
+            assert(curTick - req->inserted_into_crossbar >= transferDelay);
             perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
-            perCpuRequests[req->adaptiveMHASenderID]++;
         }
         
         allInterfaces[toID]->deliver(req);
@@ -447,6 +448,7 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             
             if(req->cmd == Read){
                 assert(req->adaptiveMHASenderID != -1);
+                assert(curTick - req->inserted_into_crossbar >= transferDelay);
                 perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
                 perCpuRequests[req->adaptiveMHASenderID]++;
             }
