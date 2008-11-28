@@ -36,15 +36,18 @@ class Crossbar : public Interconnect
         Tick detailedSimStartTick;
         int crossbarTransferDelay;
         
+        int shared_cache_wb_buffers;
+        int shared_cache_mshrs;
+        
         struct DeliveryBufferEntry{
             MemReqPtr req;
             Tick enteredAt;
-            int blockingBlameID;
+            bool blameForBlocking;
             
-            DeliveryBufferEntry(MemReqPtr& _req, Tick _enteredAt, int _blockingBlameID){
+            DeliveryBufferEntry(MemReqPtr& _req, Tick _enteredAt, bool _blameForBlocking){
                 req = _req;
                 enteredAt = _enteredAt;
-                blockingBlameID = _blockingBlameID;
+                blameForBlocking = _blameForBlocking;
             }
         };
         
@@ -69,6 +72,8 @@ class Crossbar : public Interconnect
         void retriveAdditionalRequests();
         
         std::vector<int> findServiceOrder(std::vector<std::list<std::pair<MemReqPtr, int> > >* currentQueue);
+        
+        bool blockingDueToPrivateAccesses(int blockedCPU);
         
     public:
         
@@ -99,7 +104,9 @@ class Crossbar : public Interconnect
                  HierParams *_hier,
                  AdaptiveMHA* _adaptiveMHA,
                  bool _useNFQArbitration,
-                 Tick _detailedSimStartTick);
+                 Tick _detailedSimStartTick,
+                 int _shared_cache_wb_buffers,
+                 int _shared_cache_mshrs);
         
         /**
         * This destructor deletes the request queues that are dynamically

@@ -38,6 +38,7 @@
 #define __MEM_REQ_HH__
 
 #include <list>
+#include <vector>
 
 #include "mem/mem_cmd.hh"
 
@@ -91,6 +92,15 @@ const uint32_t NO_ALLOCATE      = 0x40000;
 
 /** Mask to quickly check copy pending bits. */
 const unsigned COPY_PENDING_MASK = 0xf000;
+
+typedef enum{
+    INTERCONNECT_ENTRY_LAT,
+    INTERCONNECT_TRANSFER_LAT,
+    INTERCONNECT_DELIVERY_LAT,
+    MEM_BUS_ENTRY_LAT,
+    MEM_BUS_TRANSFER_LAT,
+    MEM_REQ_LATENCY_BREAKDOWN_SIZE
+} MEM_REQ_LATENCY_BREAKDOWN;
 
 
 // Forward declaration for pointer
@@ -214,6 +224,9 @@ class MemReq : public FastAlloc, public RefCounted
     
     int memBusBlockedWaitCycles;
     
+    std::vector<int> latencyBreakdown;
+    std::vector<int> interferenceBreakdown;
+    
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -275,6 +288,8 @@ class MemReq : public FastAlloc, public RefCounted
           finishedInCacheAt(0),
           memBusBlockedWaitCycles(0)
     {
+        latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
+        interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     }
 
     MemReq(const MemReq &r)
@@ -329,6 +344,8 @@ class MemReq : public FastAlloc, public RefCounted
         interferenceMissAt = r.interferenceMissAt;
         finishedInCacheAt = r.finishedInCacheAt;
         memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;
+        latencyBreakdown = r.latencyBreakdown;
+        interferenceBreakdown = r.interferenceBreakdown;
     }
 
     /**

@@ -149,7 +149,7 @@ InterconnectSlave<MemType>::inRange(Addr addr)
 }
 
 template<class MemType>
-int
+std::map<int,int>
 InterconnectSlave<MemType>::assignBlockingBlame(){
     return thisCache->assignBlockingBlame();
 }

@@ -140,8 +140,9 @@ Cache(const std::string &_name, HierParams *hier_params,
         else{
             profileEvent->schedule(CACHE_PROFILE_INTERVAL);
         }
-        detailedSimulationStartTick = params.detailedSimStartTick;
     }
+    
+    detailedSimulationStartTick = params.detailedSimStartTick;
     
     useAdaptiveMHA = false;
     if (params.in == NULL) {
@@ -333,6 +334,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		warn("WriteInv doing a fastallocate" 
 		     "with an outstanding miss to the same address\n");
 	    }
+            
+            assert(!isShared);
 	    blk = tags->handleFill(NULL, req, BlkValid | BlkWritable,
 				   writebacks);
 	    ++fastWrites;
@@ -582,7 +585,8 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
             if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
                 blk = tags->handleFill(blk, req->mshr, 
                                        coherence->getNewState(req,old_state),
-                                       writebacks);
+                                       writebacks,
+                                       req);
             }
             else{
                 assert(req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead);
@@ -1508,23 +1512,26 @@ Cache<TagStore,Buffering,Coherence>::setMTPPartition(std::vector<int> setQuotas)
 }
 
 template<class TagStore, class Buffering, class Coherence>
-int 
+std::map<int,int>
 Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
     assert(isShared);
 
-    double threshold = 0.8;
+    double threshold = 0.9;
+    
+    map<int,int> retmap;
     
     if(isBlockedNoMSHRs()){
-        return missQueue->assignBlockingBlame(true, false, threshold);
+        retmap = missQueue->assignBlockingBlame(true, false, threshold);
     }
     else if(isBlockedNoTargets()){
-        return missQueue->assignBlockingBlame(true, true, threshold);
+        retmap = missQueue->assignBlockingBlame(true, true, threshold);
     }
     else if(isBlockedNoWBBuffers()){
-        return missQueue->assignBlockingBlame(false, false, threshold);
+        retmap = missQueue->assignBlockingBlame(false, false, threshold);
     }
-    fatal("assigning blocking blame but we are not blocked");
-    return -1;
+//     fatal("assigning blocking blame but we are not blocked");
+    
+    return retmap;
 }
 
 #ifdef CACHE_DEBUG

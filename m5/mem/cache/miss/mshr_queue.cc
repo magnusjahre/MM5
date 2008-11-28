@@ -335,11 +335,13 @@ MSHRQueue::squash(int thread_number)
     }
 }
 
-int 
+std::map<int,int> 
 MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold){
     
     MSHR::ConstIterator i = allocatedList.begin();
     MSHR::ConstIterator end = allocatedList.end();
+    
+    map<int,int> retmap;
     
     if(blockedMSHRs){
         
@@ -352,11 +354,11 @@ MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double thresho
         
         for(int i=0;i<ownedBy.size();i++){
             if(ownedBy[i] >= (threshold * getCurrentMSHRCount())){
-                return i;
+                retmap[i] = ownedBy[i];
             }
         }
         
-        return -1;
+        return retmap;
         
     }
     else{
@@ -374,8 +376,9 @@ MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double thresho
         }
         assert(tgtMSHR != NULL);
         
-        return tgtMSHR->req->adaptiveMHASenderID;
+        retmap[tgtMSHR->req->adaptiveMHASenderID] = 1;
+        return retmap;
     }
-    return -1;
+    return retmap;
     
 }

@@ -519,6 +519,8 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         return true;
     }
     
+    req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+    
     if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
         
@@ -527,6 +529,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
             && (double) outstandingWrites[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
             
             addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+            req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
         }
     }
 
@@ -658,6 +661,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         assert(req->adaptiveMHASenderID != -1);
         if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]--;
         else outstandingWrites[req->adaptiveMHASenderID]--;
+        
+        req->latencyBreakdown[MEM_BUS_TRANSFER_LAT] += time - req->inserted_into_memory_controller;
     }
 
     if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
@@ -671,7 +676,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
-
             
             estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += queueLatency - req->busQueueInterference;
             estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
@@ -886,13 +890,16 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
             blockingInterferenceCycles[victimID] += delay;
             break;
         case BUS_PRIVATE_BLOCKING_INTERFERENCE:
+            fatal("currently not in use");
             adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_PRIVATE_BLOCKED_INTERFERENCE);
             shadowBlockedCycles[victimID] += delay;
             break;
         case CONFLICT_INTERFERENCE:
+            fatal("currently not in use");
             cpuConflictInterferenceCycles[victimID] += delay;
             break;
         case HIT_TO_MISS_INTERFERENCE:
+            fatal("currently not in use");
             cpuHtMInterferenceCycles[victimID] += delay;
             break;
         default:

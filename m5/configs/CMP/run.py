@@ -484,6 +484,10 @@ if env["CACHE-PARTITIONING"] == "MTP":
         bank.static_part_start_tick = uniformPartStart
 
 if cacheProfileStart != -1:
+    for dc in root.L1dcaches:
+        dc.detailed_sim_start_tick = cacheProfileStart
+    for ic in root.L1dcaches:
+        ic.detailed_sim_start_tick = cacheProfileStart
     for bank in root.l2:
         bank.detailed_sim_start_tick = cacheProfileStart
 

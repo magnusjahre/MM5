@@ -19,6 +19,7 @@ AdaptiveMHA::addAloneInterference(int extraDelay, int victimCPU, InterferenceTyp
                 l2CapInterference[victimCPU] += extraDelay;
                 break;
             case L2_INTERFERENCE:
+                fatal("this interference is now handled in the crossbar");
                 l2BwInterference[victimCPU] += extraDelay;
                 break;
             case INTERCONNECT_INTERFERENCE:

@@ -278,9 +278,9 @@ class InterconnectInterface : public BaseInterface
             return tmp;
         }
         
-        virtual int assignBlockingBlame(){
+        virtual std::map<int,int> assignBlockingBlame(){
             fatal("assignBlockingBlame() can only be used on slave interfaces");
-            return -1;
+            return std::map<int,int>();
         }
 
 };

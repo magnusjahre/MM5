@@ -11,13 +11,13 @@ class BaseL1Cache(BaseCache):
     block_size = 64
     
     #Eliminates blocking FIXME!!!
-    mshrs = 64
-    write_buffers = 64
-    tgts_per_mshr = 64 
+    #mshrs = 64
+    #write_buffers = 64
+    #tgts_per_mshr = 64 
     
-    #mshrs = 4
-    #write_buffers = 8
-    #tgts_per_mshr = 4
+    mshrs = 1
+    write_buffers = 1
+    tgts_per_mshr = 4
     #tgts_per_mshr = 8
 
     cpu_count = int(env['NP'])
@@ -38,14 +38,14 @@ class L2Bank(BaseCache):
     block_size = 64
     latency = 18 * Parent.clock.period
     
-    mshrs = 1024
-    tgts_per_mshr = 1024
-    write_buffers = 1024
+    #mshrs = 1024
+    #tgts_per_mshr = 1024
+    #write_buffers = 1024
     
-    #mshrs = 16
-    #tgts_per_mshr = 4
-    ##tgts_per_mshr = 8
-    #write_buffers = 16
+    mshrs = 16
+    tgts_per_mshr = 4
+    #tgts_per_mshr = 8
+    write_buffers = 16
     
     cpu_count = int(env['NP'])
     is_shared = True

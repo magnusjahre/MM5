@@ -42,7 +42,6 @@
 #include "sim/root.hh" // for curTick
 #include "sim/host.hh"
 #include "base/misc.hh"
-#include "mem/cache/cache.hh"
 
 using namespace std;
 
@@ -51,6 +50,8 @@ MSHR::MSHR()
     inService = false;
     ntargets = 0;
     threadNum = -1;
+    
+//     cache = NULL;
 }
 
 void
@@ -95,6 +96,11 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
         
         req->finishedInCacheAt = target->finishedInCacheAt;
         
+        if(cache->isShared){
+            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
+            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
+        }
+        
 //         if(cache->isInstructionCache) req->instructionMiss = true;
 //         else req->instructionMiss = target->instructionMiss;
     }
@@ -131,6 +137,11 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     req->interferenceMissAt = target->interferenceMissAt;
     req->finishedInCacheAt = target->finishedInCacheAt;
+    
+    if(cache->isShared){
+        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
+        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
+    }
     
 //     if(cache->isInstructionCache) req->instructionMiss = true;
 //     else req->instructionMiss = target->instructionMiss;
@@ -215,4 +226,9 @@ MSHR::~MSHR()
 {
     if (req)
 	req = NULL;
+}
+
+void
+MSHR::setCache(BaseCache* _cache){
+    cache = _cache;
 }

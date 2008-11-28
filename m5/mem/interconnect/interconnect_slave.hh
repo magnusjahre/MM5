@@ -162,7 +162,7 @@ class InterconnectSlave : public InterconnectInterface
         */
         virtual bool inRange(Addr addr);
         
-        virtual int assignBlockingBlame();
+        virtual std::map<int,int> assignBlockingBlame();
 
 };
 

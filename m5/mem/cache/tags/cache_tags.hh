@@ -246,7 +246,8 @@ class CacheTags
     BlkType* handleFill(BlkType *blk,
                         MSHR * mshr,
                         CacheBlk::State new_state,
-                        MemReqList & writebacks);
+                        MemReqList & writebacks,
+                        MemReqPtr fillRequest = NULL);
 
     /**
      * Populates a cache block and handles all outstanding requests for the

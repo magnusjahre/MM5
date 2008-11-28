@@ -145,6 +145,9 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->finishedInCacheAt = r->finishedInCacheAt;
     req->memBusBlockedWaitCycles = r->memBusBlockedWaitCycles;
     
+    req->latencyBreakdown = r->latencyBreakdown;
+    req->interferenceBreakdown = r->interferenceBreakdown;
+    
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     
     req->data = new uint8_t[r->size];
@@ -215,6 +218,9 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->interferenceMissAt = from->interferenceMissAt;
     to->finishedInCacheAt = from->finishedInCacheAt;
     to->memBusBlockedWaitCycles = from->memBusBlockedWaitCycles;
+    
+    to->latencyBreakdown = from->latencyBreakdown;
+    to->interferenceBreakdown = from->interferenceBreakdown;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     

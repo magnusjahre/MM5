@@ -275,9 +275,9 @@ public:
         return 0;
     }
     
-    int assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
+    std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
         fatal("Makes no sense");
-        return -1;
+        return map<int,int>();
     }
 };
 

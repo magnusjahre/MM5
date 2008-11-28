@@ -40,6 +40,12 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
+#define DO_REQUEST_TRACE 1
+
+#ifdef DO_REQUEST_TRACE 
+#include <fstream>
+#endif
+
 using namespace std;
 
 // simple constructor
@@ -360,6 +366,22 @@ MissQueue::setCache(BaseCache *_cache)
     blkSize = cache->getBlockSize();
     mq.setCache(cache);
     wb.setCache(cache);
+    
+#ifdef DO_REQUEST_TRACE 
+    stringstream filename;
+    filename << cache->name() << "LatencyTrace.txt";
+    ofstream latencyfile(filename.str().c_str());
+    latencyfile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
+    latencyfile.flush();
+    latencyfile.close();
+    
+    stringstream filename2;
+    filename2 << cache->name() << "InterferenceTrace.txt";
+    ofstream interferencefile(filename2.str().c_str());
+    interferencefile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
+    interferencefile.flush();
+    interferencefile.close();
+#endif
 }
 
 void
@@ -372,7 +394,6 @@ MSHR*
 MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 {
    
-    
     MSHR* mshr = mq.allocate(req, size);
     
     if(cache->isDirectoryAndL1DataCache()){
@@ -634,6 +655,42 @@ MissQueue::markInService(MemReqPtr &req)
     }
 }
 
+void
+MissQueue::writeTraceFiles(MemReqPtr& req){
+#ifdef DO_REQUEST_TRACE 
+    
+    if(curTick >= cache->detailedSimulationStartTick){
+        // Latency trace
+        stringstream filename;
+        filename << cache->name() << "LatencyTrace.txt";
+        ofstream latencyfile(filename.str().c_str(), ofstream::app);
+        
+        latencyfile << curTick;
+        latencyfile << " ; " << req->paddr;
+        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+            latencyfile << " ; " <<  req->latencyBreakdown[i];
+        }
+        latencyfile << "\n";
+        latencyfile.flush();
+        latencyfile.close();
+        
+        // interference trace
+        stringstream filename2;
+        filename2 << cache->name() << "InterferenceTrace.txt";
+        ofstream interferencefile(filename2.str().c_str(), ofstream::app);
+        
+        interferencefile << curTick;
+        interferencefile << " ; " << req->paddr;
+        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+            interferencefile << " ; " <<  req->interferenceBreakdown[i];
+        }
+        interferencefile << "\n";
+        
+        interferencefile.flush();
+        interferencefile.close();
+    }
+#endif
+}
 
 void
 MissQueue::handleResponse(MemReqPtr &req, Tick time)
@@ -660,6 +717,8 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
         //NOTE: finishedInCacheAt is written in the L2 and cannot be used
         sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
         num_roundtrip_responses++;
+        
+        if(!cache->isShared) writeTraceFiles(req);
         
 	// targets were handled in the cache tags
 	if (mshr == noTargetMSHR) {
@@ -690,6 +749,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
             
 	    unblock = mq.isFull();
 	    mq.deallocate(mshr);
+            
 	    if (unblock) {
                 unblock = !mq.isFull();
                 cause = Blocked_NoMSHRs;
@@ -853,7 +913,7 @@ MissQueue::havePending()
     return mq.havePending() || wb.havePending() || prefetcher->havePending();
 }
 
-int
+map<int,int>
 MissQueue::assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
     if(blockedForMiss) return mq.assignBlockingBlame(numTarget, !blockedForTargets, threshold);
     return wb.assignBlockingBlame(numTarget, !blockedForTargets, threshold);

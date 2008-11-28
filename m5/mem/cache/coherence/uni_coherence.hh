@@ -61,6 +61,8 @@ class UniCoherence
     void setCache(BaseCache *_cache)
     {
 	cache = _cache;
+        
+        cshrs.setCache(_cache);
     }
 
     /**

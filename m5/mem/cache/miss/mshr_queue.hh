@@ -265,7 +265,7 @@ class MSHRQueue {
         return (numMSHRs - numReserve) + 1;
     }
     
-    int assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold);
+    std::map<int,int> assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold);
     
     void printMSHRQueue(){
         std::cout << "Allocated list:\n";
@@ -301,6 +301,10 @@ class MSHRQueue {
     
     void setCache(BaseCache* _cache){
         cache = _cache;
+        
+        for (int i = 0; i < numMSHRs; ++i) {
+            registers[i].setCache(_cache);
+        }
     }
 
 };

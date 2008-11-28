@@ -252,7 +252,8 @@ typename CacheTags<Tags,Compression>::BlkType*
 CacheTags<Tags,Compression>::handleFill(BlkType *blk,
                                         MSHR * mshr,
 					CacheBlk::State new_state,
-					MemReqList & writebacks)
+					MemReqList & writebacks,
+                                        MemReqPtr fillRequest)
 {
 #ifndef NDEBUG
     BlkType *tmp_blk = ct->findBlock(mshr->req->paddr, mshr->req->asid);
@@ -362,6 +363,15 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 	    break;
 	}
         
+        if(cache->isShared){
+            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+                target->interferenceBreakdown[i] = fillRequest->interferenceBreakdown[i];
+            }
+            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+                target->latencyBreakdown[i] = fillRequest->latencyBreakdown[i];
+            }
+        }
+        
         mshr->popTarget();
         cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
@@ -389,6 +399,8 @@ CacheTags<Tags,Compression>::pseudoFill(MSHR * mshr,
 	    memcpy(blk->data, req->data, blkSize);
 	}
     }
+    
+    fatal("latency breakdown not implemented in pseudoFill");
 
     blk->whenReady = curTick;
     // respond to MSHR targets, if any
@@ -461,6 +473,8 @@ CacheTags<Tags,Compression>::handleTargets(MSHR *mshr, MemReqList &writebacks)
     
     // respond to MSHR targets, if any
     Tick response_base = curTick + ct->getHitLatency();
+    
+    fatal("latency breakdown not implemented in handleTargets");
     
     while (mshr->hasTargets()) {
 	MemReqPtr target = mshr->getTarget();

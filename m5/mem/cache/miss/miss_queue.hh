@@ -394,7 +394,9 @@ class MissQueue
         else return wb.getCurrentMSHRCount();
     }
     
-    int assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
+    std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
+    
+    void writeTraceFiles(MemReqPtr& req);
 };
 
 #endif //__MISS_QUEUE_HH__

@@ -351,7 +351,7 @@ class Cache : public BaseCache
         return tags->getNumSets();
     }
     
-    int assignBlockingBlame();
+    std::map<int,int> assignBlockingBlame();
     
     virtual void setMTPPartition(std::vector<int> setQuotas);
     

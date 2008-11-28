@@ -38,6 +38,7 @@
 #define __MSHR_HH__
 
 #include "mem/mem_req.hh"
+#include "mem/cache/base_cache.hh"
 #include <list>
 #include <deque>
 
@@ -91,6 +92,8 @@ public:
 private:
     /** List of all requests that match the address */
     TargetList targets;
+    
+    BaseCache* cache;
 
 public:
     /**
@@ -175,6 +178,8 @@ public:
      * Prints the contents of this MSHR to stderr.
      */
     void dump();
+    
+    void setCache(BaseCache* _cache);
 };
 
 #endif //__MSHR_HH__

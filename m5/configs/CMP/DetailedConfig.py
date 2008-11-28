@@ -86,6 +86,8 @@ class DetailedStandAlone(Root):
             self.interconnect.use_NFQ_arbitration = useFairCrossbar
             self.interconnect.detailed_sim_start_tick = detailedStartTick
             self.createL2(False, L2BankCount, moduloAddr)
+            self.interconnect.shared_cache_writeback_buffers = self.l2[0].write_buffers
+            self.interconnect.shared_cache_mshrs = self.l2[0].mshrs
         elif optionString == 'ideal':
             self.interconnect = InterconnectIdeal()
             self.createL2(False, L2BankCount, moduloAddr)
