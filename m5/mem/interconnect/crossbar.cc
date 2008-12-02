@@ -102,6 +102,7 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
             req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += extraDelay;
             
             entryReadDelay += waitTime;
+            perCpuTotalDelay[req->adaptiveMHASenderID] += waitTime;
         }
 
         req->latencyBreakdown[INTERCONNECT_ENTRY_LAT] += waitTime;
@@ -382,7 +383,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
         else{
             if(toSlave){
                 // Interference: empty pipe stage, all waiting requests are delayed
-                int senderCPUID = currentQueue->front().first->adaptiveMHASenderID;
+//                 int senderCPUID = currentQueue->front().first->adaptiveMHASenderID;
                 
                 bool destinationBlocked = (addBlockedInterfaces() & currentQueue->front().second) != 0;
                 
@@ -396,8 +397,8 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                             it->first->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += requestOccupancyTicks;
                             
                             if(cmd == Read){
-                                cpuTransferInterferenceCycles[senderCPUID] += requestOccupancyTicks;
-                                adaptiveMHA->addAloneInterference(requestOccupancyTicks, senderCPUID, INTERCONNECT_INTERFERENCE);
+                                cpuTransferInterferenceCycles[it->first->adaptiveMHASenderID] += requestOccupancyTicks;
+                                adaptiveMHA->addAloneInterference(requestOccupancyTicks, it->first->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
                             }
                         }
                         
@@ -409,7 +410,8 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                                 it->first->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT] += requestOccupancyTicks;
                                 
                                 if(cmd == Read){
-                                    cpuDeliveryInterferenceCycles[senderCPUID] += requestOccupancyTicks;
+                                    cpuDeliveryInterferenceCycles[it->first->adaptiveMHASenderID] += requestOccupancyTicks;
+                                    adaptiveMHA->addAloneInterference(requestOccupancyTicks, it->first->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
                                 }
                             }
                         }

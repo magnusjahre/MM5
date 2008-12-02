@@ -167,7 +167,7 @@ TimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
     assert(currentActivated[bank] == getPage(req->paddr));
     return getPage(addr) != cpuLastActivated[cpuID][bank] 
             && cpuLastActivated[cpuID][bank] != 0;
-//             && cpuLastActivatedAt[cpuID][bank] >= (curTick - 50000);
+//             && cpuLastActivatedAt[cpuID][bank] >= (curTick - 1000);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

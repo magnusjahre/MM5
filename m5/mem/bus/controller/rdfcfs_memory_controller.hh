@@ -49,6 +49,10 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
 //     void estimatePrivateServiceLatency(MemReqPtr& req);
     
+    bool equalReadWritePri;
+    
+    std::list<MemReqPtr> mergeQueues();
+    
   public:
 
     // Memory Request currently being issued
@@ -88,6 +92,14 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     virtual int getWriteQueueLength(){
         return writequeue_size;
+    }
+    
+    virtual int getWaitingReadCount(){
+        return readQueue.size();
+    }
+    
+    virtual int getWaitingWriteCount(){
+        return writeQueue.size();
     }
     
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);

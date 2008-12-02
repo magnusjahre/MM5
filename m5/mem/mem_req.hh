@@ -224,9 +224,13 @@ class MemReq : public FastAlloc, public RefCounted
     
     int memBusBlockedWaitCycles;
     
+    Tick busAloneServiceEstimate;
+    Tick busAloneQueueEstimate;
+    int waitWritebackCnt;
+    
     std::vector<int> latencyBreakdown;
     std::vector<int> interferenceBreakdown;
-    
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -286,7 +290,10 @@ class MemReq : public FastAlloc, public RefCounted
           givenToShadow(false),
           interferenceMissAt(0),
           finishedInCacheAt(0),
-          memBusBlockedWaitCycles(0)
+          memBusBlockedWaitCycles(0),
+          busAloneServiceEstimate(0),
+          busAloneQueueEstimate(0),
+          waitWritebackCnt(0)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -344,6 +351,10 @@ class MemReq : public FastAlloc, public RefCounted
         interferenceMissAt = r.interferenceMissAt;
         finishedInCacheAt = r.finishedInCacheAt;
         memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;
+        busAloneServiceEstimate = r.busAloneServiceEstimate;
+        busAloneQueueEstimate = r.busAloneQueueEstimate;
+        waitWritebackCnt = r.waitWritebackCnt;
+        
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;
     }

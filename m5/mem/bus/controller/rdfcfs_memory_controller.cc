@@ -45,6 +45,8 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     lastDeliveredReqAt = 0;
     lastOccupyingCPUID = -1;
     
+    equalReadWritePri = true; // FIXME: parameterize
+    
 #ifdef DO_ESTIMATION_TRACE
     ofstream ofile("estimation_access_trace.txt");
     ofile << "";
@@ -119,7 +121,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     }
     
     // Remove request from queue (if read or write)
-    if(lastIssuedReq){
+    if(lastIssuedReq->cmd == Read || lastIssuedReq->cmd == Writeback){
         if(lastIsWrite){
             writeQueue.remove(lastIssuedReq);
         }
@@ -158,41 +160,70 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
 
 bool
 RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
-    // Go through all lists to see if we can activate anything
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (!isActive(tmp) && bankIsClosed(tmp)) {
-            //Request is not active and bank is closed. Activate it
-            
-            currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
-            
-            activate->cmd = Activate;
-            activate->paddr = tmp->paddr;
-            activate->flags &= ~SATISFIED;
-            activePages.push_back(getPage(tmp));
-            num_active_pages++;
+    
+    if(equalReadWritePri){
+        list<MemReqPtr> mergedQueue = mergeQueues();
+        for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (!isActive(tmp) && bankIsClosed(tmp)) {
+                //Request is not active and bank is closed. Activate it
+                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
                 
-            req = activate;
-            return true;
-        }
-    } 
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (!isActive(tmp) && bankIsClosed(tmp)) {
-            
-            currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
-            
-            //Request is not active and bank is closed. Activate it
-            activate->cmd = Activate;
-            activate->paddr = tmp->paddr;
-            activate->flags &= ~SATISFIED;
-            activePages.push_back(getPage(tmp));
-            num_active_pages++;
+                activate->cmd = Activate;
+                activate->paddr = tmp->paddr;
+                activate->flags &= ~SATISFIED;
+                activePages.push_back(getPage(tmp));
+                num_active_pages++;
                 
-            req = activate;
-            return true;
+                lastIssuedReq = activate;
+                
+                req = activate;
+                return true;
+            }
         }
     }
+    else{
+        // Go through all lists to see if we can activate anything
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (!isActive(tmp) && bankIsClosed(tmp)) {
+                //Request is not active and bank is closed. Activate it
+                
+                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
+                
+                activate->cmd = Activate;
+                activate->paddr = tmp->paddr;
+                activate->flags &= ~SATISFIED;
+                activePages.push_back(getPage(tmp));
+                num_active_pages++;
+                    
+                lastIssuedReq = activate;
+                
+                req = activate;
+                return true;
+            }
+        } 
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (!isActive(tmp) && bankIsClosed(tmp)) {
+                
+                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
+                
+                //Request is not active and bank is closed. Activate it
+                activate->cmd = Activate;
+                activate->paddr = tmp->paddr;
+                activate->flags &= ~SATISFIED;
+                activePages.push_back(getPage(tmp));
+                num_active_pages++;
+                    
+                lastIssuedReq = activate;
+                
+                req = activate;
+                return true;
+            }
+        }
+    }
+    
     return false;
 }
 
@@ -221,6 +252,9 @@ RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
             close->flags &= ~SATISFIED;
             activePages.erase(pageIterator);
             num_active_pages--;
+            
+            lastIssuedReq = close;
+            
             req = close;
             return true;
         }
@@ -230,39 +264,63 @@ RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
 
 bool 
 RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
-    // Go through the active pages and find a ready operation
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (isReady(tmp)) {
-
-            if(isBlocked() && 
-                readQueue.size() <= readqueue_size && 
-                writeQueue.size() <= writequeue_size){
-                setUnBlocked();
-            }
     
-            lastIssuedReq = tmp;
-            lastIsWrite = false;
-        
-            req = tmp;
-            return true;
-        }
-    }
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (isReady(tmp)) {
-
-            if(isBlocked() &&
-                readQueue.size() <= readqueue_size && 
-                writeQueue.size() <= writequeue_size){
-                setUnBlocked();
+    if(equalReadWritePri){
+        list<MemReqPtr> mergedQueue = mergeQueues();
+        for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isReady(tmp)) {
+                
+                if(isBlocked() && 
+                   readQueue.size() <= readqueue_size && 
+                   writeQueue.size() <= writequeue_size){
+                   setUnBlocked();
                 }
-    
+        
                 lastIssuedReq = tmp;
-                lastIsWrite = true;
+                lastIsWrite = (tmp->cmd == Writeback);
                 
                 req = tmp;
+                
                 return true;
+            }
+        }
+    }
+    else{
+        // Go through the active pages and find a ready operation
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isReady(tmp)) {
+    
+                if(isBlocked() && 
+                    readQueue.size() <= readqueue_size && 
+                    writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+        
+                lastIssuedReq = tmp;
+                lastIsWrite = false;
+            
+                req = tmp;
+                return true;
+            }
+        }
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isReady(tmp)) {
+    
+                if(isBlocked() &&
+                    readQueue.size() <= readqueue_size && 
+                    writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                    }
+        
+                    lastIssuedReq = tmp;
+                    lastIsWrite = true;
+                    
+                    req = tmp;
+                    return true;
+            }
         }
     }
     
@@ -271,42 +329,112 @@ RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
 
 bool
 RDFCFSTimingMemoryController::getOther(MemReqPtr& req){
-    // No ready operation, issue any active operation 
-    for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (isActive(tmp)) {
-
-            if(isBlocked() && 
-               readQueue.size() <= readqueue_size && 
-               writeQueue.size() <= writequeue_size){
-                setUnBlocked();
-               }
-        
-               lastIssuedReq = tmp;
-               lastIsWrite = false;
-               
-               req = tmp;
-               return true;
+    
+    if(equalReadWritePri){
+        list<MemReqPtr> mergedQueue = mergeQueues();
+        for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            
+            if (isActive(tmp)) {
+    
+                if(isBlocked() && 
+                   readQueue.size() <= readqueue_size && 
+                   writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+            
+                lastIssuedReq = tmp;
+                lastIsWrite = (tmp->cmd == Writeback);
+            
+                req = tmp;
+                return true;
+            }
         }
     }
-    for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-        MemReqPtr& tmp = *queueIterator;
-        if (isActive(tmp)) {
-
-            if(isBlocked() &&
-               readQueue.size() <= readqueue_size && 
-               writeQueue.size() <= writequeue_size){
-                setUnBlocked();
-               }
-        
-               lastIssuedReq = tmp;
-               lastIsWrite = true;
-               
-               req = tmp;
-               return true;
+    else{
+        // No ready operation, issue any active operation 
+        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isActive(tmp)) {
+    
+                if(isBlocked() && 
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+            
+                lastIssuedReq = tmp;
+                lastIsWrite = false;
+                
+                req = tmp;
+                return true;
+            }
+        }
+        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
+            MemReqPtr& tmp = *queueIterator;
+            if (isActive(tmp)) {
+    
+                if(isBlocked() &&
+                readQueue.size() <= readqueue_size && 
+                writeQueue.size() <= writequeue_size){
+                    setUnBlocked();
+                }
+            
+                lastIssuedReq = tmp;
+                lastIsWrite = true;
+                
+                req = tmp;
+                return true;
+            }
         }
     }
     return false;
+}
+
+list<MemReqPtr>
+RDFCFSTimingMemoryController::mergeQueues(){
+    list<MemReqPtr> retlist;
+
+    list<MemReqPtr>::iterator readIter =  readQueue.begin();
+    list<MemReqPtr>::iterator writeIter = writeQueue.begin();
+    
+    while(writeIter != writeQueue.end() || readIter != readQueue.end()){
+        
+        if(writeIter == writeQueue.end()){
+            MemReqPtr& readReq = *readIter;
+            retlist.push_back(readReq);
+            readIter++;
+        }
+        else if(readIter == readQueue.end()){
+            MemReqPtr& writeReq = *writeIter;
+            retlist.push_back(writeReq);
+            writeIter++;
+        }
+        else{
+            if((*readIter)->inserted_into_memory_controller <= (*writeIter)->inserted_into_memory_controller){
+                MemReqPtr& readReq = *readIter;
+                retlist.push_back(readReq);
+                readIter++;
+            }
+            else{
+                MemReqPtr& writeReq = *writeIter;
+                retlist.push_back(writeReq);
+                writeIter++;
+            }
+        }
+        assert(retlist.back()->cmd == Read || retlist.back()->cmd == Writeback);
+    }
+    
+    // Check that the merge list is sorted
+    list<MemReqPtr>::iterator mergedIter = retlist.begin();
+    Tick prevTick = 0;
+    for( ; mergedIter != retlist.end() ; mergedIter++){
+        MemReqPtr& tmpreq = *mergedIter;
+        assert(prevTick <= tmpreq->inserted_into_memory_controller);
+        prevTick = tmpreq->inserted_into_memory_controller;
+    }
+    
+    return retlist;
 }
 
 list<MemReqPtr>
@@ -400,73 +528,33 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     //FIXME: how should additional L2 misses be handled
     
-    int fromCPU = req->adaptiveMHASenderID;
-    list<MemReqPtr>::iterator readIter;
-    assert(fromCPU != -1);
-    
-    readIter = readQueue.begin();
-    for( ; readIter != readQueue.end(); readIter++){
-        MemReqPtr waitingReq = *readIter;
-        assert(waitingReq->adaptiveMHASenderID != -1);
-        assert(waitingReq->cmd == Read);
-        
-        if(waitingReq->adaptiveMHASenderID != fromCPU){
-            int extraLatency = 0;
-            
-            if(waitingReq->inserted_into_memory_controller <= lastDeliveredReqAt){
-                // already in queue
-                assert(busOccupiedFor > 0);
-                extraLatency = busOccupiedFor;
-            }
-            else{
-                // entered queue while this request was in service
-                extraLatency = curTick - waitingReq->inserted_into_memory_controller;
-                assert(extraLatency >= 0);
-            }
-            
-            waitingReq->busQueueInterference += extraLatency;
-            bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, extraLatency, BUS_INTERFERENCE);
-            waitingReq->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
-        }
-    }
-    
-    if(req->inserted_into_memory_controller > lastDeliveredReqAt
-       && lastOccupyingCPUID != fromCPU
-       && req->cmd == Read){
-        int extraLatency = curTick - req->inserted_into_memory_controller;
-        assert(extraLatency >= 0);
-        req->busQueueInterference += extraLatency;
-        bus->addInterferenceCycles(fromCPU, extraLatency, BUS_INTERFERENCE);
-        req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
-    }
-    
-#ifdef DO_ESTIMATION_TRACE
+// #ifdef DO_ESTIMATION_TRACE
     bool isConflict = false;
     bool isHit = false;
-#endif
+// #endif
     
     req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
     if(isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
         privateLatencyEstimate = 40;
-#ifdef DO_ESTIMATION_TRACE
+// #ifdef DO_ESTIMATION_TRACE
         isHit = true;
-#endif
+// #endif
     }
     else if(isPageConflictOnPrivateSystem(req)){
         privateLatencyEstimate = 151;
-#ifdef DO_ESTIMATION_TRACE
+// #ifdef DO_ESTIMATION_TRACE
         isConflict = true;
-#endif
+// #endif
     }
     else{
         privateLatencyEstimate = 110;
     }
     
-    Tick latencyCorrection = 0;
-    if(privateLatencyEstimate != busOccupiedFor){
-        latencyCorrection = privateLatencyEstimate - busOccupiedFor;
-    }
+//     Tick latencyCorrection = 0;
+//     if(privateLatencyEstimate != busOccupiedFor){
+//         latencyCorrection = privateLatencyEstimate - busOccupiedFor;
+//     }
     
 #ifdef DO_ESTIMATION_TRACE
     if(req->adaptiveMHASenderID == ESTIMATION_CPU_ID){
@@ -481,14 +569,79 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     }
 #endif
     
-    if(req->cmd == Read){
+    int fromCPU = req->adaptiveMHASenderID;
+    list<MemReqPtr>::iterator readIter;
+    assert(fromCPU != -1);
+    
+    readIter = readQueue.begin();
+    for( ; readIter != readQueue.end(); readIter++){
+        MemReqPtr waitingReq = *readIter;
+        assert(waitingReq->adaptiveMHASenderID != -1);
+        assert(waitingReq->cmd == Read);
         
-//         if(req->adaptiveMHASenderID == 1) cout << curTick << ": correcting lat measurements by " << latencyCorrection << "\n";
-        req->busDelay = latencyCorrection;
-        bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
-        req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += latencyCorrection;
+        if(waitingReq->adaptiveMHASenderID == fromCPU){
+            assert(req->cmd == Read || req->cmd == Writeback);
+            if(req->cmd == Read){
+                waitingReq->busAloneQueueEstimate += privateLatencyEstimate;
+            }
+            else{
+                waitingReq->busAloneQueueEstimate += (privateLatencyEstimate * 1.25 );
+                waitingReq->waitWritebackCnt++;
+            }
+        }
     }
-
+    
+    if(req->cmd == Read){
+        req->busAloneServiceEstimate += privateLatencyEstimate;
+    }
+    
+    
+//     readIter = readQueue.begin();
+//     for( ; readIter != readQueue.end(); readIter++){
+//         MemReqPtr waitingReq = *readIter;
+//         assert(waitingReq->adaptiveMHASenderID != -1);
+//         assert(waitingReq->cmd == Read);
+//         
+//         if(waitingReq->adaptiveMHASenderID != fromCPU){
+//             int extraLatency = 0;
+//             
+//             if(waitingReq->inserted_into_memory_controller <= lastDeliveredReqAt){
+//                 // already in queue
+//                 assert(busOccupiedFor > 0);
+//                 extraLatency = busOccupiedFor;
+//             }
+//             else{
+//                 // entered queue while this request was in service
+//                 extraLatency = curTick - waitingReq->inserted_into_memory_controller;
+//                 assert(extraLatency >= 0);
+//             }
+//             
+//             waitingReq->busQueueInterference += extraLatency;
+//             bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, extraLatency, BUS_INTERFERENCE);
+//             waitingReq->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
+//         }
+//         else{
+//             waitingReq->busDelay += latencyCorrection;
+//             bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
+//             waitingReq->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += latencyCorrection;
+//         }
+//     }
+//     
+//     if(req->inserted_into_memory_controller > lastDeliveredReqAt
+//        && lastOccupyingCPUID != fromCPU
+//        && req->cmd == Read){
+//         int extraLatency = curTick - req->inserted_into_memory_controller;
+//         assert(extraLatency >= 0);
+//         req->busQueueInterference += extraLatency;
+//         bus->addInterferenceCycles(fromCPU, extraLatency, BUS_INTERFERENCE);
+//         req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
+//     }
+//     
+//     if(req->cmd == Read){
+//         req->busDelay += latencyCorrection;
+//         bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
+//         req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += latencyCorrection;
+//     }
 }
 
 

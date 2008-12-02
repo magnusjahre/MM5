@@ -519,24 +519,38 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         return true;
     }
     
+    assert(req->cmd == Read || req->cmd == Writeback);
+    assert(req->adaptiveMHASenderID != -1);
+    if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
+    else outstandingWrites[req->adaptiveMHASenderID]++;
+    
     req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
     
     if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
         
-        double threshold = 0.75; //1.0 / (double) cpu_count;
-        if((double) outstandingReads[req->adaptiveMHASenderID] <= (double) memoryController->getReadQueueLength() * threshold 
-            && (double) outstandingWrites[req->adaptiveMHASenderID] <= (double) memoryController->getWriteQueueLength() * threshold ){
-            
+        // higher threshold --> more interference --> lower estimate
+        // lower threshold --> less interference --> higher estimate
+        double threshold = 0.2;
+        bool addInterference = false;
+        if(memoryController->getWaitingReadCount() > memoryController->getWaitingWriteCount()){
+            // assume blocked for reads
+            if(outstandingReads[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() * threshold){
+                addInterference = true;
+            }
+        }
+        else{
+            // assume blocked for writes
+            if(outstandingWrites[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength() * threshold){
+                addInterference = true;
+            }
+        }
+        
+        if(addInterference){
             addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
             req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
         }
     }
-
-    assert(req->cmd == Read || req->cmd == Writeback);
-    assert(req->adaptiveMHASenderID != -1);
-    if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
-    else outstandingWrites[req->adaptiveMHASenderID]++;
     
     if(req->cmd == Read){
         assert(req->adaptiveMHASenderID != -1);
@@ -673,14 +687,23 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         
         Tick serviceLatency = time - curTick;
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
+        Tick totalLat = time - req->inserted_into_memory_controller;
         
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
             
-            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += queueLatency - req->busQueueInterference;
-            estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
+            if(req->waitWritebackCnt >= 10){
+                req->busAloneQueueEstimate = req->busAloneQueueEstimate * 2.0;
+            }
             
-            predictedServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency + req->busDelay;
+            int interference = totalLat - (req->busAloneQueueEstimate + req->busAloneServiceEstimate);
+            req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] = interference;
+            addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
+            
+            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += req->busAloneQueueEstimate;
+            estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
+
+            predictedServiceLatencySum[req->adaptiveMHASenderID] += req->busAloneServiceEstimate;
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
         }
         

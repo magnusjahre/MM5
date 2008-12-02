@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-#define DO_REQUEST_TRACE 1
+// #define DO_REQUEST_TRACE 1
 
 #ifdef DO_REQUEST_TRACE 
 #include <fstream>

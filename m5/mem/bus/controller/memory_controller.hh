@@ -172,6 +172,14 @@ class TimingMemoryController : public SimObject
         return 0;
     }
     
+    virtual int getWaitingReadCount(){
+        return 0;
+    }
+    
+    virtual int getWaitingWriteCount(){
+        return 0;
+    }
+    
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
         fatal("computeInterferenece() in TimingMemoryController does not make sense");
     }
