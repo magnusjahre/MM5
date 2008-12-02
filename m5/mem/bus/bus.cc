@@ -693,7 +693,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             assert(req->adaptiveMHASenderID != -1);
             
             if(req->waitWritebackCnt >= 10){
-                req->busAloneQueueEstimate = req->busAloneQueueEstimate * 2.0;
+                req->busAloneQueueEstimate = (Tick) ((double) req->busAloneQueueEstimate * 2.0);
             }
             
             int interference = totalLat - (req->busAloneQueueEstimate + req->busAloneServiceEstimate);

@@ -585,7 +585,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
                 waitingReq->busAloneQueueEstimate += privateLatencyEstimate;
             }
             else{
-                waitingReq->busAloneQueueEstimate += (privateLatencyEstimate * 1.25 );
+                waitingReq->busAloneQueueEstimate += (Tick) ((double) privateLatencyEstimate * 1.25 );
                 waitingReq->waitWritebackCnt++;
             }
         }
