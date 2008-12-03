@@ -528,27 +528,31 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     //FIXME: how should additional L2 misses be handled
     
-// #ifdef DO_ESTIMATION_TRACE
+#ifdef DO_ESTIMATION_TRACE
     bool isConflict = false;
     bool isHit = false;
-// #endif
+#endif
+    
+    assert(req->cmd == Read || req->cmd == Writeback);
     
     req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
     if(isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
         privateLatencyEstimate = 40;
-// #ifdef DO_ESTIMATION_TRACE
+#ifdef DO_ESTIMATION_TRACE
         isHit = true;
-// #endif
+#endif
     }
     else if(isPageConflictOnPrivateSystem(req)){
-        privateLatencyEstimate = 151;
-// #ifdef DO_ESTIMATION_TRACE
+        if(req->cmd == Read) privateLatencyEstimate = 152;
+        else privateLatencyEstimate = 135;
+#ifdef DO_ESTIMATION_TRACE
         isConflict = true;
-// #endif
+#endif
     }
     else{
-        privateLatencyEstimate = 110;
+        if(req->cmd == Read) privateLatencyEstimate = 108;
+        else privateLatencyEstimate = 79;
     }
     
 //     Tick latencyCorrection = 0;
@@ -582,10 +586,10 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
         if(waitingReq->adaptiveMHASenderID == fromCPU){
             assert(req->cmd == Read || req->cmd == Writeback);
             if(req->cmd == Read){
-                waitingReq->busAloneQueueEstimate += privateLatencyEstimate;
+                waitingReq->busAloneReadQueueEstimate += privateLatencyEstimate;
             }
             else{
-                waitingReq->busAloneQueueEstimate += (Tick) ((double) privateLatencyEstimate * 1.25 );
+                waitingReq->busAloneWriteQueueEstimate += (int) ((double) privateLatencyEstimate * 1.5);
                 waitingReq->waitWritebackCnt++;
             }
         }

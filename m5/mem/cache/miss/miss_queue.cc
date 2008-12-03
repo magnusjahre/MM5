@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-// #define DO_REQUEST_TRACE 1
+#define DO_REQUEST_TRACE 1
 
 #ifdef DO_REQUEST_TRACE 
 #include <fstream>
@@ -357,6 +357,130 @@ MissQueue::regStats(const string &name)
     
     avg_roundtrip_latency = sum_roundtrip_latency / num_roundtrip_responses;
     
+    sum_roundtrip_interference
+        .name(name +".sum_roundtrip_interference")
+        .desc("Total amount of interference experienced by requests sent from this cache")
+        ;
+    
+    avg_roundtrip_interference
+        .name(name +".avg_roundtrip_interference")
+        .desc("Average interference experienced by requests sent from this cache")
+        ;
+    
+    avg_roundtrip_interference = sum_roundtrip_interference / num_roundtrip_responses;
+
+    interconnect_entry_interference
+      .name(name +".sum_ic_entry_interference")
+      .desc("Aggregate interconnect entry interference")
+      ;
+    
+    interconnect_transfer_interference
+      .name(name +".sum_ic_transfer_interference")
+      .desc("Aggregate interconnect transfer interference")
+      ;
+    
+    interconnect_delivery_interference
+      .name(name +".sum_ic_delivery_interference")
+      .desc("Aggregate interconnect delivery interference")
+      ;
+    
+    bus_entry_interference
+      .name(name +".sum_bus_entry_interference")
+      .desc("Aggregate bus entry interference")
+      ;
+    
+    bus_transfer_interference
+      .name(name +".sum_bus_transfer_interference")
+      .desc("Aggregate bus transfer interference")
+      ;
+    
+    avg_interconnect_entry_interference
+      .name(name +".avg_ic_entry_interference")
+      .desc("Average interconnect entry interference")
+      ;
+    
+    avg_interconnect_transfer_interference
+      .name(name +".avg_ic_transfer_interference")
+      .desc("Average interconnect transfer interference")
+      ;
+
+    avg_interconnect_delivery_interference
+      .name(name +".avg_ic_delivery_interference")
+      .desc("Average interconnect delivery interference")
+      ;
+
+    avg_bus_entry_interference
+      .name(name +".avg_bus_entry_interference")
+      .desc("Average bus entry interference")
+      ;
+
+    avg_bus_transfer_interference
+      .name(name +".avg_bus_transfer_interference")
+      .desc("Average bus transfer interference")
+      ;
+    
+    avg_interconnect_entry_interference = interconnect_entry_interference / num_roundtrip_responses;
+    avg_interconnect_transfer_interference = interconnect_transfer_interference / num_roundtrip_responses;
+    avg_interconnect_delivery_interference = interconnect_delivery_interference / num_roundtrip_responses;
+    avg_bus_entry_interference = bus_entry_interference / num_roundtrip_responses;
+    avg_bus_transfer_interference = bus_transfer_interference / num_roundtrip_responses;
+
+    interconnect_entry_latency
+      .name(name +".sum_ic_entry_latency")
+      .desc("Aggregate interconnect entry latency")
+      ;
+
+    interconnect_transfer_latency
+      .name(name +".sum_ic_transfer_latency")
+      .desc("Aggregate interconnect transfer latency")
+      ;
+
+    interconnect_delivery_latency
+      .name(name +".sum_ic_delivery_latency")
+      .desc("Aggregate interconnect delivery latency")
+      ;
+
+    bus_entry_latency
+      .name(name +".sum_bus_entry_latency")
+      .desc("Aggregate bus entry latency")
+      ;
+
+    bus_transfer_latency
+      .name(name +".sum_bus_transfer_latency")
+      .desc("Aggregate bus transfer latency")
+      ;
+
+    avg_interconnect_entry_latency
+      .name(name +".avg_ic_entry_latency")
+      .desc("Average interconnect entry latency")
+      ;
+
+    avg_interconnect_transfer_latency
+      .name(name +".avg_ic_transfer_latency")
+      .desc("Average interconnect transfer latency")
+      ;
+
+    avg_interconnect_delivery_latency
+      .name(name +".avg_ic_delivery_latency")
+      .desc("Average interconnect delivery latency")
+      ;
+
+    avg_bus_entry_latency
+      .name(name +".avg_bus_entry_latency")
+      .desc("Average bus entry latency")
+      ;
+
+    avg_bus_transfer_latency
+      .name(name +".avg_bus_transfer_latency")
+      .desc("Average bus transfer latency")
+      ;
+
+    avg_interconnect_entry_latency = interconnect_entry_latency / num_roundtrip_responses;
+    avg_interconnect_transfer_latency = interconnect_transfer_latency / num_roundtrip_responses;
+    avg_interconnect_delivery_latency = interconnect_delivery_latency /num_roundtrip_responses;
+    avg_bus_entry_latency = bus_entry_latency / num_roundtrip_responses;
+    avg_bus_transfer_latency = bus_transfer_latency / num_roundtrip_responses;
+ 
 }
 
 void
@@ -656,38 +780,61 @@ MissQueue::markInService(MemReqPtr &req)
 }
 
 void
-MissQueue::writeTraceFiles(MemReqPtr& req){
+MissQueue::measureInterference(MemReqPtr& req){
+    
+    //NOTE: finishedInCacheAt is written in the L2 and cannot be used
+    sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
+    num_roundtrip_responses++;
+
+    interconnect_entry_latency +=  req->interferenceBreakdown[0];
+    interconnect_transfer_latency +=  req->interferenceBreakdown[1];
+    interconnect_delivery_latency +=  req->interferenceBreakdown[2];
+    bus_entry_latency +=  req->interferenceBreakdown[3];
+    bus_transfer_latency +=  req->interferenceBreakdown[4];
+    
+    if(cache->cpuCount > 1){
+      for(int i=0;i<req->interferenceBreakdown.size();i++){
+        sum_roundtrip_interference += req->interferenceBreakdown[i];
+      }
+
+      interconnect_entry_interference += req->interferenceBreakdown[0];
+      interconnect_transfer_interference += req->interferenceBreakdown[1];
+      interconnect_delivery_interference += req->interferenceBreakdown[2];
+      bus_entry_interference += req->interferenceBreakdown[3];
+      bus_transfer_interference += req->interferenceBreakdown[4];
+    }
+    
 #ifdef DO_REQUEST_TRACE 
     
     if(curTick >= cache->detailedSimulationStartTick){
-        // Latency trace
-        stringstream filename;
-        filename << cache->name() << "LatencyTrace.txt";
-        ofstream latencyfile(filename.str().c_str(), ofstream::app);
+      // Latency trace
+      stringstream filename;
+      filename << cache->name() << "LatencyTrace.txt";
+      ofstream latencyfile(filename.str().c_str(), ofstream::app);
         
-        latencyfile << curTick;
-        latencyfile << " ; " << req->paddr;
-        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-            latencyfile << " ; " <<  req->latencyBreakdown[i];
-        }
-        latencyfile << "\n";
-        latencyfile.flush();
-        latencyfile.close();
+      latencyfile << curTick;
+      latencyfile << " ; " << req->paddr;
+      for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+	latencyfile << " ; " <<  req->latencyBreakdown[i];
+      }
+      latencyfile << "\n";
+      latencyfile.flush();
+      latencyfile.close();
         
-        // interference trace
-        stringstream filename2;
-        filename2 << cache->name() << "InterferenceTrace.txt";
-        ofstream interferencefile(filename2.str().c_str(), ofstream::app);
+      // interference trace
+      stringstream filename2;
+      filename2 << cache->name() << "InterferenceTrace.txt";
+      ofstream interferencefile(filename2.str().c_str(), ofstream::app);
         
-        interferencefile << curTick;
-        interferencefile << " ; " << req->paddr;
-        for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-            interferencefile << " ; " <<  req->interferenceBreakdown[i];
-        }
-        interferencefile << "\n";
-        
-        interferencefile.flush();
-        interferencefile.close();
+      interferencefile << curTick;
+      interferencefile << " ; " << req->paddr;
+      for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+	interferencefile << " ; " <<  req->interferenceBreakdown[i];
+      }
+      interferencefile << "\n";
+      
+      interferencefile.flush();
+      interferencefile.close();
     }
 #endif
 }
@@ -714,11 +861,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
         
         mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
         
-        //NOTE: finishedInCacheAt is written in the L2 and cannot be used
-        sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
-        num_roundtrip_responses++;
-        
-        if(!cache->isShared) writeTraceFiles(req);
+        if(!cache->isShared) measureInterference(req);
         
 	// targets were handled in the cache tags
 	if (mshr == noTargetMSHR) {

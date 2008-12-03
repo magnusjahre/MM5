@@ -163,7 +163,34 @@ class MissQueue
     Stats::Scalar<> sum_roundtrip_latency;
     Stats::Scalar<> num_roundtrip_responses;
     Stats::Formula avg_roundtrip_latency;
+    
+    Stats::Scalar<> sum_roundtrip_interference;
+    Stats::Formula avg_roundtrip_interference;
+    
+    Stats::Scalar<> interconnect_entry_interference;
+    Stats::Scalar<> interconnect_transfer_interference;
+    Stats::Scalar<> interconnect_delivery_interference;
+    Stats::Scalar<> bus_entry_interference;
+    Stats::Scalar<> bus_transfer_interference;
 
+    Stats::Formula avg_interconnect_entry_interference;
+    Stats::Formula avg_interconnect_transfer_interference;
+    Stats::Formula avg_interconnect_delivery_interference;
+    Stats::Formula avg_bus_entry_interference;
+    Stats::Formula avg_bus_transfer_interference;
+
+    Stats::Scalar<> interconnect_entry_latency;
+    Stats::Scalar<> interconnect_transfer_latency;
+    Stats::Scalar<> interconnect_delivery_latency;
+    Stats::Scalar<> bus_entry_latency;
+    Stats::Scalar<> bus_transfer_latency;
+
+    Stats::Formula avg_interconnect_entry_latency;
+    Stats::Formula avg_interconnect_transfer_latency;
+    Stats::Formula avg_interconnect_delivery_latency;
+    Stats::Formula avg_bus_entry_latency;
+    Stats::Formula avg_bus_transfer_latency;
+    
     /**
      * @}
      */
@@ -396,7 +423,7 @@ class MissQueue
     
     std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
     
-    void writeTraceFiles(MemReqPtr& req);
+    void measureInterference(MemReqPtr& req);
 };
 
 #endif //__MISS_QUEUE_HH__

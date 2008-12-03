@@ -46,7 +46,7 @@ echo
 
 ../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$checkCPU]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$checkCPU -EMEMORY-ADDRESS-PARTS=4 -ECACHE-PARTITIONING=StaticUniform ../../configs/CMP/run.py 
 
-cp test_output.txt ../stats_$i.txt
+cp test_output.txt ../stats_${bmarray[$checkCPU]}.txt
 cp cpuSwitchInsts.txt ../$(echo $i)_cpuSwitchInsts.txt
 
 cp L1dcaches0LatencyTrace.txt ../alone_dcache_lat.txt

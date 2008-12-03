@@ -693,17 +693,19 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             assert(req->adaptiveMHASenderID != -1);
             
             if(req->waitWritebackCnt >= 10){
-                req->busAloneQueueEstimate = (Tick) ((double) req->busAloneQueueEstimate * 2.0);
+                req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
             }
             
-            int interference = totalLat - (req->busAloneQueueEstimate + req->busAloneServiceEstimate);
+            int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
             req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] = interference;
             addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
             
-            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] += req->busAloneQueueEstimate;
+            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] 
+                    += req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate;
             estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
 
-            predictedServiceLatencySum[req->adaptiveMHASenderID] += req->busAloneServiceEstimate;
+            predictedServiceLatencySum[req->adaptiveMHASenderID] 
+                    += req->busAloneServiceEstimate;
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
         }
         

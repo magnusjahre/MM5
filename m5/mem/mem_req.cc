@@ -145,7 +145,8 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->finishedInCacheAt = r->finishedInCacheAt;
     req->memBusBlockedWaitCycles = r->memBusBlockedWaitCycles;
     req->busAloneServiceEstimate = r->busAloneServiceEstimate;
-    req->busAloneQueueEstimate = r->busAloneQueueEstimate;
+    req->busAloneReadQueueEstimate = r->busAloneReadQueueEstimate;
+    req->busAloneWriteQueueEstimate = r->busAloneWriteQueueEstimate;
     req->waitWritebackCnt = r->waitWritebackCnt;
     
     req->latencyBreakdown = r->latencyBreakdown;
@@ -222,7 +223,8 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->finishedInCacheAt = from->finishedInCacheAt;
     to->memBusBlockedWaitCycles = from->memBusBlockedWaitCycles;
     to->busAloneServiceEstimate = from->busAloneServiceEstimate;
-    to->busAloneQueueEstimate = from->busAloneQueueEstimate;
+    to->busAloneReadQueueEstimate = from->busAloneReadQueueEstimate;
+    to->busAloneWriteQueueEstimate = from->busAloneWriteQueueEstimate;
     to->waitWritebackCnt = from->waitWritebackCnt;
     
     to->latencyBreakdown = from->latencyBreakdown;
