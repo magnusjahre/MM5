@@ -96,7 +96,7 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
         if(req->cmd == Read && waitTime > 0){
             assert(req->adaptiveMHASenderID != -1);
                 
-            int extraDelay = waitTime * 0.75;
+            int extraDelay = (int) ((double) waitTime * 0.75);
             cpuEntryInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
             adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
             req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += extraDelay;
