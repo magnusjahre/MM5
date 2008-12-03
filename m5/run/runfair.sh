@@ -61,7 +61,10 @@ python -c "import fairmha.getInterference as g; g.printError('stats_$wl.txt', $f
 echo
 python -c "import fairmha.getInterference as g; g.printCommitOnceErrors('stats_$wl.txt', $fileArray)"
 echo
-python -c "import fairmha.getInterference as g;g.printBusErrors('stats_$wl.txt', $fileArray)"
+python -c "import fairmha.getInterference as g; g.getInterferenceBreakdownError('stats_$wl.txt', $fileArray, True)"
 echo
-python -c "import fairmha.getInterference as g;g.printCrossbarErrors('stats_$wl.txt', $fileArray)"
-echo
+#echo
+#python -c "import fairmha.getInterference as g;g.printBusErrors('stats_$wl.txt', $fileArray)"
+#echo
+#python -c "import fairmha.getInterference as g;g.printCrossbarErrors('stats_$wl.txt', $fileArray)"
+#echo
