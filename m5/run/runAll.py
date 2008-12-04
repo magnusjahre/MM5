@@ -6,7 +6,7 @@ fw = 10000000
 sim = 1000000
 np = 4
 nums = range(1,41)
-cpuerrorpat = re.compile("CPU[0-9].\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+[0-9]+.*[0-9]+")
+cpuerrorpat = re.compile("CPU[0-9].\s+-?[0-9]+\s+-?[0-9]+\s+-?[0-9]+\s+-?[0-9]+.*[0-9]+")
 errorpat = re.compile("L1.caches.*[%R]")
 
 
@@ -60,6 +60,7 @@ for wl in wls:
     errstr += str(min(foundvals)).rjust(8)
 
     cpures = cpuerrorpat.findall(output)
+    
     foundcpus = []
     for r in cpures:
         try:
