@@ -692,11 +692,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
             
-            if(req->waitWritebackCnt >= 10){
-                req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
-            }
+//             if(req->waitWritebackCnt >= 10){
+//                 req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
+//             }
             
             int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
+            
             req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] = interference;
             addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
             

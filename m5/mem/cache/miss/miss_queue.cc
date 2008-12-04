@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-// #define DO_REQUEST_TRACE 1
+#define DO_REQUEST_TRACE 1
 
 #ifdef DO_REQUEST_TRACE 
 #include <fstream>
@@ -786,22 +786,22 @@ MissQueue::measureInterference(MemReqPtr& req){
     sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
     num_roundtrip_responses++;
 
-    interconnect_entry_latency +=  req->latencyBreakdown[0];
-    interconnect_transfer_latency +=  req->latencyBreakdown[1];
-    interconnect_delivery_latency +=  req->latencyBreakdown[2];
-    bus_entry_latency +=  req->latencyBreakdown[3];
-    bus_transfer_latency +=  req->latencyBreakdown[4];
+    interconnect_entry_latency +=  req->latencyBreakdown[INTERCONNECT_ENTRY_LAT];
+    interconnect_transfer_latency +=  req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT];
+    interconnect_delivery_latency +=  req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT];
+    bus_entry_latency +=  req->latencyBreakdown[MEM_BUS_ENTRY_LAT];
+    bus_transfer_latency +=  req->latencyBreakdown[MEM_BUS_TRANSFER_LAT];
     
     if(cache->cpuCount > 1){
       for(int i=0;i<req->interferenceBreakdown.size();i++){
         sum_roundtrip_interference += req->interferenceBreakdown[i];
       }
 
-      interconnect_entry_interference += req->interferenceBreakdown[0];
-      interconnect_transfer_interference += req->interferenceBreakdown[1];
-      interconnect_delivery_interference += req->interferenceBreakdown[2];
-      bus_entry_interference += req->interferenceBreakdown[3];
-      bus_transfer_interference += req->interferenceBreakdown[4];
+      interconnect_entry_interference += req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT];
+      interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
+      interconnect_delivery_interference += req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT];
+      bus_entry_interference += req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
+      bus_transfer_interference += req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT];
     }
     
 #ifdef DO_REQUEST_TRACE 

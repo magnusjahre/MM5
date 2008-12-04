@@ -15,8 +15,8 @@ class BaseL1Cache(BaseCache):
     #write_buffers = 64
     #tgts_per_mshr = 64 
     
-    mshrs = 1
-    write_buffers = 1
+    mshrs = 4
+    write_buffers = 4
     tgts_per_mshr = 4
     #tgts_per_mshr = 8
 
