@@ -102,6 +102,9 @@ class Bus : public BaseHier
     
     bool infiniteBW;
     
+    std::vector<std::vector<std::vector<Tick> > > queueDelaySum;
+    std::vector<std::vector<std::vector<int> > > queueDelayRequests;
+    
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -206,7 +209,8 @@ class Bus : public BaseHier
         Tick _switch_at,
         TimingMemoryController* _fwController,
         TimingMemoryController* _memoryController,
-        bool _infiniteBW);
+        bool _infiniteBW,
+        Tick _final_sim_tick);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -347,6 +351,8 @@ class Bus : public BaseHier
     void resetHitToMissInterferenceStats();
     void addInterference(int victimID, int interfererID, interference_type iType);
     void addInterferenceCycles(int victimID, Tick delay, interference_type iType);
+    
+    void dumpQueueDelayStats();
 
   private:
     std::vector<int> perCPUDataBusUse;
@@ -642,6 +648,28 @@ class MemoryControllerSwitchEvent : public Event
     virtual const char *description(){
         return "Memory Controller Switch Event";
     }
+};
+
+class MemoryBusDumpEvent : public Event
+{
+    private:
+        Bus* bus;
+    
+    public:
+
+        MemoryBusDumpEvent(Bus *_bus)
+            : Event(&mainEventQueue), bus(_bus)
+        {
+        }
+        
+        void process(){
+            bus->dumpQueueDelayStats();
+            delete this;
+        }
+
+        virtual const char *description(){
+            return "Memory Bus Dump Event";
+        }
 };
 
 #endif // __BUS_HH__

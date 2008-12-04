@@ -422,6 +422,9 @@ else:
 
     root.setCPU(root.simpleCPU)
 
+if simulationEnds != -1:
+    Bus.final_sim_tick = simulationEnds
+
 ###############################################################################
 # Interconnect, L2 caches and Memory Bus
 ###############################################################################

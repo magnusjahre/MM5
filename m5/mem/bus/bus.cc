@@ -55,6 +55,7 @@
 #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
 #include <fstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -76,7 +77,8 @@ Bus::Bus(const string &_name,
          Tick _switch_at,
          TimingMemoryController* _fwController,
          TimingMemoryController* _memoryController,
-         bool _infiniteBW)
+         bool _infiniteBW,
+         Tick _final_sim_tick)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -129,6 +131,13 @@ Bus::Bus(const string &_name,
     
     outstandingReads.resize(cpu_count, 0);
     outstandingWrites.resize(cpu_count, 0);
+    
+    int rl = _memoryController->getReadQueueLength()+1;
+    int wl = _memoryController->getWriteQueueLength()+1;
+    queueDelaySum.resize(cpu_count, vector<vector<Tick> >(rl, vector<Tick>(wl, 0)));
+    queueDelayRequests.resize(cpu_count, vector<vector<int> >(rl, vector<int>(wl, 0)));
+    MemoryBusDumpEvent* dumpEvent = new MemoryBusDumpEvent(this);
+    dumpEvent->schedule(_final_sim_tick);
 
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
     
@@ -689,6 +698,11 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
         Tick totalLat = time - req->inserted_into_memory_controller;
         
+        assert(req->entryReadCnt <= memoryController->getReadQueueLength());
+        assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
+        queueDelaySum[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt] += queueLatency;
+        queueDelayRequests[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt]++;
+        
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
             
@@ -723,6 +737,52 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     else if(req->cmd == Writeback && adaptiveMHA != NULL && req->adaptiveMHASenderID != -1){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->writebackGeneratedAt, req->paddr, false);
     }
+}
+
+void 
+Bus::dumpQueueDelayStats(){
+    ofstream qfile("MemoryBusQueueTime.txt");
+    
+    int WIDTH = 10;
+    
+    for(int i=0;i<cpu_count;i++){
+        qfile << "CPU" << i << " queue trace\n\n";
+        
+        qfile << setw(WIDTH) << "";
+        for(int k=0;k<=memoryController->getWriteQueueLength();k++){
+            qfile << setw(WIDTH) << k;
+        }
+        qfile << "\n";
+        
+        for(int j=0;j<=memoryController->getReadQueueLength();j++){
+            qfile << setw(WIDTH) << j << ": ";
+            for(int k=0;k<=memoryController->getWriteQueueLength();k++){
+                qfile << setw(WIDTH) << queueDelaySum[i][j][k] << " ";
+            }
+            qfile << "\n";
+        }
+        qfile << "\n";
+        
+        qfile << "CPU" << i << " request trace\n\n";
+        
+        qfile << setw(WIDTH) << "";
+        for(int k=0;k<=memoryController->getWriteQueueLength();k++){
+            qfile << setw(WIDTH) << k;
+        }
+        qfile << "\n";
+        
+        for(int j=0;j<=memoryController->getReadQueueLength();j++){
+            qfile << setw(WIDTH-1) <<  j << ": ";
+            for(int k=0;k<=memoryController->getWriteQueueLength();k++){
+                qfile << setw(WIDTH-1) << queueDelayRequests[i][j][k] << " ";
+            }
+            qfile << "\n";
+        }
+        qfile << "\n";
+    }
+    
+    qfile.flush();
+    qfile.close();
 }
 
 int
@@ -1263,6 +1323,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<TimingMemoryController *> fast_forward_controller;
     SimObjectParam<TimingMemoryController *> memory_controller;
     Param<bool> infinite_bw;
+    Param<Tick> final_sim_tick;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1280,7 +1341,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(switch_at, "Tick where memorycontroller is switched", 0),
     INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
-    INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false)
+    INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false),
+    INIT_PARAM(final_sim_tick, "The tick simulation ends")
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1297,7 +1359,8 @@ CREATE_SIM_OBJECT(Bus)
                    switch_at,
                    fast_forward_controller,
                    memory_controller,
-                   infinite_bw);
+                   infinite_bw,
+                   final_sim_tick);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

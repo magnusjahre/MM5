@@ -12,4 +12,5 @@ class Bus(BaseHier):
     fast_forward_controller = Param.TimingMemoryController("Memory controller used in fast-forwarding")
     memory_controller = Param.TimingMemoryController("Memory Controller Object")
     infinite_bw = Param.Bool("Infinite bandwidth and only page hits")
+    final_sim_tick = Param.Tick("The tick simulation ends")
 

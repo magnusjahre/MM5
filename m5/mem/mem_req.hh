@@ -229,6 +229,9 @@ class MemReq : public FastAlloc, public RefCounted
     Tick busAloneWriteQueueEstimate;
     int waitWritebackCnt;
     
+    int entryReadCnt;
+    int entryWriteCnt;
+    
     std::vector<int> latencyBreakdown;
     std::vector<int> interferenceBreakdown;
 
@@ -295,7 +298,9 @@ class MemReq : public FastAlloc, public RefCounted
           busAloneServiceEstimate(0),
           busAloneReadQueueEstimate(0),
           busAloneWriteQueueEstimate(0),
-          waitWritebackCnt(0)
+          waitWritebackCnt(0),
+          entryReadCnt(0),
+          entryWriteCnt(0)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -357,6 +362,8 @@ class MemReq : public FastAlloc, public RefCounted
         busAloneReadQueueEstimate = r.busAloneReadQueueEstimate;
         busAloneWriteQueueEstimate = r.busAloneWriteQueueEstimate;
         waitWritebackCnt = r.waitWritebackCnt;
+        entryReadCnt = r.entryReadCnt;
+        entryWriteCnt = r.entryWriteCnt;
         
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;

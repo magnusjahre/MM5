@@ -63,6 +63,9 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     
     req->inserted_into_memory_controller = curTick;
+    req->entryReadCnt = readQueue.size();
+    req->entryWriteCnt = writeQueue.size();
+    
     if (req->cmd == Read) {
         readQueue.push_back(req);
         if (readQueue.size() > readqueue_size) { // full queue + one in progress
