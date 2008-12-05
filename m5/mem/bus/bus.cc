@@ -62,6 +62,8 @@ using namespace std;
 /** The maximum value of type Tick. */
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
+#define TRACE_QUEUE
+
 #define MAX_ARB_RESCHED 1000
 
 #define WARMUP_LATENCY 40
@@ -168,6 +170,12 @@ Bus::Bus(const string &_name,
     generateRequests();
 #endif
     
+#ifdef TRACE_QUEUE
+    ofstream qfile("MemoryBusQueueTrace.txt");
+    qfile << "Reads,Writes,Latency\n";
+    qfile.flush();
+    qfile.close();
+#endif
 }
 
 Bus::~Bus()
@@ -702,6 +710,15 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
         queueDelaySum[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt] += queueLatency;
         queueDelayRequests[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt]++;
+        
+#ifdef TRACE_QUEUE
+        ofstream qfile("MemoryBusQueueTrace.txt", ofstream::app);
+        qfile << req->entryReadCnt << ";";
+        qfile << req->entryWriteCnt << ";";
+        qfile << queueLatency << "\n";
+        qfile.flush();
+        qfile.close();
+#endif
         
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
