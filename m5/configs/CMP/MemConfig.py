@@ -138,12 +138,14 @@ class ConventionalMemBus(Bus):
 class ReadyFirstMemoryController(RDFCFSMemoryController):
     readqueue_size = 64
     writequeue_size = 64
-    reserved_slots = 2
+    inf_write_bw = False
+    page_policy = "ClosedPage"
+    priority_scheme = "FCFS"
     
-class FastForwardMemoryController(RDFCFSMemoryController):
-    readqueue_size = 64
-    writequeue_size = 64
-    reserved_slots = 2
+#class FastForwardMemoryController(RDFCFSMemoryController):
+    #readqueue_size = 64
+    #writequeue_size = 64
+    #reserved_slots = 2
     
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 64

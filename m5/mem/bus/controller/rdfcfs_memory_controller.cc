@@ -7,6 +7,8 @@
 
 #include "mem/bus/controller/rdfcfs_memory_controller.hh"
 
+#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
+
 // #define DO_ESTIMATION_TRACE 1
 #define ESTIMATION_CPU_ID 3
 
@@ -20,7 +22,9 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
                                                            int _readqueue_size,
                                                            int _writequeue_size,
                                                            int _reserved_slots, 
-                                                           bool _infinite_write_bw)
+                                                           bool _infinite_write_bw,
+                                                           priority_scheme _priority_scheme,
+                                                           page_policy _page_policy)
     : TimingMemoryController(_name) {
     
     num_active_pages = 0;
@@ -45,7 +49,25 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     lastDeliveredReqAt = 0;
     lastOccupyingCPUID = -1;
     
-    equalReadWritePri = true; // FIXME: parameterize
+    if(_priority_scheme == FCFS){
+        equalReadWritePri = true;
+    }
+    else if(_priority_scheme == RoW){
+        equalReadWritePri = false;
+    }
+    else{
+        fatal("Unsupported priority scheme");
+    }
+    
+    if(_page_policy == OPEN_PAGE){
+        closedPagePolicy = false;
+    }
+    else if(_page_policy == CLOSED_PAGE){
+        closedPagePolicy = true;
+    }
+    else{
+        fatal("Unsupported page policy");
+    }
     
 #ifdef DO_ESTIMATION_TRACE
     ofstream ofile("estimation_access_trace.txt");
@@ -63,8 +85,27 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     
     req->inserted_into_memory_controller = curTick;
-    req->entryReadCnt = readQueue.size();
-    req->entryWriteCnt = writeQueue.size();
+    
+    if(bus->adaptiveMHA->getCPUCount() > 1){
+        int privReadCnt = 0;
+        for(queueIterator = readQueue.begin();queueIterator != readQueue.end(); queueIterator++){
+            MemReqPtr tmp = *queueIterator;
+            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID) privReadCnt++;
+        }
+        
+        int privWriteCnt = 0;
+        for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
+            MemReqPtr tmp = *queueIterator;
+            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID) privWriteCnt++;
+        }
+        
+        req->entryReadCnt = privReadCnt;
+        req->entryWriteCnt = privWriteCnt;
+    }
+    else{
+        req->entryReadCnt = readQueue.size();
+        req->entryWriteCnt = writeQueue.size();
+    }
     
     if (req->cmd == Read) {
         readQueue.push_back(req);
@@ -86,7 +127,8 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
 bool RDFCFSTimingMemoryController::hasMoreRequests() {
     
-    if (readQueue.empty() && writeQueue.empty() && (num_active_pages == 0)) {
+    if (readQueue.empty() && writeQueue.empty() 
+        && (closedPagePolicy ? num_active_pages == 0 : true)) {
       return false;
     } else {
       return true;
@@ -106,8 +148,10 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     }
 
     if(!activateFound){
-        closeFound = getClose(retval);
-        if(closeFound) DPRINTF(MemoryController, "Found close request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        if(closedPagePolicy){
+            closeFound = getClose(retval);
+            if(closeFound) DPRINTF(MemoryController, "Found close request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        }
     }
     
     if(!activateFound && !closeFound){
@@ -120,7 +164,7 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         bool otherFound = getOther(retval);
         if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %x\n", retval->cmd, retval->paddr);
         assert(otherFound);
-        assert(!bankIsClosed(retval));
+        if(closedPagePolicy) assert(!bankIsClosed(retval));
     }
     
     // Remove request from queue (if read or write)
@@ -175,7 +219,9 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
-                activePages.push_back(getPage(tmp));
+                
+                assert(activePages.find(getMemoryBankID(tmp->paddr)) == activePages.end());
+                activePages[getMemoryBankID(tmp->paddr)] = ActivationEntry(getPage(tmp), curTick);
                 num_active_pages++;
                 
                 lastIssuedReq = activate;
@@ -197,7 +243,8 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
-                activePages.push_back(getPage(tmp));
+                assert(activePages.find(getMemoryBankID(tmp->paddr)) == activePages.end());
+                activePages[getMemoryBankID(tmp->paddr)] = ActivationEntry(getPage(tmp),curTick);
                 num_active_pages++;
                     
                 lastIssuedReq = activate;
@@ -216,7 +263,8 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
-                activePages.push_back(getPage(tmp));
+                assert(activePages.find(getMemoryBankID(tmp->paddr)) == activePages.end());
+                activePages[getMemoryBankID(tmp->paddr)] = ActivationEntry(getPage(tmp),curTick);
                 num_active_pages++;
                     
                 lastIssuedReq = activate;
@@ -234,7 +282,7 @@ bool
 RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
     // Check if we can close the first page (eg, there is no active requests to this page
     for (pageIterator = activePages.begin(); pageIterator != activePages.end(); pageIterator++) {
-        Addr Active = *pageIterator;
+        Addr Active = pageIterator->second.address;
         bool canClose = true;
         for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
@@ -334,64 +382,118 @@ bool
 RDFCFSTimingMemoryController::getOther(MemReqPtr& req){
     
     if(equalReadWritePri){
+        
+        // Send oldest request
+        
         list<MemReqPtr> mergedQueue = mergeQueues();
-        for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
+        assert(!mergedQueue.empty());
+        MemReqPtr& tmp = mergedQueue.front();
             
-            if (isActive(tmp)) {
-    
-                if(isBlocked() && 
-                   readQueue.size() <= readqueue_size && 
-                   writeQueue.size() <= writequeue_size){
-                    setUnBlocked();
-                }
-            
-                lastIssuedReq = tmp;
-                lastIsWrite = (tmp->cmd == Writeback);
-            
-                req = tmp;
-                return true;
-            }
-        }
-    }
-    else{
-        // No ready operation, issue any active operation 
-        for (queueIterator = readQueue.begin(); queueIterator != readQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
-            if (isActive(tmp)) {
-    
-                if(isBlocked() && 
+        if (isActive(tmp)) {
+
+            if(isBlocked() && 
                 readQueue.size() <= readqueue_size && 
                 writeQueue.size() <= writequeue_size){
+                setUnBlocked();
+            }
+        
+            lastIssuedReq = tmp;
+            lastIsWrite = (tmp->cmd == Writeback);
+        
+            req = tmp;
+            return true;
+        }
+        
+        assert(!closedPagePolicy);
+        return closePageForRequest(req, tmp);
+        
+    }
+    else{
+        
+        // Strict read over write priority
+        
+        if(!readQueue.empty()){
+            MemReqPtr& tmp = readQueue.front();
+            if (isActive(tmp)) {
+    
+                if(isBlocked() && readQueue.size() <= readqueue_size && writeQueue.size() <= writequeue_size){
                     setUnBlocked();
                 }
             
                 lastIssuedReq = tmp;
                 lastIsWrite = false;
-                
+            
                 req = tmp;
                 return true;
             }
+            
+            assert(!closedPagePolicy);
+            return closePageForRequest(req, tmp);
         }
-        for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
-            MemReqPtr& tmp = *queueIterator;
+        else{
+            
+            assert(!writeQueue.empty());
+            MemReqPtr& tmp = writeQueue.front();
             if (isActive(tmp)) {
     
-                if(isBlocked() &&
-                readQueue.size() <= readqueue_size && 
-                writeQueue.size() <= writequeue_size){
+                if(isBlocked() && readQueue.size() <= readqueue_size && writeQueue.size() <= writequeue_size){
                     setUnBlocked();
                 }
             
                 lastIssuedReq = tmp;
                 lastIsWrite = true;
-                
+            
                 req = tmp;
                 return true;
             }
+            
+            assert(!closedPagePolicy);
+            return closePageForRequest(req, tmp);
         }
     }
+    
     return false;
+}
+
+bool
+RDFCFSTimingMemoryController::closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq){
+    
+    if(bankIsClosed(oldestReq)){
+        // close the oldest activated page
+        Tick min = TICK_T_MAX;
+        Addr closeAddr = 0;
+        map<int,ActivationEntry>::iterator minIterator = activePages.end();
+        for(pageIterator = activePages.begin();pageIterator != activePages.end();pageIterator++){
+            ActivationEntry entry = pageIterator->second;
+            assert(entry.address != 0);
+            if(entry.activatedAt < min){
+                min = entry.activatedAt;
+                closeAddr = getPageAddr(entry.address);
+                minIterator = pageIterator;
+            }
+        }
+            
+        assert(minIterator != activePages.end());
+        activePages.erase(minIterator);
+            
+        assert(closeAddr != 0);
+        close->paddr = closeAddr;
+
+    }
+    else{
+            // the needed bank is currently active, close it
+        assert(activePages.find(getMemoryBankID(oldestReq->paddr)) != activePages.end());
+        activePages.erase(getMemoryBankID(oldestReq->paddr));
+        close->paddr = oldestReq->paddr;
+    }
+        
+    close->cmd = Close;
+    close->flags &= ~SATISFIED;
+    num_active_pages--;
+        
+    lastIssuedReq = close;
+    choosenReq = close;
+    return true;
 }
 
 list<MemReqPtr>
@@ -450,11 +552,12 @@ RDFCFSTimingMemoryController::getPendingRequests(){
 
 void
 RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
-    assert(activePages.empty());
-    activePages.splice(activePages.begin(), pages);
-    num_active_pages = activePages.size();
-    assert(num_active_pages <= max_active_pages);
-    DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
+    fatal("setOpenPages not implemented");
+//     assert(activePages.empty());
+//     activePages.splice(activePages.begin(), pages);
+//     num_active_pages = activePages.size();
+//     assert(num_active_pages <= max_active_pages);
+//     DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
 }
 
 // void
@@ -662,6 +765,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     Param<int> writequeue_size;
     Param<int> reserved_slots;
     Param<bool> inf_write_bw;
+    Param<string> page_policy;
+    Param<string> priority_scheme;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -670,18 +775,40 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
     INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
     INIT_PARAM_DFLT(reserved_slots, "Number of activations reserved for reads", 2),
-    INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false)
+    INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false),
+    INIT_PARAM_DFLT(page_policy, "Controller page policy", "ClosedPage"),
+    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS")
 
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
 CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
 {
+    string page_policy_name = page_policy;
+    RDFCFSTimingMemoryController::page_policy policy = RDFCFSTimingMemoryController::CLOSED_PAGE;
+    if(page_policy_name == "ClosedPage"){
+        policy = RDFCFSTimingMemoryController::CLOSED_PAGE;
+    }
+    else{
+        policy = RDFCFSTimingMemoryController::OPEN_PAGE;
+    }
+    
+    string priority_scheme_name = priority_scheme;
+    RDFCFSTimingMemoryController::priority_scheme priority = RDFCFSTimingMemoryController::FCFS;
+    if(priority_scheme_name == "FCFS"){
+        priority = RDFCFSTimingMemoryController::FCFS;
+    }
+    else{
+        priority = RDFCFSTimingMemoryController::RoW;
+    }
+       
     return new RDFCFSTimingMemoryController(getInstanceName(),
                                             readqueue_size,
                                             writequeue_size,
                                             reserved_slots,
-                                            inf_write_bw);
+                                            inf_write_bw,
+                                            priority,
+                                            policy);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)

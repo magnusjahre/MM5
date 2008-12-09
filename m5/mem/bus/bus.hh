@@ -145,6 +145,8 @@ class Bus : public BaseHier
     Stats::Formula avgQueueCycles;
     
     Stats::Vector<> accessesPerCPU;
+    Stats::Vector<> readsPerCPU;
+    Stats::Vector<> writesPerCPU;
     Stats::Vector<> pageHitsPerCPU;
     Stats::Scalar<> noCPUrequests;
     

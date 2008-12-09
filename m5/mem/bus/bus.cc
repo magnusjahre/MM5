@@ -171,10 +171,20 @@ Bus::Bus(const string &_name,
 #endif
     
 #ifdef TRACE_QUEUE
-    ofstream qfile("MemoryBusQueueTrace.txt");
-    qfile << "Reads,Writes,Latency\n";
-    qfile.flush();
-    qfile.close();
+    
+    for(int i=0;i<_cpu_count;i++){
+        stringstream name;
+        name << "MemoryBusQueueTrace" << i << ".txt";
+        ofstream qfile(name.str().c_str());
+        
+        qfile << setw(25) << "#Reads"
+              << setw(25) << "Writes" 
+              << setw(25) << "Queue Latency"
+              << setw(25) << "Service Latency"
+              << "\n";
+        qfile.flush();
+        qfile.close();
+    }
 #endif
 }
 
@@ -246,6 +256,20 @@ Bus::regStats()
     accessesPerCPU
             .name(name() + ".accesses_per_cpu")
             .desc("number of accesses for each CPU")
+            .flags(total)
+            ;
+    
+    readsPerCPU
+            .init(cpu_count)
+            .name(name() + ".reads_per_cpu")
+            .desc("number of reads for each CPU")
+            .flags(total)
+            ;
+    
+    writesPerCPU
+            .init(cpu_count)
+            .name(name() + ".writes_per_cpu")
+            .desc("number of writes for each CPU")
             .flags(total)
             ;
     
@@ -513,6 +537,11 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     
     req->memBusBlockedWaitCycles = curTick - origReqTime;
     
+    assert(req->cmd == Read || req->cmd == Writeback);
+    assert(req->adaptiveMHASenderID != -1);
+    if(req->cmd == Read) readsPerCPU[req->adaptiveMHASenderID]++;
+    else writesPerCPU[req->adaptiveMHASenderID]++;
+    
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
@@ -712,10 +741,18 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         queueDelayRequests[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt]++;
         
 #ifdef TRACE_QUEUE
-        ofstream qfile("MemoryBusQueueTrace.txt", ofstream::app);
-        qfile << req->entryReadCnt << ";";
-        qfile << req->entryWriteCnt << ";";
-        qfile << queueLatency << "\n";
+        
+        assert(req->adaptiveMHASenderID != -1);
+        
+        stringstream name;
+        name << "MemoryBusQueueTrace" << req->adaptiveMHASenderID << ".txt";
+        ofstream qfile(name.str().c_str(), ofstream::app);
+        
+        qfile << setw(25) << req->entryReadCnt
+              << setw(25) << req->entryWriteCnt
+              << setw(25) << queueLatency
+              << setw(25) << serviceLatency
+              << "\n";
         qfile.flush();
         qfile.close();
 #endif

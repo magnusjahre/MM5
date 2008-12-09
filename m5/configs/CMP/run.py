@@ -524,6 +524,10 @@ if "INFINITE-MEM-BW" in env:
 
 if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
     root.toMemBus.memory_controller = ReadyFirstMemoryController()
+    if "MEMORY-BUS-PAGE-POLICY" in env:
+        root.toMemBus.memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
+    if "MEMORY-BUS-PRIORITY-SCHEME" in env:
+        root.toMemBus.memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
 elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
     root.toMemBus.memory_controller = InOrderMemoryController()
 elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":

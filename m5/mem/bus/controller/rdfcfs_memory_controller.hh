@@ -27,8 +27,23 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     std::list<MemReqPtr>::iterator queueIterator;
 
-    std::list<Addr> activePages;
-    std::list<Addr>::iterator pageIterator;
+    struct ActivationEntry{
+        Addr address;
+        Tick activatedAt;
+        
+        ActivationEntry(Addr a, Tick aAt){
+            address = a;
+            activatedAt = aAt;
+        }
+        
+        ActivationEntry(){
+            address = 0;
+            activatedAt = 0;
+        }
+    };
+    
+    std::map<int,ActivationEntry> activePages;
+    std::map<int,ActivationEntry>::iterator pageIterator;
 
     int num_active_pages;
     int max_active_pages;
@@ -50,8 +65,10 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 //     void estimatePrivateServiceLatency(MemReqPtr& req);
     
     bool equalReadWritePri;
+    bool closedPagePolicy;
     
     std::list<MemReqPtr> mergeQueues();
+    bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
     
   public:
 
@@ -59,13 +76,26 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     MemReqPtr activate;
     MemReqPtr close;
 
+    
+    typedef enum{
+        FCFS,
+        RoW
+    } priority_scheme;
+    
+    typedef enum{
+        OPEN_PAGE,
+        CLOSED_PAGE
+    } page_policy;
+    
     // constructor
     /** Constructs a Memory Controller object. */
     RDFCFSTimingMemoryController(std::string _name,
                                  int _readqueue_size,
                                  int _writequeue_size,
                                  int _reserved_slots,
-                                 bool _infinite_write_bw);
+                                 bool _infinite_write_bw,
+                                 priority_scheme _priority_scheme,
+                                 page_policy _page_policy);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();
@@ -77,7 +107,14 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     MemReqPtr& getRequest();
     
     virtual std::list<Addr> getOpenPages(){
-        return activePages;
+        std::list<Addr> retlist;
+        
+        for(pageIterator=activePages.begin();pageIterator!=activePages.end();pageIterator++){
+            ActivationEntry tmp = pageIterator->second;
+            retlist.push_back(tmp.address);
+        }
+        
+        return retlist;
     }
     
     virtual std::list<MemReqPtr>  getPendingRequests();
