@@ -44,11 +44,16 @@
  */
 class HierParams : public SimObject
 {
+    
     friend class BaseHier;
+    
+  public:
     /** Store data in the hierarchy memories. */
     const bool doData;
     /** Use events for timing on the bus. */
     const bool doEvents;
+    
+    const int hpCpuCount;
 
   public:
     /**
@@ -57,7 +62,7 @@ class HierParams : public SimObject
      * @param do_data Store data in the hierarchy.
      * @param do_events Use events for timing.
      */
-    HierParams(const std::string &name, bool do_data, bool do_events);
+    HierParams(const std::string &name, bool do_data, bool do_events, int _hpCpuCount);
 };
 
 /** Default HierParams Object. */

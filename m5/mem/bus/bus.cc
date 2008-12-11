@@ -62,7 +62,7 @@ using namespace std;
 /** The maximum value of type Tick. */
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-#define TRACE_QUEUE
+// #define TRACE_QUEUE
 
 #define MAX_ARB_RESCHED 1000
 

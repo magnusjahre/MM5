@@ -78,6 +78,7 @@ class BaseMemory : public BaseMem
     const bool doWrites;
     
     int num_banks; // needs to be here for statistics allocation
+    int bmCPUCount;
     
     // statistics
     /**
@@ -130,6 +131,15 @@ class BaseMemory : public BaseMem
     
     Stats::VectorDistribution<> pageConflictLatencyDistribution;
     Stats::VectorDistribution<> pageMissLatencyDistribution;
+    
+    Stats::Vector<> perCPUPageConflicts;
+    Stats::Vector<> perCPUPageMisses;
+    Stats::Vector<> perCPUPageHits;
+    Stats::Vector<> perCPURequests;
+    
+    Stats::Formula perCPUConflictRate;
+    Stats::Formula perCPUMissRate;
+    Stats::Formula perCPUHitRate;
     
   public:
     

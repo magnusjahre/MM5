@@ -48,6 +48,9 @@ BaseMemory::BaseMemory(const std::string &name, HierParams *hier,
       uncacheLatency(params.uncache_lat),
       snarfUpdates(params.snarf_updates), doWrites(params.do_writes)
 {
+    
+    assert(hier != NULL);
+    bmCPUCount = hier->hpCpuCount;
 }
 
 void
@@ -224,4 +227,50 @@ BaseMemory::regStats()
     
     pageMissLatencyDistribution.subname(0, "_read");
     pageMissLatencyDistribution.subname(1, "_write");
+    
+    perCPUPageConflicts
+        .init(bmCPUCount)
+        .name(name() + ".per_cpu_page_conflicts")
+        .desc("number of page conflicts per CPU")
+        ;
+    
+    perCPUPageMisses
+        .init(bmCPUCount)
+        .name(name() + ".per_cpu_page_misses")
+        .desc("number of page misses per CPU")
+        ;
+    
+    perCPUPageHits
+        .init(bmCPUCount)
+        .name(name() + ".per_cpu_page_hits")
+        .desc("number of page hits per CPU")
+        ;
+    
+    perCPURequests
+        .init(bmCPUCount)
+        .name(name() + ".per_cpu_requests")
+        .desc("number of requests per CPU")
+        ;
+
+    perCPUConflictRate
+        .name(name() + ".per_cpu_page_conflict_rate")
+        .desc("per CPU page conflict rate")
+        ;
+    
+    perCPUConflictRate = perCPUPageConflicts / perCPURequests;
+
+    perCPUMissRate
+        .name(name() + ".per_cpu_page_miss_rate")
+        .desc("per CPU page miss rate")
+        ;
+    
+    perCPUMissRate = perCPUPageMisses / perCPURequests;
+    
+    perCPUHitRate
+        .name(name() + ".per_cpu_page_hit_rate")
+        .desc("per CPU page hit rate")
+        ;
+    
+    perCPUHitRate = perCPUPageHits / perCPURequests;
+    
 }

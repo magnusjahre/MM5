@@ -39,12 +39,12 @@
 
 using namespace std;
 
-HierParams::HierParams(const string &name, bool do_data, bool do_events)
-    : SimObject(name), doData(do_data), doEvents(do_events)
+HierParams::HierParams(const string &name, bool do_data, bool do_events, int _hpCpuCount)
+    : SimObject(name), doData(do_data), doEvents(do_events), hpCpuCount(_hpCpuCount)
 {
 }
 
-HierParams defaultHierParams("defHier", false, true);
+HierParams defaultHierParams("defHier", false, true, 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
@@ -52,19 +52,21 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(HierParams)
 
     Param<bool> do_data;
     Param<bool> do_events;
+    Param<int> cpu_count;
 
 END_DECLARE_SIM_OBJECT_PARAMS(HierParams)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(HierParams)
     
     INIT_PARAM(do_data, "Store data in this hierarchy"),
-    INIT_PARAM(do_events, "Simulate timing in this hierarchy")
+    INIT_PARAM(do_events, "Simulate timing in this hierarchy"),
+    INIT_PARAM(cpu_count, "Number of CPUs")
 
 END_INIT_SIM_OBJECT_PARAMS(HierParams)
 
 CREATE_SIM_OBJECT(HierParams)
 {
-    return new HierParams(getInstanceName(), do_data, do_events);
+    return new HierParams(getInstanceName(), do_data, do_events, cpu_count);
 }
 
 REGISTER_SIM_OBJECT("HierParams", HierParams);

@@ -145,6 +145,8 @@ if "USE-FAIR-CROSSBAR" in env:
 # Root, CPUs and L1 caches
 ###############################################################################
 
+HierParams.cpu_count = int(env['NP'])
+
 root = DetailedStandAlone()
 if progressInterval > 0:
     root.progress_interval = progressInterval

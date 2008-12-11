@@ -201,7 +201,6 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         return 0;
     }
         
-
     Tick latency = 0;
     bool isHit = false;
     if (req->cmd == Read) {
@@ -279,6 +278,10 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 #ifdef DO_HIT_TRACE
     bool isConfict = false;
 #endif
+    
+    assert(req->adaptiveMHASenderID != -1);
+    perCPURequests[req->adaptiveMHASenderID]++;
+    
     assert(req->cmd == Writeback || req->cmd == Read);
     if (curTick < readyTime[bank]) {
         // Wait until activation completes;
@@ -292,11 +295,16 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             isConfict = true;
 #endif
             
+            perCPUPageConflicts[req->adaptiveMHASenderID]++;
+            
             pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
             pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
         }
         else{
+            
+            perCPUPageMisses[req->adaptiveMHASenderID]++;
+            
             pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
             pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
@@ -309,15 +317,24 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 #ifdef DO_HIT_TRACE
             isConfict = true;
 #endif
+            
+            perCPUPageConflicts[req->adaptiveMHASenderID]++;
+            
             pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
             pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
         }
         else if(isHit){
+            
+            perCPUPageHits[req->adaptiveMHASenderID]++;
+            
             pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
         }
         else{
+            
+            perCPUPageMisses[req->adaptiveMHASenderID]++;
+            
             pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
             pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
