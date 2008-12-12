@@ -34,6 +34,6 @@ cp dram_access_trace.txt $atrace
 
 python -c "import fairmha.getInterference as g; g.compareBusAccessTraces('$strace','$atrace',True)"
 
-#cd ..
-#rm -Rf bus_exp_data
+cd ..
+rm -Rf bus_exp_data
 
