@@ -9,8 +9,7 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-// #define DO_ESTIMATION_TRACE 1
-#define ESTIMATION_CPU_ID 3
+#define DO_ESTIMATION_TRACE 1
 
 #ifdef DO_ESTIMATION_TRACE
 #include <fstream>
@@ -68,14 +67,22 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     else{
         fatal("Unsupported page policy");
     }
-    
+}
+
+void 
+RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
+
 #ifdef DO_ESTIMATION_TRACE
-    ofstream ofile("estimation_access_trace.txt");
+  for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+
+    stringstream filename;
+    filename << "estimation_access_trace_" << i << ".txt";
+    ofstream ofile(filename.str().c_str());
     ofile << "";
     ofile.flush();
     ofile.close();
+  }
 #endif
-
 }
 
 /** Frees locally allocated memory. */
@@ -667,16 +674,18 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 //     }
     
 #ifdef DO_ESTIMATION_TRACE
-    if(req->adaptiveMHASenderID == ESTIMATION_CPU_ID){
-        ofstream ofile("estimation_access_trace.txt", ofstream::app);
-        ofile << curTick << ";" << req->paddr << ";" << getMemoryBankID(req->paddr) << ";";
-        if(isConflict) ofile << "conflict";
-        else if(isHit) ofile << "hit";
-        else ofile << "miss";
-        ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
-        ofile.flush();
-        ofile.close();
-    }
+    
+    stringstream filename;
+    filename << "estimation_access_trace_" << req->adaptiveMHASenderID << ".txt";
+    ofstream ofile(filename.str().c_str(), ofstream::app);
+    ofile << curTick << ";" << req->paddr << ";" << getMemoryBankID(req->paddr) << ";";
+    if(isConflict) ofile << "conflict";
+    else if(isHit) ofile << "hit";
+    else ofile << "miss";
+    ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
+    ofile.flush();
+    ofile.close();
+
 #endif
     
     int fromCPU = req->adaptiveMHASenderID;

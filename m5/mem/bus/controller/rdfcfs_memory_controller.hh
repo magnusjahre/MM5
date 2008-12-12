@@ -141,4 +141,5 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
+    virtual void initializeTraceFiles(Bus* regbus);
 };

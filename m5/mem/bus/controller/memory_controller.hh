@@ -183,6 +183,10 @@ class TimingMemoryController : public SimObject
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
         fatal("computeInterferenece() in TimingMemoryController does not make sense");
     }
+
+    virtual void initializeTraceFiles(Bus* regbus){
+        // does nothing unless impl in a subclass
+    }
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

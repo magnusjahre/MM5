@@ -1,20 +1,39 @@
 #!/bin/bash
 
 mkdir bus_exp_data
-
-../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=fair40 -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=2000000 -EFASTFORWARDTICKS=1000000 -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=1000000 ../configs/CMP/run.py
-
-cp estimation_access_trace.txt bus_exp_data
-
-../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=equake0 -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=134224 -EFASTFORWARDTICKS=1000000 -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=1000000 -EMEMORY-ADDRESS-OFFSET=3 -EMEMORY-ADDRESS-PARTS=4  ../configs/CMP/run.py
-
-cp dram_access_trace.txt bus_exp_data
-
 cd bus_exp_data
 
-python -c "import fairmha.getInterference as g; g.compareBusAccessTraces('estimation_access_trace.txt','dram_access_trace.txt',True)"
+wl=$1
+simticks=$2
+fwticks=$3
+bmid=$4
 
-rm *txt
-cd ..
-rmdir bus_exp_data
+strace=shared_accesses.txt
+atrace=alone_accesses.txt
+
+bms=`python -c "import fairmha.getInterference as g;g.getBenchmarks('$wl',True,4)"`
+bmarray=($bms)
+
+echo ""
+echo "Running bus test..."
+echo "Workload:       $wl"
+echo "Benchmark:      ${bmarray[$bmid]}, id $bmid"
+echo "Simulate ticks: $simticks"
+echo "FW ticks:       $fwticks"
+echo ""
+
+../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=$simticks -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=1000000 ../../configs/CMP/run.py
+
+cp estimation_access_trace_$bmid.txt $strace
+
+insts=`python -c "import fairmha.getCommittedInsts as c; c.getCommittedInsts('shared_output.txt', $bmid, True)"`
+
+../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$bmid]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=alone_output.txt -ESIMINSTS=$insts -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=1000000 -EMEMORY-ADDRESS-OFFSET=$bmid -EMEMORY-ADDRESS-PARTS=4  ../../configs/CMP/run.py
+
+cp dram_access_trace.txt $atrace
+
+python -c "import fairmha.getInterference as g; g.compareBusAccessTraces('$strace','$atrace',True)"
+
+#cd ..
+#rm -Rf bus_exp_data
 

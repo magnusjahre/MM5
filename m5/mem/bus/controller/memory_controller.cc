@@ -38,6 +38,8 @@ TimingMemoryController::registerBus(Bus* _bus, int cpuCount){
     lastActivated.resize(8, 0);
     lastActivatedBy.resize(8, 0);
     lastActivatedAt.resize(8, 0);
+
+    initializeTraceFiles(_bus);
 }
 
 void
