@@ -95,7 +95,8 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     tags->getAssoc(),
                                     hitLatency,
                                     params.bankCount,
-                                    true);
+                                    true,
+                                    -1);
             
             shadowTags[i]->setCache(this, false);
         }

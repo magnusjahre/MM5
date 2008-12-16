@@ -153,6 +153,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<Tick> detailed_sim_start_tick;
     Param<Tick> detailed_sim_end_tick;
     Param<bool> use_static_partitioning_for_warmup;
+    Param<int> static_partitioning_div_factor;
     
     Param<bool> do_modulo_addr;
     Param<int> bank_id;
@@ -236,6 +237,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(detailed_sim_start_tick, "the tick where detailed simulation (and profiling) starts", -1),
     INIT_PARAM_DFLT(detailed_sim_end_tick, "the tick where detailed simulation ends", 0),
     INIT_PARAM_DFLT(use_static_partitioning_for_warmup, "if true, static partitioning is used in the warm up phase", false),
+    INIT_PARAM_DFLT(static_partitioning_div_factor, "factor to divide cache space during fw by when there is 1 cpu core", -1),
     
     INIT_PARAM_DFLT(do_modulo_addr, "use modulo operator to choose bank", false),
     INIT_PARAM_DFLT(bank_id, "the bank ID of this cache bank", -1),
@@ -433,7 +435,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #if defined(USE_CACHE_LRU)
 #define BUILD_LRU_CACHE(b, c) do {				\
-        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count, false);	\
+        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count, false, static_partitioning_div_factor);	\
 	BUILD_COMPRESSED_CACHE(LRU, tags, b, c);			\
     } while (0)
 #else

@@ -131,6 +131,8 @@ class LRU : public BaseTags
     bool useMTPPartitioning;
     
     std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
+    
+    int divFactor;
 
 public:
     /**
@@ -140,7 +142,7 @@ public:
      * @param _assoc The associativity of the cache.
      * @param _hit_latency The latency in cycles for a hit.
      */
-    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow);
+    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor);
 
     /**
      * Destructor

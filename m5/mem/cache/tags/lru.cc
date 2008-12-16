@@ -103,8 +103,8 @@ CacheSet::moveToHead(LRUBlk *blk)
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
-LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow) :
-    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow)
+LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor) :
+    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
 {
     
     // the provided addresses are byte addresses, so the provided block address can be used directly
@@ -191,6 +191,10 @@ void
 LRU::initializeCounters(int cpuCount){
     if(!isShadow && numBanks > 0){ // only L2, real tags
         perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
+        
+        if(cpuCount == 1 && divFactor < 1 && cache->useStaticPartInWarmup){
+            fatal("A division factor must be given for single CPU static partitioning");
+        }
     }
 }
 
@@ -363,9 +367,8 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         // we know that assoc is a power of two, checked in the constructor
         int maxBlks = -1;
         if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
-            //HACK HACK HACK HACK !!!!!!
             if(cache->cpuCount == 1){
-                maxBlks = (int) ((double) assoc / 4.0); //HACK HACK HACK: Should be parametrized
+                maxBlks = (int) ((double) assoc / (double) divFactor);
             }
             else{
                 maxBlks = (int) ((double) assoc / (double) cache->cpuCount);

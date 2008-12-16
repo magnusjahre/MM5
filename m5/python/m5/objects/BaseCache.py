@@ -88,6 +88,7 @@ class BaseCache(BaseMem):
     detailed_sim_start_tick = Param.Tick("The tick where detailed simulation (and profiling) starts")
     detailed_sim_end_tick = Param.Tick("The tick where detailed simulation ends")
     use_static_partitioning_for_warmup = Param.Bool("if true, static partitioning is used in the warm up phase")
+    static_partitioning_div_factor = Param.Int("factor to divide cache space during fw by when there is 1 cpu core")
 
     # Directory protocol parameters
     dirProtocolName = Param.DirectoryProtocol('none', "name of coherence protocol")

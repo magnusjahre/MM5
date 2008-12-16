@@ -52,6 +52,9 @@ class L2Bank(BaseCache):
     is_read_only = False
     simulate_contention = False # done in new crossbar impl
     
+    if int(env['NP']) == 1:
+        static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
+    
     def setModuloAddr(self, bankID, bank_count):
         self.do_modulo_addr = True
         self.bank_id = bankID
