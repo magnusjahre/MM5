@@ -31,7 +31,7 @@ Crossbar::Crossbar(const std::string &_name,
     
     
     perEndPointQueueSize = 64; //16; // FIXME: parameterize
-    requestOccupancyTicks = 2; // FIXME: parameterize
+    requestOccupancyTicks = 4; // FIXME: parameterize
     requestL2BankCount = 4;
     crossbarResponses = vector<list<pair<MemReqPtr, int> > >(requestL2BankCount, list<pair<MemReqPtr, int> >());
     
@@ -191,11 +191,13 @@ Crossbar::arbitrate(Tick time){
     
     vector<int> masterOrder = findServiceOrder(&crossbarRequests);
     assert(masterOrder.size() == cpu_count);
+    assert(crossbarRequests.size() == cpu_count);
     for(int i=0;i<masterOrder.size();i++){
         attemptDelivery(&crossbarRequests[masterOrder[i]], &masterToSlaveCrossbarState, true);
     }
     
     vector<int> slaveOrder = findServiceOrder(&crossbarResponses);
+    assert(slaveOrder.size() == requestL2BankCount);
     for(int i=0;i<slaveOrder.size();i++){
         attemptDelivery(&crossbarResponses[slaveOrder[i]], &slaveToMasterCrossbarState, false);
     }
@@ -214,8 +216,8 @@ Crossbar::arbitrate(Tick time){
 
 vector<int>
 Crossbar::findServiceOrder(std::vector<std::list<std::pair<MemReqPtr, int> > >* currentQueue){
-    vector<int> order(cpu_count, -1);
-    vector<bool> marked(cpu_count, false);
+    vector<int> order(currentQueue->size(), -1);
+    vector<bool> marked(currentQueue->size(), false);
     stringstream debugtrace;
     
     for(int i=0;i<currentQueue->size();i++){
@@ -338,6 +340,7 @@ bool
 Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossbarState, bool toSlave){
 
     if(!currentQueue->empty()){
+        
         if((currentQueue->front().second & *crossbarState) == 0){
             CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, currentQueue->front().first, toSlave);
             delivery->schedule(curTick + crossbarTransferDelay);

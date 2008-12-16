@@ -362,6 +362,8 @@ public:
     virtual void updateSetHitStats(MemReqPtr& req);
     
     virtual void dumpHitStats();
+    
+    virtual void initializeCounters(int cpuCount);
 };
 
 #endif

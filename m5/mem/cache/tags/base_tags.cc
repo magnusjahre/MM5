@@ -53,6 +53,8 @@ BaseTags::setCache(BaseCache *_cache, bool useSwitchEvent)
         BaseTagsSwitchEvent* event = new BaseTagsSwitchEvent(this);
         event->schedule(cache->uniformPartitioningStartTick);
     }
+    
+    initializeCounters(_cache->cpuCount);
 }
 
 void

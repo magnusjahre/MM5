@@ -391,7 +391,7 @@ else:
             fwCycles = bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][1]
         elif env['BENCHMARK'].startswith("fair"):
             tmpBM = env['BENCHMARK'].replace("fair","")
-            fwCycles = fair_workloads.workloads[int(tmpBM)][1]
+            fwCycles = fair_workloads.workloads[int(env['NP'])][int(tmpBM)][1]
         else:
             fwCycles = \
                 workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
@@ -683,7 +683,7 @@ elif env['BENCHMARK'].startswith("bw"):
 elif env['BENCHMARK'].startswith("fair"):
     tmpBM = env['BENCHMARK'].replace("fair","")
     prog = Spec2000.createWorkload(
-               fair_workloads.workloads[int(tmpBM)][0])
+               fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
 
 ###############################################################################
 # Multi-programmed workloads with memory hog

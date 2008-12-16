@@ -101,11 +101,6 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
         int cpu_count = mem->memoryAddressParts;
         assert(cpuId != -1 && cpu_count != -1);
         
-        if(cpu_count > 8  && !issuedWarning){
-            warn("Multiprogram workload hack has not been tested for more than 8 CPUs, proceed with caution :-)");
-            issuedWarning = true;
-        }
-        
         // Add cpu-id to keep addresses aligned
         Addr cpuAddrBase = ((MAX_MEM_ADDR / cpu_count) * cpuId) + cpuId;
         

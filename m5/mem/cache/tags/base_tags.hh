@@ -158,6 +158,10 @@ class BaseTags
     
     virtual void dumpHitStats(){
     }
+    
+    virtual void initializeCounters(int cpuCount){
+        
+    }
 };
 
 class BaseTagsCallback : public Callback

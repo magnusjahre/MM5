@@ -174,10 +174,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     if(isShadow){
         perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
     }
-    else if(!isShadow && _bank_count > 0){ // only L2, real tags
-        // FIXME: number of CPUs is hardcoded
-        perCPUperSetHitCounters.resize(4, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
-    }
+
     
     accesses = 0;
     useMTPPartitioning = false;
@@ -188,6 +185,13 @@ LRU::~LRU()
     delete [] dataBlks;
     delete [] blks;
     delete [] sets;
+}
+
+void
+LRU::initializeCounters(int cpuCount){
+    if(!isShadow && numBanks > 0){ // only L2, real tags
+        perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
+    }
 }
 
 // probe cache for presence of given block.
@@ -298,7 +302,7 @@ LRU::updateSetHitStats(MemReqPtr& req){
     // A few sanity checks :-)
     assert(tmpBlk != NULL);
     assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
-    assert(tmpBlk->origRequestingCpuID < 4);
+    assert(tmpBlk->origRequestingCpuID < cache->cpuCount);
     assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
     assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
     assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
