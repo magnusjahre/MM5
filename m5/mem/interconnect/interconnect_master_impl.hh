@@ -17,11 +17,11 @@ InterconnectMaster<MemType>::InterconnectMaster(const string &name,
     : InterconnectInterface(interconnect, name, hier)
 {
     thisCache = cache;
-
+    
     interfaceID = thisInterconnect->registerInterface(this,
                                                       false,
                                                       cache->getProcessorID());
-    thisCache->setInterfaceID(interfaceID);
+//     thisCache->setInterfaceID(interfaceID);
 }
 
 template<class MemType>

@@ -10,6 +10,8 @@ class AddressDependentIC : public Interconnect
         std::vector<bool> blockedLocalQueues;
         std::vector<int> notRetrievedRequests;
     
+        void initQueues(int localBlockedSize, int expectedInterfaces);
+        
     public:
         AddressDependentIC(const std::string &_name, 
                            int _width, 
@@ -20,6 +22,11 @@ class AddressDependentIC : public Interconnect
                            HierParams *_hier,
                            AdaptiveMHA* _adaptiveMHA);
         
+        virtual void send(MemReqPtr& req, Tick time, int fromID) = 0;
+                
+        virtual void arbitrate(Tick time) = 0;
+        
+        virtual void deliver(MemReqPtr& req, Tick cycle, int toID, int fromID) = 0;
         
         void request(Tick time, int fromID);
         
@@ -28,12 +35,6 @@ class AddressDependentIC : public Interconnect
         void setBlockedLocal(int fromCPUId);
         
         void clearBlockedLocal(int fromCPUId);
-        
-        virtual void send(MemReqPtr& req, Tick time, int fromID) = 0;
-                
-        virtual void arbitrate(Tick time) = 0;
-        
-        virtual void deliver(MemReqPtr& req, Tick cycle, int toID, int fromID) = 0;
         
         int getChannelCount(){
             //one channel for all cpus, all banks and one coherence bus

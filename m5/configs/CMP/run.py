@@ -204,6 +204,11 @@ root = DetailedStandAlone()
 if progressInterval > 0:
     root.progress_interval = progressInterval
 
+# create the adaptiveMHA
+# might only be used for tracing memory bus usage
+root.adaptiveMHA = AdaptiveMHA()
+root.adaptiveMHA.cpuCount = int(env["NP"])
+
 # Create CPUs
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,)
@@ -225,12 +230,12 @@ if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
                         for i in xrange(int(env['NP'])) ]
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
+    root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
+    root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i]) for i in range(int(env['NP'])) ]
+    root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i]) for i in xrange(int(env['NP'])) ]
     
-    # create p2p link array
-    
-    # create L1 caches
-    
-    panic("implement ring based p2p links and L1 cache generation!")
+    for link in root.PointToPointLink:
+        link.adaptive_mha = root.adaptiveMHA
 
 if env['PROTOCOL'] != 'none':
     if env['PROTOCOL'] in snoop_protocols:
@@ -275,12 +280,6 @@ if l1mshrsInst != -1:
     for l1 in root.L1icaches:
         l1.mshrs = l1mshrsInst
         l1.tgts_per_mshr = l1imshrTargets
-
-
-# create the adaptiveMHA
-# might only be used for tracing memory bus usage
-root.adaptiveMHA = AdaptiveMHA()
-root.adaptiveMHA.cpuCount = int(env["NP"])
 
 if 'AMHA-PERIOD' in env:
     root.adaptiveMHA.sampleFrequency = int(env['AMHA-PERIOD'])
@@ -624,7 +623,27 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 
 elif env['MEMORY-SYSTEM'] == "RingBased":
 
-    panic("Ring based CMP config not implemented")
+    bankcnt = 4
+    createMemBus(bankcnt)
+    initSharedCache(bankcnt)
+
+    ## FIXME: This should be a ring!!!
+    root.interconnect = InterconnectCrossbar()
+    root.interconnect.cpu_count = int(env['NP'])
+    root.interconnect.detailed_sim_start_tick = cacheProfileStart
+    root.interconnect.shared_cache_writeback_buffers = root.SharedCache[0].write_buffers
+    root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
+    root.interconnect.adaptive_mha = root.adaptiveMHA
+    
+    setUpSharedCache(bankcnt)
+    
+    root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
+    
+    for i in range(env['NP']):
+        root.PrivateL2Cache[i].in_interconnect = root.PointToPointLink[i]
+        root.PrivateL2Cache[i].out_interconnect = root.interconnect
+        root.PrivateL2Cache[i].cpu_id = i
+        root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
 
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")

@@ -374,11 +374,15 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
             in_interconnect->rangeChange();\
             \
         }\
-        else{\
+        else if(in_interconnect == NULL && out_interconnect != NULL){\
             /* this is an L1 cache */\
             retval->setSlaveInterface(new MemoryInterface<Cache<CacheTags<t, comp>, b, c> >(getInstanceName(), hier, retval, mem_trace)); \
             retval->setMasterInterface(new InterconnectMaster<Cache<CacheTags<t, comp>, b, c> >(getInstanceName(), out_interconnect, retval, hier));\
             out_interconnect->rangeChange();\
+        }\
+        else{\
+            retval->setSlaveInterface(new InterconnectSlave<Cache<CacheTags<t, comp>, b, c> >(getInstanceName(), in_interconnect, retval, hier));\
+            retval->setMasterInterface(new InterconnectMaster<Cache<CacheTags<t, comp>, b, c> >(getInstanceName(), out_interconnect, retval, hier));\
         }\
         \
         return retval;							\

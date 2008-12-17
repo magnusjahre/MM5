@@ -289,7 +289,7 @@ Interconnect::resetStats(){
 
 int
 Interconnect::registerInterface(InterconnectInterface* interface,
-                                bool isL2,
+                                bool isSlave,
                                 int processorID){
 
                                     
@@ -297,7 +297,7 @@ Interconnect::registerInterface(InterconnectInterface* interface,
     allInterfaces.push_back(interface);
     assert(totalInterfaceCount == (allInterfaces.size()-1));
     
-    if(isL2){
+    if(isSlave){
         // This is a slave interface (i.e. interface to a L2 bank)
         ++slaveInterfaceCount;
         slaveInterfaces.push_back(interface);
@@ -310,14 +310,12 @@ Interconnect::registerInterface(InterconnectInterface* interface,
         assert(masterInterfaceCount == (masterInterfaces.size()-1));
     }
     
-    if(processorID != -1){
+    if(!isSlave){
         assert(processorID >= 0);
-        
         processorIDToInterconnectIDs[processorID].push_back(totalInterfaceCount);
         interconnectIDToProcessorIDMap.insert(make_pair(totalInterfaceCount, processorID));
     }
     else{
-        assert(isL2);
         interconnectIDToL2IDMap.insert(make_pair(totalInterfaceCount, slaveInterfaceCount));
         L2IDMapToInterconnectID.insert(make_pair(slaveInterfaceCount, totalInterfaceCount));
         blockedInterfaces.push_back(false);

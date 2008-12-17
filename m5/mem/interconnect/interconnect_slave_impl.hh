@@ -19,7 +19,7 @@ InterconnectSlave<MemType>::InterconnectSlave(const string &name,
     interfaceID = thisInterconnect->registerInterface(this,
                                                       true,
                                                       cache->getProcessorID());
-    thisCache->setInterfaceID(interfaceID);
+//     thisCache->setInterfaceID(interfaceID);
 
 }
 

@@ -23,7 +23,8 @@ Crossbar::Crossbar(const std::string &_name,
                          _arbDelay,
                          _cpu_count,
                          _hier,
-                         _adaptiveMHA){
+                         _adaptiveMHA)
+{
     
     detailedSimStartTick = _detailedSimStartTick;
     crossbarTransferDelay = _transDelay + _arbDelay;
@@ -37,10 +38,9 @@ Crossbar::Crossbar(const std::string &_name,
     
     slaveDeliveryBuffer = vector<list<DeliveryBufferEntry> >(requestL2BankCount, list<DeliveryBufferEntry>());
     
-    blockedLocalQueues = vector<bool>(_cpu_count, false);
     requestsInProgress = vector<int>(requestL2BankCount, 0);
     
-    notRetrievedRequests = vector<int>((_cpu_count * 2) + requestL2BankCount, 0);
+    initQueues(_cpu_count,(_cpu_count * 2) + requestL2BankCount);
     
     crossbarArbEvent = new ADIArbitrationEvent(this);
     

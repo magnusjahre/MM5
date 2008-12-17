@@ -93,7 +93,7 @@ class Cache : public BaseCache
     /** Coherence protocol. */
     Coherence *coherence;
     DirectoryProtocol<TagStore> *directoryProtocol;
-    int interfaceID;
+//     int interfaceID;
     
     /** Prefetcher */
     Prefetcher<TagStore, Buffering> *prefetcher;
@@ -325,11 +325,11 @@ class Cache : public BaseCache
     
     bool isCache() { return true; }
     
-    void setInterfaceID(int id){
-        assert(!idIsSet);
-        interfaceID = id;
-        idIsSet = true;
-    }
+//     void setInterfaceID(int id){
+//         assert(!idIsSet);
+//         interfaceID = id;
+//         idIsSet = true;
+//     }
     
     int getProcessorID(){
         return cacheCpuID;

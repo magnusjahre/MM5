@@ -78,7 +78,7 @@ class PrivateCache1M(CommonLargeCache):
     size = '1MB'
     assoc = 4
     latency = 6 * Parent.clock.period
-    is_shared = True
+    is_shared = False
 
 class SharedCache8M(CommonLargeCache):
     size = '2MB' # 4 banks
@@ -158,6 +158,12 @@ class InterconnectButterfly(Butterfly):
         arbitrationDelay = 0 # arb in switches, no explicit delay
         switch_delay = 1
 
+class PointToPointLink(PeerToPeerLink):
+    width = 64
+    clock = 1 * Parent.clock.period
+    transferDelay = 1
+    arbitrationDelay = -1 # not used
+    cpu_count = env['NP']
 
 ###############################################################################
 # MEMORY AND MEMORY BUS

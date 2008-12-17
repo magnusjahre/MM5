@@ -18,7 +18,16 @@ AddressDependentIC::AddressDependentIC(const std::string &_name,
                    _arbDelay,
                    _cpu_count,
                    _hier,
-                   _adaptiveMHA){
+                   _adaptiveMHA)
+{
+    
+
+}
+
+void
+AddressDependentIC::initQueues(int localBlockedSize, int expectedInterfaces){
+    blockedLocalQueues = vector<bool>(localBlockedSize, false);
+    notRetrievedRequests = vector<int>(expectedInterfaces, 0);
 }
 
 void
