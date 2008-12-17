@@ -9,7 +9,7 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-#define DO_ESTIMATION_TRACE 1
+//#define DO_ESTIMATION_TRACE 1
 
 #ifdef DO_ESTIMATION_TRACE
 #include <fstream>
