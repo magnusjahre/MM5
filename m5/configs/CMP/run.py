@@ -191,6 +191,9 @@ fairCrossbar = False
 if "USE-FAIR-CROSSBAR" in env:
     fairCrossbar = True
     
+if 'MEMORY-SYSTEM' not in env:
+    panic("Specify which -EMEMORY-SYSTEM to use (Legacy, CrossbarBased or RingBased)")
+    
 ###############################################################################
 # Root, CPUs and L1 caches
 ###############################################################################
@@ -209,16 +212,25 @@ root.detailedCPU = [ DetailedCPU(defer_registration=True)
                      for i in xrange(int(env['NP'])) ]
 
 # Create L1 caches
-if env['INTERCONNECT'] == 'bus':
-    root.L1dcaches = [ DL1(out_bus=Parent.interconnect) 
-                       for i in xrange(int(env['NP'])) ]
-    root.L1icaches = [ IL1(out_bus=Parent.interconnect) 
-                       for i in xrange(int(env['NP'])) ]
+if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
+    if env['INTERCONNECT'] == 'bus':
+        root.L1dcaches = [ DL1(out_bus=Parent.interconnect) 
+                        for i in xrange(int(env['NP'])) ]
+        root.L1icaches = [ IL1(out_bus=Parent.interconnect) 
+                        for i in xrange(int(env['NP'])) ]
+    else:
+        root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect)
+                        for i in xrange(int(env['NP'])) ]
+        root.L1icaches = [ IL1(out_interconnect=Parent.interconnect)
+                        for i in xrange(int(env['NP'])) ]
 else:
-    root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect)
-                       for i in xrange(int(env['NP'])) ]
-    root.L1icaches = [ IL1(out_interconnect=Parent.interconnect)
-                       for i in xrange(int(env['NP'])) ]
+    assert env['MEMORY-SYSTEM'] == "RingBased"
+    
+    # create p2p link array
+    
+    # create L1 caches
+    
+    panic("implement ring based p2p links and L1 cache generation!")
 
 if env['PROTOCOL'] != 'none':
     if env['PROTOCOL'] in snoop_protocols:
@@ -500,9 +512,6 @@ if env['BENCHMARK'].isdigit() and 'ISEXPERIMENT' in env:
         print >>sys.stderr, "warning: Production workload, ignoring user supplied profile start"
     fwCycles = workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
     icProfileStart = max(fwCycles)
-
-
-assert 'MEMORY-SYSTEM' in env
 
 if env['MEMORY-SYSTEM'] == "Legacy":
 

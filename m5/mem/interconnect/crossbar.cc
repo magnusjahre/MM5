@@ -16,14 +16,14 @@ Crossbar::Crossbar(const std::string &_name,
                    Tick _detailedSimStartTick,
                    int _shared_cache_wb_buffers,
                    int _shared_cache_mshrs)
-    : Interconnect(_name,
-                   _width, 
-                   _clock, 
-                   _transDelay, 
-                   _arbDelay,
-                   _cpu_count,
-                   _hier,
-                   _adaptiveMHA){
+    : AddressDependentIC(_name,
+                         _width, 
+                         _clock, 
+                         _transDelay, 
+                         _arbDelay,
+                         _cpu_count,
+                         _hier,
+                         _adaptiveMHA){
     
     detailedSimStartTick = _detailedSimStartTick;
     crossbarTransferDelay = _transDelay + _arbDelay;
@@ -42,7 +42,7 @@ Crossbar::Crossbar(const std::string &_name,
     
     notRetrievedRequests = vector<int>((_cpu_count * 2) + requestL2BankCount, 0);
     
-    crossbarArbEvent = new CrossbarArbitrationEvent(this);
+    crossbarArbEvent = new ADIArbitrationEvent(this);
     
     shared_cache_wb_buffers = _shared_cache_wb_buffers;
     shared_cache_mshrs = _shared_cache_mshrs;
@@ -53,31 +53,6 @@ Crossbar::Crossbar(const std::string &_name,
     
     if(requestL2BankCount + _cpu_count > 32){
         fatal("The current crossbar implementation supports maximum 32 endpoints");
-    }
-}
-
-void
-Crossbar::request(Tick cycle, int fromID){
-    requests++;
-    CrossbarRetrieveReqEvent* event = new CrossbarRetrieveReqEvent(this, fromID);
-    event->schedule(cycle);
-}
-
-void 
-Crossbar::retriveRequest(int fromInterface){
-    
-    DPRINTF(Crossbar, "Request recieved from interface %d, cpu %d\n", fromInterface, interconnectIDToProcessorIDMap[fromInterface]);
-    
-    if(!allInterfaces[fromInterface]->isMaster()){
-        allInterfaces[fromInterface]->grantData();
-        return;
-    }
-    
-    if(!blockedLocalQueues[interconnectIDToProcessorIDMap[fromInterface]]){
-        allInterfaces[fromInterface]->grantData();
-    }
-    else{
-        notRetrievedRequests[fromInterface]++;
     }
 }
 
@@ -165,7 +140,7 @@ Crossbar::arbitrate(Tick time){
         // infinite bw in warm-up, deliver all pending requests
         for(int i=0;i<crossbarResponses.size();i++){
             while(!crossbarResponses[i].empty()){
-                CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, crossbarResponses[i].front().first, false);
+                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, crossbarResponses[i].front().first, false);
                 delivery->schedule(curTick + crossbarTransferDelay);
                 crossbarResponses[i].pop_front();
             }
@@ -174,7 +149,7 @@ Crossbar::arbitrate(Tick time){
         for(int i=0;i<crossbarRequests.size();i++){
             while(!crossbarRequests[i].empty()){
                 
-                CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, crossbarRequests[i].front().first, true);
+                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, crossbarRequests[i].front().first, true);
                 delivery->schedule(curTick + crossbarTransferDelay);
                 requestsInProgress[interconnectIDToL2IDMap[crossbarRequests[i].front().first->toInterfaceID]]++;
                 crossbarRequests[i].pop_front();
@@ -342,7 +317,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
     if(!currentQueue->empty()){
         
         if((currentQueue->front().second & *crossbarState) == 0){
-            CrossbarDeliverEvent* delivery = new CrossbarDeliverEvent(this, currentQueue->front().first, toSlave);
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, currentQueue->front().first, toSlave);
             delivery->schedule(curTick + crossbarTransferDelay);
             
             MemReqPtr req = currentQueue->front().first;
@@ -546,20 +521,6 @@ Crossbar::clearBlocked(int fromInterface){
     }
 }
 
-void 
-Crossbar::setBlockedLocal(int fromCPUId){
-    DPRINTF(Blocking, "Blocking the Interconnect due to full local queue for CPU %d\n", fromCPUId);
-    assert(!blockedLocalQueues[fromCPUId]);
-    blockedLocalQueues[fromCPUId] = true;
-}
-
-void 
-Crossbar::clearBlockedLocal(int fromCPUId){
-    DPRINTF(Blocking, "Unblocking the Interconnect, local queue space available for CPU%d\n", fromCPUId);
-    assert(blockedLocalQueues[fromCPUId]);
-    blockedLocalQueues[fromCPUId] = false;
-}
-
 bool 
 Crossbar::blockingDueToPrivateAccesses(int blockedCPU){
     int reads = 0;
@@ -582,25 +543,6 @@ Crossbar::blockingDueToPrivateAccesses(int blockedCPU){
     return (reads >= mshrThreshold || writes >= wbThreshold);
 }
 
-vector<int>
-Crossbar::getChannelSample(){
-    fatal("ni");
-}
-
-void
-Crossbar::writeChannelDecriptor(std::ofstream &stream){
-    fatal("ni");
-}
-
-std::vector<std::vector<int> > 
-Crossbar::retrieveInterferenceStats(){
-    vector<std::vector<int> > retval(cpu_count, vector<int>(cpu_count, 0));
-    return retval;
-}
-
-void 
-Crossbar::resetInterferenceStats(){
-}
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

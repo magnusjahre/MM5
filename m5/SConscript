@@ -210,7 +210,8 @@ base_sources = Split('''
 	mem/cache/tags/lru.cc
 	mem/cache/tags/repl/gen.cc
 	mem/cache/tags/repl/repl.cc
-        mem/interconnect/interconnect.cc	
+        mem/interconnect/interconnect.cc
+        mem/interconnect/address_dependent_ic.cc
         mem/interconnect/split_trans_bus.cc
         mem/interconnect/ideal_interconnect.cc
         mem/interconnect/crossbar.cc
