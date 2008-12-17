@@ -66,8 +66,6 @@ class CPU(SimpleCPU):
 class DetailedStandAlone(Root):
 
     clock = '4000MHz'
-    toMemBus = ConventionalMemBus()
-    ram = SDRAM(in_bus=Parent.toMemBus)
     l2 = []
     
     def setCPU(self, inCPU):
@@ -76,7 +74,18 @@ class DetailedStandAlone(Root):
     #def setNumCPUs(self, numCPUs):
         #self.interconnect.L1CacheCount = (numCPUs*2)
         
-    def setInterconnect(self, optionString, L2BankCount, profileStart, moduloAddr, useFairAMHA, useFairCrossbar, detailedStartTick):
+    def setInterconnect(self,
+                        optionString,
+                        L2BankCount,
+                        profileStart,
+                        moduloAddr,
+                        useFairAMHA,
+                        useFairCrossbar,
+                        detailedStartTick):
+        
+        self.toMemBus = ConventionalMemBus()
+        self.ram = SDRAM(in_bus=Parent.toMemBus)
+
         if optionString == 'bus':
             self.interconnect = ToL2Bus()
             self.createL2(True, L2BankCount, moduloAddr)
@@ -134,3 +143,4 @@ class DetailedStandAlone(Root):
         self.L2Bank1 = self.l2[1]
         self.L2Bank2 = self.l2[2]
         self.L2Bank3 = self.l2[3]
+

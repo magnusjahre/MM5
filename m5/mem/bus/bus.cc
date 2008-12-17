@@ -104,6 +104,8 @@ Bus::Bus(const string &_name,
 
     if (clockRate < 1)
 	fatal("memory bus clock must be positive and non-zero");
+    
+    if(_memoryController == NULL) fatal("A memory controller must be given");
 
     nextDataFree = 0;
     nextAddrFree = 0;

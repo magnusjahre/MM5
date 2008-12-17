@@ -7,29 +7,23 @@ from m5 import *
 class BaseL1Cache(BaseCache):
     in_bus = NULL
     size = '64kB'
-    assoc = 8
+    assoc = 2
     block_size = 64
     
-    #Eliminates blocking FIXME!!!
-    #mshrs = 64
-    #write_buffers = 64
-    #tgts_per_mshr = 64 
+    latency = 3 * Parent.clock.period
     
-    mshrs = 4
+    mshrs = 16
     write_buffers = 4
     tgts_per_mshr = 4
-    #tgts_per_mshr = 8
-
+    
     cpu_count = int(env['NP'])
     is_shared = False
     simulate_contention = False
 
 class IL1(BaseL1Cache):
-    latency = Parent.clock.period
     is_read_only = True
 
 class DL1(BaseL1Cache):
-    latency = 3 * Parent.clock.period
     is_read_only = False
 
 class L2Bank(BaseCache):
@@ -68,6 +62,43 @@ class L2Bank(BaseCache):
             self.addr_range = AddrRange((bankID*offset)+1, MaxAddr)
         else:
             self.addr_range = AddrRange((bankID*offset)+1, ((bankID+1)*offset))
+
+class CommonLargeCache(BaseCache):
+    block_size = 64
+    cpu_count = int(env['NP'])
+
+    mshrs = 16
+    tgts_per_mshr = 4
+    write_buffers = 16
+
+    is_read_only = False
+    simulate_contention = False # done in new crossbar impl
+
+class PrivateCache1M(CommonLargeCache):
+    size = '1MB'
+    assoc = 4
+    latency = 6 * Parent.clock.period
+    is_shared = True
+
+class SharedCache8M(CommonLargeCache):
+    size = '2MB' # 4 banks
+    assoc = 16
+    latency = 18 * Parent.clock.period
+    is_shared = True
+
+class SharedCache16M(CommonLargeCache):
+    size = '4MB' # 4 banks
+    assoc = 16
+    latency = 23 * Parent.clock.period
+    is_shared = True
+
+class SharedCache32M(CommonLargeCache):
+    size = '8MB' # 4 banks
+    assoc = 16
+    latency = 30 * Parent.clock.period
+    is_shared = True
+     
+
 
 ###############################################################################
 # INTERCONNECT

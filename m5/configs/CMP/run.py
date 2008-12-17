@@ -19,6 +19,54 @@ snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
 
 ###############################################################################
+# Convenience Methods
+###############################################################################
+
+def createMemBus(bankcnt):
+    assert 'MEMORY-BUS-CHANNELS' in env
+    assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
+    banksPerBus = bankcnt / int(env['MEMORY-BUS-CHANNELS'])
+    
+    root.membus = [ConventionalMemBus() for i in range(int(env['MEMORY-BUS-CHANNELS']))]
+    root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(int(env['MEMORY-BUS-CHANNELS']))]
+    
+    for i in range(int(env['MEMORY-BUS-CHANNELS'])):
+        root.membus[i].memory_controller = ReadyFirstMemoryController()
+        root.membus[i].adaptive_mha = root.adaptiveMHA
+
+def initSharedCache(bankcnt):
+    if int(env['NP']) == 4:
+        root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
+    elif int(env['NP']) == 8:
+        root.SharedCache = [SharedCache16M() for i in range(bankcnt)]
+    else:
+        root.SharedCache = [SharedCache32M() for i in range(bankcnt)]
+   
+def setUpSharedCache(bankcnt):
+    
+    assert 'MEMORY-BUS-CHANNELS' in env
+    assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
+    banksPerBus = bankcnt / int(env['MEMORY-BUS-CHANNELS'])
+    
+    curbus = 0
+    buscnt = 0
+    for i in range(bankcnt):
+        root.SharedCache[i].in_interconnect = root.interconnect
+        root.SharedCache[i].out_bus = root.membus[curbus]
+        root.SharedCache[i].use_static_partitioning_for_warmup = True
+        root.SharedCache[i].bank_count = bankcnt
+        root.SharedCache[i].bank_id = i
+        root.SharedCache[i].adaptive_mha = root.adaptiveMHA
+        root.SharedCache[i].do_modulo_addr = True
+        if l2mshrs != -1:
+            root.SharedCache[i].mshrs = l2mshrs
+        if l2mshrTargets != -1:
+            root.SharedCache[i].tgts_per_mshr = l2mshrTargets
+        buscnt += 1
+        if buscnt % banksPerBus == 0:
+            curbus += 1
+
+###############################################################################
 # Check command line options
 ###############################################################################
 
@@ -33,7 +81,8 @@ if 'NP' not in env:
     panic("No number of processors was defined.\ne.g. -ENP=4\n")
 
 if env['PROTOCOL'] not in all_protocols:
-  panic('No/Invalid cache coherence protocol specified!')
+  #panic('No/Invalid cache coherence protocol specified!')
+    env['PROTOCOL'] = 'none'
 
 if 'BENCHMARK' not in env:
     panic("The BENCHMARK environment variable must be set!\ne.g. \
@@ -50,7 +99,8 @@ and 'ISEXPERIMENT' not in env:
 variables must be set!\ne.g. -ESIMULATETICKS=10000\n")
 
 if 'INTERCONNECT' not in env:
-    panic("The INTERCONNECT environment variable must be set!\ne.g. \
+    if env['MEMORY-SYSTEM'] == 'Legacy': 
+        panic("The INTERCONNECT environment variable must be set!\ne.g. \
     -EINTERCONNECT=bus\n")
 
 if 'STATSFILE' not in env:
@@ -424,8 +474,12 @@ else:
 
     root.setCPU(root.simpleCPU)
 
+if cacheProfileStart != -1:
+    BaseCache.detailed_sim_start_tick = cacheProfileStart
+
 if simulationEnds != -1:
     Bus.final_sim_tick = simulationEnds
+    BaseCache.detailed_sim_end_tick = simulationEnds
 
 ###############################################################################
 # Interconnect, L2 caches and Memory Bus
@@ -447,98 +501,125 @@ if env['BENCHMARK'].isdigit() and 'ISEXPERIMENT' in env:
     fwCycles = workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
     icProfileStart = max(fwCycles)
 
-# All runs use modulo based L2 bank selection
-moduloAddr = True
 
-Interconnect.cpu_count = int(env['NP'])
-root.setInterconnect(env['INTERCONNECT'],
-                     L2_BANK_COUNT,
-                     icProfileStart,
-                     moduloAddr,
-                     useFairAdaptiveMHA,
-                     fairCrossbar,
-                     cacheProfileStart)
+assert 'MEMORY-SYSTEM' in env
 
-root.setL2Banks()
-if env['PROTOCOL'] in directory_protocols:
-    for bank in root.l2:
-        bank.dirProtocolName = env['PROTOCOL']
-        bank.dirProtocolDoTrace = coherenceTrace
+if env['MEMORY-SYSTEM'] == "Legacy":
+
+    # All runs use modulo based L2 bank selection
+    moduloAddr = True
+
+    Interconnect.cpu_count = int(env['NP'])
+    root.setInterconnect(env['INTERCONNECT'],
+                         L2_BANK_COUNT,
+                         icProfileStart,
+                         moduloAddr,
+                         useFairAdaptiveMHA,
+                         fairCrossbar,
+                         cacheProfileStart)
+
+    root.setL2Banks()
+    if env['PROTOCOL'] in directory_protocols:
+        for bank in root.l2:
+            bank.dirProtocolName = env['PROTOCOL']
+            bank.dirProtocolDoTrace = coherenceTrace
         
-        if coherenceTraceStart != 0:
-            bank.dirProtocolTraceStart = coherenceTraceStart
+            if coherenceTraceStart != 0:
+                bank.dirProtocolTraceStart = coherenceTraceStart
 
-if l2mshrs != -1:
-    for bank in root.l2:
-        bank.mshrs = l2mshrs
-        bank.tgts_per_mshr = l2mshrTargets
+    if l2mshrs != -1:
+        for bank in root.l2:
+            bank.mshrs = l2mshrs
+            bank.tgts_per_mshr = l2mshrTargets
         
-#if useFairAdaptiveMHA:
-for l2 in root.l2:
-    l2.adaptive_mha = root.adaptiveMHA
+    for l2 in root.l2:
+        l2.adaptive_mha = root.adaptiveMHA
 
-if env["CACHE-PARTITIONING"] == "StaticUniform":
-    for bank in root.l2:
-        bank.use_static_partitioning = True
-        bank.static_part_start_tick = uniformPartStart
+    if env["CACHE-PARTITIONING"] == "StaticUniform":
+        for bank in root.l2:
+            bank.use_static_partitioning = True
+            bank.static_part_start_tick = uniformPartStart
         
-if env["CACHE-PARTITIONING"] == "MTP":
-    for bank in root.l2:
-        bank.use_mtp_partitioning = True
-        bank.use_static_partitioning = True
-        bank.static_part_start_tick = uniformPartStart
+    if env["CACHE-PARTITIONING"] == "MTP":
+        for bank in root.l2:
+            bank.use_mtp_partitioning = True
+            bank.use_static_partitioning = True
+            bank.static_part_start_tick = uniformPartStart
 
-if cacheProfileStart != -1:
-    for dc in root.L1dcaches:
-        dc.detailed_sim_start_tick = cacheProfileStart
-    for ic in root.L1dcaches:
-        ic.detailed_sim_start_tick = cacheProfileStart
-    for bank in root.l2:
-        bank.detailed_sim_start_tick = cacheProfileStart
+    if cacheProfileStart != -1:
+        for dc in root.L1dcaches:
+            dc.detailed_sim_start_tick = cacheProfileStart
+        for ic in root.L1dcaches:
+            ic.detailed_sim_start_tick = cacheProfileStart
+        for bank in root.l2:
+            bank.detailed_sim_start_tick = cacheProfileStart
 
-if simulationEnds != -1:
-    for bank in root.l2:
-        bank.detailed_sim_end_tick = simulationEnds
+    if simulationEnds != -1:
+        for bank in root.l2:
+            bank.detailed_sim_end_tick = simulationEnds
         
     root.adaptiveMHA.printInterference = True
     root.adaptiveMHA.finalSimTick = simulationEnds
 
         
-if L2BankSize != -1:
-    for bank in root.l2:
-        bank.size = str(L2BankSize)+"kB"
+    if L2BankSize != -1:
+        for bank in root.l2:
+            bank.size = str(L2BankSize)+"kB"
 
-for bank in root.l2:
+    for bank in root.l2:
     #if int(env["NP"]) > 1:
         bank.use_static_partitioning_for_warmup = True
         bank.static_part_start_tick = uniformPartStart
     #else:
         #bank.use_static_partitioning_for_warmup = False
 
-# set up memory bus and memory controller
-root.toMemBus = ConventionalMemBus()
-root.toMemBus.adaptive_mha = root.adaptiveMHA
+    # set up memory bus and memory controller
+    root.toMemBus = ConventionalMemBus()
+    root.toMemBus.adaptive_mha = root.adaptiveMHA
 
-if "INFINITE-MEM-BW" in env:
-    root.toMemBus.infinite_bw = True
+    if "INFINITE-MEM-BW" in env:
+        root.toMemBus.infinite_bw = True
 
-#root.toMemBus.fast_forward_controller = FastForwardMemoryController()
+    #root.toMemBus.fast_forward_controller = FastForwardMemoryController()
+        
+    if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        root.toMemBus.memory_controller = ReadyFirstMemoryController()
+        if "MEMORY-BUS-PAGE-POLICY" in env:
+            root.toMemBus.memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
+        if "MEMORY-BUS-PRIORITY-SCHEME" in env:
+            root.toMemBus.memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+    elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
+        root.toMemBus.memory_controller = InOrderMemoryController()
+    elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
+        root.toMemBus.memory_controller = FairNFQMemoryController()
+    elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
+        root.toMemBus.memory_controller = ThroughputNFQMemoryController()
+    else:
+        # default is RDFCFS
+        root.toMemBus.memory_controller = ReadyFirstMemoryController()
 
-if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
-    root.toMemBus.memory_controller = ReadyFirstMemoryController()
-    if "MEMORY-BUS-PAGE-POLICY" in env:
-        root.toMemBus.memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
-    if "MEMORY-BUS-PRIORITY-SCHEME" in env:
-        root.toMemBus.memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
-elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
-    root.toMemBus.memory_controller = InOrderMemoryController()
-elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
-    root.toMemBus.memory_controller = FairNFQMemoryController()
-elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
-    root.toMemBus.memory_controller = ThroughputNFQMemoryController()
+elif env['MEMORY-SYSTEM'] == "CrossbarBased":
+
+    bankcnt = 4
+    createMemBus(bankcnt)
+    initSharedCache(bankcnt)
+
+    root.interconnect = InterconnectCrossbar()
+    root.interconnect.cpu_count = int(env['NP'])
+    root.interconnect.detailed_sim_start_tick = cacheProfileStart
+    root.interconnect.shared_cache_writeback_buffers = root.SharedCache[0].write_buffers
+    root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
+    root.interconnect.adaptive_mha = root.adaptiveMHA
+
+    setUpSharedCache(bankcnt)
+
+elif env['MEMORY-SYSTEM'] == "RingBased":
+
+    panic("Ring based CMP config not implemented")
+
 else:
-    # default is RDFCFS
-    root.toMemBus.memory_controller = ReadyFirstMemoryController()
+    panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
+
 
 ###############################################################################
 # Workloads
