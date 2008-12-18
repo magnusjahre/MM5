@@ -221,6 +221,7 @@ base_sources = Split('''
 	mem/interconnect/interconnect_profile.cc
 	mem/interconnect/butterfly.cc
 	mem/interconnect/peer_to_peer_link.cc
+	mem/interconnect/ring.cc
 	mem/functional/functional.cc
 	mem/timing/base_memory.cc
 	mem/timing/memory_builder.cc

@@ -625,12 +625,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     createMemBus(bankcnt)
     initSharedCache(bankcnt)
 
-    ## FIXME: This should be a ring!!!
-    root.interconnect = InterconnectCrossbar()
-    root.interconnect.cpu_count = int(env['NP'])
-    root.interconnect.detailed_sim_start_tick = cacheProfileStart
-    root.interconnect.shared_cache_writeback_buffers = root.SharedCache[0].write_buffers
-    root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
+    root.interconnect = RingInterconnect()
     root.interconnect.adaptive_mha = root.adaptiveMHA
     
     setUpSharedCache(bankcnt)

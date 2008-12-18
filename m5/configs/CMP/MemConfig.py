@@ -164,6 +164,13 @@ class PointToPointLink(PeerToPeerLink):
     transferDelay = 1
     arbitrationDelay = -1 # not used
     cpu_count = env['NP']
+    
+class RingInterconnect(Ring):
+    width = 64
+    clock = 1 * Parent.clock.period
+    transferDelay = 1
+    arbitrationDelay = -1 # not used
+    cpu_count = env['NP']
 
 ###############################################################################
 # MEMORY AND MEMORY BUS
