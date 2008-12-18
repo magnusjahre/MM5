@@ -268,44 +268,27 @@ Crossbar::retriveAdditionalRequests(){
     if(!allZero){
         
         for(int i=0;i<cpu_count;i++){
-            assert(processorIDToInterconnectIDs[i].size() == 2);
-            int firstInterfaceID = processorIDToInterconnectIDs[i].front();
-            int secondInterfaceID = processorIDToInterconnectIDs[i].back();
-
-            while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
-                   && !blockedLocalQueues[i]){
-                
-                MemReqPtr firstReq = allInterfaces[firstInterfaceID]->getPendingRequest();
-                MemReqPtr secondReq = allInterfaces[secondInterfaceID]->getPendingRequest();
-                int grantedID = -1;
-                
-                if(notRetrievedRequests[firstInterfaceID] > 0 && notRetrievedRequests[secondInterfaceID] == 0){
-                    allInterfaces[firstInterfaceID]->grantData();
-                    grantedID = firstInterfaceID;
-                }
-                else if(notRetrievedRequests[firstInterfaceID] == 0 && notRetrievedRequests[secondInterfaceID] > 0){
-                    allInterfaces[secondInterfaceID]->grantData();
-                    grantedID = secondInterfaceID;
-                }
-                else{
-                    assert(notRetrievedRequests[firstInterfaceID] > 0);
-                    assert(notRetrievedRequests[secondInterfaceID] > 0);
+            if(processorIDToInterconnectIDs[i].size() == 2){
+                int firstInterfaceID = processorIDToInterconnectIDs[i].front();
+                int secondInterfaceID = processorIDToInterconnectIDs[i].back();
+    
+                while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
+                    && !blockedLocalQueues[i]){
                     
-                    Tick firstTime = firstReq ? firstReq->finishedInCacheAt : 0;
-                    Tick secondTime = secondReq ? secondReq->finishedInCacheAt : 0;
+                    int grantedID = findNotDeliveredNextInterface(firstInterfaceID, secondInterfaceID);
                     
-                    if(firstTime <= secondTime){
-                        allInterfaces[firstInterfaceID]->grantData();
-                        grantedID = firstInterfaceID;
-                    }
-                    else{
-                        allInterfaces[secondInterfaceID]->grantData();
-                        grantedID = secondInterfaceID;
-                    }
+                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d, queued %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID], crossbarRequests[i].size());
                 }
-                
-                notRetrievedRequests[grantedID]--;
-                DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d, queued %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID], crossbarRequests[i].size());
+            }
+            else{
+                assert(processorIDToInterconnectIDs[i].size() == 1);
+                int iID = processorIDToInterconnectIDs[i].front();
+                while(notRetrievedRequests[iID] > 0 && !blockedLocalQueues[i]){
+                    allInterfaces[iID]->grantData();
+                    notRetrievedRequests[iID]--;
+                    
+                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, still waiting %d, queued %d\n", iID, i, notRetrievedRequests[iID], crossbarRequests[i].size());
+                }
             }
         }
     }

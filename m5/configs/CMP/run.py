@@ -228,14 +228,15 @@ if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
                         for i in xrange(int(env['NP'])) ]
         root.L1icaches = [ IL1(out_interconnect=Parent.interconnect)
                         for i in xrange(int(env['NP'])) ]
+                        
+    for l1 in root.L1dcaches:
+        l1.adaptive_mha = root.adaptiveMHA
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
     root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i]) for i in range(int(env['NP'])) ]
     root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i]) for i in xrange(int(env['NP'])) ]
     
-    for link in root.PointToPointLink:
-        link.adaptive_mha = root.adaptiveMHA
 
 if env['PROTOCOL'] != 'none':
     if env['PROTOCOL'] in snoop_protocols:
@@ -291,9 +292,6 @@ if 'DUMP-INTERFERENCE' in env:
     
 for cpu in root.detailedCPU:
     cpu.adaptiveMHA = root.adaptiveMHA
-    
-for l1 in root.L1dcaches:
-    l1.adaptive_mha = root.adaptiveMHA
     
 for l1 in root.L1icaches:
     l1.adaptive_mha = root.adaptiveMHA

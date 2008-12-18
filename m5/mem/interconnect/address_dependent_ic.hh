@@ -12,6 +12,8 @@ class AddressDependentIC : public Interconnect
     
         void initQueues(int localBlockedSize, int expectedInterfaces);
         
+        int findNotDeliveredNextInterface(int firstInterfaceID, int secondInterfaceID);
+        
     public:
         AddressDependentIC(const std::string &_name, 
                            int _width, 

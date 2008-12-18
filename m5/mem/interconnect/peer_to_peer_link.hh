@@ -7,23 +7,23 @@
 class PeerToPeerLink : public AddressDependentIC{ 
     
     private:
-            
-        struct P2PRequestEntry{
-            MemReqPtr req;
-            Tick entry;
-            
-            P2PRequestEntry(MemReqPtr& _req, Tick _entry){
-                req = _req;
-                entry = _entry;
-            }
-        };
-            
-        std::vector<std::list<P2PRequestEntry> > p2pRequestQueues;
+
+        std::list<MemReqPtr> p2pRequestQueue;
         std::list<MemReqPtr> p2pResponseQueue;
         
         ADIArbitrationEvent* arbEvent;
         
         int queueSize;
+        int slaveInterconnectID;
+        int attachedCPUID;
+        
+        std::list<MemReqPtr> deliveryBuffer;
+        
+        void retrieveAdditionalRequests();
+        
+        inline bool isWaitingRequests(){
+            return (!p2pRequestQueue.empty() && !blockedInterfaces[0]) || !p2pResponseQueue.empty();
+        }
     
     public:
         PeerToPeerLink(const std::string &_name, 
@@ -40,6 +40,8 @@ class PeerToPeerLink : public AddressDependentIC{
         virtual void arbitrate(Tick time);
         
         virtual void deliver(MemReqPtr& req, Tick cycle, int toID, int fromID);
+        
+        virtual void clearBlocked(int fromInterface);
 };
 
 #endif //__PEER_TO_PEER_LINK_HH__

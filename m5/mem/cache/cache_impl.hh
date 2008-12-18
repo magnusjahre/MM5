@@ -260,8 +260,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     int size = blkSize;
     int lat = hitLatency;
     
-    cout << curTick << " " << name() << ": accessing addr " << req->paddr << ", cmd is " << req->cmd << "\n";
-    
     if(useDirectory && doData()){
         fatal("Directory protocol does not handle data transfers");
     }
@@ -532,8 +530,6 @@ void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
     
-    cout << curTick << " " << name() << ": responding to addr " << req->paddr << ", cmd is " << req->cmd << "\n";
-    
     if(isDirectoryAndL1DataCache()){
         
         if(directoryProtocol->handleDirectoryResponse(req, tags)){
@@ -565,8 +561,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
         numExtraMisses[req->adaptiveMHASenderID]++;
     }
     
-    if(!isShared){
-        assert(adaptiveMHA != NULL);
+    if(!isShared && adaptiveMHA != NULL){
         adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
     }
     

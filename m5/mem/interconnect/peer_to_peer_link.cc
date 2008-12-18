@@ -21,31 +21,58 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                          _hier,
                          _adaptiveMHA)
 {
-    initQueues(2, 3);
-    p2pRequestQueues.resize(2, list<P2PRequestEntry>());
+    initQueues(cpu_count, cpu_count);
     queueSize = 32;
     
     arbEvent = new ADIArbitrationEvent(this);
     
-    assert(_adaptiveMHA != NULL);
+    slaveInterconnectID = -1;
+    attachedCPUID = -1;
+    
+    assert(_adaptiveMHA == NULL);
     assert(_transDelay > 0);
 }
 
 void
 PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
     
-    cout << curTick << " " << name() << ": sending from interface " << fromID << ", proc " << req->adaptiveMHASenderID << "\n";
+    if(slaveInterconnectID == -1){
+        assert(slaveInterfaces.size() == 1);
+        for(int i=0;i<allInterfaces.size();i++){
+            if(!allInterfaces[i]->isMaster()){
+                slaveInterconnectID = i;
+                break;
+            }
+        }
+        assert(slaveInterconnectID != -1);
+    }
+    
+    if(attachedCPUID == -1){
+        attachedCPUID = req->adaptiveMHASenderID;
+    }
+    assert(attachedCPUID == req->adaptiveMHASenderID);
+    
+    if(req->finishedInCacheAt < curTick){
+        entryDelay += curTick - req->finishedInCacheAt;
+    }
+    entryRequests++;
+    
+    req->inserted_into_crossbar = curTick;
     
     if(allInterfaces[fromID]->isMaster()){
-        p2pRequestQueues[fromID].push_back(P2PRequestEntry(req,curTick));
-        if(requestQueue.size() >= queueSize) fatal("P2P blocking not implemented");
+        
+        p2pRequestQueue.push_back(req);
+        if(p2pRequestQueue.size() == queueSize){
+            setBlockedLocal(req->adaptiveMHASenderID);
+        }
+        assert(p2pRequestQueue.size() <= queueSize);
     }
     else{
         p2pResponseQueue.push_back(req);
     }
     
     if(!arbEvent->scheduled()){
-        arbEvent->schedule(curTick);
+        arbEvent->schedule(curTick+1);
     }
 }
 
@@ -53,68 +80,87 @@ void
 PeerToPeerLink::arbitrate(Tick time){
     
     assert(slaveInterfaces.size() == 1);
-    assert(p2pRequestQueues.size() == 2);
     
-    int sendFromQueue = -1;
-    if(!p2pRequestQueues[0].empty() && !p2pRequestQueues[1].empty()){
-        if(p2pRequestQueues[0].front().entry <= p2pRequestQueues[1].front().entry){
-            sendFromQueue = 0;
-        }
-        else{
-            sendFromQueue = 1;
-        }
-    }
-    else if(!p2pRequestQueues[0].empty() && p2pRequestQueues[1].empty()){
-        sendFromQueue = 0;
-    }
-    else if(p2pRequestQueues[0].empty() && !p2pRequestQueues[1].empty()){
-        sendFromQueue = 1;
-    }
-    
-    if(sendFromQueue != -1){
+    if(!p2pRequestQueue.empty() && !blockedInterfaces[0]){
+        MemReqPtr mreq = p2pRequestQueue.front();
+        p2pRequestQueue.pop_front();
+        mreq->toInterfaceID = slaveInterconnectID;
         
-        int toID = -1;
-        assert(slaveInterfaces.size() == 1);
-        for(int i=0;i<allInterfaces.size();i++){
-            if(!allInterfaces[i]->isMaster()){
-                toID = i;
-                break;
-            }
-        }
-        assert(toID != -1);
+        totalArbQueueCycles += curTick - mreq->inserted_into_crossbar;
+        arbitratedRequests++;
         
-        P2PRequestEntry entry = p2pRequestQueues[sendFromQueue].front();
-        p2pRequestQueues[sendFromQueue].pop_front();
-        entry.req->toInterfaceID = toID;
-        ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, true);
+        ADIDeliverEvent* delivery = new ADIDeliverEvent(this, mreq, true);
         delivery->schedule(curTick + transferDelay);
+    }
+    
+    if(blockedLocalQueues[attachedCPUID] && p2pRequestQueue.size() < queueSize){
+        clearBlockedLocal(attachedCPUID);
     }
     
     if(!p2pResponseQueue.empty()){
         MemReqPtr sreq = p2pResponseQueue.front();
+        
+        totalArbQueueCycles += curTick - sreq->inserted_into_crossbar;
+        arbitratedRequests++;
+        
         p2pResponseQueue.pop_front();
         ADIDeliverEvent* delivery = new ADIDeliverEvent(this, sreq, false);
         delivery->schedule(curTick + transferDelay);
     }
     
-    if(!p2pRequestQueues[0].empty() || !p2pRequestQueues[1].empty() || !p2pResponseQueue.empty()){
+    retrieveAdditionalRequests();
+    
+    if(isWaitingRequests() && !arbEvent->scheduled()){
         arbEvent->schedule(curTick + 1);
+    }
+}
+
+void 
+PeerToPeerLink::retrieveAdditionalRequests(){
+    
+    assert(processorIDToInterconnectIDs[attachedCPUID].size() == 2);
+    int firstInterfaceID = processorIDToInterconnectIDs[attachedCPUID].front();
+    int secondInterfaceID = processorIDToInterconnectIDs[attachedCPUID].back();
+    
+    while(notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0){
+        if(p2pRequestQueue.size() < queueSize) findNotDeliveredNextInterface(firstInterfaceID,secondInterfaceID);
+        else return;
     }
 }
 
 void 
 PeerToPeerLink::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     
+    assert(toID != -1);
+    
     if(allInterfaces[toID]->isMaster()){
         allInterfaces[toID]->deliver(req);
     }
     else{
-        cout << curTick << " " << name() << ": delivering to interface " << toID << "\n";
-        MemAccessResult res = allInterfaces[toID]->access(req);
-        if(res == BA_BLOCKED){
-            fatal("P2P slave blocking not handled");
+        assert(slaveInterfaces.size() == 1);
+        assert(slaveInterfaces.size() == blockedInterfaces.size());
+        if(blockedInterfaces[0] || !deliveryBuffer.empty()){
+            deliveryBuffer.push_back(req);
+            assert(deliveryBuffer.size() == 1);
+        }
+        else{
+            allInterfaces[toID]->access(req);
         }
     }
+}
+
+void 
+PeerToPeerLink::clearBlocked(int fromInterface){
+    Interconnect::clearBlocked(fromInterface);
+    
+    while(!deliveryBuffer.empty()){
+        MemReqPtr req = deliveryBuffer.front();
+        deliveryBuffer.pop_front();
+        MemAccessResult res = allInterfaces[slaveInterconnectID]->access(req);
+        if(res == BA_BLOCKED) return;
+    }
+    
+    if(!arbEvent->scheduled()) arbEvent->schedule(curTick + 1);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
