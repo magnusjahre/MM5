@@ -168,8 +168,8 @@ class PointToPointLink(PeerToPeerLink):
 class RingInterconnect(Ring):
     width = 64
     clock = 1 * Parent.clock.period
-    transferDelay = 1
-    arbitrationDelay = -1 # not used
+    transferDelay = 4
+    arbitrationDelay = 4
     cpu_count = env['NP']
 
 ###############################################################################

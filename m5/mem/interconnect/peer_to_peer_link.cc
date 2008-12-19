@@ -69,6 +69,7 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
     }
     else{
         p2pResponseQueue.push_back(req);
+        assert(p2pResponseQueue.size() <= queueSize);
     }
     
     if(!arbEvent->scheduled()){
