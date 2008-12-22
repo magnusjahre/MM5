@@ -17,6 +17,8 @@ class PeerToPeerLink : public AddressDependentIC{
         int slaveInterconnectID;
         int attachedCPUID;
         
+        Tick nextLegalArbTime;
+        
         std::list<MemReqPtr> deliveryBuffer;
         
         void retrieveAdditionalRequests();

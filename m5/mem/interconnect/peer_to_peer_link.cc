@@ -73,12 +73,20 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
     }
     
     if(!arbEvent->scheduled()){
-        arbEvent->schedule(curTick+1);
+        
+        if(nextLegalArbTime < curTick+1){
+            arbEvent->schedule(curTick+1);
+        }
+        else{
+            arbEvent->schedule(nextLegalArbTime);
+        }
     }
 }
 
 void 
 PeerToPeerLink::arbitrate(Tick time){
+    
+    nextLegalArbTime = curTick + transferDelay;
     
     assert(slaveInterfaces.size() == 1);
     
@@ -112,7 +120,7 @@ PeerToPeerLink::arbitrate(Tick time){
     retrieveAdditionalRequests();
     
     if(isWaitingRequests() && !arbEvent->scheduled()){
-        arbEvent->schedule(curTick + 1);
+        arbEvent->schedule(curTick + transferDelay);
     }
 }
 
@@ -161,7 +169,14 @@ PeerToPeerLink::clearBlocked(int fromInterface){
         if(res == BA_BLOCKED) return;
     }
     
-    if(!arbEvent->scheduled()) arbEvent->schedule(curTick + 1);
+    if(!arbEvent->scheduled()){
+        if(nextLegalArbTime < curTick+1){
+            arbEvent->schedule(curTick+1);
+        }
+        else{
+            arbEvent->schedule(nextLegalArbTime);
+        }
+    }
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

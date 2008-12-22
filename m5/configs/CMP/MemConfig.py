@@ -161,7 +161,7 @@ class InterconnectButterfly(Butterfly):
 class PointToPointLink(PeerToPeerLink):
     width = 64
     clock = 1 * Parent.clock.period
-    transferDelay = 1
+    transferDelay = 3
     arbitrationDelay = -1 # not used
     cpu_count = env['NP']
     
