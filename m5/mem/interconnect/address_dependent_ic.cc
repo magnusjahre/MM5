@@ -144,3 +144,31 @@ AddressDependentIC::retrieveAdditionalRequests(){
         }
     }
 }
+
+void 
+AddressDependentIC::updateEntryInterference(MemReqPtr& req, int fromID){
+    
+    // FIXME: what about entries from the slave side?
+    if(allInterfaces[fromID]->isMaster()){
+        assert(curTick >= req->finishedInCacheAt);
+        int waitTime = curTick - req->finishedInCacheAt; 
+        entryDelay += waitTime;
+        
+        assert(req->cmd == Read || req->cmd == Writeback);
+        if(req->cmd == Read && waitTime > 0){
+            assert(req->adaptiveMHASenderID != -1);
+                
+            int extraDelay = (int) ((double) waitTime * 0.75);
+            cpuEntryInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
+            adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
+            req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += extraDelay;
+            
+            entryReadDelay += waitTime;
+            perCpuTotalDelay[req->adaptiveMHASenderID] += waitTime;
+        }
+
+        req->latencyBreakdown[INTERCONNECT_ENTRY_LAT] += waitTime;
+    }
+    entryRequests++;
+    if(req->cmd == Read) entryReadRequests++;
+}

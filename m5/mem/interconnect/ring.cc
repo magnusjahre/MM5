@@ -66,6 +66,8 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
     
+    updateEntryInterference(req, fromID);
+    
     if(allInterfaces[fromID]->isMaster()){
        vector<int> resourceReq = findResourceRequirements(req, fromID);
         
@@ -264,12 +266,18 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
         
         if(inFlightRequests[toSlaveID] == recvBufferSize){
             DPRINTF(Crossbar, "CPU %d not granted, %d reqs in flight to slave %d\n", entry.req->adaptiveMHASenderID, inFlightRequests[toSlaveID], toSlaveID);
+            
+            entry.req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] -= arbitrationDelay;
+            entry.req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += arbitrationDelay;
             return false;
         }
         else{
             inFlightRequests[toSlaveID]++;
         }
     }
+    
+    totalArbQueueCycles += curTick - entry.req->inserted_into_crossbar;
+    arbitratedRequests++;
     
     // update state
     transTick = curTick;
@@ -293,6 +301,9 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     
     ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, toSlave);
     delivery->schedule(curTick + (arbitrationDelay * entry.resourceReq.size()));
+    
+    totalTransferCycles += (arbitrationDelay * entry.resourceReq.size());
+    sentRequests++;
     
     DPRINTF(Crossbar, "Granting access to CPU %d, from ICID %d, to IDID %d, latency %d, hops %d\n",
             entry.req->adaptiveMHASenderID,
@@ -383,6 +394,14 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
 
 void 
 Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
+    
+    req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += curTick - req->inserted_into_crossbar;
+    
+    if(req->adaptiveMHASenderID != -1){
+        perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
+        perCpuRequests[req->adaptiveMHASenderID]++;
+    }
+    
     if(allInterfaces[toID]->isMaster()){
         DPRINTF(Crossbar, "Delivering to master %d, req from CPU %d\n", toID, req->adaptiveMHASenderID);
         allInterfaces[toID]->deliver(req);
@@ -412,6 +431,10 @@ Ring::clearBlocked(int fromInterface){
         deliverBuffer[unblockedSlaveID].pop_front();
         
         DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight, %d buffered\n", fromInterface, unblockedSlaveID, entry.req->adaptiveMHASenderID, inFlightRequests[unblockedSlaveID], deliverBuffer[unblockedSlaveID].size());
+        
+        entry.req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += curTick - entry.enteredAt;
+        deliverBufferDelay += curTick - entry.enteredAt;
+        deliverBufferRequests++;
         
         MemAccessResult res = allInterfaces[fromInterface]->access(entry.req);
         inFlightRequests[unblockedSlaveID]--;

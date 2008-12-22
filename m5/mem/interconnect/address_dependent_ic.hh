@@ -61,6 +61,8 @@ class AddressDependentIC : public Interconnect
         }
         
         void retrieveAdditionalRequests();
+        
+        void updateEntryInterference(MemReqPtr& req, int fromID);
 };
 
 class ADIRetrieveReqEvent : public Event
