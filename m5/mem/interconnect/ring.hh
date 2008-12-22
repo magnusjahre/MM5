@@ -28,6 +28,8 @@ class Ring : public AddressDependentIC{
         int numberOfRequestRings;
         int numberOfResponseRings;
         
+        int detailedSimStartTick;
+        
         std::vector<std::map<int, std::list<Tick> > > ringLinkOccupied;
         
         std::vector<std::list<RingRequestEntry> > ringRequestQueue;
@@ -65,7 +67,8 @@ class Ring : public AddressDependentIC{
                        int _arbDelay,
                        int _cpu_count,
                        HierParams *_hier,
-                       AdaptiveMHA* _adaptiveMHA);
+                       AdaptiveMHA* _adaptiveMHA,
+                       Tick _detailedStart);
         
         virtual void send(MemReqPtr& req, Tick time, int fromID);
         

@@ -627,6 +627,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
 
     root.interconnect = RingInterconnect()
     root.interconnect.adaptive_mha = root.adaptiveMHA
+    root.interconnect.detailed_sim_start_tick = cacheProfileStart
     
     setUpSharedCache(bankcnt)
     

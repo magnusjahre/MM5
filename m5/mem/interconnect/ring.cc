@@ -13,7 +13,8 @@ Ring::Ring(const std::string &_name,
                                int _arbDelay,
                                int _cpu_count,
                                HierParams *_hier,
-                               AdaptiveMHA* _adaptiveMHA)
+                               AdaptiveMHA* _adaptiveMHA,
+                               Tick _detailedStart)
     : AddressDependentIC(_name,
                          _width, 
                          _clock, 
@@ -28,6 +29,8 @@ Ring::Ring(const std::string &_name,
     queueSize = 32; // FIXME: parameterize
     numberOfRequestRings = 1; // FIXME: parametrize
     numberOfResponseRings = 1;
+    
+    detailedSimStartTick = _detailedStart;
     
     initQueues(_cpu_count,_cpu_count + sharedCacheBankCount);
     
@@ -336,7 +339,30 @@ Ring::arbitrate(Tick time){
     
     assert(curTick % arbitrationDelay == 0);
     
-    // TODO: implement fw arbitration
+    if(curTick < detailedSimStartTick){
+        
+        // infinite bw in warm-up, deliver all pending requests
+        for(int i=0;i<ringRequestQueue.size();i++){
+            while(!ringRequestQueue[i].empty()){
+                MemReqPtr curReq = ringRequestQueue[i].front().req;
+                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, curReq, true);
+                delivery->schedule(curTick + arbitrationDelay);
+                int toSlaveID = interconnectIDToL2IDMap[curReq->toInterfaceID];
+                inFlightRequests[toSlaveID]++;
+                ringRequestQueue[i].pop_front();
+            }
+        }
+        
+        for(int i=0;i<ringResponseQueue.size();i++){
+            while(!ringResponseQueue[i].empty()){
+                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, ringResponseQueue[i].front().req, false);
+                delivery->schedule(curTick + arbitrationDelay);
+                ringResponseQueue[i].pop_front();
+            }
+        }
+        return;
+    }
+    
     
     DPRINTF(Crossbar, "Ring arbitrating\n");
     for(int i=0;i<numberOfRequestRings+numberOfResponseRings;i++) removeOldEntries(i);
@@ -453,6 +479,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Ring)
     Param<int> cpu_count;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
+    Param<Tick> detailed_sim_start_tick;
 END_DECLARE_SIM_OBJECT_PARAMS(Ring)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
@@ -462,7 +489,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
     INIT_PARAM(arbitrationDelay, "crossbar arbitration delay in CPU cycles"),
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
-    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
+    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts")
 END_INIT_SIM_OBJECT_PARAMS(Ring)
 
 CREATE_SIM_OBJECT(Ring)
@@ -474,7 +502,8 @@ CREATE_SIM_OBJECT(Ring)
                               arbitrationDelay,
                               cpu_count,
                               hier,
-                              adaptive_mha);
+                              adaptive_mha,
+                              detailed_sim_start_tick);
 }
 
 REGISTER_SIM_OBJECT("Ring", Ring)
