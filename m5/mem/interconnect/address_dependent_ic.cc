@@ -104,3 +104,43 @@ AddressDependentIC::findNotDeliveredNextInterface(int firstInterfaceID, int seco
     notRetrievedRequests[grantedID]--;
     return grantedID;
 }
+
+void 
+AddressDependentIC::retrieveAdditionalRequests(){
+    
+    bool allZero = true;
+    for(int i=0;i<allInterfaces.size();i++){
+        if(!allInterfaces[i]->isMaster()){
+            assert(notRetrievedRequests[i] == 0);
+        }
+        if(notRetrievedRequests[i] > 0) allZero = false;
+    }
+    
+    if(!allZero){
+        
+        for(int i=0;i<cpu_count;i++){
+            if(processorIDToInterconnectIDs[i].size() == 2){
+                int firstInterfaceID = processorIDToInterconnectIDs[i].front();
+                int secondInterfaceID = processorIDToInterconnectIDs[i].back();
+    
+                while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
+                    && !blockedLocalQueues[i]){
+                    
+                    int grantedID = findNotDeliveredNextInterface(firstInterfaceID, secondInterfaceID);
+                    
+                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID]);
+                }
+            }
+            else{
+                assert(processorIDToInterconnectIDs[i].size() == 1);
+                int iID = processorIDToInterconnectIDs[i].front();
+                while(notRetrievedRequests[iID] > 0 && !blockedLocalQueues[i]){
+                    allInterfaces[iID]->grantData();
+                    notRetrievedRequests[iID]--;
+                    
+                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, still waiting %d\n", iID, i, notRetrievedRequests[iID]);
+                }
+            }
+        }
+    }
+}

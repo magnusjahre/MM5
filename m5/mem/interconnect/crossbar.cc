@@ -186,7 +186,7 @@ Crossbar::arbitrate(Tick time){
     }
     
     // we might have space in the local queues now, attempt to retrieve additional requests
-    retriveAdditionalRequests();
+    retrieveAdditionalRequests();
 }
 
 vector<int>
@@ -252,46 +252,6 @@ Crossbar::addBlockedInterfaces(){
     DPRINTF(Crossbar, "Arbitating, current blocked state: %s\n", debugtrace.str());
     
     return state;
-}
-
-void 
-Crossbar::retriveAdditionalRequests(){
-    
-    bool allZero = true;
-    for(int i=0;i<allInterfaces.size();i++){
-        if(!allInterfaces[i]->isMaster()){
-            assert(notRetrievedRequests[i] == 0);
-        }
-        if(notRetrievedRequests[i] > 0) allZero = false;
-    }
-    
-    if(!allZero){
-        
-        for(int i=0;i<cpu_count;i++){
-            if(processorIDToInterconnectIDs[i].size() == 2){
-                int firstInterfaceID = processorIDToInterconnectIDs[i].front();
-                int secondInterfaceID = processorIDToInterconnectIDs[i].back();
-    
-                while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
-                    && !blockedLocalQueues[i]){
-                    
-                    int grantedID = findNotDeliveredNextInterface(firstInterfaceID, secondInterfaceID);
-                    
-                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d, queued %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID], crossbarRequests[i].size());
-                }
-            }
-            else{
-                assert(processorIDToInterconnectIDs[i].size() == 1);
-                int iID = processorIDToInterconnectIDs[i].front();
-                while(notRetrievedRequests[iID] > 0 && !blockedLocalQueues[i]){
-                    allInterfaces[iID]->grantData();
-                    notRetrievedRequests[iID]--;
-                    
-                    DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, still waiting %d, queued %d\n", iID, i, notRetrievedRequests[iID], crossbarRequests[i].size());
-                }
-            }
-        }
-    }
 }
 
 bool

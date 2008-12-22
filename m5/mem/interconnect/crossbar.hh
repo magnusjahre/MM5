@@ -66,8 +66,6 @@ class Crossbar : public AddressDependentIC
         
         int addBlockedInterfaces();
         
-        void retriveAdditionalRequests();
-        
         std::vector<int> findServiceOrder(std::vector<std::list<std::pair<MemReqPtr, int> > >* currentQueue);
         
         bool blockingDueToPrivateAccesses(int blockedCPU);

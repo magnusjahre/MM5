@@ -36,11 +36,14 @@ class Ring : public AddressDependentIC{
         std::vector<int> inFlightRequests;
         int recvBufferSize;
         
+        std::vector<std::list<RingRequestEntry> > deliverBuffer;
+        
         ADIArbitrationEvent* arbEvent;
         
-        std::vector<int> findMasterResourceRequirements(MemReqPtr& req, int fromIntID);
-        std::vector<int> findSlaveResourceRequirements(MemReqPtr& req);
-        
+        std::vector<int> findResourceRequirements(MemReqPtr& req, int fromIntID);
+        std::vector<int> findMasterPath(MemReqPtr& req, int uphops, int downhops);
+        std::vector<int> findSlavePath(MemReqPtr& req, int uphops, int downhops);
+                
         std::vector<int> findServiceOrder(std::vector<std::list<RingRequestEntry> >* queue);
         
         void attemptToScheduleArbEvent();
@@ -49,6 +52,10 @@ class Ring : public AddressDependentIC{
         bool checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave);
         
         void arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startRingID, int endRingID, bool toSlave);
+        
+        void checkRingOrdering(int ringID);
+        
+        bool hasWaitingRequests();
     
     public:
         Ring(const std::string &_name, 
@@ -65,6 +72,8 @@ class Ring : public AddressDependentIC{
         virtual void arbitrate(Tick time);
         
         virtual void deliver(MemReqPtr& req, Tick cycle, int toID, int fromID);
+        
+        virtual void clearBlocked(int fromInterface);
 };
 
 #endif //__RING_HH__

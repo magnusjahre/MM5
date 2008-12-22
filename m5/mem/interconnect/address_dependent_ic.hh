@@ -59,6 +59,8 @@ class AddressDependentIC : public Interconnect
 
         void resetInterferenceStats(){
         }
+        
+        void retrieveAdditionalRequests();
 };
 
 class ADIRetrieveReqEvent : public Event
