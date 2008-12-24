@@ -23,6 +23,16 @@ class BaseL1Cache(BaseCache):
         latency = 2 * Parent.clock.period
     elif int(env['NP']) == 16:
         latency = 2 * Parent.clock.period
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            latency = 3 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
+            latency = 2 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            latency = 2 * Parent.clock.period
+        else:
+            panic("L1 cache: unknown latency for single")
     else:
         panic("L1 cache: unknown latency for cpu count")
 
@@ -91,6 +101,16 @@ class PrivateCache1M(CommonLargeCache):
         latency = 6 * Parent.clock.period
     elif int(env['NP']) == 16:
         latency = 5 * Parent.clock.period
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            latency = 9 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
+            latency = 6 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            latency = 5 * Parent.clock.period
+        else:
+            panic("Priv 1M cache: Unknown latency for single")
     else:
         panic("Priv 1M cache: unknown latency for cpu count")
     
@@ -101,6 +121,10 @@ class SharedCache8M(CommonLargeCache):
     
     latency = 16 * Parent.clock.period
     is_shared = True
+    
+    if int(env['NP']) == 1:
+        static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
+
 
 class SharedCache16M(CommonLargeCache):
     size = '4MB' # 4 banks
@@ -108,11 +132,19 @@ class SharedCache16M(CommonLargeCache):
     latency = 12 * Parent.clock.period
     is_shared = True
 
+    if int(env['NP']) == 1:
+        static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
+
+
 class SharedCache32M(CommonLargeCache):
     size = '8MB' # 4 banks
     assoc = 16
     latency = 12 * Parent.clock.period
     is_shared = True
+    
+    if int(env['NP']) == 1:
+        static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
+
      
 
 
@@ -160,6 +192,19 @@ class InterconnectCrossbar(Crossbar):
     elif int(env['NP']) == 16:
         transferDelay = 30
         pipe_stages = 6
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            transferDelay = 8
+            pipe_stages = 2
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
+            transferDelay = 16
+            pipe_stages = 4
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            transferDelay = 30
+            pipe_stages = 6
+        else:
+            panic("Crossbar: unknown latency for single")
     else:
         panic("Crossbar: unknown latency for cpu count")
     
@@ -197,6 +242,16 @@ class PointToPointLink(PeerToPeerLink):
         transferDelay = 3
     elif int(env['NP']) == 16:
         transferDelay = 2
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            transferDelay = 4
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
+            transferDelay = 3
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            transferDelay = 2
+        else:
+            panic("P2P: unknown latency for single")
     else:
         panic("P2P: unknown latency for cpu count")
     
