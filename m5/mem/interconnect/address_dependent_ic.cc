@@ -172,3 +172,5 @@ AddressDependentIC::updateEntryInterference(MemReqPtr& req, int fromID){
     entryRequests++;
     if(req->cmd == Read) entryReadRequests++;
 }
+
+
