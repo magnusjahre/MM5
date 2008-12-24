@@ -9,9 +9,6 @@ class BaseL1Cache(BaseCache):
     size = '64kB'
     assoc = 2
     block_size = 64
-    
-    latency = 3 * Parent.clock.period
-    
     mshrs = 16
     write_buffers = 4
     tgts_per_mshr = 4
@@ -19,6 +16,15 @@ class BaseL1Cache(BaseCache):
     cpu_count = int(env['NP'])
     is_shared = False
     simulate_contention = False
+    
+    if int(env['NP']) == 4:
+        latency = 3 * Parent.clock.period
+    elif int(env['NP']) == 8:
+        latency = 2 * Parent.clock.period
+    elif int(env['NP']) == 16:
+        latency = 2 * Parent.clock.period
+    else:
+        panic("L1 cache: unknown latency for cpu count")
 
 class IL1(BaseL1Cache):
     is_read_only = True
@@ -77,25 +83,35 @@ class CommonLargeCache(BaseCache):
 class PrivateCache1M(CommonLargeCache):
     size = '1MB'
     assoc = 4
-    latency = 6 * Parent.clock.period
     is_shared = False
+    
+    if int(env['NP']) == 4:
+        latency = 9 * Parent.clock.period
+    elif int(env['NP']) == 8:
+        latency = 6 * Parent.clock.period
+    elif int(env['NP']) == 16:
+        latency = 5 * Parent.clock.period
+    else:
+        panic("Priv 1M cache: unknown latency for cpu count")
+    
 
 class SharedCache8M(CommonLargeCache):
     size = '2MB' # 4 banks
     assoc = 16
-    latency = 18 * Parent.clock.period
+    
+    latency = 16 * Parent.clock.period
     is_shared = True
 
 class SharedCache16M(CommonLargeCache):
     size = '4MB' # 4 banks
     assoc = 16
-    latency = 23 * Parent.clock.period
+    latency = 12 * Parent.clock.period
     is_shared = True
 
 class SharedCache32M(CommonLargeCache):
     size = '8MB' # 4 banks
     assoc = 16
-    latency = 30 * Parent.clock.period
+    latency = 12 * Parent.clock.period
     is_shared = True
      
 
@@ -133,8 +149,19 @@ class InterconnectIdealWithDelay(IdealInterconnect):
 class InterconnectCrossbar(Crossbar):
     width = 64
     clock = 1 * Parent.clock.period
-    transferDelay = 4
-    arbitrationDelay = 4 # was 5, changed 7.6.08
+    arbitrationDelay = 0 
+    
+    if int(env['NP']) == 4:
+        transferDelay = 8
+        pipe_stages = 2
+    elif int(env['NP']) == 8:
+        transferDelay = 16
+        pipe_stages = 4
+    elif int(env['NP']) == 16:
+        transferDelay = 30
+        pipe_stages = 6
+    else:
+        panic("Crossbar: unknown latency for cpu count")
     
 class InterconnectButterfly(Butterfly):
     width = 64
@@ -161,15 +188,27 @@ class InterconnectButterfly(Butterfly):
 class PointToPointLink(PeerToPeerLink):
     width = 64
     clock = 1 * Parent.clock.period
-    transferDelay = 3
     arbitrationDelay = -1 # not used
     cpu_count = env['NP']
+    
+    if int(env['NP']) == 4:
+        transferDelay = 4
+    elif int(env['NP']) == 8:
+        transferDelay = 3
+    elif int(env['NP']) == 16:
+        transferDelay = 2
+    else:
+        panic("P2P: unknown latency for cpu count")
     
 class RingInterconnect(Ring):
     width = 64
     clock = 1 * Parent.clock.period
-    transferDelay = 4
-    arbitrationDelay = 4
+    if int(env['NP']) == 16:
+        transferDelay = 8
+        arbitrationDelay = 8
+    else:
+        transferDelay = 4
+        arbitrationDelay = 4
     cpu_count = env['NP']
 
 ###############################################################################

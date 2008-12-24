@@ -15,7 +15,8 @@ Crossbar::Crossbar(const std::string &_name,
                    bool _useNFQArbitration,
                    Tick _detailedSimStartTick,
                    int _shared_cache_wb_buffers,
-                   int _shared_cache_mshrs)
+                   int _shared_cache_mshrs,
+                   int _pipe_stages)
     : AddressDependentIC(_name,
                          _width, 
                          _clock, 
@@ -30,9 +31,10 @@ Crossbar::Crossbar(const std::string &_name,
     crossbarTransferDelay = _transDelay + _arbDelay;
     crossbarRequests = vector<list<pair<MemReqPtr, int> > >(_cpu_count, list<pair<MemReqPtr, int> >());
     
+    assert(_pipe_stages != -1);
+    requestOccupancyTicks = crossbarTransferDelay / _pipe_stages;
     
-    perEndPointQueueSize = 64; //16; // FIXME: parameterize
-    requestOccupancyTicks = 4; // FIXME: parameterize
+    perEndPointQueueSize = 32; //16; // FIXME: parameterize
     requestL2BankCount = 4;
     crossbarResponses = vector<list<pair<MemReqPtr, int> > >(requestL2BankCount, list<pair<MemReqPtr, int> >());
     
@@ -480,6 +482,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     Param<Tick> detailed_sim_start_tick;
     Param<int> shared_cache_writeback_buffers;
     Param<int> shared_cache_mshrs;
+    Param<int> pipe_stages;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -495,7 +498,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
     INIT_PARAM_DFLT(use_NFQ_arbitration, "If true, Network Fair Queuing arbitration is used", false),
     INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
     INIT_PARAM_DFLT(shared_cache_writeback_buffers, "Number of writeback buffers in the shared cache", -1),
-    INIT_PARAM_DFLT(shared_cache_mshrs, "Number of MSHRs in the shared cache", -1)
+    INIT_PARAM_DFLT(shared_cache_mshrs, "Number of MSHRs in the shared cache", -1),
+    INIT_PARAM_DFLT(pipe_stages, "Crossbar pipeline stages", -1)
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
@@ -511,7 +515,8 @@ CREATE_SIM_OBJECT(Crossbar)
                         use_NFQ_arbitration,
                         detailed_sim_start_tick,
                         shared_cache_writeback_buffers,
-                        shared_cache_mshrs);
+                        shared_cache_mshrs,
+                        pipe_stages);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)

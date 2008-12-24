@@ -83,7 +83,8 @@ class Crossbar : public AddressDependentIC
                  bool _useNFQArbitration,
                  Tick _detailedSimStartTick,
                  int _shared_cache_wb_buffers,
-                 int _shared_cache_mshrs);
+                 int _shared_cache_mshrs,
+                 int _pipe_stages);
         
         ~Crossbar(){ }
 

@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-// #define DO_REQUEST_TRACE 1
+#define DO_REQUEST_TRACE 1
 
 #ifdef DO_REQUEST_TRACE 
 #include <fstream>
@@ -492,19 +492,22 @@ MissQueue::setCache(BaseCache *_cache)
     wb.setCache(cache);
     
 #ifdef DO_REQUEST_TRACE 
-    stringstream filename;
-    filename << cache->name() << "LatencyTrace.txt";
-    ofstream latencyfile(filename.str().c_str());
-    latencyfile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
-    latencyfile.flush();
-    latencyfile.close();
     
-    stringstream filename2;
-    filename2 << cache->name() << "InterferenceTrace.txt";
-    ofstream interferencefile(filename2.str().c_str());
-    interferencefile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
-    interferencefile.flush();
-    interferencefile.close();
+    if(!cache->isShared && cache->adaptiveMHA != NULL){
+        stringstream filename;
+        filename << cache->name() << "LatencyTrace.txt";
+        ofstream latencyfile(filename.str().c_str());
+        latencyfile << "Tick;Address;PC;IC Entry;IC Latency;IC Delivery;Mem Bus Blocking;Mem Bus Latency\n";
+        latencyfile.flush();
+        latencyfile.close();
+        
+    //     stringstream filename2;
+    //     filename2 << cache->name() << "InterferenceTrace.txt";
+    //     ofstream interferencefile(filename2.str().c_str());
+    //     interferencefile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
+    //     interferencefile.flush();
+    //     interferencefile.close();
+    }
 #endif
 }
 
@@ -814,6 +817,7 @@ MissQueue::measureInterference(MemReqPtr& req){
         
       latencyfile << curTick;
       latencyfile << " ; " << req->paddr;
+      latencyfile << " ; " << req->pc;
       for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
 	latencyfile << " ; " <<  req->latencyBreakdown[i];
       }
@@ -822,19 +826,19 @@ MissQueue::measureInterference(MemReqPtr& req){
       latencyfile.close();
         
       // interference trace
-      stringstream filename2;
-      filename2 << cache->name() << "InterferenceTrace.txt";
-      ofstream interferencefile(filename2.str().c_str(), ofstream::app);
-        
-      interferencefile << curTick;
-      interferencefile << " ; " << req->paddr;
-      for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-	interferencefile << " ; " <<  req->interferenceBreakdown[i];
-      }
-      interferencefile << "\n";
-      
-      interferencefile.flush();
-      interferencefile.close();
+//       stringstream filename2;
+//       filename2 << cache->name() << "InterferenceTrace.txt";
+//       ofstream interferencefile(filename2.str().c_str(), ofstream::app);
+//         
+//       interferencefile << curTick;
+//       interferencefile << " ; " << req->paddr;
+//       for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+// 	interferencefile << " ; " <<  req->interferenceBreakdown[i];
+//       }
+//       interferencefile << "\n";
+//       
+//       interferencefile.flush();
+//       interferencefile.close();
     }
 #endif
 }
@@ -861,7 +865,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
         
         mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
         
-        if(!cache->isShared) measureInterference(req);
+        if(!cache->isShared && cache->adaptiveMHA != NULL) measureInterference(req);
         
 	// targets were handled in the cache tags
 	if (mshr == noTargetMSHR) {

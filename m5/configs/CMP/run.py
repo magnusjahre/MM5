@@ -231,6 +231,9 @@ if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
                         
     for l1 in root.L1dcaches:
         l1.adaptive_mha = root.adaptiveMHA
+        
+    for l1 in root.L1icaches:
+        l1.adaptive_mha = root.adaptiveMHA
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
@@ -292,10 +295,7 @@ if 'DUMP-INTERFERENCE' in env:
     
 for cpu in root.detailedCPU:
     cpu.adaptiveMHA = root.adaptiveMHA
-    
-for l1 in root.L1icaches:
-    l1.adaptive_mha = root.adaptiveMHA
-    
+
 if useAdaptiveMHA:
     root.adaptiveMHA.lowThreshold = float(env["ADAPTIVE-MHA-LOW-THRESHOLD"])
     root.adaptiveMHA.highThreshold = float(env["ADAPTIVE-MHA-HIGH-THRESHOLD"])
