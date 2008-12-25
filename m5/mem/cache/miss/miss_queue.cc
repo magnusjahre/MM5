@@ -39,8 +39,10 @@
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
+#include "sim/sim_exit.hh"
 
-#define DO_REQUEST_TRACE 1
+#define DO_REQUEST_TRACE
+#define REQUEST_DUMP_INTERVAL 1000000
 
 #ifdef DO_REQUEST_TRACE 
 #include <fstream>
@@ -480,7 +482,8 @@ MissQueue::regStats(const string &name)
     avg_interconnect_delivery_latency = interconnect_delivery_latency /num_roundtrip_responses;
     avg_bus_entry_latency = bus_entry_latency / num_roundtrip_responses;
     avg_bus_transfer_latency = bus_transfer_latency / num_roundtrip_responses;
- 
+
+    registerExitCallback(new MissQueueCallback(this));
 }
 
 void
@@ -811,19 +814,20 @@ MissQueue::measureInterference(MemReqPtr& req){
     
     if(curTick >= cache->detailedSimulationStartTick){
       // Latency trace
-      stringstream filename;
-      filename << cache->name() << "LatencyTrace.txt";
-      ofstream latencyfile(filename.str().c_str(), ofstream::app);
-        
-      latencyfile << curTick;
-      latencyfile << " ; " << req->paddr;
-      latencyfile << " ; " << req->pc;
+      
+      stringstream latstring;
+      latstring << curTick;
+      latstring << " ; " << req->paddr;
+      latstring << " ; " << req->pc;
       for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-	latencyfile << " ; " <<  req->latencyBreakdown[i];
+	latstring << " ; " <<  req->latencyBreakdown[i];
       }
-      latencyfile << "\n";
-      latencyfile.flush();
-      latencyfile.close();
+
+      tracebuffer.push_back(latstring.str());
+      
+      if(tracebuffer.size() >= REQUEST_DUMP_INTERVAL){
+	dumpTracebuffer();
+      }
         
       // interference trace
 //       stringstream filename2;
@@ -841,6 +845,24 @@ MissQueue::measureInterference(MemReqPtr& req){
 //       interferencefile.close();
     }
 #endif
+}
+
+void 
+MissQueue::dumpTracebuffer(){
+  if(!tracebuffer.empty()){
+
+    stringstream filename;
+    filename << cache->name() << "LatencyTrace.txt";
+    ofstream latencyfile(filename.str().c_str(), ofstream::app);
+ 
+    while(!tracebuffer.empty()){
+      latencyfile << tracebuffer.front().c_str() << "\n";
+      tracebuffer.pop_front();
+    }
+
+    latencyfile.flush();
+    latencyfile.close();   
+  }
 }
 
 void

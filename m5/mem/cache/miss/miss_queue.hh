@@ -42,6 +42,7 @@
 #include "mem/cache/miss/mshr.hh"
 #include "mem/cache/miss/mshr_queue.hh"
 #include "base/statistics.hh"
+#include "base/callback.hh"
 
 class BaseCache;
 class BasePrefetcher;
@@ -57,6 +58,7 @@ class MissQueue
     bool mqWasPrevQueue;
     bool changeQueue;
     Tick prevTime;
+    std::list<std::string> tracebuffer;
     
   protected:
     /** The MSHRs. */
@@ -217,6 +219,8 @@ class MissQueue
      */
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
 
+
+
   public:
     /**
      * Simple Constructor. Initializes all needed internal storage and sets
@@ -239,6 +243,8 @@ class MissQueue
      * @param name The name of the parent cache.
      */
     void regStats(const std::string &name);
+
+    void dumpTracebuffer();
 
     /**
      * Called by the parent cache to set the back pointer.
@@ -425,5 +431,14 @@ class MissQueue
     
     void measureInterference(MemReqPtr& req);
 };
+
+class MissQueueCallback : public Callback
+{
+  MissQueue *mq;
+public:
+  MissQueueCallback(MissQueue *q) : mq(q) {}
+  virtual void process() { mq->dumpTracebuffer(); };
+};
+
 
 #endif //__MISS_QUEUE_HH__
