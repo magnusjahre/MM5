@@ -16,34 +16,67 @@ bmArg = "-EBENCHMARK="
 cpuArg = "-ENP="
 interconArg = "-EINTERCONNECT="
 memSysArg = "-EMEMORY-SYSTEM="
-args = "-EMEMORY-BUS-CHANNELS=2 -ESIMULATETICKS=5000000 -EFASTFORWARDTICKS=25000000 -ESTATSFILE=test_output.txt"
-#args = "-EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=5000000 -EFASTFORWARDTICKS=20000000"
-#mshrargs = "-EMSHRSL1D=16 -EMSHRSL1I=16 -EMSHRL1TARGETS=4 -EMSHRSL2=4 -EMSHRL2TARGETS=4 -EUSE-ADAPTIVE-MHA -EADAPTIVE-MHA-LOW-THRESHOLD=0.7 -EADAPTIVE-MHA-HIGH-THRESHOLD=0.9 -EADAPTIVE-REPEATS=1"
-#mshrargs = "-EMEMORY-BUS=TimeMultiplexed"
-#mshrargs = "-EMEMORY-BUS=NFQ"
 mshrargs = ""
 configFile = "../configs/CMP/run.py"
 
 REPORTFILE = "testreport.txt"
 report = open(REPORTFILE, 'w')
 
-cpus = [4,8,16] #[2, 4, 8]
+cpus = [4,8,16]
 interconnect = 'crossbar'
-#buses = ['TNFQ', 'FNFQ', 'RDFCFS', 'FCFS']
-#buses = ['RDFCFS']
+
 memsys= ["CrossbarBased","RingBased"]
+channels = [1,2,4]
+configs = []
+for m in memsys:
+  for c in channels:
+    configs.append([m,c])
 
-#benchmarks = ['hello', 'gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
+def getCommandline(cpu, benchmark, conf):
 
-#benchmarks = ['Cholesky', 'FFT', 'LUContig', 'LUNoncontig', 'Radix', 'Barnes', 'FMM', 'OceanContig', 'OceanNoncontig', 'Raytrace', 'WaterNSquared', 'WaterSpatial']
+  sim = 1 * 10**6
+  fw = 10 * 10**6
 
-nums = range(1,11)
-benchmarks = []
-for i in nums:
-  if i < 10:
-    benchmarks.append("fair0"+str(i))
-  else:
-    benchmarks.append("fair"+str(i))
+  args = [binary]
+  args.append(cpuArg+str(cpu))
+  args.append(bmArg+str(benchmark))
+  args.append("-ESIMULATETICKS="+str(sim))
+  args.append("-EFASTFORWARDTICKS="+str(fw))
+  args.append("-ESTATSFILE=test_output.txt")
+
+  args.append("-EMEMORY-SYSTEM="+str(c[0]))
+  args.append("-EMEMORY-BUS-CHANNELS="+str(c[1])) 
+ 
+  args.append(configFile)
+
+  cmd = ""
+  for a in args:
+    cmd += a+" "
+  return cmd
+
+def toString(conf):
+  retstr = ""
+  for c in conf:
+    retstr += str(c)
+  return retstr
+
+def fillBms(cpus, length, bms):
+  nums = range(1,length+1)
+
+  for i in nums:
+    if i < 10:
+      bms[cpus].append("fair0"+str(i))
+    else:
+      bms[cpus].append("fair"+str(i))
+  return bms
+
+benchmarks = {}
+for c in cpus:
+  benchmarks[c] = []
+
+benchmarks = fillBms(4,40,benchmarks)
+benchmarks = fillBms(8,20,benchmarks)
+benchmarks = fillBms(16,10,benchmarks)
 
 correct_pattern = re.compile(successString)
 lost_req_pattern = re.compile(lostString)
@@ -56,13 +89,12 @@ testnum = 1
 correctCount = 0
 
 for cpu in cpus:
-    for m in memsys:
-        output = "Doing tests with "+str(cpu)+" cpus and "+m+":"
+    for c in configs:
+        output = "Doing tests with "+str(cpu)+" cpus and "+toString(c)+":"
         print output
         report.write("\n"+output+"\n")
-        for benchmark in benchmarks:
-            #print binary+" "+bmArg+str(benchmark)+" "+args+" "+configFile
-            res = popen2.popen4("nice "+binary+" "+cpuArg+str(cpu)+" "+bmArg+str(benchmark)+" "+interconArg+interconnect+" "+args+" "+mshrargs+" "+memSysArg+m+" "+configFile)
+        for benchmark in benchmarks[cpu]:
+            res = popen2.popen4("nice "+getCommandline(cpu, benchmark, c))
             
             out = ""
             for line in res[0]:
@@ -87,7 +119,7 @@ for cpu in cpus:
                 report.write(output+"\n")
                 report.flush()
                 
-                file = open(str(benchmark)+str(cpu)+m+".output", "w");
+                file = open(str(benchmark)+str(cpu)+toString(c)+".output", "w");
                 file.write("Program output\n\n")
                 file.write(out)
                 file.close()
@@ -96,7 +128,7 @@ for cpu in cpus:
 
 print
 output = ""
-if correctCount == (len(benchmarks)*len(cpus)*len(memsys)):
+if correctCount == (len(benchmarks)*len(cpus)*len(configs)):
     output = "All tests completed successfully!"
 else:
     output = "One or more tests failed..."
