@@ -39,8 +39,20 @@ def initSharedCache(bankcnt):
         root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
     elif int(env['NP']) == 8:
         root.SharedCache = [SharedCache16M() for i in range(bankcnt)]
-    else:
+    elif int(env['NP']) == 16:
         root.SharedCache = [SharedCache32M() for i in range(bankcnt)]
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
+            root.SharedCache = [SharedCache16M() for i in range(bankcnt)]
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            root.SharedCache = [SharedCache32M() for i in range(bankcnt)]
+        else:
+            panic("Shared Cache: No single cache configuration present")
+    else:
+        panic("No cache defined for selected CPU count")
    
 def setUpSharedCache(bankcnt):
     

@@ -70,6 +70,9 @@ MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
     if(numTargets == 1){
         fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
     }
+    
+    curTracePos = 0;
+    tracebuffer.resize(REQUEST_DUMP_INTERVAL, string(""));
 }
 
 void
@@ -799,35 +802,37 @@ MissQueue::measureInterference(MemReqPtr& req){
     bus_transfer_latency +=  req->latencyBreakdown[MEM_BUS_TRANSFER_LAT];
     
     if(cache->cpuCount > 1){
-      for(int i=0;i<req->interferenceBreakdown.size();i++){
-        sum_roundtrip_interference += req->interferenceBreakdown[i];
-      }
-
-      interconnect_entry_interference += req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT];
-      interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
-      interconnect_delivery_interference += req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT];
-      bus_entry_interference += req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
-      bus_transfer_interference += req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT];
+        for(int i=0;i<req->interferenceBreakdown.size();i++){
+            sum_roundtrip_interference += req->interferenceBreakdown[i];
+        }
+    
+        interconnect_entry_interference += req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT];
+        interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
+        interconnect_delivery_interference += req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT];
+        bus_entry_interference += req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
+        bus_transfer_interference += req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT];
     }
     
 #ifdef DO_REQUEST_TRACE 
     
     if(curTick >= cache->detailedSimulationStartTick){
-      // Latency trace
-      
-      stringstream latstring;
-      latstring << curTick;
-      latstring << " ; " << req->paddr;
-      latstring << " ; " << req->pc;
-      for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-	latstring << " ; " <<  req->latencyBreakdown[i];
-      }
+        // Latency trace
+        
+        stringstream latstring;
+        latstring << curTick;
+        latstring << " ; " << req->paddr;
+        latstring << " ; " << req->pc;
+        for(int i=0;i<req->latencyBreakdown.size();i++){
+            latstring << " ; " <<  req->latencyBreakdown[i];
+        }
 
-      tracebuffer.push_back(latstring.str());
+        tracebuffer[curTracePos] = latstring.str();
+        curTracePos++;
       
-      if(tracebuffer.size() >= REQUEST_DUMP_INTERVAL){
-	dumpTracebuffer();
-      }
+        if(curTracePos == tracebuffer.size()){
+            dumpTracebuffer();
+        }
+        assert(curTracePos < tracebuffer.size());
         
       // interference trace
 //       stringstream filename2;
@@ -855,13 +860,11 @@ MissQueue::dumpTracebuffer(){
     filename << cache->name() << "LatencyTrace.txt";
     ofstream latencyfile(filename.str().c_str(), ofstream::app);
  
-    while(!tracebuffer.empty()){
-      latencyfile << tracebuffer.front().c_str() << "\n";
-      tracebuffer.pop_front();
-    }
+    for(int i=0;i<curTracePos;i++) latencyfile << tracebuffer[i].c_str() << "\n";
+    curTracePos = 0;
 
     latencyfile.flush();
-    latencyfile.close();   
+    latencyfile.close();
   }
 }
 

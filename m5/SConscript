@@ -505,7 +505,7 @@ fastEnv.M5Binary = tlist[0]
 # Profiled binary
 profEnv = env.Clone(OBJSUFFIX='.po')
 profEnv.Label = 'prof'
-profEnv.Append(CCFLAGS=Split('-O5 -g -pg'), LINKFLAGS='-pg')
+profEnv.Append(CCFLAGS=Split('-O3 -g -pg'), LINKFLAGS='-pg')
 tlist = profEnv.Program(target = 'm5.prof',
                         source = make_objs(sources, profEnv))
 profEnv.M5Binary = tlist[0]

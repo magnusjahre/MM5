@@ -83,10 +83,6 @@ class CommonLargeCache(BaseCache):
     block_size = 64
     cpu_count = int(env['NP'])
 
-    mshrs = 16
-    tgts_per_mshr = 4
-    write_buffers = 16
-
     is_read_only = False
     simulate_contention = False # done in new crossbar impl
 
@@ -94,6 +90,10 @@ class PrivateCache1M(CommonLargeCache):
     size = '1MB'
     assoc = 4
     is_shared = False
+    
+    mshrs = 16
+    tgts_per_mshr = 4
+    write_buffers = 16
     
     if int(env['NP']) == 4:
         latency = 9 * Parent.clock.period
@@ -122,6 +122,10 @@ class SharedCache8M(CommonLargeCache):
     latency = 16 * Parent.clock.period
     is_shared = True
     
+    mshrs = 16
+    tgts_per_mshr = 4
+    write_buffers = 16
+    
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
 
@@ -131,6 +135,10 @@ class SharedCache16M(CommonLargeCache):
     assoc = 16
     latency = 12 * Parent.clock.period
     is_shared = True
+    
+    mshrs = 32
+    tgts_per_mshr = 4
+    write_buffers = 32
 
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
@@ -141,6 +149,10 @@ class SharedCache32M(CommonLargeCache):
     assoc = 16
     latency = 12 * Parent.clock.period
     is_shared = True
+    
+    mshrs = 64
+    tgts_per_mshr = 4
+    write_buffers = 64
     
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])

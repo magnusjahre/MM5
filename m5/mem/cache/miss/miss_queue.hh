@@ -58,7 +58,9 @@ class MissQueue
     bool mqWasPrevQueue;
     bool changeQueue;
     Tick prevTime;
-    std::list<std::string> tracebuffer;
+    
+    int curTracePos;
+    std::vector<std::string> tracebuffer;
     
   protected:
     /** The MSHRs. */
