@@ -63,13 +63,8 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
     
-    updateEntryInterference(req, fromID);
-    
-    assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
-    int resources = 0;
-    
+    int destinationMask = -1;
     if(allInterfaces[fromID]->isMaster()){
-        int destinationMask = -1;
         for(int i=0;i<slaveInterfaces.size();i++){
             if(slaveInterfaces[i]->inRange(req->paddr)){
                 destinationMask = 1 << (cpu_count + i);
@@ -77,6 +72,30 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
                 break;
             }
         }
+    }
+    
+    if(curTick < detailedSimStartTick){
+        
+        if(allInterfaces[fromID]->isMaster()){
+            assert(req->toInterfaceID != -1);
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, true);
+            delivery->schedule(curTick + crossbarTransferDelay);
+            requestsInProgress[interconnectIDToL2IDMap[req->toInterfaceID]]++;
+        }
+        else{
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, false);
+            delivery->schedule(curTick + crossbarTransferDelay);
+        }
+        
+        return;
+    }
+    
+    updateEntryInterference(req, fromID);
+    
+    assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpu_count);
+    int resources = 0;
+    
+    if(allInterfaces[fromID]->isMaster()){
         assert(destinationMask != -1);
         resources |= destinationMask;
         resources |= (1 << req->adaptiveMHASenderID);
@@ -95,6 +114,7 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
         }
     }
     else{
+        assert(destinationMask == -1);
         int bankID = interconnectIDToL2IDMap[fromID];
         resources |= 1 << req->adaptiveMHASenderID;
         resources |= 1 << (bankID + cpu_count);
@@ -114,29 +134,6 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
 
 void
 Crossbar::arbitrate(Tick time){
-    
-    if(curTick < detailedSimStartTick){
-        
-        // infinite bw in warm-up, deliver all pending requests
-        for(int i=0;i<crossbarResponses.size();i++){
-            while(!crossbarResponses[i].empty()){
-                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, crossbarResponses[i].front().first, false);
-                delivery->schedule(curTick + crossbarTransferDelay);
-                crossbarResponses[i].pop_front();
-            }
-        }
-        
-        for(int i=0;i<crossbarRequests.size();i++){
-            while(!crossbarRequests[i].empty()){
-                
-                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, crossbarRequests[i].front().first, true);
-                delivery->schedule(curTick + crossbarTransferDelay);
-                requestsInProgress[interconnectIDToL2IDMap[crossbarRequests[i].front().first->toInterfaceID]]++;
-                crossbarRequests[i].pop_front();
-            }
-        }
-        return;
-    }
     
     // initialize crossbar state with information about the blocked interfaces
     int masterToSlaveCrossbarState = addBlockedInterfaces();

@@ -273,9 +273,22 @@ class RingInterconnect(Ring):
     if int(env['NP']) == 16:
         transferDelay = 8
         arbitrationDelay = 8
-    else:
+    elif int(env['NP']) == 8 or int(env['NP']) == 4:
         transferDelay = 4
         arbitrationDelay = 4
+    elif int(env['NP']) == 1:
+        assert 'MEMORY-ADDRESS-PARTS' in env
+        if int(env['MEMORY-ADDRESS-PARTS']) == 16:
+            transferDelay = 8
+            arbitrationDelay = 8
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8 or int(env['MEMORY-ADDRESS-PARTS']) == 4:
+            transferDelay = 4
+            arbitrationDelay = 4
+        else:
+            panic("Ring: unknown latency for single")
+    else:
+        fatal("Ring: unknown latency for cpu count")
+        
     cpu_count = env['NP']
 
 ###############################################################################

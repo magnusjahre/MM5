@@ -58,6 +58,8 @@ class Ring : public AddressDependentIC{
         void checkRingOrdering(int ringID);
         
         bool hasWaitingRequests();
+        
+        void setDestinationIntID(MemReqPtr& req, int fromIntID);
     
     public:
         Ring(const std::string &_name, 

@@ -637,6 +637,9 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     createMemBus(bankcnt)
     initSharedCache(bankcnt)
 
+    for link in root.PointToPointLink:
+        link.detailed_sim_start_tick = cacheProfileStart
+    
     root.interconnect = RingInterconnect()
     root.interconnect.adaptive_mha = root.adaptiveMHA
     root.interconnect.detailed_sim_start_tick = cacheProfileStart

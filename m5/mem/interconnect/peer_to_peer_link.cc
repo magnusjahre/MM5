@@ -11,7 +11,8 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                                int _arbDelay,
                                int _cpu_count,
                                HierParams *_hier,
-                               AdaptiveMHA* _adaptiveMHA)
+                               AdaptiveMHA* _adaptiveMHA,
+                               Tick _detailedSimStart)
     : AddressDependentIC(_name,
                          _width, 
                          _clock, 
@@ -29,6 +30,8 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
     slaveInterconnectID = -1;
     attachedCPUID = -1;
     
+    detailedSimStartTick = _detailedSimStart;
+    
     assert(_adaptiveMHA == NULL);
     assert(_transDelay > 0);
 }
@@ -45,6 +48,21 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
             }
         }
         assert(slaveInterconnectID != -1);
+    }
+    
+    if(curTick < detailedSimStartTick){
+        
+        if(allInterfaces[fromID]->isMaster()){
+            req->toInterfaceID = slaveInterconnectID;
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, true);
+            delivery->schedule(curTick + transferDelay);
+        }
+        else{
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, false);
+            delivery->schedule(curTick + transferDelay);
+        }
+        
+        return;
     }
     
     if(attachedCPUID == -1){
@@ -189,6 +207,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(PeerToPeerLink)
     Param<int> cpu_count;
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
+    Param<Tick> detailed_sim_start_tick;
 END_DECLARE_SIM_OBJECT_PARAMS(PeerToPeerLink)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
@@ -198,7 +217,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
     INIT_PARAM(arbitrationDelay, "crossbar arbitration delay in CPU cycles"),
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
-    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL)
+    INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
+    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts")
 END_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
 
 CREATE_SIM_OBJECT(PeerToPeerLink)
@@ -210,7 +230,8 @@ CREATE_SIM_OBJECT(PeerToPeerLink)
                               arbitrationDelay,
                               cpu_count,
                               hier,
-                              adaptive_mha);
+                              adaptive_mha,
+                              detailed_sim_start_tick);
 }
 
 REGISTER_SIM_OBJECT("PeerToPeerLink", PeerToPeerLink)

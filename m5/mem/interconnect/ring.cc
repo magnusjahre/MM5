@@ -69,6 +69,22 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
     
+    if(curTick < detailedSimStartTick){
+        // infinite bw in warm-up, deliver request directly
+        if(allInterfaces[fromID]->isMaster()){
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, true);
+            setDestinationIntID(req, fromID);
+            int toSlaveID = interconnectIDToL2IDMap[req->toInterfaceID];
+            inFlightRequests[toSlaveID]++;
+            delivery->schedule(curTick + arbitrationDelay);
+        }
+        else{
+            ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, false);
+            delivery->schedule(curTick + arbitrationDelay);
+        }
+        return;
+    }
+    
     updateEntryInterference(req, fromID);
     
     if(allInterfaces[fromID]->isMaster()){
@@ -101,9 +117,8 @@ Ring::attemptToScheduleArbEvent(){
     }
 }
 
-vector<int>
-Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
-    
+void
+Ring::setDestinationIntID(MemReqPtr& req, int fromIntID){
     if(allInterfaces[fromIntID]->isMaster()){
         int toInterfaceID = -1;
         for(int i=0;i<slaveInterfaces.size();i++){
@@ -114,6 +129,12 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
         }
         req->toInterfaceID = toInterfaceID;
     }
+}
+
+vector<int>
+Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
+    
+    setDestinationIntID(req, fromIntID);
     
     vector<int> path;
     int slaveIntID = allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : req->fromInterfaceID;
@@ -339,31 +360,6 @@ Ring::arbitrate(Tick time){
     
     assert(curTick % arbitrationDelay == 0);
     
-    if(curTick < detailedSimStartTick){
-        
-        // infinite bw in warm-up, deliver all pending requests
-        for(int i=0;i<ringRequestQueue.size();i++){
-            while(!ringRequestQueue[i].empty()){
-                MemReqPtr curReq = ringRequestQueue[i].front().req;
-                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, curReq, true);
-                delivery->schedule(curTick + arbitrationDelay);
-                int toSlaveID = interconnectIDToL2IDMap[curReq->toInterfaceID];
-                inFlightRequests[toSlaveID]++;
-                ringRequestQueue[i].pop_front();
-            }
-        }
-        
-        for(int i=0;i<ringResponseQueue.size();i++){
-            while(!ringResponseQueue[i].empty()){
-                ADIDeliverEvent* delivery = new ADIDeliverEvent(this, ringResponseQueue[i].front().req, false);
-                delivery->schedule(curTick + arbitrationDelay);
-                ringResponseQueue[i].pop_front();
-            }
-        }
-        return;
-    }
-    
-    
     DPRINTF(Crossbar, "Ring arbitrating\n");
     for(int i=0;i<numberOfRequestRings+numberOfResponseRings;i++) removeOldEntries(i);
 
@@ -440,6 +436,7 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             inFlightRequests[toSlaveID]--;
         }
         else{
+            assert(curTick >= detailedSimStartTick);
             DPRINTF(Crossbar, "Slave IC ID %d (slave id %d) is blocked, delivery queued req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->adaptiveMHASenderID, inFlightRequests[toSlaveID]);
             deliverBuffer[toSlaveID].push_back(RingRequestEntry(req, curTick, vector<int>()));
             assert(deliverBuffer[toSlaveID].size() <= recvBufferSize);

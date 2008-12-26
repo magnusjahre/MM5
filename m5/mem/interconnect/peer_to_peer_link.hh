@@ -17,6 +17,8 @@ class PeerToPeerLink : public AddressDependentIC{
         int slaveInterconnectID;
         int attachedCPUID;
         
+        int detailedSimStartTick;
+        
         Tick nextLegalArbTime;
         
         std::list<MemReqPtr> deliveryBuffer;
@@ -35,7 +37,8 @@ class PeerToPeerLink : public AddressDependentIC{
                        int _arbDelay,
                        int _cpu_count,
                        HierParams *_hier,
-                       AdaptiveMHA* _adaptiveMHA);
+                       AdaptiveMHA* _adaptiveMHA,
+                       Tick _detailedSimStart);
         
         virtual void send(MemReqPtr& req, Tick time, int fromID);
         
