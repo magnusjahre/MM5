@@ -34,8 +34,8 @@ for m in memsys:
 
 def getCommandline(cpu, benchmark, conf):
 
-  sim = 1 * 10**6
-  fw = 10 * 10**6
+  sim = 5 * 10**6
+  fw = 25 * 10**6
 
   args = [binary]
   args.append(cpuArg+str(cpu))
