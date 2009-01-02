@@ -54,7 +54,7 @@ def initSharedCache(bankcnt):
     else:
         panic("No cache defined for selected CPU count")
    
-def setUpSharedCache(bankcnt):
+def setUpSharedCache(bankcnt, detailedStartTick):
     
     assert 'MEMORY-BUS-CHANNELS' in env
     assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
@@ -66,6 +66,7 @@ def setUpSharedCache(bankcnt):
         root.SharedCache[i].in_interconnect = root.interconnect
         root.SharedCache[i].out_bus = root.membus[curbus]
         root.SharedCache[i].use_static_partitioning_for_warmup = True
+        root.SharedCache[i].static_part_start_tick = detailedStartTick
         root.SharedCache[i].bank_count = bankcnt
         root.SharedCache[i].bank_id = i
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
@@ -629,7 +630,7 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
     root.interconnect.adaptive_mha = root.adaptiveMHA
 
-    setUpSharedCache(bankcnt)
+    setUpSharedCache(bankcnt, cacheProfileStart)
 
 elif env['MEMORY-SYSTEM'] == "RingBased":
 
@@ -644,7 +645,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     root.interconnect.adaptive_mha = root.adaptiveMHA
     root.interconnect.detailed_sim_start_tick = cacheProfileStart
     
-    setUpSharedCache(bankcnt)
+    setUpSharedCache(bankcnt, cacheProfileStart)
     
     root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
     
