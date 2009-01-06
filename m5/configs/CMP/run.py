@@ -654,6 +654,9 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].out_interconnect = root.interconnect
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
+        if int(env['NP']) == 1:
+            root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
+            root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
 
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")

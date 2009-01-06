@@ -194,7 +194,7 @@ BasePrefetcher::handleMiss(MemReqPtr &req, Tick time)
 	    prefetch->asid = req->asid;
 	    prefetch->thread_num = req->thread_num;
 	    prefetch->time = time + (*delay); //@todo ADD LATENCY HERE
-          prefetch->adaptiveMHASenderID = cache->cacheCpuID; 
+            cache->setSenderID(prefetch);
 	    //... initialize
 	    
 	    //Check if it is already in the cache 

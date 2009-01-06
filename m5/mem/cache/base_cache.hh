@@ -529,6 +529,8 @@ class BaseCache : public BaseMem {
     
     void checkIfCacheAlive();
     
+    void setSenderID(MemReqPtr& req);
+    
     std::vector<std::vector<int> > retrieveBWInterferenceStats();
     void resetBWInterferenceStats();
     std::vector<std::vector<int> > retrieveCapacityInterferenceStats();

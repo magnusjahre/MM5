@@ -155,6 +155,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->interferenceBreakdown = r->interferenceBreakdown;
     
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
+    req->interferenceAccurateSenderID = r->interferenceAccurateSenderID;
     
     req->data = new uint8_t[r->size];
     if (r->data != NULL) {
@@ -235,6 +236,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->interferenceBreakdown = from->interferenceBreakdown;
     
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
+    to->interferenceAccurateSenderID = from->interferenceAccurateSenderID;
     
     if (from->data != NULL) {
         to->data = new uint8_t[from->size];

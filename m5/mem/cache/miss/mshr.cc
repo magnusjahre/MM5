@@ -92,6 +92,7 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
         // make sure owner ID is copied to the new request
         // necessary for the AdaptiveMHA
         req->adaptiveMHASenderID = target->adaptiveMHASenderID;
+        req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
         req->interferenceMissAt = target->interferenceMissAt;
         
         req->finishedInCacheAt = target->finishedInCacheAt;
@@ -135,6 +136,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     
     req->enteredMemSysAt = target->enteredMemSysAt;
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
+    req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
     req->interferenceMissAt = target->interferenceMissAt;
     req->finishedInCacheAt = target->finishedInCacheAt;
     

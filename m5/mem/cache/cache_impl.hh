@@ -87,7 +87,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     // init shadowtags
 #ifdef USE_CACHE_LRU
     
-    if(isShared){
+    if(isShared && params.cpu_count > 1){
         shadowTags.resize(params.cpu_count, NULL);
         for(int i=0;i<params.cpu_count;i++){
             shadowTags[i] = new LRU(tags->getNumSets(),
@@ -265,10 +265,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     }
     
     if(!isShared){
-        req->adaptiveMHASenderID = cacheCpuID;
+        setSenderID(req);
     }
     else{
-        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+        if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
     }
 
     //shadow tag access
@@ -621,7 +621,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
                     // actions are handled in the check
                 }
                 else {
-                    if(!isShared) writebacks.front()->adaptiveMHASenderID = cacheCpuID;
+                    if(!isShared) setSenderID(writebacks.front());
 		    missQueue->doWriteback(writebacks.front());
 		}
 		writebacks.pop_front();

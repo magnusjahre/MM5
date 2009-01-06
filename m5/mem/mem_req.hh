@@ -154,6 +154,7 @@ class MemReq : public FastAlloc, public RefCounted
     
     /** Adaptive MHA sender cache identification **/
     int adaptiveMHASenderID;
+    int interferenceAccurateSenderID;
     
     /** If the request is from a instruction cache or not **/
     bool readOnlyCache;
@@ -260,6 +261,7 @@ class MemReq : public FastAlloc, public RefCounted
           toInterfaceID(-1),
           fromInterfaceID(-1),
           adaptiveMHASenderID(-1),
+          interferenceAccurateSenderID(-1),
           readOnlyCache(false),
           owner(-1),
           presentFlags(NULL),
@@ -323,6 +325,7 @@ class MemReq : public FastAlloc, public RefCounted
         toInterfaceID = r.toInterfaceID;
         fromInterfaceID = r.fromInterfaceID;
         adaptiveMHASenderID = r.adaptiveMHASenderID;
+        interferenceAccurateSenderID = r.interferenceAccurateSenderID;
         firstSendTime = r.firstSendTime;
         readOnlyCache = r.readOnlyCache;
         owner = r.owner;

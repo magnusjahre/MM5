@@ -566,3 +566,16 @@ BaseCache::addCapacityInterference(int victimID, int interfererID){
     cpuCapacityInterference[victimID]++;
     interferenceEventsCapacity[victimID][interfererID]++;
 }
+
+void
+BaseCache::setSenderID(MemReqPtr& req){
+    
+    req->adaptiveMHASenderID = cacheCpuID;
+    if(cpuCount == 1){
+        assert(memoryAddressOffset != -1);
+        req->interferenceAccurateSenderID = memoryAddressOffset;
+    }
+    else{
+        req->interferenceAccurateSenderID = cacheCpuID;
+    }
+}

@@ -281,6 +281,7 @@ class RingInterconnect(Ring):
         if int(env['MEMORY-ADDRESS-PARTS']) == 16:
             transferDelay = 8
             arbitrationDelay = 8
+            
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8 or int(env['MEMORY-ADDRESS-PARTS']) == 4:
             transferDelay = 4
             arbitrationDelay = 4
@@ -289,7 +290,10 @@ class RingInterconnect(Ring):
     else:
         fatal("Ring: unknown latency for cpu count")
         
-    cpu_count = env['NP']
+    if int(env['NP']) == 1:
+        cpu_count = int(env['MEMORY-ADDRESS-PARTS'])
+    else:
+        cpu_count = env['NP']
 
 ###############################################################################
 # MEMORY AND MEMORY BUS

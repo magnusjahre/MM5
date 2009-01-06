@@ -90,12 +90,13 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
     if(allInterfaces[fromID]->isMaster()){
        vector<int> resourceReq = findResourceRequirements(req, fromID);
         
-        ringRequestQueue[req->adaptiveMHASenderID].push_back(RingRequestEntry(req, curTick, resourceReq));
+        assert(req->interferenceAccurateSenderID != -1);
+        ringRequestQueue[req->interferenceAccurateSenderID].push_back(RingRequestEntry(req, curTick, resourceReq));
         
-        if(ringRequestQueue[req->adaptiveMHASenderID].size() == queueSize){
-            setBlockedLocal(req->adaptiveMHASenderID);
+        if(ringRequestQueue[req->interferenceAccurateSenderID].size() == queueSize){
+            setBlockedLocal(req->interferenceAccurateSenderID);
         }
-        assert(ringRequestQueue[req->adaptiveMHASenderID].size() <= queueSize);
+        assert(ringRequestQueue[req->interferenceAccurateSenderID].size() <= queueSize);
     }
     else{
       vector<int> resourceReq = findResourceRequirements(req,fromID);
@@ -140,8 +141,8 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
     int slaveIntID = allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : req->fromInterfaceID;
     assert(slaveIntID != -1);
     int slaveID = interconnectIDToL2IDMap[slaveIntID];
-    int uphops = req->adaptiveMHASenderID + slaveID + 1;
-    int downhops = (cpu_count - (req->adaptiveMHASenderID+1)) + (sharedCacheBankCount - (slaveID+1)) + 1;
+    int uphops = req->interferenceAccurateSenderID + slaveID + 1;
+    int downhops = (cpu_count - (req->interferenceAccurateSenderID+1)) + (sharedCacheBankCount - (slaveID+1)) + 1;
     
     if(allInterfaces[fromIntID]->isMaster()){   
         path = findMasterPath(req, uphops, downhops);
@@ -156,7 +157,7 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
     DPRINTF(Crossbar, "Ring recieved req from icID %d, to ICID %d, proc %d, path: %s, uphops %d, downhops %d\n",
             fromIntID,
             allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : -1,
-            req->adaptiveMHASenderID,
+            req->interferenceAccurateSenderID,
             pathstr.str().c_str(),
             uphops,
             downhops);
@@ -173,12 +174,12 @@ Ring::findMasterPath(MemReqPtr& req, int uphops, int downhops){
     assert(sharedCacheBankCount == slaveInterfaces.size());
     
     if(uphops <= downhops){
-        for(int i=(req->adaptiveMHASenderID-1);i>=0;i--) path.push_back(i);
+        for(int i=(req->interferenceAccurateSenderID-1);i>=0;i--) path.push_back(i);
         path.push_back(TOP_LINK_ID);
         for(int i=0;i<toSlaveID;i++) path.push_back(i+cpu_count);
     }
     else{
-        for(int i=req->adaptiveMHASenderID;i<cpu_count-1;i++) path.push_back(i);
+        for(int i=req->interferenceAccurateSenderID;i<cpu_count-1;i++) path.push_back(i);
         path.push_back(BOTTOM_LINK_ID);
         for(int i=sharedCacheBankCount-2;i>=toSlaveID;i--) path.push_back(i+cpu_count);
     }
@@ -197,12 +198,12 @@ Ring::findSlavePath(MemReqPtr& req, int uphops, int downhops){
     if(uphops <= downhops){
         for(int i=(slaveID-1);i>=0;i--) path.push_back(i+cpu_count);
         path.push_back(TOP_LINK_ID);
-        for(int i=0;i<req->adaptiveMHASenderID;i++) path.push_back(i);
+        for(int i=0;i<req->interferenceAccurateSenderID;i++) path.push_back(i);
     }
     else{
         for(int i=slaveID;i<sharedCacheBankCount-1;i++) path.push_back(i+cpu_count);
         path.push_back(BOTTOM_LINK_ID);
-        for(int i=cpu_count-2;i>=req->adaptiveMHASenderID;i--) path.push_back(i);
+        for(int i=cpu_count-2;i>=req->interferenceAccurateSenderID;i--) path.push_back(i);
     }
     
     return path;
@@ -286,7 +287,7 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
             checkIt++){
             
             if(*checkIt == transTick){
-                DPRINTF(Crossbar, "CPU %d not granted, conflict for link %d at %d\n", entry.req->adaptiveMHASenderID, entry.resourceReq[i], transTick);
+                DPRINTF(Crossbar, "CPU %d not granted, conflict for link %d at %d\n", entry.req->interferenceAccurateSenderID, entry.resourceReq[i], transTick);
                 
                 return false;
             }
@@ -298,10 +299,7 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
         int toSlaveID = interconnectIDToL2IDMap[entry.req->toInterfaceID];
         
         if(inFlightRequests[toSlaveID] == recvBufferSize){
-            DPRINTF(Crossbar, "CPU %d not granted, %d reqs in flight to slave %d\n", entry.req->adaptiveMHASenderID, inFlightRequests[toSlaveID], toSlaveID);
-            
-            entry.req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] -= arbitrationDelay;
-            entry.req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += arbitrationDelay;
+            DPRINTF(Crossbar, "CPU %d not granted, %d reqs in flight to slave %d\n", entry.req->interferenceAccurateSenderID, inFlightRequests[toSlaveID], toSlaveID);
             return false;
         }
         else{
@@ -339,7 +337,7 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     sentRequests++;
     
     DPRINTF(Crossbar, "Granting access to CPU %d, from ICID %d, to IDID %d, latency %d, hops %d\n",
-            entry.req->adaptiveMHASenderID,
+            entry.req->interferenceAccurateSenderID,
             entry.req->fromInterfaceID,
             entry.req->toInterfaceID,
             arbitrationDelay * entry.resourceReq.size(),
@@ -411,46 +409,64 @@ void
 Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startRingID, int endRingID, bool toSlave){
     vector<int> order = findServiceOrder(queue);
     
-    for(int i=0;i<order.size();i++){
-        for(int j=startRingID;j<endRingID;j++){
-	    if(!(*queue)[order[i]].empty()){
-                
-	        bool sent = checkStateAndSend((*queue)[order[i]].front(), j, toSlave);
-                if(sent){
-	            (*queue)[order[i]].pop_front();
-                    break;
+    bool sent = true;
+    int orderPos = 0;
+    
+    while(sent && orderPos < order.size()){
+        sent = false;
+        if(!(*queue)[order[orderPos]].empty()){
+            for(int j=startRingID;j<endRingID;j++){
+                sent = checkStateAndSend((*queue)[order[orderPos]].front(), j, toSlave);
+                if(sent) break;
+            }
+            
+            if(sent){
+                (*queue)[order[orderPos]].pop_front();
+                orderPos++;
+            }
+            else{
+                if(toSlave){
+                    int toSlaveID = interconnectIDToL2IDMap[(*queue)[order[orderPos]].front().req->toInterfaceID];
+                    if(inFlightRequests[toSlaveID] == recvBufferSize){
+                        list<RingRequestEntry>::iterator intIt = (*queue)[order[orderPos]].begin();
+                        for( ; intIt != (*queue)[order[orderPos]].end() ; intIt ++){
+                            intIt->req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] -= arbitrationDelay;
+                            intIt->req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += arbitrationDelay;
+                        }
+                    }
                 }
-	    }
+            }
         }
     }
+    
 }
 
 void 
 Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     
     req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += curTick - req->inserted_into_crossbar;
-    
-    if(req->adaptiveMHASenderID != -1){
-        perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
-        perCpuRequests[req->adaptiveMHASenderID]++;
-    }
+    assert(req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] >= 0);
+
+    assert(req->adaptiveMHASenderID != -1);
+    perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
+    perCpuRequests[req->adaptiveMHASenderID]++;
     
     if(allInterfaces[toID]->isMaster()){
         
-        DPRINTF(Crossbar, "Delivering to master %d, req from CPU %d\n", toID, req->adaptiveMHASenderID);
+        DPRINTF(Crossbar, "Delivering to master %d, req from CPU %d\n", toID, req->interferenceAccurateSenderID);
         allInterfaces[toID]->deliver(req);
     }
     else{
         int toSlaveID = interconnectIDToL2IDMap[toID];
         if(!blockedInterfaces[toSlaveID] && deliverBuffer[toSlaveID].empty()){
-            DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->adaptiveMHASenderID, inFlightRequests[toSlaveID]);
+            DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->interferenceAccurateSenderID, inFlightRequests[toSlaveID]);
             
             allInterfaces[toID]->access(req);
             inFlightRequests[toSlaveID]--;
         }
         else{
             assert(curTick >= detailedSimStartTick);
-            DPRINTF(Crossbar, "Slave IC ID %d (slave id %d) is blocked, delivery queued req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->adaptiveMHASenderID, inFlightRequests[toSlaveID]);
+            DPRINTF(Crossbar, "Slave IC ID %d (slave id %d) is blocked, delivery queued req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->interferenceAccurateSenderID, inFlightRequests[toSlaveID]);
 
             deliverBuffer[toSlaveID].push_back(RingRequestEntry(req, curTick, vector<int>()));
             assert(deliverBuffer[toSlaveID].size() <= recvBufferSize);
@@ -467,7 +483,7 @@ Ring::clearBlocked(int fromInterface){
         RingRequestEntry entry = deliverBuffer[unblockedSlaveID].front();
         deliverBuffer[unblockedSlaveID].pop_front();
         
-        DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight, %d buffered\n", fromInterface, unblockedSlaveID, entry.req->adaptiveMHASenderID, inFlightRequests[unblockedSlaveID], deliverBuffer[unblockedSlaveID].size());
+        DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight, %d buffered\n", fromInterface, unblockedSlaveID, entry.req->interferenceAccurateSenderID, inFlightRequests[unblockedSlaveID], deliverBuffer[unblockedSlaveID].size());
         
         entry.req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += curTick - entry.enteredAt;
         deliverBufferDelay += curTick - entry.enteredAt;
