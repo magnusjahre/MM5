@@ -27,7 +27,20 @@ Ring::Ring(const std::string &_name,
     
     sharedCacheBankCount = 4; //FIXME: parameterize
     queueSize = 32; // FIXME: parameterize
-    numberOfRequestRings = 2; // FIXME: parametrize
+    
+    if(_cpu_count == 4){
+        numberOfRequestRings = 1;
+    }
+    else if(_cpu_count == 8){
+        numberOfRequestRings = 2;
+    }
+    else if(_cpu_count == 16){
+        numberOfRequestRings = 2;
+    }
+    else{
+        fatal("Ring parameters not known for supplied CPU-count");
+    }
+    
     numberOfResponseRings = 1;
     
     detailedSimStartTick = _detailedStart;
@@ -43,24 +56,25 @@ Ring::Ring(const std::string &_name,
     inFlightRequests.resize(sharedCacheBankCount, 0);
     
     assert(_arbDelay != -1);
-    assert(_transDelay == _arbDelay);
+    assert(_transDelay % _arbDelay == 0);
+    
     arbEvent = new ADIArbitrationEvent(this);
     
     TOP_LINK_ID = 2000;
     BOTTOM_LINK_ID = 3000;
     
-    ringLinkOccupied.resize(numberOfRequestRings + numberOfResponseRings, map<int,list<Tick> >());
+    ringLinkOccupied.resize(numberOfRequestRings + numberOfResponseRings, map<int,vector<list<Tick> > >());
     
     // initialize occupation storage
     for(int r=0;r<numberOfRequestRings+numberOfResponseRings;r++){
         for(int i=0;i<_cpu_count-1;i++){
-            ringLinkOccupied[r][i] = list<Tick>();
+            ringLinkOccupied[r][i].resize(2, list<Tick>());
         }
         for(int i=0;i<sharedCacheBankCount-1;i++){
-            ringLinkOccupied[r][_cpu_count+i] = list<Tick>();
+            ringLinkOccupied[r][_cpu_count+i].resize(2,list<Tick>());
         }
-        ringLinkOccupied[r][TOP_LINK_ID] = list<Tick>();
-        ringLinkOccupied[r][BOTTOM_LINK_ID] = list<Tick>();
+        ringLinkOccupied[r][TOP_LINK_ID].resize(2,list<Tick>());
+        ringLinkOccupied[r][BOTTOM_LINK_ID].resize(2,list<Tick>());
     }
 }
 
@@ -88,10 +102,12 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
     updateEntryInterference(req, fromID);
     
     if(allInterfaces[fromID]->isMaster()){
-       vector<int> resourceReq = findResourceRequirements(req, fromID);
+        RING_DIRECTION direction = RING_CLOCKWISE;
+        vector<int> resourceReq = findResourceRequirements(req, fromID, &direction);
+        assert(direction != -1);
         
         assert(req->interferenceAccurateSenderID != -1);
-        ringRequestQueue[req->interferenceAccurateSenderID].push_back(RingRequestEntry(req, curTick, resourceReq));
+        ringRequestQueue[req->interferenceAccurateSenderID].push_back(RingRequestEntry(req, curTick, resourceReq, direction));
         
         if(ringRequestQueue[req->interferenceAccurateSenderID].size() == queueSize){
             setBlockedLocal(req->interferenceAccurateSenderID);
@@ -99,10 +115,11 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
         assert(ringRequestQueue[req->interferenceAccurateSenderID].size() <= queueSize);
     }
     else{
-      vector<int> resourceReq = findResourceRequirements(req,fromID);
+        RING_DIRECTION direction = RING_CLOCKWISE;
+        vector<int> resourceReq = findResourceRequirements(req,fromID, &direction);
         
         int slaveID = interconnectIDToL2IDMap[fromID];
-        ringResponseQueue[slaveID].push_back(RingRequestEntry(req, curTick, resourceReq));
+        ringResponseQueue[slaveID].push_back(RingRequestEntry(req, curTick, resourceReq, direction));
         assert(ringResponseQueue.size() <= queueSize);
     }
     
@@ -133,7 +150,7 @@ Ring::setDestinationIntID(MemReqPtr& req, int fromIntID){
 }
 
 vector<int>
-Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
+Ring::findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* direction){
     
     setDestinationIntID(req, fromIntID);
     
@@ -144,29 +161,30 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID){
     int uphops = req->interferenceAccurateSenderID + slaveID + 1;
     int downhops = (cpu_count - (req->interferenceAccurateSenderID+1)) + (sharedCacheBankCount - (slaveID+1)) + 1;
     
-    if(allInterfaces[fromIntID]->isMaster()){   
-        path = findMasterPath(req, uphops, downhops);
+    if(allInterfaces[fromIntID]->isMaster()){
+        path = findMasterPath(req, uphops, downhops, direction);
     }
     else{
-        path = findSlavePath(req, uphops, downhops);
+        path = findSlavePath(req, uphops, downhops, direction);
     }
     
     stringstream pathstr;
     for(int i=0;i<path.size();i++) pathstr << path[i] << " ";
 
-    DPRINTF(Crossbar, "Ring recieved req from icID %d, to ICID %d, proc %d, path: %s, uphops %d, downhops %d\n",
+    DPRINTF(Crossbar, "Ring recieved req from icID %d, to ICID %d, proc %d, path: %s, uphops %d, downhops %d, %s\n",
             fromIntID,
             allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : -1,
             req->interferenceAccurateSenderID,
             pathstr.str().c_str(),
             uphops,
-            downhops);
+            downhops,
+            (*direction == RING_CLOCKWISE ? "clockwise" : "counterclockwise"));
     
     return path;
 }
 
 vector<int>
-Ring::findMasterPath(MemReqPtr& req, int uphops, int downhops){
+Ring::findMasterPath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction){
     
     vector<int> path;
     assert(req->toInterfaceID != -1);
@@ -174,11 +192,13 @@ Ring::findMasterPath(MemReqPtr& req, int uphops, int downhops){
     assert(sharedCacheBankCount == slaveInterfaces.size());
     
     if(uphops <= downhops){
+        *direction = RING_CLOCKWISE;
         for(int i=(req->interferenceAccurateSenderID-1);i>=0;i--) path.push_back(i);
         path.push_back(TOP_LINK_ID);
         for(int i=0;i<toSlaveID;i++) path.push_back(i+cpu_count);
     }
     else{
+        *direction = RING_COUNTERCLOCKWISE;
         for(int i=req->interferenceAccurateSenderID;i<cpu_count-1;i++) path.push_back(i);
         path.push_back(BOTTOM_LINK_ID);
         for(int i=sharedCacheBankCount-2;i>=toSlaveID;i--) path.push_back(i+cpu_count);
@@ -188,7 +208,7 @@ Ring::findMasterPath(MemReqPtr& req, int uphops, int downhops){
 }
 
 vector<int>
-Ring::findSlavePath(MemReqPtr& req, int uphops, int downhops){
+Ring::findSlavePath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction){
     
     vector<int> path;
     
@@ -196,11 +216,13 @@ Ring::findSlavePath(MemReqPtr& req, int uphops, int downhops){
     int slaveID = interconnectIDToL2IDMap[req->fromInterfaceID];
     
     if(uphops <= downhops){
+        *direction = RING_COUNTERCLOCKWISE;
         for(int i=(slaveID-1);i>=0;i--) path.push_back(i+cpu_count);
         path.push_back(TOP_LINK_ID);
         for(int i=0;i<req->interferenceAccurateSenderID;i++) path.push_back(i);
     }
     else{
+        *direction = RING_CLOCKWISE;
         for(int i=slaveID;i<sharedCacheBankCount-1;i++) path.push_back(i+cpu_count);
         path.push_back(BOTTOM_LINK_ID);
         for(int i=cpu_count-2;i>=req->interferenceAccurateSenderID;i--) path.push_back(i);
@@ -264,14 +286,16 @@ Ring::findServiceOrder(vector<list<RingRequestEntry> >* queue){
 
 void 
 Ring::removeOldEntries(int ringID){
-    map<int,list<Tick> >::iterator remIt;
+    map<int,vector<list<Tick> > >::iterator remIt;
     for(remIt = ringLinkOccupied[ringID].begin();remIt != ringLinkOccupied[ringID].end();remIt++){
-        if(!remIt->second.empty()){
-            while(!remIt->second.empty() && remIt->second.front() < curTick){
-                remIt->second.pop_front();
+        for(int i=0;i<RING_DIRCOUNT;i++){
+            if(!remIt->second[i].empty()){
+                while(!remIt->second[i].empty() && remIt->second[i].front() < curTick){
+                    remIt->second[i].pop_front();
+                }
+                
+                if(!remIt->second[i].empty()) assert(remIt->second[i].front() >= curTick);
             }
-            
-            if(!remIt->second.empty()) assert(remIt->second.front() >= curTick);
         }
     }
 }
@@ -282,17 +306,19 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     Tick transTick = curTick;
     for(int i=0;i<entry.resourceReq.size();i++){
         list<Tick>::iterator checkIt;
-        for(checkIt = ringLinkOccupied[ringID][entry.resourceReq[i]].begin(); 
-            checkIt != ringLinkOccupied[ringID][entry.resourceReq[i]].end();
+        for(checkIt = ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].begin(); 
+            checkIt != ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].end();
             checkIt++){
             
             if(*checkIt == transTick){
-                DPRINTF(Crossbar, "CPU %d not granted, conflict for link %d at %d\n", entry.req->interferenceAccurateSenderID, entry.resourceReq[i], transTick);
-                
+                DPRINTF(Crossbar, "CPU %d not granted, conflict for link %d at %d\n",
+                        entry.req->interferenceAccurateSenderID,
+                        entry.resourceReq[i],
+                        transTick);
                 return false;
             }
         }
-        transTick += arbitrationDelay;
+        transTick += transferDelay;
     }
     
     if(toSlave){
@@ -315,32 +341,32 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     for(int i=0;i<entry.resourceReq.size();i++){
         list<Tick>::iterator checkIt;
         bool inserted = false;
-        for(checkIt = ringLinkOccupied[ringID][entry.resourceReq[i]].begin(); 
-            checkIt != ringLinkOccupied[ringID][entry.resourceReq[i]].end();
+        for(checkIt = ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].begin(); 
+            checkIt != ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].end();
             checkIt++){
             
             if(*checkIt > transTick){
-                ringLinkOccupied[ringID][entry.resourceReq[i]].insert(checkIt, transTick);
+                ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].insert(checkIt, transTick);
                 inserted = true;
                 break;
             }
         }
         
-        if(!inserted) ringLinkOccupied[ringID][entry.resourceReq[i]].push_back(transTick);
-        transTick += arbitrationDelay;
+        if(!inserted) ringLinkOccupied[ringID][entry.resourceReq[i]][entry.direction].push_back(transTick);
+        transTick += transferDelay;
     }
     
     ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, toSlave);
-    delivery->schedule(curTick + (arbitrationDelay * entry.resourceReq.size()));
+    delivery->schedule(curTick + (transferDelay * entry.resourceReq.size()));
     
-    totalTransferCycles += (arbitrationDelay * entry.resourceReq.size());
+    totalTransferCycles += (transferDelay * entry.resourceReq.size());
     sentRequests++;
     
     DPRINTF(Crossbar, "Granting access to CPU %d, from ICID %d, to IDID %d, latency %d, hops %d\n",
             entry.req->interferenceAccurateSenderID,
             entry.req->fromInterfaceID,
             entry.req->toInterfaceID,
-            arbitrationDelay * entry.resourceReq.size(),
+            transferDelay * entry.resourceReq.size(),
             entry.resourceReq.size());
     
     return true;
@@ -348,10 +374,10 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
 
 void 
 Ring::checkRingOrdering(int ringID){
-    for(int i=0;i<ringLinkOccupied[ringID].size();i++){
-        map<int, list<Tick> >::iterator mapIt;
-        for(mapIt = ringLinkOccupied[ringID].begin();mapIt != ringLinkOccupied[ringID].end();mapIt++){
-            list<Tick> curList = mapIt->second;
+    map<int, vector<list<Tick> > >::iterator mapIt;
+    for(mapIt = ringLinkOccupied[ringID].begin();mapIt != ringLinkOccupied[ringID].end();mapIt++){
+        for(int j=0;j<RING_DIRCOUNT;j++){
+            list<Tick> curList = mapIt->second[j];
             list<Tick>::iterator checkIt;
             Tick current = curList.front();
             for(checkIt = curList.begin();checkIt != curList.end();checkIt++){
@@ -468,7 +494,7 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
             assert(curTick >= detailedSimStartTick);
             DPRINTF(Crossbar, "Slave IC ID %d (slave id %d) is blocked, delivery queued req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->interferenceAccurateSenderID, inFlightRequests[toSlaveID]);
 
-            deliverBuffer[toSlaveID].push_back(RingRequestEntry(req, curTick, vector<int>()));
+            deliverBuffer[toSlaveID].push_back(RingRequestEntry(req, curTick, vector<int>(), -1));
             assert(deliverBuffer[toSlaveID].size() <= recvBufferSize);
         }
     }

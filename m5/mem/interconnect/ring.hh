@@ -4,6 +4,12 @@
 
 #include "address_dependent_ic.hh"
 
+typedef enum{
+    RING_CLOCKWISE,
+    RING_COUNTERCLOCKWISE,
+    RING_DIRCOUNT
+} RING_DIRECTION;
+
 class Ring : public AddressDependentIC{ 
     
     private:
@@ -12,11 +18,13 @@ class Ring : public AddressDependentIC{
             MemReqPtr req;
             Tick enteredAt;
             std::vector<int> resourceReq;
+            int direction;
             
-            RingRequestEntry(MemReqPtr& _req, Tick _enteredAt, std::vector<int> _resourceReq){
+            RingRequestEntry(MemReqPtr& _req, Tick _enteredAt, std::vector<int> _resourceReq, int _direction){
                 req = _req;
                 enteredAt = _enteredAt;
                 resourceReq = _resourceReq;
+                direction = _direction;
             }
         };
         
@@ -30,7 +38,7 @@ class Ring : public AddressDependentIC{
         
         int detailedSimStartTick;
         
-        std::vector<std::map<int, std::list<Tick> > > ringLinkOccupied;
+        std::vector<std::map<int, std::vector<std::list<Tick> > > > ringLinkOccupied;
         
         std::vector<std::list<RingRequestEntry> > ringRequestQueue;
         std::vector<std::list<RingRequestEntry> > ringResponseQueue;
@@ -42,9 +50,9 @@ class Ring : public AddressDependentIC{
         
         ADIArbitrationEvent* arbEvent;
         
-        std::vector<int> findResourceRequirements(MemReqPtr& req, int fromIntID);
-        std::vector<int> findMasterPath(MemReqPtr& req, int uphops, int downhops);
-        std::vector<int> findSlavePath(MemReqPtr& req, int uphops, int downhops);
+        std::vector<int> findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* direction);
+        std::vector<int> findMasterPath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
+        std::vector<int> findSlavePath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
                 
         std::vector<int> findServiceOrder(std::vector<std::list<RingRequestEntry> >* queue);
         
