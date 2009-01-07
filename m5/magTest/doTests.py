@@ -25,7 +25,8 @@ report = open(REPORTFILE, 'w')
 cpus = [4,8,16]
 interconnect = 'crossbar'
 
-memsys= ["CrossbarBased","RingBased"]
+#memsys= ["CrossbarBased","RingBased"]
+memsys= ["RingBased"]
 channels = [1,2,4]
 configs = []
 for m in memsys:
@@ -34,8 +35,8 @@ for m in memsys:
 
 def getCommandline(cpu, benchmark, conf):
 
-  sim = 5 * 10**6
-  fw = 25 * 10**6
+  sim = 1 * 10**6
+  fw = 5 * 10**6
 
   args = [binary]
   args.append(cpuArg+str(cpu))
