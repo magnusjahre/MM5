@@ -311,9 +311,10 @@ Interconnect::registerInterface(InterconnectInterface* interface,
     }
     
     if(!isSlave){
-        assert(processorID >= 0);
-        processorIDToInterconnectIDs[processorID].push_back(totalInterfaceCount);
-        interconnectIDToProcessorIDMap.insert(make_pair(totalInterfaceCount, processorID));
+        if(processorID != -1){
+            processorIDToInterconnectIDs[processorID].push_back(totalInterfaceCount);
+            interconnectIDToProcessorIDMap.insert(make_pair(totalInterfaceCount, processorID));
+        }
     }
     else{
         interconnectIDToL2IDMap.insert(make_pair(totalInterfaceCount, slaveInterfaceCount));

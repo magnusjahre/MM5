@@ -117,8 +117,10 @@ AddressDependentIC::retrieveAdditionalRequests(){
     }
     
     if(!allZero){
-        
         for(int i=0;i<cpu_count;i++){
+            
+            if(processorIDToInterconnectIDs[i].empty()) continue;
+            
             if(processorIDToInterconnectIDs[i].size() == 2){
                 int firstInterfaceID = processorIDToInterconnectIDs[i].front();
                 int secondInterfaceID = processorIDToInterconnectIDs[i].back();

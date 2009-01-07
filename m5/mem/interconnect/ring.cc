@@ -14,7 +14,8 @@ Ring::Ring(const std::string &_name,
                                int _cpu_count,
                                HierParams *_hier,
                                AdaptiveMHA* _adaptiveMHA,
-                               Tick _detailedStart)
+                               Tick _detailedStart,
+                               int _singleProcessorID)
     : AddressDependentIC(_name,
                          _width, 
                          _clock, 
@@ -44,6 +45,8 @@ Ring::Ring(const std::string &_name,
     numberOfResponseRings = 1;
     
     detailedSimStartTick = _detailedStart;
+    
+    singleProcessorID = _singleProcessorID;
     
     initQueues(_cpu_count,_cpu_count + sharedCacheBankCount);
     
@@ -78,10 +81,31 @@ Ring::Ring(const std::string &_name,
     }
 }
 
+int 
+Ring::registerInterface(InterconnectInterface* interface, bool isSlave, int processorID){
+    int interfaceID = Interconnect::registerInterface(interface,isSlave,-1);
+    
+    if(singleProcessorID != -1 && !isSlave){
+        processorIDToInterconnectIDs[singleProcessorID].push_back(interfaceID);
+        for(int i=0;i<processorIDToInterconnectIDs.size();i++){
+            if(i != singleProcessorID) assert(processorIDToInterconnectIDs[i].empty());
+        }
+        
+        assert(interconnectIDToProcessorIDMap.find(interfaceID) == interconnectIDToProcessorIDMap.end());
+        interconnectIDToProcessorIDMap.insert(make_pair(interfaceID, singleProcessorID));
+    }
+    
+    return interfaceID;
+}
+
 void
 Ring::send(MemReqPtr& req, Tick time, int fromID){
     
     req->inserted_into_crossbar = curTick;
+    
+    if(singleProcessorID != -1 && allInterfaces[fromID]->isMaster()){
+        assert(req->interferenceAccurateSenderID == singleProcessorID);
+    }
     
     if(curTick < detailedSimStartTick){
         // infinite bw in warm-up, deliver request directly
@@ -102,13 +126,13 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
     updateEntryInterference(req, fromID);
     
     if(allInterfaces[fromID]->isMaster()){
+        
         RING_DIRECTION direction = RING_CLOCKWISE;
         vector<int> resourceReq = findResourceRequirements(req, fromID, &direction);
         assert(direction != -1);
         
         assert(req->interferenceAccurateSenderID != -1);
         ringRequestQueue[req->interferenceAccurateSenderID].push_back(RingRequestEntry(req, curTick, resourceReq, direction));
-        
         if(ringRequestQueue[req->interferenceAccurateSenderID].size() == queueSize){
             setBlockedLocal(req->interferenceAccurateSenderID);
         }
@@ -533,6 +557,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Ring)
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<Tick> detailed_sim_start_tick;
+    Param<int> single_proc_id;
 END_DECLARE_SIM_OBJECT_PARAMS(Ring)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
@@ -543,7 +568,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
-    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts")
+    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
+    INIT_PARAM_DFLT(single_proc_id, "the expected CPU ID if there is only one processor", -1)
 END_INIT_SIM_OBJECT_PARAMS(Ring)
 
 CREATE_SIM_OBJECT(Ring)
@@ -556,7 +582,8 @@ CREATE_SIM_OBJECT(Ring)
                               cpu_count,
                               hier,
                               adaptive_mha,
-                              detailed_sim_start_tick);
+                              detailed_sim_start_tick,
+                              single_proc_id);
 }
 
 REGISTER_SIM_OBJECT("Ring", Ring)

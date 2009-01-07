@@ -296,9 +296,9 @@ class Interconnect : public BaseHier
         *
         * @return The ID the interface is given
         */
-        int registerInterface(InterconnectInterface* interface,
-                              bool isL2,
-                              int processorID);
+        virtual int registerInterface(InterconnectInterface* interface,
+                                      bool isL2,
+                                      int processorID);
         
         /**
         * This method makes all registers interconnects reevaluate which 
