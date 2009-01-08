@@ -83,9 +83,12 @@ Ring::Ring(const std::string &_name,
 
 int 
 Ring::registerInterface(InterconnectInterface* interface, bool isSlave, int processorID){
-    int interfaceID = Interconnect::registerInterface(interface,isSlave,-1);
+    
+    int interfaceID = -1;
     
     if(singleProcessorID != -1 && !isSlave){
+        interfaceID = Interconnect::registerInterface(interface,isSlave,-1);
+        
         processorIDToInterconnectIDs[singleProcessorID].push_back(interfaceID);
         for(int i=0;i<processorIDToInterconnectIDs.size();i++){
             if(i != singleProcessorID) assert(processorIDToInterconnectIDs[i].empty());
@@ -94,7 +97,11 @@ Ring::registerInterface(InterconnectInterface* interface, bool isSlave, int proc
         assert(interconnectIDToProcessorIDMap.find(interfaceID) == interconnectIDToProcessorIDMap.end());
         interconnectIDToProcessorIDMap.insert(make_pair(interfaceID, singleProcessorID));
     }
+    else{
+        interfaceID = Interconnect::registerInterface(interface,isSlave,processorID);
+    }
     
+    assert(interfaceID != -1);
     return interfaceID;
 }
 
