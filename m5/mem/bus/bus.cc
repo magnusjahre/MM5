@@ -700,7 +700,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
                        req->cmd,
                        "Latency");
 #endif
-    
 
     if(req->cmd != Activate && req->cmd != Close){
         assert(slaveInterfaces.size() == 1);

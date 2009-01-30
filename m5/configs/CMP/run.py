@@ -58,6 +58,17 @@ def initSharedCache(bankcnt):
             panic("Shared Cache: No single cache configuration present")
     else:
         panic("No cache defined for selected CPU count")
+        
+    if env["CACHE-PARTITIONING"] == "StaticUniform":
+        for bank in root.SharedCache:
+            bank.use_static_partitioning = True
+            bank.static_part_start_tick = uniformPartStart
+        
+    if env["CACHE-PARTITIONING"] == "MTP":
+        for bank in root.SharedCache:
+            bank.use_mtp_partitioning = True
+            bank.use_static_partitioning = True
+            bank.static_part_start_tick = uniformPartStart
    
 def setUpSharedCache(bankcnt, detailedStartTick):
     

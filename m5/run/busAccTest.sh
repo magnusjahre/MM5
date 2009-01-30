@@ -22,13 +22,13 @@ echo "Simulate ticks: $simticks"
 echo "FW ticks:       $fwticks"
 echo ""
 
-../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=$simticks -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1  -EPROGRESS=1000000 ../../configs/CMP/run.py
+../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=$simticks -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 -ECACHE-PARTITIONING=StaticUniform -EPROGRESS=1000000 ../../configs/CMP/run.py
 
 cp estimation_access_trace_$bmid.txt $strace
 
 insts=`python -c "import fairmha.getCommittedInsts as c; c.getCommittedInsts('shared_output.txt', $bmid, True)"`
 
-../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$bmid]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=alone_output.txt -ESIMINSTS=$insts -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage -EPROGRESS=1000000 -EMEMORY-ADDRESS-OFFSET=$bmid -EMEMORY-ADDRESS-PARTS=4  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1  ../../configs/CMP/run.py
+../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$bmid]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=alone_output.txt -ESIMINSTS=$insts -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage -EPROGRESS=1000000 -EMEMORY-ADDRESS-OFFSET=$bmid -EMEMORY-ADDRESS-PARTS=4  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 -ECACHE-PARTITIONING=StaticUniform ../../configs/CMP/run.py
 
 cp dram_access_trace.txt $atrace
 
