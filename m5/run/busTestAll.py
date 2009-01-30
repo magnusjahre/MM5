@@ -27,6 +27,7 @@ of.write("Workload".ljust(w))
 for i in range(NPS):
     of.write(("CPU "+str(i)).rjust(w))
 of.write("\n")
+of.flush()
 
 correctPat = re.compile("Correct:.*")
 wrongPat = re.compile("Wrong:.*")
@@ -73,6 +74,7 @@ for wl in workloads:
         res = cor+"/"+wrong
         of.write(res.rjust(w))
     of.write("\n")
+    of.flush()
 
 of.flush()
 of.close()
