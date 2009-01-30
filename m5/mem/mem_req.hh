@@ -102,6 +102,13 @@ typedef enum{
     MEM_REQ_LATENCY_BREAKDOWN_SIZE
 } MEM_REQ_LATENCY_BREAKDOWN;
 
+typedef enum{
+    DRAM_RESULT_INVALID,
+    DRAM_RESULT_HIT,
+    DRAM_RESULT_MISS,
+    DRAM_RESULT_CONFLICT,
+    DRAM_RESULT_SIZE
+} DRAM_RESULT;
 
 // Forward declaration for pointer
 class MSHR;
@@ -236,6 +243,8 @@ class MemReq : public FastAlloc, public RefCounted
     std::vector<int> latencyBreakdown;
     std::vector<int> interferenceBreakdown;
 
+    DRAM_RESULT dramResult;
+    
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -302,7 +311,8 @@ class MemReq : public FastAlloc, public RefCounted
           busAloneWriteQueueEstimate(0),
           waitWritebackCnt(0),
           entryReadCnt(0),
-          entryWriteCnt(0)
+          entryWriteCnt(0),
+          dramResult(DRAM_RESULT_INVALID)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -367,6 +377,7 @@ class MemReq : public FastAlloc, public RefCounted
         waitWritebackCnt = r.waitWritebackCnt;
         entryReadCnt = r.entryReadCnt;
         entryWriteCnt = r.entryWriteCnt;
+        dramResult = r.dramResult;
         
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;

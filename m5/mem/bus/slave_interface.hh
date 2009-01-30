@@ -148,6 +148,7 @@ class SlaveInterface : public BusInterface<BusType>
     virtual void snoopResponseCall(MemReqPtr &req);
     //virtual void addPrewrite(MemReqPtr &req) {
     //    fatal("Not implemented!");
+    
     //}
 
     virtual bool isActive(MemReqPtr &req);
@@ -155,6 +156,7 @@ class SlaveInterface : public BusInterface<BusType>
     virtual bool isReady(MemReqPtr &req);
     virtual int getPageSize();
     virtual int getMemoryBankID(Addr addr);
+    virtual int getMemoryBankCount();
     virtual Tick getBankActivatedAt(int bankID);
 
     virtual Tick calculateLatency(MemReqPtr &req);

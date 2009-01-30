@@ -200,6 +200,12 @@ SlaveInterface<Mem, Bus>::getMemoryBankID(Addr addr){
 }
 
 template<class Mem, class Bus>
+int
+SlaveInterface<Mem, Bus>::getMemoryBankCount(){
+    return mem->getMemoryBankCount();
+}
+
+template<class Mem, class Bus>
 Tick
 SlaveInterface<Mem, Bus>::getBankActivatedAt(int bankID){
     return mem->getBankActivatedAt(bankID);

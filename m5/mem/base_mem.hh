@@ -169,6 +169,11 @@ class BaseMem : public BaseHier
         return 0;
     }
     
+    virtual int getMemoryBankCount(){
+        fatal("Not implemented");
+        return 0;
+    }
+    
     virtual Tick getBankActivatedAt(int bankID){
         fatal("Not implemented");
         return 0;

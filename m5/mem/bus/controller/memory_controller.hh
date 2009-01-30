@@ -30,26 +30,7 @@ class TimingMemoryController : public SimObject
   private:
     Tick totalBlocktime;
     
-    
-    
   protected:
-    
-    
-    std::vector<Addr> currentActivated;
-    std::vector<Addr> currentActivatedBy;
-    std::vector<Tick> currentActivatedAt;
-    std::vector<Tick> currentActivatedFirstUse;
-    
-    std::vector<std::vector<Addr> > cpuCurrentActivated;
-    std::vector<std::vector<Tick> > cpuCurrentActivatedAt;
-    std::vector<std::vector<bool> > cpuCurrentActivatedFirstUse;
-    
-    std::vector<Addr> lastActivated;
-    std::vector<Addr> lastActivatedBy;
-    std::vector<Tick> lastActivatedAt;
-    
-    std::vector<std::vector<Addr> > cpuLastActivated;
-    std::vector<std::vector<Tick> > cpuLastActivatedAt;
     
     Bus* bus;
     int memCtrCPUCount;
@@ -132,7 +113,7 @@ class TimingMemoryController : public SimObject
       return mem_interface->isReady(req);
     }
 
-    void registerInterface(BaseInterface *interface) {
+    void registerInterface(BaseInterface *interface){
         mem_interface = interface;
     }
     
@@ -144,20 +125,26 @@ class TimingMemoryController : public SimObject
         return mem_interface->getBankActivatedAt(bankID);
     }
     
-    void currentActivationAddress(int cpuID, Addr addr, int bank);
-    
-    bool isPageHit(Addr addr, int bank);
-    
-    bool isPageConflict(MemReqPtr& req);
-    
-    bool isPageHitOnPrivateSystem(Addr addr, int bank, int cpuID);
-    
-    bool isPageConflictOnPrivateSystem(MemReqPtr& req);
-    
-    int getLastActivatedBy(int bank);
-    
-//     virtual void addInterference(MemReqPtr &req, Tick lat){
-//         fatal("not implemented");
+//     virtual bool isPageHitOnPrivateSystem(MemReqPtr& req, bool closedPagePolicy){
+//         fatal("does not make sense");
+//         return false;
+//     }
+//     
+//     virtual bool isPageConflictOnPrivateSystem(MemReqPtr& req, bool closedPagePolicy){
+//         fatal("does not make sense");
+//         return false;
+//     }
+//     
+//     virtual void updatePrivateOpenPage(MemReqPtr& req, bool closedPagePolicy){
+//         fatal("does not make sense");
+//     }
+//     
+//     virtual void checkPrivateOpenPage(MemReqPtr& req, bool closedPagePolicy){
+//         fatal("does not make sense");
+//     }
+//     
+//     virtual void initializePrivateStorage(){
+//         fatal("does not make sense");
 //     }
     
     void setShadow(){

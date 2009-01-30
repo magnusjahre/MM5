@@ -51,24 +51,26 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int readqueue_size;
     int writequeue_size;
     int reserved_slots;
+    
+    std::vector<std::vector<Addr> > activatedPages;
+    std::vector<std::vector<Tick> > activatedAt;
 
     bool getActivate(MemReqPtr& req);
     bool getClose(MemReqPtr& req);
     bool getReady(MemReqPtr& req);
     bool getOther(MemReqPtr& req);
     
-    // NOTE: used in first FAMHA paper but is outdated
-//     void estimateInterference(MemReqPtr& req);
-//     std::vector<bool> hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue);
-//     std::vector<int> computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue);
-    
-//     void estimatePrivateServiceLatency(MemReqPtr& req);
-    
     bool equalReadWritePri;
     bool closedPagePolicy;
     
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
+    
+    void checkPrivateOpenPage(MemReqPtr& req);
+    bool isPageHitOnPrivateSystem(MemReqPtr& req);
+    bool isPageConflictOnPrivateSystem(MemReqPtr& req);
+    void updatePrivateOpenPage(MemReqPtr& req);
+    void initializePrivateStorage();
     
   public:
 
@@ -142,4 +144,5 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
     virtual void initializeTraceFiles(Bus* regbus);
+    
 };

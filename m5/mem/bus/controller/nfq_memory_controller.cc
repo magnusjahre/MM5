@@ -198,11 +198,6 @@ NFQMemoryController::getRequest() {
         }
     }
     
-    if(retval->cmd == Read || retval->cmd == Writeback){
-        bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
-                                     isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
-    }
-    
     return retval;
 }
 
@@ -349,8 +344,6 @@ NFQMemoryController::createCloseReq(Addr pageAddr){
         
 MemReqPtr&
 NFQMemoryController::createActivateReq(MemReqPtr& req){
-    
-    currentActivationAddress(req->adaptiveMHASenderID, req->paddr, getMemoryBankID(req->paddr));
     
     Addr pageAddr = getPage(req);
     pageCmd->cmd = Activate;

@@ -124,6 +124,10 @@ class SimpleMemBank : public BaseMemory
         return (addr >> pagesize) % num_banks;
     }
     
+    int getMemoryBankCount(){
+        return num_banks;
+    }
+    
     int getPageSize(){
         return pagesize;
     }

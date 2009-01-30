@@ -166,6 +166,7 @@ class DMABusInterface : public BusInterface<BusType>
     {
 	//We do nothing on resquest responses for now
     }
+    
 };
 
 #endif //__DMA_BUS_INTERFACE_HH__

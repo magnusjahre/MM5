@@ -9,7 +9,7 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-//#define DO_ESTIMATION_TRACE 1
+#define DO_ESTIMATION_TRACE 1
 
 #ifdef DO_ESTIMATION_TRACE
 #include <fstream>
@@ -151,25 +151,25 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     
     if (num_active_pages < max_active_pages) { 
         activateFound = getActivate(retval);
-        if(activateFound) DPRINTF(MemoryController, "Found activate request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        if(activateFound) DPRINTF(MemoryController, "Found activate request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
     }
 
     if(!activateFound){
         if(closedPagePolicy){
             closeFound = getClose(retval);
-            if(closeFound) DPRINTF(MemoryController, "Found close request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+            if(closeFound) DPRINTF(MemoryController, "Found close request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
         }
     }
     
     if(!activateFound && !closeFound){
         readyFound = getReady(retval);
-        if(readyFound) DPRINTF(MemoryController, "Found ready request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        if(readyFound) DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
         assert(!bankIsClosed(retval));
     }
     
     if(!activateFound && !closeFound && !readyFound){
         bool otherFound = getOther(retval);
-        if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %x\n", retval->cmd, retval->paddr);
+        if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
         assert(otherFound);
         if(closedPagePolicy) assert(!bankIsClosed(retval));
     }
@@ -187,18 +187,6 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     // estimate interference caused by this request
     if((retval->cmd == Read || retval->cmd == Writeback) && !isShadow){
         assert(!isShadow);
-//         estimateInterference(retval); // NOTE: kept because the FAMHA code might be used again
-        
-//         if(retval->cmd == Read && bus->adaptiveMHA->getCPUCount() > 1){
-//             estimatePrivateServiceLatency(retval);
-//         }
-//         else{
-//             retval->busDelay = 0;
-//         }
-        
-        
-        bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
-                                     isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
         
         // store the ID of the CPU that used the bus prevoiusly and update current vals
         lastDeliveredReqAt = currentDeliveredReqAt;
@@ -206,8 +194,6 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         currentDeliveredReqAt = curTick;
         currentOccupyingCPUID = retval->adaptiveMHASenderID;
     }
-    
-    DPRINTF(MemoryController, "Returning command %s, addr %x\n", retval->cmd, retval->paddr);
     
     return retval;
 }
@@ -221,7 +207,6 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
             MemReqPtr& tmp = *queueIterator;
             if (!isActive(tmp) && bankIsClosed(tmp)) {
                 //Request is not active and bank is closed. Activate it
-                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
                 
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
@@ -245,8 +230,6 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
             if (!isActive(tmp) && bankIsClosed(tmp)) {
                 //Request is not active and bank is closed. Activate it
                 
-                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
-                
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
@@ -263,8 +246,6 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
         for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
             if (!isActive(tmp) && bankIsClosed(tmp)) {
-                
-                currentActivationAddress(tmp->adaptiveMHASenderID, tmp->paddr, getMemoryBankID(tmp->paddr));
                 
                 //Request is not active and bank is closed. Activate it
                 activate->cmd = Activate;
@@ -467,6 +448,7 @@ RDFCFSTimingMemoryController::closePageForRequest(MemReqPtr& choosenReq, MemReqP
     
     if(bankIsClosed(oldestReq)){
         // close the oldest activated page
+        
         Tick min = TICK_T_MAX;
         Addr closeAddr = 0;
         map<int,ActivationEntry>::iterator minIterator = activePages.end();
@@ -486,9 +468,10 @@ RDFCFSTimingMemoryController::closePageForRequest(MemReqPtr& choosenReq, MemReqP
         assert(closeAddr != 0);
         close->paddr = closeAddr;
 
+        DPRINTF(MemoryController, "All pages are activated, closing oldest page, addr %d\n", closeAddr);
     }
     else{
-            // the needed bank is currently active, close it
+        // the needed bank is currently active, close it
         assert(activePages.find(getMemoryBankID(oldestReq->paddr)) != activePages.end());
         activePages.erase(getMemoryBankID(oldestReq->paddr));
         close->paddr = oldestReq->paddr;
@@ -560,81 +543,7 @@ RDFCFSTimingMemoryController::getPendingRequests(){
 void
 RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
     fatal("setOpenPages not implemented");
-//     assert(activePages.empty());
-//     activePages.splice(activePages.begin(), pages);
-//     num_active_pages = activePages.size();
-//     assert(num_active_pages <= max_active_pages);
-//     DPRINTF(MemoryController, "Recieved active list, there are now %d active pages\n", num_active_pages);
 }
-
-// void
-// RDFCFSTimingMemoryController::estimatePrivateServiceLatency(MemReqPtr& req){
-//     
-//     req->busDelay = 0;
-//     int toBank = getMemoryBankID(req->paddr);
-//     int fromCPU = req->adaptiveMHASenderID;
-//     assert(fromCPU != -1);
-//     
-//     cout << curTick << ": Req from " << fromCPU << " for bank " << toBank << ", estimating service latency...\n";
-//     
-//     if(isPageHitOnPrivateSystem(req->paddr, toBank, fromCPU)){
-//         cout << curTick << ": Hit!\n";
-//         if(isReady(req)){
-//             cout << curTick << ": Estimated page hit, hit in shared, no adjust\n";
-//         }
-//         else if(bankIsClosed(req)){
-//             fatal("priv hit, shared is closed --> adjustment needed");
-//         }
-//         else{
-//             assert(isActive(req));
-//             fatal("priv hit, shared is active --> adjustment needed");
-//         }
-//     }
-//     else if(isPageConflictOnPrivateSystem(req)){
-//         cout << curTick << ": Conflict!\n";
-//         if(isPageConflict(req)){
-//             Tick actuallyActivatedAt = getBankActivatedAt(toBank);
-//             cout << curTick << ": Conflict, bank activated at " << actuallyActivatedAt << "\n";
-//             if(actuallyActivatedAt < (curTick + 40)){
-//                 //page conflict, but latency was (at least partially) hidden
-//                 Tick additionalSharedDelay = actuallyActivatedAt - (curTick + 40);
-//                 req->busDelay = (-additionalSharedDelay);
-//                 cout << curTick << ": page conflict in both, overlapped in shared, correcting with " << additionalSharedDelay << " ticks\n";
-//             }
-//             else if(actuallyActivatedAt > (curTick + 40)){
-//                 fatal("stop here");
-//             }
-//             else{
-//                 cout << curTick << ": page conflict in both, no overlap, no correction needed\n";
-//             }
-//         }
-//         else{
-//             fatal("private conflict, shared non-conflict, help!");
-//         }
-//     }
-//     else{
-//         assert(!bankIsClosed(req));
-//         cout << curTick << ": Miss!\n";
-//         if(isActive(req)){
-//             // activation may be overlapped in the shared bus
-//             // NOTE: assumes no overlap in the private bus
-//             Tick commonActivateAt = curTick + 40;
-//             if(getBankActivatedAt(toBank) < commonActivateAt){
-//                 Tick overlap = commonActivateAt - getBankActivatedAt(toBank);
-//                 if(overlap > 80) req->busDelay = 80;
-//                 else req->busDelay = 80 - overlap;
-//             }
-//             else{
-//                 assert(getBankActivatedAt(toBank) == commonActivateAt);
-//             }
-//         }
-//         else{
-//             assert(isReady(req));
-//             fatal("priv miss, shared is ready --> adjustment needed");
-//         }
-//         cout << "returning a bus delay of " << req->busDelay << "\n";
-//     }
-// }
 
 void
 RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
@@ -648,9 +557,11 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     assert(req->cmd == Read || req->cmd == Writeback);
     
+    checkPrivateOpenPage(req);
+    
     req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
-    if(isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
+    if(isPageHitOnPrivateSystem(req)){
         privateLatencyEstimate = 40;
 #ifdef DO_ESTIMATION_TRACE
         isHit = true;
@@ -668,10 +579,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
         else privateLatencyEstimate = 79;
     }
     
-//     Tick latencyCorrection = 0;
-//     if(privateLatencyEstimate != busOccupiedFor){
-//         latencyCorrection = privateLatencyEstimate - busOccupiedFor;
-//     }
+    updatePrivateOpenPage(req);
     
 #ifdef DO_ESTIMATION_TRACE
     
@@ -704,7 +612,6 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
                 waitingReq->busAloneReadQueueEstimate += privateLatencyEstimate;
             }
             else{
-//                 waitingReq->busAloneWriteQueueEstimate += (int) ((double) privateLatencyEstimate * 1.5);
                 waitingReq->busAloneWriteQueueEstimate += privateLatencyEstimate;
                 waitingReq->waitWritebackCnt++;
             }
@@ -714,56 +621,86 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     if(req->cmd == Read){
         req->busAloneServiceEstimate += privateLatencyEstimate;
     }
-    
-    
-//     readIter = readQueue.begin();
-//     for( ; readIter != readQueue.end(); readIter++){
-//         MemReqPtr waitingReq = *readIter;
-//         assert(waitingReq->adaptiveMHASenderID != -1);
-//         assert(waitingReq->cmd == Read);
-//         
-//         if(waitingReq->adaptiveMHASenderID != fromCPU){
-//             int extraLatency = 0;
-//             
-//             if(waitingReq->inserted_into_memory_controller <= lastDeliveredReqAt){
-//                 // already in queue
-//                 assert(busOccupiedFor > 0);
-//                 extraLatency = busOccupiedFor;
-//             }
-//             else{
-//                 // entered queue while this request was in service
-//                 extraLatency = curTick - waitingReq->inserted_into_memory_controller;
-//                 assert(extraLatency >= 0);
-//             }
-//             
-//             waitingReq->busQueueInterference += extraLatency;
-//             bus->addInterferenceCycles(waitingReq->adaptiveMHASenderID, extraLatency, BUS_INTERFERENCE);
-//             waitingReq->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
-//         }
-//         else{
-//             waitingReq->busDelay += latencyCorrection;
-//             bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
-//             waitingReq->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += latencyCorrection;
-//         }
-//     }
-//     
-//     if(req->inserted_into_memory_controller > lastDeliveredReqAt
-//        && lastOccupyingCPUID != fromCPU
-//        && req->cmd == Read){
-//         int extraLatency = curTick - req->inserted_into_memory_controller;
-//         assert(extraLatency >= 0);
-//         req->busQueueInterference += extraLatency;
-//         bus->addInterferenceCycles(fromCPU, extraLatency, BUS_INTERFERENCE);
-//         req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += extraLatency;
-//     }
-//     
-//     if(req->cmd == Read){
-//         req->busDelay += latencyCorrection;
-//         bus->addInterferenceCycles(fromCPU, latencyCorrection, BUS_INTERFERENCE);
-//         req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] += latencyCorrection;
-//     }
 }
 
+void
+RDFCFSTimingMemoryController::checkPrivateOpenPage(MemReqPtr& req){
+    if(activatedPages.empty()) initializePrivateStorage();
+    
+    int actCnt = 0;
+    Tick minAct = TICK_T_MAX;
+    int minID = -1;
+    int bank = getMemoryBankID(req->paddr);
+    int cpuID = req->adaptiveMHASenderID;
+    
+    for(int i=0;i<activatedPages[cpuID].size();i++){
+        if(activatedPages[cpuID][i] != 0){
+            actCnt++;
+            
+            assert(activatedAt[cpuID][i] != 0);
+            if(activatedAt[cpuID][i] < minAct){
+                minAct = activatedAt[cpuID][i];
+                minID = i;
+            }
+        }
+    }
+    
+    if(actCnt == max_active_pages){
+        if(activatedPages[cpuID][bank] == 0){
+            // the memory controller has closed the oldest activated page, update storage
+            activatedPages[cpuID][minID] = 0;
+            activatedAt[cpuID][minID] = 0;
+        }
+    }
+    else{
+        assert(actCnt < max_active_pages);
+    }
+}
+
+void
+RDFCFSTimingMemoryController::updatePrivateOpenPage(MemReqPtr& req){
+    
+    assert(!closedPagePolicy);
+    
+    Addr curPage = getPage(req->paddr);
+    int bank = getMemoryBankID(req->paddr);
+    int cpuID = req->adaptiveMHASenderID;
+    
+    if(activatedPages[cpuID][bank] != curPage){
+        activatedAt[cpuID][bank] = curTick;
+    }
+    
+    activatedPages[cpuID][bank] = curPage;
+}
+
+bool
+RDFCFSTimingMemoryController::isPageHitOnPrivateSystem(MemReqPtr& req){
+    
+    assert(!closedPagePolicy);
+    
+    Addr curPage = getPage(req->paddr);
+    int bank = getMemoryBankID(req->paddr);
+    int cpuID = req->adaptiveMHASenderID;
+    
+    return curPage == activatedPages[cpuID][bank];
+}
+
+bool 
+RDFCFSTimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
+    
+    assert(!closedPagePolicy);
+    
+    Addr curPage = getPage(req->paddr);
+    int bank = getMemoryBankID(req->paddr);
+    int cpuID = req->adaptiveMHASenderID;
+    
+    return curPage != activatedPages[cpuID][bank] && activatedPages[cpuID][bank] != 0;
+}
+
+void RDFCFSTimingMemoryController::initializePrivateStorage(){
+    activatedPages.resize(memCtrCPUCount, std::vector<Addr>(mem_interface->getMemoryBankCount(), 0));
+    activatedAt.resize(memCtrCPUCount, std::vector<Tick>(mem_interface->getMemoryBankCount(), 0));
+}
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -823,140 +760,3 @@ CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
 REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)
 
 #endif //DOXYGEN_SHOULD_SKIP_THIS
-
-        
-// OLD CODE: kept for compatibilty reasons
-// 
-// void
-// RDFCFSTimingMemoryController::estimateInterference(MemReqPtr& req){
-        //     
-//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-//     vector<vector<Tick> > interference(localCpuCnt, vector<Tick>(localCpuCnt, 0));
-//     vector<vector<bool> > delayedIsRead(localCpuCnt, vector<bool>(localCpuCnt, false));
-//     int fromCPU = req->adaptiveMHASenderID;
-        //     
-//     if(fromCPU == -1) return;
-        //     
-//     // Interference due to bus capacity
-//     vector<bool> readBusInterference = hasReadyRequestWaiting(req, readQueue);
-//     assert(readBusInterference.size() == localCpuCnt);
-//     for(int i=0;i<readBusInterference.size();i++){
-//         if(readBusInterference[i]){
-//             interference[i][req->adaptiveMHASenderID] += 40;
-//             delayedIsRead[i][req->adaptiveMHASenderID] = true;
-//             bus->addInterference(i, req->adaptiveMHASenderID, BUS_INTERFERENCE);
-//         }
-//     }
-        //     
-//     // Interference due to bank conflicts
-//     vector<int> readBankInterference = computeBankWaitingPara(req, readQueue);
-//     assert(readBankInterference.size() == localCpuCnt);
-//     for(int i=0;i<readBankInterference.size();i++){
-//         if(readBankInterference[i] > 0){
-//             interference[i][req->adaptiveMHASenderID] += 120 / readBankInterference[i];
-//             delayedIsRead[i][req->adaptiveMHASenderID] = true;
-//             bus->addInterference(i, req->adaptiveMHASenderID, CONFLICT_INTERFERENCE);
-//         }
-//     }
-        //     
-//     // Interference due to page hits becoming page misses
-//     if(!isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
-//         && isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
-//         //NOTE: might want to add these to measurements
-//         bus->incInterferenceMisses();
-//         bus->addInterference(req->adaptiveMHASenderID, 
-//                              getLastActivatedBy(getMemoryBankID(req->paddr)), 
-//                              HIT_TO_MISS_INTERFERENCE);
-//     }
-        //     
-//     // Detect constructive interference
-//     if(isPageHit(req->paddr, getMemoryBankID(req->paddr)) 
-//        && !isPageHitOnPrivateSystem(req->paddr, getMemoryBankID(req->paddr), req->adaptiveMHASenderID)){
-//         //NOTE: might want to include these in the measuerements
-//         bus->incConstructiveInterference();
-//     }
-        //     
-//     bus->adaptiveMHA->addInterferenceDelay(interference,
-//                                            req->paddr,
-//                                            req->cmd,
-//                                            req->adaptiveMHASenderID,
-//                                            MEMORY_INTERFERENCE,
-//                                            delayedIsRead);
-// }
-        // 
-// std::vector<bool> 
-// RDFCFSTimingMemoryController::hasReadyRequestWaiting(MemReqPtr& req, std::list<MemReqPtr>& queue){
-        //     
-//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-//     list<MemReqPtr>::iterator tmpIterator;
-//     vector<bool> retval = vector<bool>(localCpuCnt, false);
-        //     
-//     for (tmpIterator = queue.begin(); tmpIterator != queue.end(); tmpIterator++) {
-//         MemReqPtr& tmp = *tmpIterator;
-        //         
-//         if (req->adaptiveMHASenderID != tmp->adaptiveMHASenderID && tmp->adaptiveMHASenderID != -1) {
-//             if(isReady(tmp)){
-//                 // interference on bus
-//                 retval[tmp->adaptiveMHASenderID] = true;
-//             }
-//         }
-//     }
-//     return retval;
-// }
-        // 
-// vector<int>
-// RDFCFSTimingMemoryController::computeBankWaitingPara(MemReqPtr& req, std::list<MemReqPtr>& queue){
-        //     
-//     const int BANKS = 8;
-//     int localCpuCnt = bus->adaptiveMHA->getCPUCount();
-//     list<MemReqPtr>::iterator tmpIterator;
-//     vector<vector<bool> > waitingForBanks(localCpuCnt, vector<bool>(BANKS, false));
-//     vector<bool> waitingInSameBank = vector<bool>(localCpuCnt, false);
-//     vector<int> retval = vector<int>(localCpuCnt, 0);
-        //     
-//     stringstream banktrace;
-        //     
-//     for(tmpIterator = queue.begin();tmpIterator != queue.end();tmpIterator++){
-        //         
-//         MemReqPtr& tmp = *tmpIterator;
-        //         
-//         if (tmp->adaptiveMHASenderID != -1) {
-//             if(getMemoryBankID(tmp->paddr) != getMemoryBankID(req->paddr)){
-//                 waitingForBanks[tmp->adaptiveMHASenderID][getMemoryBankID(tmp->paddr)] = true;
-//             }
-//             else{
-//                 waitingInSameBank[tmp->adaptiveMHASenderID] = true;
-//             }
-//         }
-//     }
-        //     
-//     for(int i=0;i<localCpuCnt;i++){
-//         if(waitingInSameBank[i] && i != req->adaptiveMHASenderID){
-//             for(int j=0;j<BANKS;j++){
-//                 if(waitingForBanks[i][j]){
-//                     retval[i]++;
-//                 }
-//             }
-//         }
-//     }
-        //     
-//     // divide by 2
-//     for(int i=0;i<localCpuCnt;i++) retval[i] = retval[i] >> 1;
-        //     
-//     return retval;
-// }
-
-// void
-// RDFCFSTimingMemoryController::addInterference(MemReqPtr &req, Tick lat){
-//     //NOTE: this method is called at the tick the memory transaction starts
-//     // therefore, all reqs in the queue have actually delayed by this req
-        //     
-//     std::list<MemReqPtr>::iterator tmpIterator = readQueue.begin();
-//     while(tmpIterator != readQueue.end()){
-//         MemReqPtr tmpReq = *tmpIterator;
-//         if(tmpReq->adaptiveMHASenderID != req->adaptiveMHASenderID){
-//             tmpReq->busDelay += lat;
-//         }
-//         tmpIterator++;
-//     }
-// }

@@ -33,6 +33,11 @@ def createMemBus(bankcnt):
     for i in range(int(env['MEMORY-BUS-CHANNELS'])):
         root.membus[i].memory_controller = ReadyFirstMemoryController()
         root.membus[i].adaptive_mha = root.adaptiveMHA
+        
+        if "MEMORY-BUS-PAGE-POLICY" in env:
+            root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
+        if "MEMORY-BUS-PRIORITY-SCHEME" in env:
+            root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
 
 def initSharedCache(bankcnt):
     if int(env['NP']) == 4:

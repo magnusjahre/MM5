@@ -88,7 +88,6 @@ MemReqPtr& FCFSTimingMemoryController::getRequest() {
             prevActivate = true;
             
             // issue an activate
-            currentActivationAddress(req->adaptiveMHASenderID, req->paddr, getMemoryBankID(req->paddr));
             pageCmd->cmd = Activate;
             pageCmd->paddr = getPageAddr(activePage);
             pageCmd->flags &= ~SATISFIED;
@@ -101,11 +100,6 @@ MemReqPtr& FCFSTimingMemoryController::getRequest() {
     }
     
     DPRINTF(MemoryController, "Returning memory request, cmd %s, addr %x\n", retval->cmd, retval->paddr);
-    
-    if(retval->cmd == Read || retval->cmd == Writeback){
-        bus->updatePerCPUAccessStats(retval->adaptiveMHASenderID,
-                                     isPageHit(retval->paddr, getMemoryBankID(retval->paddr)));
-    }
     
     return retval;
 }

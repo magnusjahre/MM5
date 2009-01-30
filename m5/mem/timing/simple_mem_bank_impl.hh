@@ -51,7 +51,7 @@
 #include "mem/timing/simple_mem_bank.hh"
 #include "sim/builder.hh"
 
-//#define DO_HIT_TRACE 1
+#define DO_HIT_TRACE 1
 
 #ifdef DO_HIT_TRACE
 #include <fstream>
@@ -142,27 +142,35 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         active_bank_count--;
         Tick closelatency = 0;
         assert (Bankstate[bank] != DDR2Idle);
+        assert(Bankstate[bank] != DDR2Active);
         
         Tick prechCmdTick = 0;
-        if(Bankstate[bank] == DDR2Active){
-            // can happen on controller switch, but should be avoided
-            warn("Transition directly from Active to Idle (bad memory scheduling), memory read assumed");
-            // Assume that request is a read as this gives the lowest delay
-            prechCmdTick = activateTime[bank] + CAS_latency + (internal_read_to_precharge - 2*bus_to_cpu_factor);
-        }
         if (Bankstate[bank] == DDR2Read) {
-            prechCmdTick = readyTime[bank] + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+            if(readyTime[bank] > curTick){
+                prechCmdTick = readyTime[bank] + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+            }
+            else{
+                prechCmdTick = curTick + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+            }
         } 
         if (Bankstate[bank] == DDR2Written) {
-            prechCmdTick = readyTime[bank] + data_time + write_recovery_time;
+            if(readyTime[bank] > curTick){
+                prechCmdTick = readyTime[bank] + data_time + write_recovery_time;
+            }
+            else{
+                prechCmdTick = curTick + data_time + write_recovery_time;
+            }
         }
         assert(prechCmdTick != 0);
         
-        if (prechCmdTick - activateTime[bank] < min_activate_to_precharge_latency) {
-           closelatency = min_activate_to_precharge_latency - (prechCmdTick - activateTime[bank]);
+        Tick actToPrechLat = prechCmdTick - activateTime[bank];
+        if (actToPrechLat < min_activate_to_precharge_latency) {
+           closelatency =  min_activate_to_precharge_latency - actToPrechLat;
         }
+        
         closelatency += precharge_latency;
         closeTime[bank] = closelatency + prechCmdTick;
+        
         Bankstate[bank] = DDR2Idle;
         
         return 0;
@@ -171,6 +179,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     if (req->cmd == Activate) {
         
         if(closeTime[bank] >= curTick && closeTime[bank] != 0){
+            
             bankInConflict[bank] = true;
         }
         
@@ -295,6 +304,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             isConfict = true;
 #endif
             
+            req->dramResult = DRAM_RESULT_CONFLICT;
+            
             perCPUPageConflicts[req->adaptiveMHASenderID]++;
             
             pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
@@ -302,6 +313,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
         }
         else{
+            
+            req->dramResult = DRAM_RESULT_MISS;
             
             perCPUPageMisses[req->adaptiveMHASenderID]++;
             
@@ -318,6 +331,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             isConfict = true;
 #endif
             
+            req->dramResult = DRAM_RESULT_CONFLICT;
+            
             perCPUPageConflicts[req->adaptiveMHASenderID]++;
             
             pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
@@ -326,12 +341,16 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
         else if(isHit){
             
+            req->dramResult = DRAM_RESULT_HIT;
+            
             perCPUPageHits[req->adaptiveMHASenderID]++;
             
             pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
             pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
         }
         else{
+            
+            req->dramResult = DRAM_RESULT_MISS;
             
             perCPUPageMisses[req->adaptiveMHASenderID]++;
             

@@ -242,6 +242,11 @@ class BaseInterface : public BaseHier
         return 0;
     }
     
+    virtual int getMemoryBankCount(){
+        fatal("Should not be called");
+        return 0;
+    };
+    
     virtual Tick getBankActivatedAt(int bankID){
         fatal("Should not be called");
         return 0;

@@ -137,6 +137,7 @@ class MasterInterface : public BusInterface<BusType>
 
     virtual void addPrewrite(MemReqPtr &req); 
     virtual bool canPrewrite(); 
+    
 };
 
 #endif // __MEM_BUS_MASTER_INTERFACE_HH__
