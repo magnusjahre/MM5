@@ -162,12 +162,14 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     }
     
     if(!activateFound && !closeFound){
+        
         readyFound = getReady(retval);
         if(readyFound) DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
         assert(!bankIsClosed(retval));
     }
     
     if(!activateFound && !closeFound && !readyFound){
+        
         bool otherFound = getOther(retval);
         if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
         assert(otherFound);
@@ -269,6 +271,7 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
 bool 
 RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
     // Check if we can close the first page (eg, there is no active requests to this page
+    
     for (pageIterator = activePages.begin(); pageIterator != activePages.end(); pageIterator++) {
         Addr Active = pageIterator->second.address;
         bool canClose = true;
@@ -280,6 +283,7 @@ RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
         }
         for (queueIterator = writeQueue.begin(); queueIterator != writeQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
+            
             if (getPage(tmp) == Active) {
                 canClose = false;
             }
@@ -308,6 +312,7 @@ RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
         list<MemReqPtr> mergedQueue = mergeQueues();
         for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
+            
             if (isReady(tmp)) {
                 
                 if(isBlocked() && 

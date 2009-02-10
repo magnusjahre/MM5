@@ -125,6 +125,8 @@ class LRU : public BaseTags
     /** Mask out all bits that aren't part of the block offset. */
     unsigned blkMask;
     
+    int bankShift;
+    
     std::vector<std::vector<int> > perSetHitCounters;
     int accesses;
     std::vector<int> currentMTPPartition;
@@ -287,7 +289,10 @@ public:
      */
     Addr regenerateBlkAddr(Addr tag, unsigned set) const
     {
-	return ((tag << tagShift) | ((Addr)set << setShift));
+        if(bankShift == -1){
+	   return ((tag << tagShift) | ((Addr)set << setShift));
+        }
+        return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
     }
 
     /**

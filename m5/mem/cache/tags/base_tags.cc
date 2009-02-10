@@ -47,6 +47,7 @@ BaseTags::setCache(BaseCache *_cache, bool useSwitchEvent)
 {
     cache = _cache;
     objName = cache->name();
+    bankID = _cache->bankID;
     
     if(cache->useUniformPartitioning && useSwitchEvent){
         assert(cache->uniformPartitioningStartTick >= 0);

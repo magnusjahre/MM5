@@ -450,6 +450,7 @@ SimpleMemBank<Compression>::isReady(MemReqPtr &req)
 {
   int bank = (req->paddr >> pagesize) % num_banks;
   Addr page = (req->paddr >> pagesize);
+  
   if (Bankstate[bank] == DDR2Idle) {
     return false;
   }

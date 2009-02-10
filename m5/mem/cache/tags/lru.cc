@@ -128,8 +128,14 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     
     blkMask = (blkSize) - 1;
     
-    if(numBanks != -1) setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
-    else setShift = FloorLog2(blkSize);
+    if(numBanks != -1){
+        setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
+        bankShift = FloorLog2(blkSize);
+    }
+    else{
+        setShift = FloorLog2(blkSize);
+        bankShift = -1;
+    }
     setMask = numSets - 1;
     tagShift = setShift + FloorLog2(numSets);
     warmedUp = false;
@@ -237,7 +243,7 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 	}
 	blk->refCount += 1;
     }
-
+    
     return blk;
 }
 

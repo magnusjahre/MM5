@@ -84,6 +84,10 @@ Cache(const std::string &_name, HierParams *hier_params,
     simulateContention = params.simulateContention;
     useStaticPartInWarmup = params.useStaticPartInWarmup;
 
+    doModuloAddressing = params.doModuloBankAddr;
+    bankID = params.bankID;
+    bankCount = params.bankCount;
+    
     // init shadowtags
 #ifdef USE_CACHE_LRU
     
@@ -175,9 +179,7 @@ Cache(const std::string &_name, HierParams *hier_params,
         directoryProtocol->setCpuCount(cpuCount, params.cpu_id);
     }
     
-    doModuloAddressing = params.doModuloBankAddr;
-    bankID = params.bankID;
-    bankCount = params.bankCount;
+    
     
     /* CPU ID sanity checks */
     if(params.directoryCoherence != NULL){
@@ -270,7 +272,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
     else{
         if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
     }
-
+    
     //shadow tag access
     bool shadowHit = false;
     if(!shadowTags.empty()){
@@ -621,6 +623,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
                     // actions are handled in the check
                 }
                 else {
+                    
                     if(!isShared) setSenderID(writebacks.front());
 		    missQueue->doWriteback(writebacks.front());
 		}
