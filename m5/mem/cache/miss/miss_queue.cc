@@ -41,7 +41,7 @@
 #include "mem/cache/prefetch/base_prefetcher.hh"
 #include "sim/sim_exit.hh"
 
-#define DO_REQUEST_TRACE
+// #define DO_REQUEST_TRACE
 #define REQUEST_DUMP_INTERVAL 1000000
 
 #ifdef DO_REQUEST_TRACE 
@@ -498,7 +498,6 @@ MissQueue::setCache(BaseCache *_cache)
     wb.setCache(cache);
     
 #ifdef DO_REQUEST_TRACE 
-    
     if(!cache->isShared && cache->adaptiveMHA != NULL){
         stringstream filename;
         filename << cache->name() << "LatencyTrace.txt";
@@ -854,6 +853,7 @@ MissQueue::measureInterference(MemReqPtr& req){
 
 void 
 MissQueue::dumpTracebuffer(){
+#ifdef DO_REQUEST_TRACE 
   if(!tracebuffer.empty()){
 
     stringstream filename;
@@ -866,6 +866,7 @@ MissQueue::dumpTracebuffer(){
     latencyfile.flush();
     latencyfile.close();
   }
+#endif
 }
 
 void
