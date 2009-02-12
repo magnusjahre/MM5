@@ -9,11 +9,7 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-#define DO_ESTIMATION_TRACE 1
-
-#ifdef DO_ESTIMATION_TRACE
-#include <fstream>
-#endif
+#define DO_ESTIMATION_TRACE
 
 using namespace std;
 
@@ -73,15 +69,24 @@ void
 RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
 #ifdef DO_ESTIMATION_TRACE
-  for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+    
+    pageResultTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
+    
+    for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+        string tmpstr = "";
+        stringstream filename;
+        filename << "estimation_access_trace_" << i;
+        pageResultTraces[i] = RequestTrace(tmpstr, filename.str().c_str());
 
-    stringstream filename;
-    filename << "estimation_access_trace_" << i << ".txt";
-    ofstream ofile(filename.str().c_str());
-    ofile << "";
-    ofile.flush();
-    ofile.close();
-  }
+        vector<string> params;
+        params.push_back("Address");
+        params.push_back("Bank");
+        params.push_back("Result");
+        params.push_back("Inserted At");
+        params.push_back("Old Address");
+        
+        pageResultTraces[i].initalizeTrace(params);
+    }
 #endif
 }
 
@@ -588,16 +593,18 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
 #ifdef DO_ESTIMATION_TRACE
     
-    stringstream filename;
-    filename << "estimation_access_trace_" << req->adaptiveMHASenderID << ".txt";
-    ofstream ofile(filename.str().c_str(), ofstream::app);
-    ofile << curTick << ";" << req->paddr << ";" << getMemoryBankID(req->paddr) << ";";
-    if(isConflict) ofile << "conflict";
-    else if(isHit) ofile << "hit";
-    else ofile << "miss";
-    ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
-    ofile.flush();
-    ofile.close();
+    vector<RequestTraceEntry> vals;
+    vals.push_back(RequestTraceEntry(req->paddr));
+    vals.push_back(RequestTraceEntry(getMemoryBankID(req->paddr)));
+    
+    if(isConflict) vals.push_back(RequestTraceEntry("conflict"));
+    else if(isHit) vals.push_back(RequestTraceEntry("hit"));
+    else vals.push_back(RequestTraceEntry("miss"));
+    
+    vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
+    vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
+    
+    pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
 
 #endif
     

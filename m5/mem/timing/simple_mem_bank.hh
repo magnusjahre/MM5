@@ -38,6 +38,7 @@
 
 #include "mem/timing/base_memory.hh"
 #include "base/statistics.hh"
+#include "mem/requesttrace.hh"
 
     /* DDR2 states */
 
@@ -82,6 +83,8 @@ class SimpleMemBank : public BaseMemory
     std::vector<Addr> openpage;
     
     std::vector<bool> bankInConflict;
+    
+    RequestTrace pageTrace;
     
   protected:
     /** The compression algorithm. */

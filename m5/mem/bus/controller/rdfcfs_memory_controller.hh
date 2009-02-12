@@ -5,7 +5,7 @@
  */
 
 #include "mem/bus/controller/memory_controller.hh"
-
+#include "mem/requesttrace.hh"
 
 using namespace std;
 /**
@@ -26,7 +26,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int lastOccupyingCPUID;
 
     std::list<MemReqPtr>::iterator queueIterator;
-
+    
     struct ActivationEntry{
         Addr address;
         Tick activatedAt;
@@ -62,6 +62,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     bool equalReadWritePri;
     bool closedPagePolicy;
+    
+    std::vector<RequestTrace> pageResultTraces;
     
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);

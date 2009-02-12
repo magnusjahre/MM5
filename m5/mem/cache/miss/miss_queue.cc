@@ -39,14 +39,8 @@
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
-#include "sim/sim_exit.hh"
 
 // #define DO_REQUEST_TRACE
-#define REQUEST_DUMP_INTERVAL 1000000
-
-#ifdef DO_REQUEST_TRACE 
-#include <fstream>
-#endif
 
 using namespace std;
 
@@ -70,9 +64,6 @@ MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
     if(numTargets == 1){
         fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
     }
-    
-    curTracePos = 0;
-    tracebuffer.resize(REQUEST_DUMP_INTERVAL, string(""));
 }
 
 void
@@ -485,8 +476,6 @@ MissQueue::regStats(const string &name)
     avg_interconnect_delivery_latency = interconnect_delivery_latency /num_roundtrip_responses;
     avg_bus_entry_latency = bus_entry_latency / num_roundtrip_responses;
     avg_bus_transfer_latency = bus_transfer_latency / num_roundtrip_responses;
-
-    registerExitCallback(new MissQueueCallback(this));
 }
 
 void
@@ -499,19 +488,19 @@ MissQueue::setCache(BaseCache *_cache)
     
 #ifdef DO_REQUEST_TRACE 
     if(!cache->isShared && cache->adaptiveMHA != NULL){
-        stringstream filename;
-        filename << cache->name() << "LatencyTrace.txt";
-        ofstream latencyfile(filename.str().c_str());
-        latencyfile << "Tick;Address;PC;IC Entry;IC Latency;IC Delivery;Mem Bus Blocking;Mem Bus Latency\n";
-        latencyfile.flush();
-        latencyfile.close();
         
-    //     stringstream filename2;
-    //     filename2 << cache->name() << "InterferenceTrace.txt";
-    //     ofstream interferencefile(filename2.str().c_str());
-    //     interferencefile << "Tick;Address;CB Entry;CB Latency;CB Delivery;Mem Bus Blocking;Mem Bus Latency\n";
-    //     interferencefile.flush();
-    //     interferencefile.close();
+        latencyTrace = RequestTrace(_cache->name(), "LatencyTrace");
+        
+        vector<string> params;
+        params.push_back("Address");
+        params.push_back("PC");
+        params.push_back("IC Entry");
+        params.push_back("IC Latency");
+        params.push_back("IC Delivery");
+        params.push_back("Mem Bus Blocking");
+        params.push_back("Mem Bus Latency");
+        
+        latencyTrace.initalizeTrace(params);
     }
 #endif
 }
@@ -817,55 +806,16 @@ MissQueue::measureInterference(MemReqPtr& req){
     if(curTick >= cache->detailedSimulationStartTick){
         // Latency trace
         
-        stringstream latstring;
-        latstring << curTick;
-        latstring << " ; " << req->paddr;
-        latstring << " ; " << req->pc;
+        vector<RequestTraceEntry> lats;
+        lats.push_back(RequestTraceEntry(req->paddr));
+        lats.push_back(RequestTraceEntry(req->pc));
         for(int i=0;i<req->latencyBreakdown.size();i++){
-            latstring << " ; " <<  req->latencyBreakdown[i];
+	  lats.push_back(RequestTraceEntry(req->latencyBreakdown[i]));
         }
-
-        tracebuffer[curTracePos] = latstring.str();
-        curTracePos++;
-      
-        if(curTracePos == tracebuffer.size()){
-            dumpTracebuffer();
-        }
-        assert(curTracePos < tracebuffer.size());
         
-      // interference trace
-//       stringstream filename2;
-//       filename2 << cache->name() << "InterferenceTrace.txt";
-//       ofstream interferencefile(filename2.str().c_str(), ofstream::app);
-//         
-//       interferencefile << curTick;
-//       interferencefile << " ; " << req->paddr;
-//       for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-// 	interferencefile << " ; " <<  req->interferenceBreakdown[i];
-//       }
-//       interferencefile << "\n";
-//       
-//       interferencefile.flush();
-//       interferencefile.close();
+        assert(latencyTrace.isInitialized());
+        latencyTrace.addTrace(lats);
     }
-#endif
-}
-
-void 
-MissQueue::dumpTracebuffer(){
-#ifdef DO_REQUEST_TRACE 
-  if(!tracebuffer.empty()){
-
-    stringstream filename;
-    filename << cache->name() << "LatencyTrace.txt";
-    ofstream latencyfile(filename.str().c_str(), ofstream::app);
- 
-    for(int i=0;i<curTracePos;i++) latencyfile << tracebuffer[i].c_str() << "\n";
-    curTracePos = 0;
-
-    latencyfile.flush();
-    latencyfile.close();
-  }
 #endif
 }
 

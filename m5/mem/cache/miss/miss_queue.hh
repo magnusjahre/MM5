@@ -42,7 +42,7 @@
 #include "mem/cache/miss/mshr.hh"
 #include "mem/cache/miss/mshr_queue.hh"
 #include "base/statistics.hh"
-#include "base/callback.hh"
+#include "mem/requesttrace.hh"
 
 class BaseCache;
 class BasePrefetcher;
@@ -59,8 +59,7 @@ class MissQueue
     bool changeQueue;
     Tick prevTime;
     
-    int curTracePos;
-    std::vector<std::string> tracebuffer;
+    RequestTrace latencyTrace;
     
   protected:
     /** The MSHRs. */
@@ -246,8 +245,6 @@ class MissQueue
      */
     void regStats(const std::string &name);
 
-    void dumpTracebuffer();
-
     /**
      * Called by the parent cache to set the back pointer.
      * @param _cache A pointer to the parent cache.
@@ -432,14 +429,6 @@ class MissQueue
     std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
     
     void measureInterference(MemReqPtr& req);
-};
-
-class MissQueueCallback : public Callback
-{
-  MissQueue *mq;
-public:
-  MissQueueCallback(MissQueue *q) : mq(q) {}
-  virtual void process() { mq->dumpTracebuffer(); };
 };
 
 

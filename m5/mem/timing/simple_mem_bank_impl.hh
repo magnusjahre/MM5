@@ -51,11 +51,7 @@
 #include "mem/timing/simple_mem_bank.hh"
 #include "sim/builder.hh"
 
-#define DO_HIT_TRACE 1
-
-#ifdef DO_HIT_TRACE
-#include <fstream>
-#endif
+#define DO_HIT_TRACE
 
 using namespace std;
 
@@ -111,10 +107,18 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     internal_row_to_row *= bus_to_cpu_factor;
     
 #ifdef DO_HIT_TRACE
-    ofstream ofile("dram_access_trace.txt");
-    ofile << "";
-    ofile.flush();
-    ofile.close();
+    
+    pageTrace = RequestTrace(string(""), "dram_access_trace");
+    
+    vector<string> traceparams;
+    traceparams.push_back("Address");
+    traceparams.push_back("Bank");
+    traceparams.push_back("Result");
+    traceparams.push_back("Inserted At");
+    traceparams.push_back("Old Address");
+        
+    pageTrace.initalizeTrace(traceparams);
+    
 #endif
 }
 
@@ -362,14 +366,19 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     bankInConflict[bank] = false;
     
 #ifdef DO_HIT_TRACE
-    ofstream ofile("dram_access_trace.txt", ofstream::app);
-    ofile << curTick << ";" << req->paddr << ";" << bank << ";";
-    if(isConfict) ofile << "conflict";
-    else if(isHit) ofile << "hit";
-    else ofile << "miss";
-    ofile << ";" << req->inserted_into_memory_controller << ";" << req->oldAddr << "\n";
-    ofile.flush();
-    ofile.close();
+    
+    vector<RequestTraceEntry> vals;
+    vals.push_back(RequestTraceEntry(req->paddr));
+    vals.push_back(RequestTraceEntry(bank));
+    
+    if(isConfict) vals.push_back(RequestTraceEntry("conflict"));
+    else if(isHit) vals.push_back(RequestTraceEntry("hit"));
+    else vals.push_back(RequestTraceEntry("miss"));
+    
+    vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
+    vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
+    
+    pageTrace.addTrace(vals);
 #endif
     
     DDR2State curState = Bankstate[bank];
