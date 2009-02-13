@@ -84,6 +84,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
         params.push_back("Result");
         params.push_back("Inserted At");
         params.push_back("Old Address");
+        params.push_back("Position");
         
         pageResultTraces[i].initalizeTrace(params);
     }
@@ -314,6 +315,9 @@ bool
 RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
     
     if(equalReadWritePri){
+        
+        int position = 0;
+        
         list<MemReqPtr> mergedQueue = mergeQueues();
         for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
@@ -330,9 +334,12 @@ RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
                 lastIsWrite = (tmp->cmd == Writeback);
                 
                 req = tmp;
+                req->memCtrlIssuePosition = position;
                 
                 return true;
             }
+            
+            position++;
         }
     }
     else{
@@ -574,7 +581,8 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     if(isPageHitOnPrivateSystem(req)){
         privateLatencyEstimate = 40;
 #ifdef DO_ESTIMATION_TRACE
-        isHit = true;
+        if(req->memCtrlIssuePosition < 1) isHit = true;
+        else isConflict = true;
 #endif
     }
     else if(isPageConflictOnPrivateSystem(req)){
@@ -603,6 +611,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
     vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
+    vals.push_back(RequestTraceEntry(req->memCtrlIssuePosition));
     
     pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
 

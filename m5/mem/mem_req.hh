@@ -244,6 +244,7 @@ class MemReq : public FastAlloc, public RefCounted
     std::vector<int> interferenceBreakdown;
 
     DRAM_RESULT dramResult;
+    int memCtrlIssuePosition;
     
     /**
      * Contruct and initialize a memory request.
@@ -312,7 +313,8 @@ class MemReq : public FastAlloc, public RefCounted
           waitWritebackCnt(0),
           entryReadCnt(0),
           entryWriteCnt(0),
-          dramResult(DRAM_RESULT_INVALID)
+          dramResult(DRAM_RESULT_INVALID),
+          memCtrlIssuePosition(-1)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -381,6 +383,7 @@ class MemReq : public FastAlloc, public RefCounted
         
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;
+        memCtrlIssuePosition = r.memCtrlIssuePosition;
     }
 
     /**
