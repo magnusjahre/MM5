@@ -245,6 +245,8 @@ class MemReq : public FastAlloc, public RefCounted
 
     DRAM_RESULT dramResult;
     int memCtrlIssuePosition;
+    DRAM_RESULT privateResultEstimate;
+    
     
     /**
      * Contruct and initialize a memory request.
@@ -314,7 +316,8 @@ class MemReq : public FastAlloc, public RefCounted
           entryReadCnt(0),
           entryWriteCnt(0),
           dramResult(DRAM_RESULT_INVALID),
-          memCtrlIssuePosition(-1)
+          memCtrlIssuePosition(-1),
+          privateResultEstimate(DRAM_RESULT_INVALID)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -380,6 +383,7 @@ class MemReq : public FastAlloc, public RefCounted
         entryReadCnt = r.entryReadCnt;
         entryWriteCnt = r.entryWriteCnt;
         dramResult = r.dramResult;
+        privateResultEstimate = r.privateResultEstimate;
         
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;

@@ -175,6 +175,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         closelatency += precharge_latency;
         closeTime[bank] = closelatency + prechCmdTick;
         
+        DPRINTF(DRAM, "Closing bank %d, will reach idle state at %d\n", bank, closeTime[bank]);
+        
         Bankstate[bank] = DDR2Idle;
         
         return 0;
@@ -211,6 +213,9 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         activateTime[bank] += extra_latency;
         Bankstate[bank] = DDR2Active;
         openpage[bank] = page;
+        
+        DPRINTF(DRAM, "Activating bank %d, will reach the active state at %d\n", bank, activateTime[bank]);
+        
         return 0;
     }
         
@@ -230,6 +235,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 Bankstate[bank] = DDR2Read;
                 latency = data_time;
                 readyTime[bank] = activateTime[bank] + CAS_latency;
+                DPRINTF(DRAM, "Reading bank %d, reaching ready state at %d\n", bank, readyTime[bank]);
                 break;
             case DDR2Written:
                 Bankstate[bank] = DDR2Read;
@@ -272,6 +278,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 Bankstate[bank] = DDR2Written;
                 int writeLatency = CAS_latency - 1*bus_to_cpu_factor;
                 readyTime[bank] = activateTime[bank] + writeLatency;
+                DPRINTF(DRAM, "Writing bank %d, reaching ready state at %d\n", bank, readyTime[bank]);
                 latency = data_time;
                 break;
             }
@@ -384,17 +391,27 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     DDR2State curState = Bankstate[bank];
     if((oldState == DDR2Read && curState == DDR2Read)
         || (oldState == DDR2Written && curState == DDR2Written)){
-        readyTime[bank] += data_time;
+        
+        if(readyTime[bank] >= curTick){
+            readyTime[bank] += data_time;
+        }
+        else{
+            readyTime[bank] = curTick + data_time;
+        }
+        DPRINTF(DRAM, "Bank %d hit, new ready time is %d\n", bank, readyTime[bank]);
     }
     else if((oldState == DDR2Read && curState == DDR2Written)
             || (oldState == DDR2Written && curState == DDR2Read)){
+        
         readyTime[bank] = curTick + (latency - data_time);
+        DPRINTF(DRAM, "Bank %d r2w or w2r, new ready time is %d\n", bank, readyTime[bank]);
     }
 
 
     total_latency += latency;
     lastCmdFinish[bank] = latency + curTick;
     
+    DPRINTF(DRAM, "Returning latency %d, setting last command finished to %d\n", latency, lastCmdFinish[bank]);
     return latency;
 }
 

@@ -74,6 +74,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     void updatePrivateOpenPage(MemReqPtr& req);
     void initializePrivateStorage();
     
+    void estimatePageResult(MemReqPtr& req);
+    
   public:
 
     // Memory Request currently being issued

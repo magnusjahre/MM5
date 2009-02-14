@@ -99,6 +99,8 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     
     req->inserted_into_memory_controller = curTick;
     
+    DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d\n", req->cmd, req->paddr, getMemoryBankID(req->paddr));
+    
     if(bus->adaptiveMHA->getCPUCount() > 1){
         int privReadCnt = 0;
         for(queueIterator = readQueue.begin();queueIterator != readQueue.end(); queueIterator++){
@@ -132,6 +134,8 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
             setBlocked();
         }
     }
+    
+    estimatePageResult(req);
     
     assert(req->cmd == Read || req->cmd == Writeback);
     
@@ -170,14 +174,18 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
     if(!activateFound && !closeFound){
         
         readyFound = getReady(retval);
-        if(readyFound) DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
+        if(readyFound){
+            DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
+        }
         assert(!bankIsClosed(retval));
     }
     
     if(!activateFound && !closeFound && !readyFound){
         
         bool otherFound = getOther(retval);
-        if(otherFound) DPRINTF(MemoryController, "Found other request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
+        if(otherFound){
+            DPRINTF(MemoryController, "Found other request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
+        }
         assert(otherFound);
         if(closedPagePolicy) assert(!bankIsClosed(retval));
     }
@@ -405,6 +413,7 @@ RDFCFSTimingMemoryController::getOther(MemReqPtr& req){
             lastIssuedReq = tmp;
             lastIsWrite = (tmp->cmd == Writeback);
         
+            tmp->memCtrlIssuePosition = 0;
             req = tmp;
             return true;
         }
@@ -562,60 +571,44 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
     fatal("setOpenPages not implemented");
 }
 
-void
-RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-    
-    //FIXME: how should additional L2 misses be handled
-    
-#ifdef DO_ESTIMATION_TRACE
-    bool isConflict = false;
-    bool isHit = false;
-#endif
+void 
+RDFCFSTimingMemoryController::estimatePageResult(MemReqPtr& req){
     
     assert(req->cmd == Read || req->cmd == Writeback);
     
     checkPrivateOpenPage(req);
     
-    req->busDelay = 0;
-    Tick privateLatencyEstimate = 0;
     if(isPageHitOnPrivateSystem(req)){
-        privateLatencyEstimate = 40;
-#ifdef DO_ESTIMATION_TRACE
-        if(req->memCtrlIssuePosition < 1) isHit = true;
-        else isConflict = true;
-#endif
+        req->privateResultEstimate = DRAM_RESULT_HIT;
     }
     else if(isPageConflictOnPrivateSystem(req)){
+        req->privateResultEstimate = DRAM_RESULT_CONFLICT;
+    }
+    else{
+        req->privateResultEstimate = DRAM_RESULT_MISS;
+    }
+    
+    updatePrivateOpenPage(req);
+}
+
+void
+RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+    
+    //FIXME: how should additional L2 misses be handled
+    
+    req->busDelay = 0;
+    Tick privateLatencyEstimate = 0;
+    if(req->privateResultEstimate == DRAM_RESULT_HIT){
+        privateLatencyEstimate = 40;
+    }
+    else if(req->privateResultEstimate == DRAM_RESULT_CONFLICT){
         if(req->cmd == Read) privateLatencyEstimate = 152;
         else privateLatencyEstimate = 135;
-#ifdef DO_ESTIMATION_TRACE
-        isConflict = true;
-#endif
     }
     else{
         if(req->cmd == Read) privateLatencyEstimate = 108;
         else privateLatencyEstimate = 79;
     }
-    
-    updatePrivateOpenPage(req);
-    
-#ifdef DO_ESTIMATION_TRACE
-    
-    vector<RequestTraceEntry> vals;
-    vals.push_back(RequestTraceEntry(req->paddr));
-    vals.push_back(RequestTraceEntry(getMemoryBankID(req->paddr)));
-    
-    if(isConflict) vals.push_back(RequestTraceEntry("conflict"));
-    else if(isHit) vals.push_back(RequestTraceEntry("hit"));
-    else vals.push_back(RequestTraceEntry("miss"));
-    
-    vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
-    vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
-    vals.push_back(RequestTraceEntry(req->memCtrlIssuePosition));
-    
-    pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
-
-#endif
     
     int fromCPU = req->adaptiveMHASenderID;
     list<MemReqPtr>::iterator readIter;
@@ -642,6 +635,24 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     if(req->cmd == Read){
         req->busAloneServiceEstimate += privateLatencyEstimate;
     }
+    
+#ifdef DO_ESTIMATION_TRACE
+    
+    vector<RequestTraceEntry> vals;
+    vals.push_back(RequestTraceEntry(req->paddr));
+    vals.push_back(RequestTraceEntry(getMemoryBankID(req->paddr)));
+    
+    if(req->privateResultEstimate == DRAM_RESULT_CONFLICT) vals.push_back(RequestTraceEntry("conflict"));
+    else if(req->privateResultEstimate == DRAM_RESULT_HIT) vals.push_back(RequestTraceEntry("hit"));
+    else vals.push_back(RequestTraceEntry("miss"));
+    
+    vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
+    vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
+    vals.push_back(RequestTraceEntry(req->memCtrlIssuePosition));
+    
+    pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
+
+#endif
 }
 
 void
