@@ -60,6 +60,7 @@ class MissQueue
     Tick prevTime;
     
     RequestTrace latencyTrace;
+    RequestTrace interferenceTrace;
     
   protected:
     /** The MSHRs. */
@@ -174,25 +175,29 @@ class MissQueue
     Stats::Scalar<> interconnect_transfer_interference;
     Stats::Scalar<> interconnect_delivery_interference;
     Stats::Scalar<> bus_entry_interference;
-    Stats::Scalar<> bus_transfer_interference;
+    Stats::Scalar<> bus_queue_interference;
+    Stats::Scalar<> bus_service_interference;
 
     Stats::Formula avg_interconnect_entry_interference;
     Stats::Formula avg_interconnect_transfer_interference;
     Stats::Formula avg_interconnect_delivery_interference;
     Stats::Formula avg_bus_entry_interference;
-    Stats::Formula avg_bus_transfer_interference;
+    Stats::Formula avg_bus_queue_interference;
+    Stats::Formula avg_bus_service_interference;
 
     Stats::Scalar<> interconnect_entry_latency;
     Stats::Scalar<> interconnect_transfer_latency;
     Stats::Scalar<> interconnect_delivery_latency;
     Stats::Scalar<> bus_entry_latency;
-    Stats::Scalar<> bus_transfer_latency;
+    Stats::Scalar<> bus_queue_latency;
+    Stats::Scalar<> bus_service_latency;
 
     Stats::Formula avg_interconnect_entry_latency;
     Stats::Formula avg_interconnect_transfer_latency;
     Stats::Formula avg_interconnect_delivery_latency;
     Stats::Formula avg_bus_entry_latency;
-    Stats::Formula avg_bus_transfer_latency;
+    Stats::Formula avg_bus_queue_latency;
+    Stats::Formula avg_bus_service_latency;
     
     /**
      * @}

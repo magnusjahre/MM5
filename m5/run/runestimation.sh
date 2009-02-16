@@ -22,7 +22,7 @@ echo
 
 cd runtmp
 
-../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=RDFCFS -EFASTFORWARDTICKS=$2 -ECACHE-PARTITIONING=StaticUniform ../../configs/CMP/run.py 
+../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=RDFCFS -EFASTFORWARDTICKS=$2 -ECACHE-PARTITIONING=StaticUniform -EMEMORY-BUS-PAGE-POLICY=OpenPage -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 ../../configs/CMP/run.py 
 
 cp test_output.txt ../stats_$wl.txt
 cp L1dcaches$(echo $checkCPU)InterferenceTrace.txt ../shared_dcache_int.txt
@@ -44,7 +44,7 @@ echo
 echo "Running benchmark ${bmarray[$checkCPU]} until it has committed $insts instructions:"
 echo
 
-../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$checkCPU]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$checkCPU -EMEMORY-ADDRESS-PARTS=4 -ECACHE-PARTITIONING=StaticUniform ../../configs/CMP/run.py 
+../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=${bmarray[$checkCPU]} -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$checkCPU -EMEMORY-ADDRESS-PARTS=4 -ECACHE-PARTITIONING=StaticUniform  -EMEMORY-BUS-PAGE-POLICY=OpenPage -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 ../../configs/CMP/run.py 
 
 cp test_output.txt ../stats_${bmarray[$checkCPU]}.txt
 cp cpuSwitchInsts.txt ../$(echo $i)_cpuSwitchInsts.txt

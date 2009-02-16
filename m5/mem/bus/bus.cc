@@ -722,8 +722,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         assert(req->adaptiveMHASenderID != -1);
         if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]--;
         else outstandingWrites[req->adaptiveMHASenderID]--;
-        
-        req->latencyBreakdown[MEM_BUS_TRANSFER_LAT] += time - req->inserted_into_memory_controller;
     }
 
     if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
@@ -734,7 +732,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         
         Tick serviceLatency = time - curTick;
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
-        Tick totalLat = time - req->inserted_into_memory_controller;
+//         Tick totalLat = time - req->inserted_into_memory_controller;
+        
+        req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
+        req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
         
         assert(req->entryReadCnt <= memoryController->getReadQueueLength());
         assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
@@ -765,10 +766,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 //                 req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
 //             }
             
-            int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
+//             int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
             
-            req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT] = interference;
-            addInterferenceCycles(req->adaptiveMHASenderID, interference, BUS_INTERFERENCE);
+            req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
+            req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceLatency - req->busAloneServiceEstimate;
             
             estimatedPrivateQueueLatency[req->adaptiveMHASenderID] 
                     += req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate;

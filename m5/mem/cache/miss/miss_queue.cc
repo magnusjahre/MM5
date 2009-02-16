@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-// #define DO_REQUEST_TRACE
+#define DO_REQUEST_TRACE
 
 using namespace std;
 
@@ -385,10 +385,15 @@ MissQueue::regStats(const string &name)
       .desc("Aggregate bus entry interference")
       ;
     
-    bus_transfer_interference
-      .name(name +".sum_bus_transfer_interference")
-      .desc("Aggregate bus transfer interference")
+    bus_queue_interference
+      .name(name +".sum_bus_queue_interference")
+      .desc("Aggregate bus queue interference")
       ;
+    
+    bus_service_interference
+        .name(name +".sum_bus_service_interference")
+        .desc("Aggregate bus service interference")
+        ;
     
     avg_interconnect_entry_interference
       .name(name +".avg_ic_entry_interference")
@@ -410,16 +415,22 @@ MissQueue::regStats(const string &name)
       .desc("Average bus entry interference")
       ;
 
-    avg_bus_transfer_interference
-      .name(name +".avg_bus_transfer_interference")
-      .desc("Average bus transfer interference")
+    avg_bus_queue_interference
+      .name(name +".avg_bus_queue_interference")
+      .desc("Average bus queue interference")
       ;
+    
+    avg_bus_service_interference
+        .name(name +".avg_bus_service_interference")
+        .desc("Average bus service interference")
+        ;
     
     avg_interconnect_entry_interference = interconnect_entry_interference / num_roundtrip_responses;
     avg_interconnect_transfer_interference = interconnect_transfer_interference / num_roundtrip_responses;
     avg_interconnect_delivery_interference = interconnect_delivery_interference / num_roundtrip_responses;
     avg_bus_entry_interference = bus_entry_interference / num_roundtrip_responses;
-    avg_bus_transfer_interference = bus_transfer_interference / num_roundtrip_responses;
+    avg_bus_queue_interference = bus_queue_interference / num_roundtrip_responses;
+    avg_bus_service_interference = bus_service_interference / num_roundtrip_responses;
 
     interconnect_entry_latency
       .name(name +".sum_ic_entry_latency")
@@ -441,10 +452,15 @@ MissQueue::regStats(const string &name)
       .desc("Aggregate bus entry latency")
       ;
 
-    bus_transfer_latency
-      .name(name +".sum_bus_transfer_latency")
-      .desc("Aggregate bus transfer latency")
+    bus_queue_latency
+      .name(name +".sum_bus_queue_latency")
+      .desc("Aggregate bus queue latency")
       ;
+    
+    bus_service_latency
+        .name(name +".sum_bus_service_latency")
+        .desc("Aggregate bus service latency")
+        ;
 
     avg_interconnect_entry_latency
       .name(name +".avg_ic_entry_latency")
@@ -466,16 +482,22 @@ MissQueue::regStats(const string &name)
       .desc("Average bus entry latency")
       ;
 
-    avg_bus_transfer_latency
-      .name(name +".avg_bus_transfer_latency")
-      .desc("Average bus transfer latency")
+    avg_bus_queue_latency
+      .name(name +".avg_bus_queue_latency")
+      .desc("Average bus queue latency")
       ;
+    
+    avg_bus_service_latency
+        .name(name +".avg_bus_service_latency")
+        .desc("Average bus service latency")
+        ;
 
     avg_interconnect_entry_latency = interconnect_entry_latency / num_roundtrip_responses;
     avg_interconnect_transfer_latency = interconnect_transfer_latency / num_roundtrip_responses;
     avg_interconnect_delivery_latency = interconnect_delivery_latency /num_roundtrip_responses;
     avg_bus_entry_latency = bus_entry_latency / num_roundtrip_responses;
-    avg_bus_transfer_latency = bus_transfer_latency / num_roundtrip_responses;
+    avg_bus_queue_latency = bus_queue_latency / num_roundtrip_responses;
+    avg_bus_service_latency = bus_service_latency / num_roundtrip_responses;
 }
 
 void
@@ -498,9 +520,24 @@ MissQueue::setCache(BaseCache *_cache)
         params.push_back("IC Latency");
         params.push_back("IC Delivery");
         params.push_back("Mem Bus Blocking");
-        params.push_back("Mem Bus Latency");
+        params.push_back("Mem Bus Queue");
+        params.push_back("Mem Bus Service");
         
         latencyTrace.initalizeTrace(params);
+        
+        interferenceTrace = RequestTrace(_cache->name(), "InterferenceTrace");
+        
+        vector<string> params2;
+        params2.push_back("Address");
+        params2.push_back("PC");
+        params2.push_back("IC Entry");
+        params2.push_back("IC Latency");
+        params2.push_back("IC Delivery");
+        params2.push_back("Mem Bus Blocking");
+        params2.push_back("Mem Bus Queue");
+        params2.push_back("Mem Bus Service");
+        
+        interferenceTrace.initalizeTrace(params2);
     }
 #endif
 }
@@ -787,7 +824,8 @@ MissQueue::measureInterference(MemReqPtr& req){
     interconnect_transfer_latency +=  req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT];
     interconnect_delivery_latency +=  req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT];
     bus_entry_latency +=  req->latencyBreakdown[MEM_BUS_ENTRY_LAT];
-    bus_transfer_latency +=  req->latencyBreakdown[MEM_BUS_TRANSFER_LAT];
+    bus_queue_latency +=  req->latencyBreakdown[MEM_BUS_QUEUE_LAT];
+    bus_service_latency +=  req->latencyBreakdown[MEM_BUS_SERVICE_LAT];
     
     if(cache->cpuCount > 1){
         for(int i=0;i<req->interferenceBreakdown.size();i++){
@@ -798,14 +836,15 @@ MissQueue::measureInterference(MemReqPtr& req){
         interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
         interconnect_delivery_interference += req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT];
         bus_entry_interference += req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
-        bus_transfer_interference += req->interferenceBreakdown[MEM_BUS_TRANSFER_LAT];
+        bus_queue_interference += req->interferenceBreakdown[MEM_BUS_QUEUE_LAT];
+        bus_service_interference += req->interferenceBreakdown[MEM_BUS_SERVICE_LAT];
     }
     
 #ifdef DO_REQUEST_TRACE 
     
     if(curTick >= cache->detailedSimulationStartTick){
-        // Latency trace
         
+        // Latency trace
         vector<RequestTraceEntry> lats;
         lats.push_back(RequestTraceEntry(req->paddr));
         lats.push_back(RequestTraceEntry(req->pc));
@@ -815,6 +854,19 @@ MissQueue::measureInterference(MemReqPtr& req){
         
         assert(latencyTrace.isInitialized());
         latencyTrace.addTrace(lats);
+        
+        // Interference trace
+        if(cache->cpuCount > 1){
+            vector<RequestTraceEntry> interference;
+            interference.push_back(RequestTraceEntry(req->paddr));
+            interference.push_back(RequestTraceEntry(req->pc));
+            for(int i=0;i<req->latencyBreakdown.size();i++){
+                interference.push_back(RequestTraceEntry(req->interferenceBreakdown[i]));
+            }
+            
+            assert(interferenceTrace.isInitialized());
+            interferenceTrace.addTrace(interference);
+        }
     }
 #endif
 }

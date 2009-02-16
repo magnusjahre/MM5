@@ -85,6 +85,8 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
         params.push_back("Inserted At");
         params.push_back("Old Address");
         params.push_back("Position");
+        params.push_back("Queued Reads");
+        params.push_back("Queued Writes");
         
         pageResultTraces[i].initalizeTrace(params);
     }
@@ -134,8 +136,6 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
             setBlocked();
         }
     }
-    
-    estimatePageResult(req);
     
     assert(req->cmd == Read || req->cmd == Writeback);
     
@@ -596,18 +596,20 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     
     //FIXME: how should additional L2 misses be handled
     
+    estimatePageResult(req);
+    
     req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
     if(req->privateResultEstimate == DRAM_RESULT_HIT){
         privateLatencyEstimate = 40;
     }
     else if(req->privateResultEstimate == DRAM_RESULT_CONFLICT){
-        if(req->cmd == Read) privateLatencyEstimate = 152;
-        else privateLatencyEstimate = 135;
+        if(req->cmd == Read) privateLatencyEstimate = 191;
+        else privateLatencyEstimate = 184;
     }
     else{
-        if(req->cmd == Read) privateLatencyEstimate = 108;
-        else privateLatencyEstimate = 79;
+        if(req->cmd == Read) privateLatencyEstimate = 120;
+        else privateLatencyEstimate = 109;
     }
     
     int fromCPU = req->adaptiveMHASenderID;
@@ -649,6 +651,8 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
     vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
     vals.push_back(RequestTraceEntry(req->memCtrlIssuePosition));
+    vals.push_back(req->entryReadCnt);
+    vals.push_back(req->entryWriteCnt);
     
     pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
 
@@ -663,6 +667,7 @@ RDFCFSTimingMemoryController::checkPrivateOpenPage(MemReqPtr& req){
     Tick minAct = TICK_T_MAX;
     int minID = -1;
     int bank = getMemoryBankID(req->paddr);
+    assert(req->adaptiveMHASenderID != -1);
     int cpuID = req->adaptiveMHASenderID;
     
     for(int i=0;i<activatedPages[cpuID].size();i++){
