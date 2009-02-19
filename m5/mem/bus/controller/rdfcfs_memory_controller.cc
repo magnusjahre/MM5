@@ -68,6 +68,11 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
 void 
 RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
+    headPointers.resize(regbus->adaptiveMHA->getCPUCount(), -1);
+    tailPointers.resize(regbus->adaptiveMHA->getCPUCount(), NULL);
+    readyFirstLimits.resize(regbus->adaptiveMHA->getCPUCount(), 5); //FIXME: parameterize
+    privateLatencyBuffer.resize(regbus->adaptiveMHA->getCPUCount(), vector<PrivateLatencyBufferEntry*>());
+    
 #ifdef DO_ESTIMATION_TRACE
     
     pageResultTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
@@ -135,6 +140,21 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         if (writeQueue.size() > writequeue_size) { // full queue + one in progress
             setBlocked();
         }
+    }
+    
+    if(memCtrCPUCount > 1){
+        assert(req->adaptiveMHASenderID != -1);
+        PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
+        if(headPointers[req->adaptiveMHASenderID] == -1){
+            headPointers[req->adaptiveMHASenderID] = privateLatencyBuffer[req->adaptiveMHASenderID].size();
+            newEntry->headAtEntry = newEntry;
+            
+        }
+        else{
+            newEntry->headAtEntry = privateLatencyBuffer[req->adaptiveMHASenderID][headPointers[req->adaptiveMHASenderID]];
+        }
+        
+        privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
     }
     
     assert(req->cmd == Read || req->cmd == Writeback);
@@ -592,51 +612,136 @@ RDFCFSTimingMemoryController::estimatePageResult(MemReqPtr& req){
 }
 
 void
-RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-    
-    //FIXME: how should additional L2 misses be handled
-    
-    estimatePageResult(req);
-    
-    req->busDelay = 0;
-    Tick privateLatencyEstimate = 0;
-    if(req->privateResultEstimate == DRAM_RESULT_HIT){
-        privateLatencyEstimate = 40;
-    }
-    else if(req->privateResultEstimate == DRAM_RESULT_CONFLICT){
-        if(req->cmd == Read) privateLatencyEstimate = 191;
-        else privateLatencyEstimate = 184;
-    }
-    else{
-        if(req->cmd == Read) privateLatencyEstimate = 120;
-        else privateLatencyEstimate = 109;
-    }
+RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     
     int fromCPU = req->adaptiveMHASenderID;
-    list<MemReqPtr>::iterator readIter;
     assert(fromCPU != -1);
+
+    // 1. Service requests ready-first within RF-limit until the current request is serviced
+    PrivateLatencyBufferEntry* curLBE = schedulePrivateRequest(fromCPU);
+    while(curLBE->req != req){
+        curLBE = schedulePrivateRequest(fromCPU);
+    }
     
-    readIter = readQueue.begin();
-    for( ; readIter != readQueue.end(); readIter++){
-        MemReqPtr waitingReq = *readIter;
-        assert(waitingReq->adaptiveMHASenderID != -1);
-        assert(waitingReq->cmd == Read);
-        
-        if(waitingReq->adaptiveMHASenderID == fromCPU){
-            assert(req->cmd == Read || req->cmd == Writeback);
-            if(req->cmd == Read){
-                waitingReq->busAloneReadQueueEstimate += privateLatencyEstimate;
+    // 2. compute queue delay by traversing history
+    Tick queueLatency = 0;
+    PrivateLatencyBufferEntry* historyLBE = curLBE->headAtEntry;
+    assert(historyLBE != NULL);
+    while(historyLBE != curLBE){
+        queueLatency += historyLBE->req->busAloneServiceEstimate;
+        historyLBE = historyLBE->scheduledBehind;
+        assert(historyLBE != NULL);
+    }
+    
+    req->busAloneWriteQueueEstimate = 0;
+    req->busAloneReadQueueEstimate = queueLatency;
+    
+    // 3. Delete any requests that are no longer needed
+    //    i.e. not pointed to by a head ptr, not used in path from any head ptr and has been scheduled
+    list<PrivateLatencyBufferEntry*> deleteList;
+    for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+        if((*privateLatencyBuffer[fromCPU][i]).scheduled){
+            
+            bool pointedTo = false;
+            bool onPath = false;
+            for(int j=0;j<privateLatencyBuffer[fromCPU].size();j++){
+                if(j != i){
+                    if(privateLatencyBuffer[fromCPU][j]->headAtEntry == privateLatencyBuffer[fromCPU][i]){
+                        pointedTo = true;
+                    }
+                    
+                    PrivateLatencyBufferEntry* tmp = privateLatencyBuffer[fromCPU][j];
+                    assert(tmp != NULL);
+                    while(tmp != NULL){
+                        if(tmp == privateLatencyBuffer[fromCPU][j]){
+                            onPath = true;
+                        }
+                    }
+                }
             }
-            else{
-                waitingReq->busAloneWriteQueueEstimate += privateLatencyEstimate;
-                waitingReq->waitWritebackCnt++;
+            
+            if(!pointedTo && !onPath){
+                deleteList.push_back(privateLatencyBuffer[fromCPU][i]);
             }
         }
     }
     
-    if(req->cmd == Read){
-        req->busAloneServiceEstimate += privateLatencyEstimate;
+    while(!deleteList.empty()){
+        vector<PrivateLatencyBufferEntry*>::iterator it = privateLatencyBuffer[fromCPU].begin();
+        for( ;it != privateLatencyBuffer[fromCPU].end();it++){
+            if(*it == deleteList.front()){
+                delete *it;
+                privateLatencyBuffer[fromCPU].erase(it);
+                break;
+            }
+        }
+        deleteList.pop_front();
     }
+}
+
+RDFCFSTimingMemoryController::PrivateLatencyBufferEntry*
+RDFCFSTimingMemoryController::schedulePrivateRequest(int fromCPU){
+    
+    assert(headPointers[fromCPU] != -1);
+    int limit = headPointers[fromCPU] + readyFirstLimits[fromCPU] < privateLatencyBuffer[fromCPU].size() ?
+                headPointers[fromCPU] + readyFirstLimits[fromCPU] :
+                privateLatencyBuffer[fromCPU].size();
+    
+    PrivateLatencyBufferEntry* curEntry = NULL;
+    for(int i=headPointers[fromCPU];i<limit;i++){
+        curEntry = privateLatencyBuffer[fromCPU][i];
+        if(!curEntry->scheduled && isPageHitOnPrivateSystem(curEntry->req)){
+            executePrivateRequest(curEntry, fromCPU);
+            return curEntry;
+        }
+    }
+    
+    curEntry = privateLatencyBuffer[fromCPU][headPointers[fromCPU]];
+    executePrivateRequest(curEntry, fromCPU);
+    return curEntry;
+}
+
+void 
+RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU){
+    estimatePageResult(entry->req);
+    
+    assert(!entry->scheduled);
+    entry->scheduled = true;
+    
+    entry->req->busDelay = 0;
+    Tick privateLatencyEstimate = 0;
+    if(entry->req->privateResultEstimate == DRAM_RESULT_HIT){
+        privateLatencyEstimate = 40;
+    }
+    else if(entry->req->privateResultEstimate == DRAM_RESULT_CONFLICT){
+        if(entry->req->cmd == Read) privateLatencyEstimate = 191;
+        else privateLatencyEstimate = 184;
+    }
+    else{
+        if(entry->req->cmd == Read) privateLatencyEstimate = 120;
+        else privateLatencyEstimate = 109;
+    }
+    
+    entry->req->busAloneServiceEstimate += privateLatencyEstimate;
+    
+    if(tailPointers[fromCPU] != NULL){
+        entry->scheduledBehind = tailPointers[fromCPU];
+    }
+    tailPointers[fromCPU] = entry;
+    
+    if(headPointers[fromCPU]+1 < privateLatencyBuffer[fromCPU].size()){
+        headPointers[fromCPU]++;
+    }
+    else{
+        headPointers[fromCPU] = -1;
+    }
+}
+
+void
+RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+    
+    //FIXME: how should additional L2 misses be handled
+    estimatePrivateLatency(req);
     
 #ifdef DO_ESTIMATION_TRACE
     
@@ -713,17 +818,21 @@ RDFCFSTimingMemoryController::updatePrivateOpenPage(MemReqPtr& req){
 bool
 RDFCFSTimingMemoryController::isPageHitOnPrivateSystem(MemReqPtr& req){
     
+    if(activatedPages.empty()) initializePrivateStorage();
+    
     assert(!closedPagePolicy);
     
     Addr curPage = getPage(req->paddr);
     int bank = getMemoryBankID(req->paddr);
     int cpuID = req->adaptiveMHASenderID;
-    
+
     return curPage == activatedPages[cpuID][bank];
 }
 
 bool 
 RDFCFSTimingMemoryController::isPageConflictOnPrivateSystem(MemReqPtr& req){
+    
+    if(activatedPages.empty()) initializePrivateStorage();
     
     assert(!closedPagePolicy);
     

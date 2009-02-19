@@ -68,6 +68,28 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
     
+    struct PrivateLatencyBufferEntry{
+        PrivateLatencyBufferEntry* headAtEntry;
+        PrivateLatencyBufferEntry* scheduledBehind;
+        bool scheduled;
+        MemReqPtr req;
+        
+        PrivateLatencyBufferEntry(MemReqPtr& _req){
+            headAtEntry = NULL;
+            scheduledBehind = NULL;
+            scheduled = false;
+            req = _req;
+        }
+    };
+    
+    std::vector<int> headPointers;
+    std::vector<PrivateLatencyBufferEntry*> tailPointers;
+    std::vector<int> readyFirstLimits;
+    std::vector<vector<PrivateLatencyBufferEntry*> > privateLatencyBuffer;
+    void estimatePrivateLatency(MemReqPtr& req);
+    PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
+    void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU);
+    
     void checkPrivateOpenPage(MemReqPtr& req);
     bool isPageHitOnPrivateSystem(MemReqPtr& req);
     bool isPageConflictOnPrivateSystem(MemReqPtr& req);
