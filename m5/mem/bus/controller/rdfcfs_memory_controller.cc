@@ -652,14 +652,13 @@ RDFCFSTimingMemoryController::dumpBufferStatus(int CPUID){
     for(int i=0;i<privateLatencyBuffer[CPUID].size();i++){
         PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
         cout << i << ": ";
-        if(curEntry->scheduled) cout << "Scheduled " << curEntry->req->paddr << " " << curEntry << " ";
+        if(curEntry->scheduled) cout << "Scheduled " << curEntry->req->paddr << " " << curEntry << " behind ";
         else cout << "Not scheduled " << curEntry->req->paddr << " " << curEntry << " " ;
         
         int pos = 0;
         PrivateLatencyBufferEntry* tmp = curEntry->scheduledBehind;
-	cout << tmp << " " << curEntry->scheduledBefore << " ";
         while(tmp != NULL){
-            cout << "(" << pos << ", " << tmp->req->paddr << ", " << tmp << ") ";
+            cout << "(" << pos << ", " << tmp->req->paddr << ", " << tmp << ") <- ";
             tmp = tmp->scheduledBehind;
             pos++;
         }
@@ -684,14 +683,27 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     }
     
     // 1. Service requests ready-first within RF-limit until the current request is serviced
-    
     DPRINTF(MemoryControllerInterference, "--- Step 1, scheduling request(s) for CPU %d, cur addr %d\n", fromCPU, req->paddr);
-    PrivateLatencyBufferEntry* curLBE = schedulePrivateRequest(fromCPU);
-
-    while(curLBE->req != req){
-        curLBE = schedulePrivateRequest(fromCPU);
+    
+    PrivateLatencyBufferEntry* curLBE = NULL;
+    
+    for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+        if(privateLatencyBuffer[fromCPU][i]->req == req && privateLatencyBuffer[fromCPU][i]->scheduled){
+            assert(curLBE == NULL);
+            curLBE = privateLatencyBuffer[fromCPU][i];
+            DPRINTF(MemoryControllerInterference, "Request for addr %d allready scheduled\n", curLBE->req->paddr);
+        }
     }
     
+    if(curLBE == NULL){
+        curLBE = schedulePrivateRequest(fromCPU);
+        while(curLBE->req != req){
+            curLBE = schedulePrivateRequest(fromCPU);
+        }
+    }
+    
+    curLBE->latencyRetrieved = true;
+            
     // 2. compute queue delay by traversing history
     DPRINTF(MemoryControllerInterference, "--- Step 2, traverse history\n");
     Tick queueLatency = 0;
@@ -727,9 +739,9 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     DPRINTF(MemoryControllerInterference, "--- Step 3, delete old entries\n");
     list<PrivateLatencyBufferEntry*> deleteList;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
-        if((*privateLatencyBuffer[fromCPU][i]).scheduled 
-             && privateLatencyBuffer[fromCPU][i] != tailPointers[fromCPU]
-             && privateLatencyBuffer[fromCPU][i] != headPointers[fromCPU]){
+        if( privateLatencyBuffer[fromCPU][i]->canDelete()
+            && privateLatencyBuffer[fromCPU][i] != tailPointers[fromCPU]
+            && privateLatencyBuffer[fromCPU][i] != headPointers[fromCPU]){
             
             DPRINTF(MemoryControllerInterference, "Queue element %d is scheduled and not the current tail, addr %d, checking for deletion\n", i, (*privateLatencyBuffer[fromCPU][i]).req->paddr);
             
@@ -737,7 +749,7 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
             bool onPath = false;
             
             for(int j=0;j<privateLatencyBuffer[fromCPU].size();j++){
-                if(j != i && !privateLatencyBuffer[fromCPU][j]->scheduled){
+                if(j != i && !privateLatencyBuffer[fromCPU][j]->canDelete()){
                     
                     if(privateLatencyBuffer[fromCPU][j]->headAtEntry == privateLatencyBuffer[fromCPU][i]){
                         DPRINTF(MemoryControllerInterference, 
@@ -823,7 +835,6 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
 RDFCFSTimingMemoryController::PrivateLatencyBufferEntry*
 RDFCFSTimingMemoryController::schedulePrivateRequest(int fromCPU){
     
-    
     int headPos = -1;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
         if(privateLatencyBuffer[fromCPU][i] == headPointers[fromCPU]){
@@ -893,24 +904,7 @@ RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* e
                     tailPointers[fromCPU]->scheduledBefore->req->paddr)));
     tailPointers[fromCPU] = entry;
 
-    
-    if(headPos+1 < privateLatencyBuffer[fromCPU].size()){
-      if(headPointers[fromCPU] == entry){
-        DPRINTF(MemoryControllerInterference,
-                "Updating head pointer, previous was %d, changing to %d, new head addr is %d\n",
-                headPointers[fromCPU],
-                privateLatencyBuffer[fromCPU][headPos+1],
-                (*privateLatencyBuffer[fromCPU][headPos+1]).req->paddr);
-        headPointers[fromCPU] = privateLatencyBuffer[fromCPU][headPos+1];
-      }
-      else{
-	DPRINTF(MemoryControllerInterference, "Issued request was not head, no change of head pointer needed\n");
-      }
-    }
-    else{
-        DPRINTF(MemoryControllerInterference, "No more queued requests, nulling head pointer\n");
-        headPointers[fromCPU] = NULL;
-    }
+    updateHeadPointer(entry, headPos, fromCPU);
 
     DPRINTF(MemoryControllerInterference, "Request %d (%d) beforepointer %d (%d), behindpointer %d (%d)\n",
 	    entry,
@@ -924,6 +918,36 @@ RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* e
         assert( !(entry->scheduledBehind == NULL && entry->scheduledBefore == NULL) );
     }
 
+}
+
+void 
+RDFCFSTimingMemoryController::updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU){
+    int newHeadPos = headPos+1;
+    if(newHeadPos < privateLatencyBuffer[fromCPU].size()){
+        if(headPointers[fromCPU] == entry){
+            
+            while(newHeadPos < privateLatencyBuffer[fromCPU].size()){
+                if(!privateLatencyBuffer[fromCPU][newHeadPos]->scheduled){
+                    DPRINTF(MemoryControllerInterference,
+                            "Updating head pointer, previous was %d (%d), changing to %d, new head addr is %d\n",
+                            headPointers[fromCPU],
+                            (headPointers[fromCPU] == NULL ? 0 : headPointers[fromCPU]->req->paddr),
+                             privateLatencyBuffer[fromCPU][newHeadPos],
+                             privateLatencyBuffer[fromCPU][newHeadPos]->req->paddr);
+                    headPointers[fromCPU] = privateLatencyBuffer[fromCPU][newHeadPos];
+                    return;
+                }
+                newHeadPos++;
+            }
+        }
+        else{
+            DPRINTF(MemoryControllerInterference, "Issued request was not head, no change of head pointer needed\n");
+            return;
+        }
+    }
+    
+    DPRINTF(MemoryControllerInterference, "No more queued requests, nulling head pointer\n");
+    headPointers[fromCPU] = NULL;
 }
 
 void

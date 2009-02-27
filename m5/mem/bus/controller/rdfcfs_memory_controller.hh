@@ -78,6 +78,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
         PrivateLatencyBufferEntry* scheduledBehind;
         PrivateLatencyBufferEntry* scheduledBefore;
         bool scheduled;
+        bool latencyRetrieved;
         MemReqPtr req;
         
         PrivateLatencyBufferEntry(MemReqPtr& _req){
@@ -85,7 +86,12 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
             scheduledBehind = NULL;
             scheduledBefore = NULL;
             scheduled = false;
+            latencyRetrieved = false;
             req = _req;
+        }
+        
+        bool canDelete(){
+            return scheduled && latencyRetrieved;
         }
     };
     
@@ -96,6 +102,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     void estimatePrivateLatency(MemReqPtr& req);
     PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
     void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
+    void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
     
     void checkPrivateOpenPage(MemReqPtr& req);
     bool isPageHitOnPrivateSystem(MemReqPtr& req);
