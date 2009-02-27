@@ -125,7 +125,7 @@ _format_integer(std::ostream &out, const T &data, Format &fmt)
 
     if (fmt.uppercase)
 	out.setf(ios::uppercase);
-
+    
     out << data;
 }
 

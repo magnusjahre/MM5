@@ -152,7 +152,8 @@ baseFlags = [
     'DRAM',
     'Blocking',
     'MTP',
-    'Crossbar'
+    'Crossbar',
+    'MemoryControllerInterference'
     ]
 
 #

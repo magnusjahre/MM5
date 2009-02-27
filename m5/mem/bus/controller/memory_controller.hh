@@ -65,7 +65,11 @@ class TimingMemoryController : public SimObject
 
     virtual bool hasMoreRequests() = 0;
 
-    virtual MemReqPtr& getRequest() = 0;
+    virtual MemReqPtr getRequest(){
+        fatal("not implemented");
+    }
+    
+//     virtual MemReqPtr& getRequest() = 0;
     
     virtual std::list<Addr> getOpenPages(){
         fatal("getOpenPages() is not implemented");

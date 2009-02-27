@@ -14,6 +14,11 @@ using namespace std;
 class RDFCFSTimingMemoryController : public TimingMemoryController
 {
   private:
+    
+//     MemReqPtr activate;
+//     MemReqPtr close;
+//     MemReqPtr invalReq;
+      
     std::list<MemReqPtr> readQueue; 
     std::list<MemReqPtr> writeQueue;
     MemReqPtr lastIssuedReq;
@@ -71,24 +76,26 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     struct PrivateLatencyBufferEntry{
         PrivateLatencyBufferEntry* headAtEntry;
         PrivateLatencyBufferEntry* scheduledBehind;
+        PrivateLatencyBufferEntry* scheduledBefore;
         bool scheduled;
         MemReqPtr req;
         
         PrivateLatencyBufferEntry(MemReqPtr& _req){
             headAtEntry = NULL;
             scheduledBehind = NULL;
+            scheduledBefore = NULL;
             scheduled = false;
             req = _req;
         }
     };
     
-    std::vector<int> headPointers;
+    std::vector<PrivateLatencyBufferEntry*> headPointers;
     std::vector<PrivateLatencyBufferEntry*> tailPointers;
     std::vector<int> readyFirstLimits;
     std::vector<vector<PrivateLatencyBufferEntry*> > privateLatencyBuffer;
     void estimatePrivateLatency(MemReqPtr& req);
     PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
-    void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU);
+    void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
     
     void checkPrivateOpenPage(MemReqPtr& req);
     bool isPageHitOnPrivateSystem(MemReqPtr& req);
@@ -98,12 +105,9 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     void estimatePageResult(MemReqPtr& req);
     
+    void dumpBufferStatus(int CPUID);
+    
   public:
-
-    // Memory Request currently being issued
-    MemReqPtr activate;
-    MemReqPtr close;
-
     
     typedef enum{
         FCFS,
@@ -132,7 +136,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     bool hasMoreRequests();
 
-    MemReqPtr& getRequest();
+    MemReqPtr getRequest();
     
     virtual std::list<Addr> getOpenPages(){
         std::list<Addr> retlist;

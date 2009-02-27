@@ -29,10 +29,13 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     writequeue_size = _writequeue_size;
     reserved_slots = _reserved_slots;
 
-    close = new MemReq();
-    close->cmd = Close;
-    activate = new MemReq();
-    activate->cmd = Activate;
+//     close = new MemReq();
+//     close->cmd = Close;
+//     activate = new MemReq();
+//     activate->cmd = Activate;
+//     
+//     invalReq = new MemReq();
+//     invalReq->cmd = InvalidCmd;
 
     lastIsWrite = false;
     
@@ -68,7 +71,7 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
 void 
 RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
-    headPointers.resize(regbus->adaptiveMHA->getCPUCount(), -1);
+    headPointers.resize(regbus->adaptiveMHA->getCPUCount(), NULL);
     tailPointers.resize(regbus->adaptiveMHA->getCPUCount(), NULL);
     readyFirstLimits.resize(regbus->adaptiveMHA->getCPUCount(), 5); //FIXME: parameterize
     privateLatencyBuffer.resize(regbus->adaptiveMHA->getCPUCount(), vector<PrivateLatencyBufferEntry*>());
@@ -143,20 +146,28 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     }
     
     if(memCtrCPUCount > 1){
+        DPRINTF(MemoryControllerInterference, "Recieved request from CPU %d, addr %d\n", 
+                req->adaptiveMHASenderID,
+                req->paddr);
         assert(req->adaptiveMHASenderID != -1);
         PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
-        if(headPointers[req->adaptiveMHASenderID] == -1){
-            headPointers[req->adaptiveMHASenderID] = privateLatencyBuffer[req->adaptiveMHASenderID].size();
+        if(headPointers[req->adaptiveMHASenderID] == NULL){
+            headPointers[req->adaptiveMHASenderID] = newEntry;
             newEntry->headAtEntry = newEntry;
-            
+            DPRINTF(MemoryControllerInterference, "Updating head pointer is null, now pointing to %d\n", newEntry);
         }
         else{
-            newEntry->headAtEntry = privateLatencyBuffer[req->adaptiveMHASenderID][headPointers[req->adaptiveMHASenderID]];
+            DPRINTF(MemoryControllerInterference, 
+                    "Head pointer is set, head at entry for addr %d is addr %d, entry addr %d\n", 
+                    req->paddr, 
+                    (*headPointers[req->adaptiveMHASenderID]).req->paddr,
+                    headPointers[req->adaptiveMHASenderID]);
+            newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
         }
         
         privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
     }
-    
+
     assert(req->cmd == Read || req->cmd == Writeback);
     
     return 0;
@@ -172,9 +183,12 @@ bool RDFCFSTimingMemoryController::hasMoreRequests() {
     }
 }
 
-MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
+MemReqPtr RDFCFSTimingMemoryController::getRequest() {
 
-    MemReqPtr& retval = activate; //dummy initialization
+    MemReqPtr retval = new MemReq();
+    retval->cmd = InvalidCmd;
+    retval->paddr = MemReq::inval_addr;
+    
     bool activateFound = false;
     bool closeFound = false;
     bool readyFound = false;
@@ -196,8 +210,14 @@ MemReqPtr& RDFCFSTimingMemoryController::getRequest() {
         readyFound = getReady(retval);
         if(readyFound){
             DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr));
+            assert(!bankIsClosed(retval));
+            assert(retval->cmd != InvalidCmd);
         }
-        assert(!bankIsClosed(retval));
+        else{
+            assert(retval->cmd == InvalidCmd);
+        }
+        
+        
     }
     
     if(!activateFound && !closeFound && !readyFound){
@@ -239,10 +259,14 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
     
     if(equalReadWritePri){
         list<MemReqPtr> mergedQueue = mergeQueues();
+        
         for (queueIterator = mergedQueue.begin(); queueIterator != mergedQueue.end(); queueIterator++) {
             MemReqPtr& tmp = *queueIterator;
+
             if (!isActive(tmp) && bankIsClosed(tmp)) {
                 //Request is not active and bank is closed. Activate it
+                
+                MemReqPtr activate = new MemReq();
                 
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
@@ -266,6 +290,8 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
             if (!isActive(tmp) && bankIsClosed(tmp)) {
                 //Request is not active and bank is closed. Activate it
                 
+                MemReqPtr activate = new MemReq();
+                
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
@@ -284,6 +310,8 @@ RDFCFSTimingMemoryController::getActivate(MemReqPtr& req){
             if (!isActive(tmp) && bankIsClosed(tmp)) {
                 
                 //Request is not active and bank is closed. Activate it
+                MemReqPtr activate = new MemReq();
+                
                 activate->cmd = Activate;
                 activate->paddr = tmp->paddr;
                 activate->flags &= ~SATISFIED;
@@ -324,6 +352,9 @@ RDFCFSTimingMemoryController::getClose(MemReqPtr& req){
         }
 
         if (canClose) {
+            
+            MemReqPtr close = new MemReq();
+            
             close->cmd = Close;
             close->paddr = getPageAddr(Active);
             close->flags &= ~SATISFIED;
@@ -492,6 +523,8 @@ RDFCFSTimingMemoryController::getOther(MemReqPtr& req){
 bool
 RDFCFSTimingMemoryController::closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq){
     
+    MemReqPtr close = new MemReq();
+    
     if(bankIsClosed(oldestReq)){
         // close the oldest activated page
         
@@ -611,56 +644,137 @@ RDFCFSTimingMemoryController::estimatePageResult(MemReqPtr& req){
     updatePrivateOpenPage(req);
 }
 
+void 
+RDFCFSTimingMemoryController::dumpBufferStatus(int CPUID){
+    
+    cout << "\nDumping buffer contents for CPU " << CPUID << " at " << curTick << "\n";
+    
+    for(int i=0;i<privateLatencyBuffer[CPUID].size();i++){
+        PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
+        cout << i << ": ";
+        if(curEntry->scheduled) cout << "Scheduled " << curEntry->req->paddr << " " << curEntry << " ";
+        else cout << "Not scheduled " << curEntry->req->paddr << " " << curEntry << " " ;
+        
+        int pos = 0;
+        PrivateLatencyBufferEntry* tmp = curEntry->scheduledBehind;
+	cout << tmp << " " << curEntry->scheduledBefore << " ";
+        while(tmp != NULL){
+            cout << "(" << pos << ", " << tmp->req->paddr << ", " << tmp << ") ";
+            tmp = tmp->scheduledBehind;
+            pos++;
+        }
+        
+        cout << "\n";
+    }
+    cout << "\n";
+}
+
 void
 RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     
     int fromCPU = req->adaptiveMHASenderID;
     assert(fromCPU != -1);
-
+    assert(req->cmd == Read || req->cmd == Writeback);
+    
+    // check for corrupt request pointers
+    for(int i=0;i<privateLatencyBuffer.size();i++){
+        for(int j=0;j<privateLatencyBuffer[i].size();j++){
+            assert(privateLatencyBuffer[i][j]->req->paddr != MemReq::inval_addr);
+        }
+    }
+    
     // 1. Service requests ready-first within RF-limit until the current request is serviced
+    
+    DPRINTF(MemoryControllerInterference, "--- Step 1, scheduling request(s) for CPU %d, cur addr %d\n", fromCPU, req->paddr);
     PrivateLatencyBufferEntry* curLBE = schedulePrivateRequest(fromCPU);
+
     while(curLBE->req != req){
         curLBE = schedulePrivateRequest(fromCPU);
     }
     
     // 2. compute queue delay by traversing history
+    DPRINTF(MemoryControllerInterference, "--- Step 2, traverse history\n");
     Tick queueLatency = 0;
     PrivateLatencyBufferEntry* historyLBE = curLBE->headAtEntry;
     assert(historyLBE != NULL);
-    while(historyLBE != curLBE){
-        queueLatency += historyLBE->req->busAloneServiceEstimate;
-        historyLBE = historyLBE->scheduledBehind;
-        assert(historyLBE != NULL);
+    if(historyLBE->scheduled){
+        while(historyLBE != curLBE){
+            assert(historyLBE->req);
+            DPRINTF(MemoryControllerInterference, "Retrieving latency %d from addr %d, next buffer entry addr is %d\n",
+                    historyLBE->req->busAloneServiceEstimate,
+                    historyLBE->req->paddr,
+                    historyLBE->scheduledBefore);
+            queueLatency += historyLBE->req->busAloneServiceEstimate;
+            historyLBE = historyLBE->scheduledBefore;
+            assert(historyLBE != NULL);
+        }
+    }
+    else{
+        DPRINTF(MemoryControllerInterference, "Head pointer %d (%d) for request %d (%d), has not been scheduled, 0 queue latency\n",
+                curLBE->headAtEntry,
+                curLBE->headAtEntry->req->paddr,
+                curLBE,
+                curLBE->req->paddr);
     }
     
     req->busAloneWriteQueueEstimate = 0;
     req->busAloneReadQueueEstimate = queueLatency;
     
+    DPRINTF(MemoryControllerInterference, "History traversal finished, estimated %d cycles of queue latency\n", queueLatency);
+    
     // 3. Delete any requests that are no longer needed
     //    i.e. not pointed to by a head ptr, not used in path from any head ptr and has been scheduled
+    DPRINTF(MemoryControllerInterference, "--- Step 3, delete old entries\n");
     list<PrivateLatencyBufferEntry*> deleteList;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
-        if((*privateLatencyBuffer[fromCPU][i]).scheduled){
+        if((*privateLatencyBuffer[fromCPU][i]).scheduled 
+             && privateLatencyBuffer[fromCPU][i] != tailPointers[fromCPU]
+             && privateLatencyBuffer[fromCPU][i] != headPointers[fromCPU]){
+            
+            DPRINTF(MemoryControllerInterference, "Queue element %d is scheduled and not the current tail, addr %d, checking for deletion\n", i, (*privateLatencyBuffer[fromCPU][i]).req->paddr);
             
             bool pointedTo = false;
             bool onPath = false;
+            
             for(int j=0;j<privateLatencyBuffer[fromCPU].size();j++){
-                if(j != i){
+                if(j != i && !privateLatencyBuffer[fromCPU][j]->scheduled){
+                    
                     if(privateLatencyBuffer[fromCPU][j]->headAtEntry == privateLatencyBuffer[fromCPU][i]){
+                        DPRINTF(MemoryControllerInterference, 
+                                "Queue element %d (%d) is pointed to by element %d (%d)\n",
+                                i,
+                                (*privateLatencyBuffer[fromCPU][i]).req->paddr,
+                                j,
+                                (*privateLatencyBuffer[fromCPU][j]).req->paddr);
                         pointedTo = true;
                     }
                     
-                    PrivateLatencyBufferEntry* tmp = privateLatencyBuffer[fromCPU][j];
-                    assert(tmp != NULL);
-                    while(tmp != NULL){
-                        if(tmp == privateLatencyBuffer[fromCPU][j]){
-                            onPath = true;
+                    if(!pointedTo){
+                        
+                        PrivateLatencyBufferEntry* tmp = privateLatencyBuffer[fromCPU][j]->headAtEntry;
+                        
+                        assert(tmp != NULL);
+                        while(tmp != NULL){
+                            
+                            if(tmp == privateLatencyBuffer[fromCPU][i]){
+                                DPRINTF(MemoryControllerInterference, 
+                                        "Queue element %d (%d) is sheduled after addr %d which is the head of queue for element %d (%d)\n",
+                                        i,
+                                        privateLatencyBuffer[fromCPU][i]->req->paddr,
+                                        privateLatencyBuffer[fromCPU][j]->headAtEntry,
+                                        j,
+                                        privateLatencyBuffer[fromCPU][j]->req->paddr);
+                                
+                                onPath = true;
+                            }
+                            tmp = tmp->scheduledBefore;
                         }
                     }
                 }
             }
             
             if(!pointedTo && !onPath){
+                DPRINTF(MemoryControllerInterference, "Adding addr %d to the delete list\n", privateLatencyBuffer[fromCPU][i]->req->paddr);
                 deleteList.push_back(privateLatencyBuffer[fromCPU][i]);
             }
         }
@@ -670,6 +784,33 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
         vector<PrivateLatencyBufferEntry*>::iterator it = privateLatencyBuffer[fromCPU].begin();
         for( ;it != privateLatencyBuffer[fromCPU].end();it++){
             if(*it == deleteList.front()){
+                
+                DPRINTF(MemoryControllerInterference, "Deleting element %d\n", (*it)->req->paddr);
+                
+                if((*it)->scheduledBefore != NULL){
+                    DPRINTF(MemoryControllerInterference,
+                            "Removing scheduled before pointer of element %d\n",
+                            (*it)->scheduledBefore->req->paddr);
+                    (*it)->scheduledBefore->scheduledBehind = NULL;
+                }
+                
+                if((*it)->scheduledBehind != NULL){
+                    DPRINTF(MemoryControllerInterference,
+                            "Removing scheduled behind pointer of element %d\n",
+                            (*it)->scheduledBehind->req->paddr);
+                    (*it)->scheduledBehind->scheduledBefore = NULL;
+                }
+                
+                if(tailPointers[fromCPU] == *it){
+                    DPRINTF(MemoryControllerInterference, "Element is on the tail of the queue, nulling tail pointer\n");
+                    tailPointers[fromCPU] = NULL;
+                }
+                
+                if(headPointers[fromCPU] == *it){
+                    DPRINTF(MemoryControllerInterference, "Element the head of the queue, nulling head pointer\n");
+                    headPointers[fromCPU] = NULL;
+                }
+                
                 delete *it;
                 privateLatencyBuffer[fromCPU].erase(it);
                 break;
@@ -682,29 +823,42 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
 RDFCFSTimingMemoryController::PrivateLatencyBufferEntry*
 RDFCFSTimingMemoryController::schedulePrivateRequest(int fromCPU){
     
-    assert(headPointers[fromCPU] != -1);
-    int limit = headPointers[fromCPU] + readyFirstLimits[fromCPU] < privateLatencyBuffer[fromCPU].size() ?
-                headPointers[fromCPU] + readyFirstLimits[fromCPU] :
+    
+    int headPos = -1;
+    for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+        if(privateLatencyBuffer[fromCPU][i] == headPointers[fromCPU]){
+            assert(headPos == -1);
+            headPos = i;
+        }
+    }
+    assert(headPos != -1);
+    
+    int limit = headPos + readyFirstLimits[fromCPU] < privateLatencyBuffer[fromCPU].size() ?
+                headPos + readyFirstLimits[fromCPU] :
                 privateLatencyBuffer[fromCPU].size();
     
     PrivateLatencyBufferEntry* curEntry = NULL;
-    for(int i=headPointers[fromCPU];i<limit;i++){
+    DPRINTF(MemoryControllerInterference, "Searching for ready first requests from position %d to %d\n",headPos,limit);
+    for(int i=headPos;i<limit;i++){
         curEntry = privateLatencyBuffer[fromCPU][i];
         if(!curEntry->scheduled && isPageHitOnPrivateSystem(curEntry->req)){
-            executePrivateRequest(curEntry, fromCPU);
+            DPRINTF(MemoryControllerInterference, "Scheduling ready first request for addr %d, pos %d\n", curEntry->req->paddr, i);
+            executePrivateRequest(curEntry, fromCPU, headPos);
             return curEntry;
         }
     }
     
-    curEntry = privateLatencyBuffer[fromCPU][headPointers[fromCPU]];
-    executePrivateRequest(curEntry, fromCPU);
+    curEntry = headPointers[fromCPU];
+    DPRINTF(MemoryControllerInterference, "Scheduling oldest request for addr %d\n", curEntry->req->paddr);
+    assert(!curEntry->scheduled);
+    executePrivateRequest(curEntry, fromCPU, headPos);
     return curEntry;
 }
 
 void 
-RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU){
+RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos){
     estimatePageResult(entry->req);
-    
+
     assert(!entry->scheduled);
     entry->scheduled = true;
     
@@ -722,19 +876,54 @@ RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* e
         else privateLatencyEstimate = 109;
     }
     
-    entry->req->busAloneServiceEstimate += privateLatencyEstimate;
+    DPRINTF(MemoryControllerInterference, "Estimated service latency for addr %d is %d\n", entry->req->paddr, privateLatencyEstimate);
     
+    entry->req->busAloneServiceEstimate += privateLatencyEstimate;
+
     if(tailPointers[fromCPU] != NULL){
+        tailPointers[fromCPU]->scheduledBefore = entry;
         entry->scheduledBehind = tailPointers[fromCPU];
     }
+    DPRINTF(MemoryControllerInterference,
+            "Updating tail pointer, previous was %d, changing to %d, new tail addr is %d, new tail is scheduled behind %d, old tail scheduled before %d\n", 
+            tailPointers[fromCPU], entry, entry->req->paddr,
+            (entry->scheduledBehind == NULL ? NULL : entry->scheduledBehind->req->paddr),
+            (tailPointers[fromCPU] == NULL ? NULL : 
+                    (tailPointers[fromCPU]->scheduledBefore == NULL ? NULL :
+                    tailPointers[fromCPU]->scheduledBefore->req->paddr)));
     tailPointers[fromCPU] = entry;
+
     
-    if(headPointers[fromCPU]+1 < privateLatencyBuffer[fromCPU].size()){
-        headPointers[fromCPU]++;
+    if(headPos+1 < privateLatencyBuffer[fromCPU].size()){
+      if(headPointers[fromCPU] == entry){
+        DPRINTF(MemoryControllerInterference,
+                "Updating head pointer, previous was %d, changing to %d, new head addr is %d\n",
+                headPointers[fromCPU],
+                privateLatencyBuffer[fromCPU][headPos+1],
+                (*privateLatencyBuffer[fromCPU][headPos+1]).req->paddr);
+        headPointers[fromCPU] = privateLatencyBuffer[fromCPU][headPos+1];
+      }
+      else{
+	DPRINTF(MemoryControllerInterference, "Issued request was not head, no change of head pointer needed\n");
+      }
     }
     else{
-        headPointers[fromCPU] = -1;
+        DPRINTF(MemoryControllerInterference, "No more queued requests, nulling head pointer\n");
+        headPointers[fromCPU] = NULL;
     }
+
+    DPRINTF(MemoryControllerInterference, "Request %d (%d) beforepointer %d (%d), behindpointer %d (%d)\n",
+	    entry,
+	    entry->req->paddr,
+	    entry->scheduledBefore,
+	    (entry->scheduledBefore == NULL ? 0 : entry->scheduledBefore->req->paddr),
+	    entry->scheduledBehind,
+	    (entry->scheduledBehind == NULL ? 0 : entry->scheduledBehind->req->paddr) );
+    
+    if(entry->headAtEntry != entry){
+        assert( !(entry->scheduledBehind == NULL && entry->scheduledBefore == NULL) );
+    }
+
 }
 
 void

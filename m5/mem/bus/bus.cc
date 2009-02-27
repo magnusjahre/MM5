@@ -634,8 +634,8 @@ void
 Bus::handleMemoryController(bool isShadow, int ctrlID)
 {
     if (memoryController->hasMoreRequests()) {
-        
-        MemReqPtr &request = memoryController->getRequest();
+
+        MemReqPtr request = memoryController->getRequest();
         
         DPRINTF(Bus, "sending req %s addr %x \n", request->cmd.toString(), request->paddr);
         
