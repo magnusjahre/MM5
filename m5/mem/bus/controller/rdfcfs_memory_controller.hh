@@ -75,16 +75,16 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     
     struct PrivateLatencyBufferEntry{
         PrivateLatencyBufferEntry* headAtEntry;
-        PrivateLatencyBufferEntry* scheduledBehind;
-        PrivateLatencyBufferEntry* scheduledBefore;
+        PrivateLatencyBufferEntry* previous;
+        PrivateLatencyBufferEntry* next;
         bool scheduled;
         bool latencyRetrieved;
         MemReqPtr req;
         
         PrivateLatencyBufferEntry(MemReqPtr& _req){
             headAtEntry = NULL;
-            scheduledBehind = NULL;
-            scheduledBefore = NULL;
+            previous = NULL;
+            next = NULL;
             scheduled = false;
             latencyRetrieved = false;
             req = _req;
@@ -103,6 +103,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
     void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
     void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
+    int getArrivalIndex(PrivateLatencyBufferEntry* entry, int fromCPU);
+    void deleteBufferRange(int toIndex, int fromCPU);
     
     void checkPrivateOpenPage(MemReqPtr& req);
     bool isPageHitOnPrivateSystem(MemReqPtr& req);
