@@ -653,13 +653,20 @@ RDFCFSTimingMemoryController::dumpBufferStatus(int CPUID){
     for(int i=0;i<privateLatencyBuffer[CPUID].size();i++){
         PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
         cout << i << ": ";
-        if(curEntry->scheduled) cout << "Scheduled " << curEntry->req->paddr << " " << curEntry->headAtEntry->req->paddr << " behind ";
-        else cout << "Not scheduled " << curEntry->req->paddr << " " << curEntry->headAtEntry->req->paddr << " " ;
+        if(curEntry->scheduled){
+            cout << "Scheduled " << curEntry->req->paddr << " " 
+                 << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " <- ";
+        }
+        else{
+            cout << "Not scheduled " << curEntry->req->paddr << " " 
+                 << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " " ;
+        }
         
         int pos = 0;
         PrivateLatencyBufferEntry* tmp = curEntry->previous;
         while(tmp != NULL){
-            cout << "(" << pos << ", " << tmp->req->paddr << ", " << tmp->headAtEntry->req->paddr << ") <- ";
+            cout << "(" << pos << ", " << tmp->req->paddr << ", " 
+                 << (tmp->headAtEntry == NULL ? 0 : tmp->headAtEntry->req->paddr) << ") <- ";
             tmp = tmp->previous;
             pos++;
         }
@@ -707,10 +714,6 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     
     curLBE->latencyRetrieved = true;
     
-    if(curTick == 147617){
-        dumpBufferStatus(fromCPU);
-    }
-    
     // 2. compute queue delay by traversing history
     DPRINTF(MemoryControllerInterference, "--- Step 2, traverse history\n");
     
@@ -720,10 +723,6 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     int curIndex = -1;
     int oldestPosition = -1;
     int oldestArrivalID = -1;
-    
-    if(curTick == 4197){
-        dumpBufferStatus(fromCPU);
-    }
     
     bool searching = false;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
@@ -749,9 +748,12 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
                 oldestPosition = tmpPosition;
                 oldestArrivalID = i;
                 
-                DPRINTF(MemoryControllerInterference, "Updating oldest position to %d and oldest id to %d\n",
+                DPRINTF(MemoryControllerInterference, "Updating oldest position to %d and oldest id to %d, oldest element between head %d and current element %d is now %d\n",
                         oldestPosition,
-                        oldestArrivalID);
+                        oldestArrivalID,
+                        headPtr->req->paddr,
+                        curLBE->req->paddr,
+                        privateLatencyBuffer[fromCPU][i]->req->paddr);
             }
         }
         
@@ -795,10 +797,6 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     
     DPRINTF(MemoryControllerInterference, "History traversal finished, estimated %d cycles of queue latency\n", queueLatency);
     
-    if(curTick == 4027){
-        dumpBufferStatus(fromCPU);
-    }
-    
     // 3. Delete any requests that are no longer needed
     // i.e. are older than the oldest head element still needed
     DPRINTF(MemoryControllerInterference, "--- Step 3, delete old entries\n");
@@ -829,24 +827,49 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
     if(oldestNeededHeadIndex > 0 && oldestNeededHeadIndex < privateLatencyBuffer[fromCPU].size()){
         deleteBufferRange(oldestNeededHeadIndex, fromCPU);
     }
-    
-    if(curTick == 147617){
-        fatal("stop here for now");
-    }
 }
 
 void
 RDFCFSTimingMemoryController::deleteBufferRange(int toIndex, int fromCPU){
     
     assert(toIndex > 0);
+    assert(toIndex < privateLatencyBuffer[fromCPU].size());
     
     DPRINTF(MemoryControllerInterference, "Deleting elements from index 0 to %d\n", toIndex-1);
     
-    privateLatencyBuffer[fromCPU][toIndex-1]->next->previous = NULL;
+    for(int i=0;i<toIndex;i++){
+        for(int j=toIndex;j<privateLatencyBuffer[fromCPU].size();j++){
+            if(privateLatencyBuffer[fromCPU][i]->next == privateLatencyBuffer[fromCPU][j]){
+                // found border between entries to delete and entries not deleted
+                assert(privateLatencyBuffer[fromCPU][j]->previous == privateLatencyBuffer[fromCPU][i]);
+
+                DPRINTF(MemoryControllerInterference,
+                        "Deleted element %d at pos %d points to non-del element %d, pos %d, nulling previous pointer\n",
+                        privateLatencyBuffer[fromCPU][i]->req->paddr,
+                        i,
+                        privateLatencyBuffer[fromCPU][j]->req->paddr,
+                        j);
+                
+                privateLatencyBuffer[fromCPU][j]->previous = NULL;
+            }
+            
+            if(privateLatencyBuffer[fromCPU][j]->next == privateLatencyBuffer[fromCPU][i]){
+                
+                assert(privateLatencyBuffer[fromCPU][i]->previous == privateLatencyBuffer[fromCPU][j]);
+
+                DPRINTF(MemoryControllerInterference,
+                        "Non-del element %d at pos %d points to deleted element %d, pos %d, nulling next pointer\n",
+                        privateLatencyBuffer[fromCPU][j]->req->paddr,
+                        j,
+                        privateLatencyBuffer[fromCPU][i]->req->paddr,
+                        i);
+                
+                privateLatencyBuffer[fromCPU][j]->next = NULL;
+            }
+        }
+    }
     
-    DPRINTF(MemoryControllerInterference,
-            "Nulling previous pointer for address %d, oldest remaining element\n",
-            privateLatencyBuffer[fromCPU][toIndex-1]->next->previous->req->paddr);
+    list<PrivateLatencyBufferEntry*> deletedPtrs;
     
     for(int i=0;i<toIndex;i++){
         
@@ -856,6 +879,7 @@ RDFCFSTimingMemoryController::deleteBufferRange(int toIndex, int fromCPU){
                 privateLatencyBuffer[fromCPU].front()->req->paddr);
         
         PrivateLatencyBufferEntry* delLBE = privateLatencyBuffer[fromCPU].front();
+        deletedPtrs.push_back(delLBE);
         privateLatencyBuffer[fromCPU].erase(privateLatencyBuffer[fromCPU].begin());
         
         delLBE->next = NULL;
@@ -863,6 +887,59 @@ RDFCFSTimingMemoryController::deleteBufferRange(int toIndex, int fromCPU){
         delete delLBE;
     }
     
+    while(!deletedPtrs.empty()){
+        for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+            if(privateLatencyBuffer[fromCPU][i]->headAtEntry == deletedPtrs.front()){
+                assert(privateLatencyBuffer[fromCPU][i]->canDelete());
+                privateLatencyBuffer[fromCPU][i]->headAtEntry = NULL;
+                DPRINTF(MemoryControllerInterference,
+                        "Head at entry for scheduled element address %d is deleted, nulling head at entry pointer\n",
+                        privateLatencyBuffer[fromCPU][i]->req->paddr);
+            }
+        }
+        deletedPtrs.pop_front();
+    }
+    
+    // delete unreachable elements (if any)
+    vector<bool> reachable = vector<bool>(privateLatencyBuffer[fromCPU].size(),false);
+    PrivateLatencyBufferEntry* searchPtr = tailPointers[fromCPU];
+    while(searchPtr != NULL){
+        for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+            if(searchPtr == privateLatencyBuffer[fromCPU][i]){
+                assert(!reachable[i]);
+                reachable[i] = true;
+            }
+        }
+        searchPtr = searchPtr->previous;
+    }
+    for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+        if(!privateLatencyBuffer[fromCPU][i]->scheduled){
+            reachable[i] = true;
+        }
+    }
+    
+    vector<PrivateLatencyBufferEntry*>::iterator it = privateLatencyBuffer[fromCPU].begin();
+    int pos = 0;
+    while(it != privateLatencyBuffer[fromCPU].end()){
+        if(!reachable[pos]){
+            
+            PrivateLatencyBufferEntry* delLBE = *it;
+            
+            DPRINTF(MemoryControllerInterference,
+                    "Deleting unreachable element address %d\n",
+                    delLBE->req->paddr);
+            
+            it = privateLatencyBuffer[fromCPU].erase(it);
+            
+            delLBE->next = NULL;
+            delLBE->previous = NULL;
+            delete delLBE;
+        }
+        else{
+            it++;
+        }
+        pos++;
+    }
 }
 
 int 
