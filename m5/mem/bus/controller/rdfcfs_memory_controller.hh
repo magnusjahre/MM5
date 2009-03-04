@@ -73,6 +73,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
     
+    int rfLimitAllCPUs;
+    
     struct PrivateLatencyBufferEntry{
         PrivateLatencyBufferEntry* headAtEntry;
         PrivateLatencyBufferEntry* previous;
@@ -136,7 +138,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
                                  int _reserved_slots,
                                  bool _infinite_write_bw,
                                  priority_scheme _priority_scheme,
-                                 page_policy _page_policy);
+                                 page_policy _page_policy,
+                                 int _rflimitAllCPUs);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();

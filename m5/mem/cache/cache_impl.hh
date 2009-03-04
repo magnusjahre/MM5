@@ -623,7 +623,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
                     // actions are handled in the check
                 }
                 else {
-                    
                     if(!isShared) setSenderID(writebacks.front());
 		    missQueue->doWriteback(writebacks.front());
 		}

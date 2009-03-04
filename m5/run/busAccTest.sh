@@ -8,6 +8,7 @@ wl=$1
 simticks=$2
 fwticks=$3
 bmid=$4
+rflimit=$5
 
 strace=shared_accesses.txt
 atrace=alone_accesses.txt
@@ -21,9 +22,10 @@ echo "Workload:       $wl"
 echo "Benchmark:      ${bmarray[$bmid]}, id $bmid"
 echo "Simulate ticks: $simticks"
 echo "FW ticks:       $fwticks"
+echo "RF-limit:       $rflimit"
 echo ""
 
-../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=$simticks -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 -ECACHE-PARTITIONING=StaticUniform -EPROGRESS=1000000 ../../configs/CMP/run.py
+../../build/ALPHA_SE/m5.opt -ENP=4 -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=shared_output.txt -ESIMULATETICKS=$simticks -EFASTFORWARDTICKS=$fwticks -EMEMORY-BUS-SCHEDULER=RDFCFS -EMEMORY-BUS-PAGE-POLICY=OpenPage  -EMEMORY-SYSTEM=CrossbarBased -EMEMORY-BUS-CHANNELS=1 -ECACHE-PARTITIONING=StaticUniform -EPROGRESS=1000000 -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit ../../configs/CMP/run.py
 
 cp estimation_access_trace_$bmid.txt $strace
 

@@ -20,7 +20,8 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
                                                            int _reserved_slots, 
                                                            bool _infinite_write_bw,
                                                            priority_scheme _priority_scheme,
-                                                           page_policy _page_policy)
+                                                           page_policy _page_policy,
+                                                           int _rflimitAllCPUs)
     : TimingMemoryController(_name) {
     
     num_active_pages = 0;
@@ -67,6 +68,12 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     else{
         fatal("Unsupported page policy");
     }
+    
+    rfLimitAllCPUs = _rflimitAllCPUs;
+    if(rfLimitAllCPUs < 1){
+        fatal("RF-limit must be at least 1, 1 gives private FCFS scheduling");
+    }
+    
 }
 
 void 
@@ -74,7 +81,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
     headPointers.resize(regbus->adaptiveMHA->getCPUCount(), NULL);
     tailPointers.resize(regbus->adaptiveMHA->getCPUCount(), NULL);
-    readyFirstLimits.resize(regbus->adaptiveMHA->getCPUCount(), 5); //FIXME: parameterize
+    readyFirstLimits.resize(regbus->adaptiveMHA->getCPUCount(), rfLimitAllCPUs); //FIXME: parameterize
     privateLatencyBuffer.resize(regbus->adaptiveMHA->getCPUCount(), vector<PrivateLatencyBufferEntry*>());
     
 #ifdef DO_ESTIMATION_TRACE
@@ -1193,18 +1200,18 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     Param<bool> inf_write_bw;
     Param<string> page_policy;
     Param<string> priority_scheme;
+    Param<int> rf_limit_all_cpus;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
-
     INIT_PARAM_DFLT(readqueue_size, "Max size of read queue", 64),
     INIT_PARAM_DFLT(writequeue_size, "Max size of write queue", 64),
     INIT_PARAM_DFLT(reserved_slots, "Number of activations reserved for reads", 2),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false),
     INIT_PARAM_DFLT(page_policy, "Controller page policy", "ClosedPage"),
-    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS")
-
+    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS"),
+    INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5)
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -1234,7 +1241,8 @@ CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
                                             reserved_slots,
                                             inf_write_bw,
                                             priority,
-                                            policy);
+                                            policy,
+                                            rf_limit_all_cpus);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)

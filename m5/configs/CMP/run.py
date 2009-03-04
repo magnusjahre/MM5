@@ -38,6 +38,8 @@ def createMemBus(bankcnt):
             root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
         if "MEMORY-BUS-PRIORITY-SCHEME" in env:
             root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+        if "READY-FIRST-LIMIT-ALL-CPUS" in env:
+            root.membus[i].memory_controller.rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
 
 def initSharedCache(bankcnt):
     if int(env['NP']) == 4:
