@@ -1026,9 +1026,9 @@ RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* e
     DPRINTF(MemoryControllerInterference,
             "Updating tail pointer, previous was %d, changing to %d, new tail addr is %d, new tail is scheduled behind %d, old tail scheduled before %d\n", 
             tailPointers[fromCPU], entry, entry->req->paddr,
-            (entry->previous == NULL ? NULL : entry->previous->req->paddr),
-            (tailPointers[fromCPU] == NULL ? NULL : 
-                    (tailPointers[fromCPU]->next == NULL ? NULL :
+            (entry->previous == NULL ? 0 : entry->previous->req->paddr),
+            (tailPointers[fromCPU] == NULL ? 0 : 
+                    (tailPointers[fromCPU]->next == NULL ? 0 :
                     tailPointers[fromCPU]->next->req->paddr)));
     tailPointers[fromCPU] = entry;
 
