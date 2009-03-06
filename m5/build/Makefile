@@ -1,4 +1,6 @@
 
+all: m5_debug
+
 m5_debug:
 	nice scons -j 9 ALPHA_SE/m5.debug
 
