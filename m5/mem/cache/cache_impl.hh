@@ -62,35 +62,35 @@
 #include "sim/sim_events.hh" // for SimExitEvent
 
 #define CACHE_PROFILE_INTERVAL 100000
-        
+
 using namespace std;
 
 template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::
-Cache(const std::string &_name, HierParams *hier_params, 
+Cache(const std::string &_name, HierParams *hier_params,
       Cache<TagStore,Buffering,Coherence>::Params &params)
     : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning, params.uniformPartitioningStart, params.useMTPPartitioning),
-      prefetchAccess(params.prefetchAccess), 
+      prefetchAccess(params.prefetchAccess),
       tags(params.tags), missQueue(params.missQueue),
       coherence(params.coherence), prefetcher(params.prefetcher),
       doCopy(params.doCopy), blockOnCopy(params.blockOnCopy)
 {
-    
+
     idIsSet = false;
     cacheCpuID = params.cpu_id;
     memoryAddressOffset = params.memoryAddressOffset;
     memoryAddressParts = params.memoryAddressParts;
-    
+
     simulateContention = params.simulateContention;
     useStaticPartInWarmup = params.useStaticPartInWarmup;
 
     doModuloAddressing = params.doModuloBankAddr;
     bankID = params.bankID;
     bankCount = params.bankCount;
-    
+
     // init shadowtags
 #ifdef USE_CACHE_LRU
-    
+
     if(isShared && params.cpu_count > 1){
         shadowTags.resize(params.cpu_count, NULL);
         for(int i=0;i<params.cpu_count;i++){
@@ -101,10 +101,10 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     params.bankCount,
                                     true,
                                     -1);
-            
+
             shadowTags[i]->setCache(this, false);
         }
-        
+
         if(params.useMTPPartitioning){
             repartEvent = new CacheRepartitioningEvent(this);
             repartEvent->schedule(params.uniformPartitioningStart);
@@ -119,7 +119,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 #else
     repartEvent = NULL;
 #endif
-    
+
     if(params.useMTPPartitioning)
     {
         assert(isShared);
@@ -128,7 +128,7 @@ Cache(const std::string &_name, HierParams *hier_params,
         mtp = new MultipleTimeSharingParititions(this, tags->getAssoc(), params.mtpEpochSize, shadowTags);
     }
     else mtp = NULL;
-    
+
     if(params.isShared){
         profileFileName = name() + "CapacityProfile.txt";
         ofstream file(profileFileName.c_str());
@@ -137,7 +137,7 @@ Cache(const std::string &_name, HierParams *hier_params,
         file << ";Not touched\n";
         file.flush();
         file.close();
-        
+
         profileEvent = new CacheProfileEvent(this);
         if(params.detailedSimStartTick > 0){
             profileEvent->schedule(params.detailedSimStartTick);
@@ -146,9 +146,9 @@ Cache(const std::string &_name, HierParams *hier_params,
             profileEvent->schedule(CACHE_PROFILE_INTERVAL);
         }
     }
-    
+
     detailedSimulationStartTick = params.detailedSimStartTick;
-    
+
     useAdaptiveMHA = false;
     if (params.in == NULL) {
 	topLevelCache = true;
@@ -167,20 +167,20 @@ Cache(const std::string &_name, HierParams *hier_params,
             adaptiveMHA = NULL;
         }
     }
-    
+
     // needs these for the memory addresing bug workaround
     cpuCount = params.cpu_count;
     assert(cpuCount > 0);
     isMultiprogWorkload = params.multiprog_workload;
-    
+
     directoryProtocol = NULL;
     if(params.directoryCoherence != NULL){
         directoryProtocol = params.directoryCoherence;
         directoryProtocol->setCpuCount(cpuCount, params.cpu_id);
     }
-    
-    
-    
+
+
+
     /* CPU ID sanity checks */
     if(params.directoryCoherence != NULL){
         if(!params.isShared && !params.isReadOnly){
@@ -195,7 +195,7 @@ Cache(const std::string &_name, HierParams *hier_params,
             }
         }
     }
-    
+
     if(params.out == NULL){
         /* no outgoing bus set, assume crossbar */
         tags->setCache(this, params.outInterconnect->width, params.outInterconnect->clock);
@@ -203,7 +203,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     else{
         tags->setCache(this, params.out->width, params.out->clockRate);
     }
-    
+
     tags->setPrefetcher(prefetcher);
     missQueue->setCache(this);
     missQueue->setPrefetcher(prefetcher);
@@ -213,9 +213,9 @@ Cache(const std::string &_name, HierParams *hier_params,
     prefetcher->setBuffer(missQueue);
     invalidateReq = new MemReq;
     invalidateReq->cmd = Invalidate;
-    
+
     localName = _name;
-    
+
     if(isShared){
         CacheDumpStatsEvent* dumpEvent = new CacheDumpStatsEvent(this);
         assert(params.detailedSimEndTick > 0);
@@ -230,7 +230,7 @@ Cache<TagStore,Buffering,Coherence>::~Cache(){
        assert(!repartEvent->scheduled());
        delete repartEvent;
    }
-   
+
    delete mtp;
 }
 
@@ -243,7 +243,7 @@ Cache<TagStore,Buffering,Coherence>::regStats()
     missQueue->regStats(name());
     coherence->regStats(name());
     prefetcher->regStats(name());
-    
+
     for(int i=0;i<shadowTags.size();i++){
         stringstream tmp;
         tmp << i;
@@ -255,200 +255,200 @@ template<class TagStore, class Buffering, class Coherence>
 MemAccessResult
 Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 {
-    
-    MemDebug::cacheAccess(req);
-    BlkType *blk = NULL;
-    MemReqList writebacks;
-    int size = blkSize;
-    int lat = hitLatency;
-    
-    if(useDirectory && doData()){
-        fatal("Directory protocol does not handle data transfers");
-    }
-    
-    if(!isShared){
-        setSenderID(req);
-    }
-    else{
-        if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
-    }
-    
-    //shadow tag access
-    bool shadowHit = false;
-    if(!shadowTags.empty()){
-        // access tags to update LRU stack
-        assert(isShared);
-        assert(req->adaptiveMHASenderID != -1);
-        LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
-        shadowHit = (shadowBlk != NULL);
-    }
-    
-    // update hit statistics
-    // NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
-    if(isShared){
-        tags->updateSetHitStats(req);
-    }
-    
-    if (req->cmd == Copy) {
-        if(useDirectory) fatal("directory copy not implemented");
-	      startCopy(req);
 
-        /**
-         * @todo What return value makes sense on a copy.
-         */
-        return MA_CACHE_MISS;
-    }
-    if (prefetchAccess) {
-	//We are determining prefetches on access stream, call prefetcher
-	prefetcher->handleMiss(req, curTick);
-    }
-    if (!req->isUncacheable()) {
-	if (req->cmd.isInvalidate() && !req->cmd.isRead()
-	    && !req->cmd.isWrite()) {
-	    //Upgrade or Invalidate
-	    //Look into what happens if two slave caches on bus
-	    DPRINTF(Cache, "%s %d %x ? blk_addr: %x\n", req->cmd.toString(),
-		    req->asid, req->paddr & (((ULL(1))<<48)-1),
-		    req->paddr & ~((Addr)blkSize - 1));
+	MemDebug::cacheAccess(req);
+	BlkType *blk = NULL;
+	MemReqList writebacks;
+	int size = blkSize;
+	int lat = hitLatency;
 
-	    //@todo Should this return latency have the hit latency in it?
-	    respond(req,curTick+lat);
-	    req->flags |= SATISFIED;
-	    return MA_HIT;
+	if(useDirectory && doData()){
+		fatal("Directory protocol does not handle data transfers");
 	}
-        
-	blk = tags->handleAccess(req, lat, writebacks);
-    } else {
-	size = req->size;
-    }
-    // If this is a block size write/hint (WH64) allocate the block here
-    // if the coherence protocol allows it.
-    /** @todo make the fast write alloc (wh64) work with coherence. */
-    /** @todo Do we want to do fast writes for writebacks as well? */
-    if (!blk && req->size >= blkSize && coherence->allowFastWrites() && !useDirectory &&
-	(req->cmd == Write || req->cmd == WriteInvalidate) ) {
-        
-        if(useDirectory) fatal("Doing fast allocate with directory protocol");
-	
-        // not outstanding misses, can do this
-	MSHR* outstanding_miss = missQueue->findMSHR(req->paddr, req->asid);
-	if (req->cmd ==WriteInvalidate || !outstanding_miss) {
-	    if (outstanding_miss) {
-		warn("WriteInv doing a fastallocate" 
-		     "with an outstanding miss to the same address\n");
-	    }
-            
-            assert(!isShared);
-	    blk = tags->handleFill(NULL, req, BlkValid | BlkWritable,
-				   writebacks);
-	    ++fastWrites;
+
+	if(!isShared){
+		setSenderID(req);
 	}
-    }    
-    while (!writebacks.empty()) {
-        
-        if(useDirectory && !isShared){
-            cout << "Writing back block " << ((writebacks.front())->paddr & ~((Addr)blkSize - 1)) << "\n";
-            fatal("directory write back handling not implemented (Cache access() ) ");
-        }
-        
-	missQueue->doWriteback(writebacks.front());
-	writebacks.pop_front();
-    }
-    DPRINTF(Cache, "%s %d %x %s blk_addr: %x pc %x\n", req->cmd.toString(),
-	    req->asid, req->paddr & (((ULL(1))<<48)-1), (blk) ? "hit" : "miss",
-	    req->paddr & ~((Addr)blkSize - 1), req->pc);
-    
-    if(isDirectoryAndL2Cache()){
-        
-        if(directoryProtocol->doDirectoryAccess(req)){
-            // the return value does not matter
-            return MA_CACHE_MISS;
-        }
-    }
-    
-    if(isShared){
-        assert(req->adaptiveMHASenderID != -1);
-        accessesPerCPU[req->adaptiveMHASenderID]++;
-    }
-    else{
-        accessesPerCPU[cacheCpuID]++;
-    }
-    
-    if (blk) {
-        
-        if(isDirectoryAndL2Cache()){
-            // Make sure no state has been allocated by mistake
-            assert(blk->presentFlags == NULL);
-            assert(blk->owner == -1);
-        }
-        
-        //**************** L1 Cache Hit **********************//
-        if(isDirectoryAndL1DataCache()){
-            if(directoryProtocol->doL1DirectoryAccess(req, blk)){
-                return MA_CACHE_MISS;
-            }
-        }
-        
-        if(isShared && !shadowHit){
-            assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
-            privateMissSharedHit[req->adaptiveMHASenderID]++;
-        }
-        
-	// Hit
-	hits[req->cmd.toIndex()][req->thread_num]++;
-	// clear dirty bit if write through
-	if (!req->cmd.isNoResponse()){
-	    respond(req, curTick+lat);
-        }
-        else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
-
-	return MA_HIT;
-    }
-    
-    // Miss
-    if (!req->isUncacheable()) {
-	misses[req->cmd.toIndex()][req->thread_num]++;
-	/** @todo Move miss count code into BaseCache */
-	if (missCount) {
-	    --missCount;
-	    if (missCount == 0)
-		new SimExitEvent("A cache reached the maximum miss count");
+	else{
+		if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 	}
-    }
-    
-    if(isDirectoryAndL1DataCache()){
-        MemAccessResult res = directoryProtocol->handleL1DirectoryMiss(req);
-        if(res != BA_NO_RESULT){
-            return res;
-        }
-    }
-    
-    if(isShared){
-        assert(req->adaptiveMHASenderID != -1);
-        assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
-        missesPerCPU[req->adaptiveMHASenderID]++;
-    }
-    else{
-        missesPerCPU[cacheCpuID]++;
-    }
+
+	//shadow tag access
+	bool shadowHit = false;
+	if(!shadowTags.empty()){
+		// access tags to update LRU stack
+		assert(isShared);
+		assert(req->adaptiveMHASenderID != -1);
+		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
+		shadowHit = (shadowBlk != NULL);
+	}
+
+	// update hit statistics
+	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
+	if(isShared){
+		tags->updateSetHitStats(req);
+	}
+
+	if (req->cmd == Copy) {
+		if(useDirectory) fatal("directory copy not implemented");
+		startCopy(req);
+
+		/**
+		 * @todo What return value makes sense on a copy.
+		 */
+		return MA_CACHE_MISS;
+	}
+	if (prefetchAccess) {
+		//We are determining prefetches on access stream, call prefetcher
+		prefetcher->handleMiss(req, curTick);
+	}
+	if (!req->isUncacheable()) {
+		if (req->cmd.isInvalidate() && !req->cmd.isRead()
+				&& !req->cmd.isWrite()) {
+			//Upgrade or Invalidate
+			//Look into what happens if two slave caches on bus
+			DPRINTF(Cache, "%s %d %x ? blk_addr: %x\n", req->cmd.toString(),
+					req->asid, req->paddr & (((ULL(1))<<48)-1),
+					req->paddr & ~((Addr)blkSize - 1));
+
+			//@todo Should this return latency have the hit latency in it?
+			respond(req,curTick+lat);
+			req->flags |= SATISFIED;
+			return MA_HIT;
+		}
+
+		blk = tags->handleAccess(req, lat, writebacks);
+	} else {
+		size = req->size;
+	}
+	// If this is a block size write/hint (WH64) allocate the block here
+	// if the coherence protocol allows it.
+	/** @todo make the fast write alloc (wh64) work with coherence. */
+	/** @todo Do we want to do fast writes for writebacks as well? */
+	if (!blk && req->size >= blkSize && coherence->allowFastWrites() && !useDirectory &&
+			(req->cmd == Write || req->cmd == WriteInvalidate) ) {
+
+		if(useDirectory) fatal("Doing fast allocate with directory protocol");
+
+		// not outstanding misses, can do this
+		MSHR* outstanding_miss = missQueue->findMSHR(req->paddr, req->asid);
+		if (req->cmd ==WriteInvalidate || !outstanding_miss) {
+			if (outstanding_miss) {
+				warn("WriteInv doing a fastallocate"
+						"with an outstanding miss to the same address\n");
+			}
+
+			assert(!isShared);
+			blk = tags->handleFill(NULL, req, BlkValid | BlkWritable,
+					writebacks);
+			++fastWrites;
+		}
+	}
+	while (!writebacks.empty()) {
+
+		if(useDirectory && !isShared){
+			cout << "Writing back block " << ((writebacks.front())->paddr & ~((Addr)blkSize - 1)) << "\n";
+			fatal("directory write back handling not implemented (Cache access() ) ");
+		}
+
+		missQueue->doWriteback(writebacks.front());
+		writebacks.pop_front();
+	}
+	DPRINTF(Cache, "%s %d %x %s blk_addr: %x pc %x\n", req->cmd.toString(),
+			req->asid, req->paddr & (((ULL(1))<<48)-1), (blk) ? "hit" : "miss",
+					req->paddr & ~((Addr)blkSize - 1), req->pc);
+
+	if(isDirectoryAndL2Cache()){
+
+		if(directoryProtocol->doDirectoryAccess(req)){
+			// the return value does not matter
+			return MA_CACHE_MISS;
+		}
+	}
+
+	if(isShared){
+		assert(req->adaptiveMHASenderID != -1);
+		accessesPerCPU[req->adaptiveMHASenderID]++;
+	}
+	else{
+		accessesPerCPU[cacheCpuID]++;
+	}
+
+	if (blk) {
+
+		if(isDirectoryAndL2Cache()){
+			// Make sure no state has been allocated by mistake
+			assert(blk->presentFlags == NULL);
+			assert(blk->owner == -1);
+		}
+
+		//**************** L1 Cache Hit **********************//
+		if(isDirectoryAndL1DataCache()){
+			if(directoryProtocol->doL1DirectoryAccess(req, blk)){
+				return MA_CACHE_MISS;
+			}
+		}
+
+		if(isShared && !shadowHit){
+			assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+			privateMissSharedHit[req->adaptiveMHASenderID]++;
+		}
+
+		// Hit
+		hits[req->cmd.toIndex()][req->thread_num]++;
+		// clear dirty bit if write through
+		if (!req->cmd.isNoResponse()){
+			respond(req, curTick+lat);
+		}
+		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
+
+		return MA_HIT;
+	}
+
+	// Miss
+	if (!req->isUncacheable()) {
+		misses[req->cmd.toIndex()][req->thread_num]++;
+		/** @todo Move miss count code into BaseCache */
+		if (missCount) {
+			--missCount;
+			if (missCount == 0)
+				new SimExitEvent("A cache reached the maximum miss count");
+		}
+	}
+
+	if(isDirectoryAndL1DataCache()){
+		MemAccessResult res = directoryProtocol->handleL1DirectoryMiss(req);
+		if(res != BA_NO_RESULT){
+			return res;
+		}
+	}
+
+	if(isShared){
+		assert(req->adaptiveMHASenderID != -1);
+		assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
+		missesPerCPU[req->adaptiveMHASenderID]++;
+	}
+	else{
+		missesPerCPU[cacheCpuID]++;
+	}
 
 
-    if(simulateContention && curTick >= detailedSimulationStartTick){
-        Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
-        
-        if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning){
-            req->interferenceMissAt = issueAt;
-        }
-        
-        req->finishedInCacheAt = issueAt;
-        missQueue->handleMiss(req, size, issueAt);
-    }
-    else{
-        req->finishedInCacheAt = curTick + hitLatency;
-        missQueue->handleMiss(req, size, curTick + hitLatency);
-    }
-    
-    return MA_CACHE_MISS;
+	if(simulateContention && curTick >= detailedSimulationStartTick){
+		Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
+
+		if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning){
+			req->interferenceMissAt = issueAt;
+		}
+
+		req->finishedInCacheAt = issueAt;
+		missQueue->handleMiss(req, size, issueAt);
+	}
+	else{
+		req->finishedInCacheAt = curTick + hitLatency;
+		missQueue->handleMiss(req, size, curTick + hitLatency);
+	}
+
+	return MA_CACHE_MISS;
 }
 
 
@@ -456,49 +456,49 @@ template<class TagStore, class Buffering, class Coherence>
 MemReqPtr
 Cache<TagStore,Buffering,Coherence>::getMemReq()
 {
-    
+
     if(directoryProtocol != NULL && !directoryProtocol->directoryRequests.empty()){
-        
+
         // the request is removed in sendResult()
         MemReqPtr dirReq = directoryProtocol->directoryRequests.front();
         assert(dirReq->time <= curTick);
         return dirReq;
     }
-    
-    
+
+
     MemReqPtr req = missQueue->getMemReq();
-    
+
     if (req) {
-        
+
 	if (!req->isUncacheable()) {
 
             if (req->cmd == Hard_Prefetch) misses[Hard_Prefetch][req->thread_num]++;
 	    BlkType *blk = tags->findBlock(req);
 	    MemCmd cmd = coherence->getBusCmd(req->cmd,
 	    				      (blk)? blk->status : 0);
-            
+
             // Inform L2 if the cache intends to write this line or not
             bool setWrite = false;
             req->oldCmd = req->cmd; //remember the old command
             if(isDirectoryAndL1DataCache() && req->cmd == Write){
                 setWrite = true;
             }
-                
-            
+
+
             missQueue->setBusCmd(req, cmd);
-            
+
             if(setWrite){
                 req->writeMiss = true;
             }
 	}
     }
-    
-    
+
+
     assert(!doMasterRequest() || missQueue->havePending());
     assert(!req || req->time <= curTick);
     if(req && !isShared) assert(req->adaptiveMHASenderID != -1);
-    
-    
+
+
     return req;
 }
 
@@ -506,7 +506,7 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::sendResult(MemReqPtr &req, bool success)
 {
-    
+
     if(req && (req->cmd.isDirectoryMessage() || req->ownerWroteBack)){
         if(!success){
             fatal("Unsuccsessfull directory writeback not implemented");
@@ -514,9 +514,9 @@ Cache<TagStore,Buffering,Coherence>::sendResult(MemReqPtr &req, bool success)
         directoryProtocol->directoryRequests.pop_front();
         return;
     }
-    
+
     if (success) {
-        
+
 	missQueue->markInService(req);
 	  //Temp Hack for UPGRADES
 	  if (req->cmd == Upgrade) {
@@ -531,22 +531,22 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
-    
+
     if(isDirectoryAndL1DataCache()){
-        
+
         if(directoryProtocol->handleDirectoryResponse(req, tags)){
             return;
         }
     }
-    
+
     //shadow replacement
     if(!shadowTags.empty()){
         assert(req->adaptiveMHASenderID != -1);
-        
+
         LRU::BlkList shadow_compress_list;
         MemReqList shadow_writebacks;
         LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
-        
+
         // set block values to the values of the new occupant
         shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
         shadowBlk->asid = req->asid;
@@ -554,7 +554,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
         shadowBlk->xc = req->xc;
         shadowBlk->status = BlkValid;
     }
-    
+
     if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
         assert(req->adaptiveMHASenderID != -1);
         int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
@@ -562,31 +562,31 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
         adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
         numExtraMisses[req->adaptiveMHASenderID]++;
     }
-    
+
     if(!isShared && adaptiveMHA != NULL){
         adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
     }
-    
+
     MemReqPtr copy_request;
     BlkType *blk = NULL;
-    
+
     if (req->mshr || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
-        
+
         MemDebug::cacheResponse(req);
 	DPRINTF(Cache, "Handling reponse to %x, blk addr: %x\n",req->paddr,
 		req->paddr & (((ULL(1))<<48)-1));
-	
-        
+
+
         if ((req->isCacheFill() && !req->isNoAllocate()) || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
             blk = tags->findBlock(req);
 
             MemReqList writebacks;
 
             CacheBlk::State old_state = (blk) ? blk->status : 0;
-            
-            
+
+
             if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
-                blk = tags->handleFill(blk, req->mshr, 
+                blk = tags->handleFill(blk, req->mshr,
                                        coherence->getNewState(req,old_state),
                                        writebacks,
                                        req);
@@ -594,28 +594,28 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
             else{
                 assert(req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead);
             }
-            
+
             // check that we don't write to a block we don't own
             if(blk != NULL){
                 if (req->prefetched) {
                   blk->status = blk->status | 0x20;
                 }
                 if(req->writeMiss){
-                    assert(blk->dirState == DirOwnedExGR 
+                    assert(blk->dirState == DirOwnedExGR
                            || blk->dirState == DirOwnedNonExGR
                            || req->owner == cacheCpuID);
                 }
             }
             // The shared cache case is handled cache tags, because we need to know
             // which cache should become the new owner
-            
+
             bool doNotHandleResponse = false;
             if(isDirectoryAndL1DataCache()){
                 doNotHandleResponse = directoryProtocol->handleDirectoryFill(req, blk, writebacks, tags);
             }
-            
+
 	    while (!writebacks.empty()) {
-                
+
 		if (writebacks.front()->cmd == Copy) {
 		    copy_request = writebacks.front();
 		}
@@ -628,10 +628,10 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		}
 		writebacks.pop_front();
 	    }
-            
+
             if(doNotHandleResponse) return;
 	}
-        
+
 	if (copy_request) {
 	    // The mshr is handled in handleCopy
 	    handleCopy(copy_request, req->paddr, blk, req->mshr);
@@ -640,7 +640,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	    missQueue->handleResponse(req, curTick + hitLatency);
 	}
     }
-    
+
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -691,7 +691,7 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
     int asid = req->asid;
 
     cacheCopies++;
-    
+
     bool source_unaligned = source & (blkSize - 1);
     bool dest_unaligned = dest & (blkSize - 1);
 
@@ -738,7 +738,7 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 	    MemReqPtr writeback = tags->writebackBlk(source2_blk);
 	    missQueue->doWriteback(writeback);
 	}
-	
+
 	if (dest_unaligned) {
 	    // Need to writeback dirty destinations
 	    if (dest1_blk && dest1_blk->isModified()) {
@@ -754,10 +754,10 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 	}
 	// always need to invalidate this block.
 	tags->invalidateBlk(dest1, asid);
-	
+
 	if (source1_mshr || (source2_mshr && source_unaligned) ||
 	    dest1_mshr || (dest2_mshr && dest_unaligned)) {
-	    
+
 	    // Need to delay the copy until the outstanding requests
 	    // finish.
 	    delayed = true;
@@ -776,7 +776,7 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 		if (source1_blk) {
 		    pseudoFill(source1, asid);
 		} else {
-		    source1_mshr = 
+		    source1_mshr =
 			missQueue->allocateTargetList(source1, asid);
 		    source1_mshr->req->xc = req->xc;
 		}
@@ -785,7 +785,7 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 		if (source2_blk) {
 		    pseudoFill(source2, asid);
 		} else {
-		    source2_mshr = 
+		    source2_mshr =
 			missQueue->allocateTargetList(source2, asid);
 		    source2_mshr->req->xc = req->xc;
 		}
@@ -798,15 +798,15 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 	// Need to fetch sources if they aren't present.
 	if (!source1_mshr && !source1_blk) {
 	    req->flags |= COPY_SOURCE1;
-	    source1_mshr = missQueue->fetchBlock(source1, asid, blkSize, 
+	    source1_mshr = missQueue->fetchBlock(source1, asid, blkSize,
 						 curTick, req);
 	}
 	if (source_unaligned && !source2_mshr && !source2_blk) {
 	    req->flags |= COPY_SOURCE2;
-	    source1_mshr = missQueue->fetchBlock(source2, asid, blkSize, 
+	    source1_mshr = missQueue->fetchBlock(source2, asid, blkSize,
 						 curTick, req);
 	}
-	
+
 	if (dest_unaligned) {
 	    if (!dest1_mshr && !dest1_blk) {
 		req->flags |= COPY_DEST1;
@@ -819,7 +819,7 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 						   curTick, req);
 	    }
 	}
-	
+
 	if (source1_mshr || (source2_mshr && source_unaligned) ||
 	    dest1_mshr || (dest2_mshr && dest_unaligned)) {
 
@@ -858,9 +858,9 @@ Cache<TagStore,Buffering,Coherence>::startCopy(MemReqPtr &req)
 		missQueue->doWriteback(writebacks.front());
 		writebacks.pop_front();
 	    }
-	}   
+	}
     }
-    DPRINTF(Cache, "Starting copy from %x (%x)  to %x (%x) %s\n", source, 
+    DPRINTF(Cache, "Starting copy from %x (%x)  to %x (%x) %s\n", source,
 	    source1, dest, dest1,
 	    (delayed)?"delayed":"successful");
 }
@@ -876,7 +876,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
     Addr dest = req->dest & ~(blkSize - 1);
     int asid = req->asid;
     MemReqList writebacks;
-    
+
     assert(mshr->getTarget()->cmd == Copy);
 
     bool source_unaligned = source & (blkSize - 1);
@@ -888,9 +888,9 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
     Addr dest1 = dest & ~(Addr)(blkSize - 1);
     Addr dest2 = dest1 + blkSize;
 
-    DPRINTF(Cache,"Handling delayed copy from %x (%x) to %x (%x)\n\t" 
-	    "pending = %x, addr = %x\n", source, source1, dest, dest1, 
-	    req->flags & COPY_PENDING_MASK, 
+    DPRINTF(Cache,"Handling delayed copy from %x (%x) to %x (%x)\n\t"
+	    "pending = %x, addr = %x\n", source, source1, dest, dest1,
+	    req->flags & COPY_PENDING_MASK,
 	    addr);
 
     if (!doCopy) {
@@ -905,7 +905,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		    missQueue->doWriteback(writeback);
 		}
 		pseudoFill(mshr);
-	    }			    
+	    }
 	}
 	if (addr == source2) {
 	    req->flags &= ~COPY_SOURCE2;
@@ -919,7 +919,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		}
 		pseudoFill(mshr);
 	    }
-	} 
+	}
 	if (addr == dest1) {
 	    req->flags &= ~COPY_DEST1;
 	    if (dest_unaligned && blk && blk->isModified()) {
@@ -941,7 +941,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		MemReqPtr writeback = tags->writebackBlk(blk);
 		missQueue->doWriteback(writeback);
 	    }
-	    tags->invalidateBlk(dest2, asid);  
+	    tags->invalidateBlk(dest2, asid);
 	    // Pop the copy request off of the list.
 	    mshr->popTarget();
 	    // Mark the mshr request as not statisfied to make it a targetlist
@@ -954,7 +954,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 	    if (blockOnCopy) {
 		clearBlocked(Blocked_Copy);
 	    }
-	    
+
 	    // handle the first source block.
 	    MSHR* source1_mshr = missQueue->findMSHR(source1, asid);
 	    assert(source1_mshr);
@@ -965,15 +965,15 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		source1_mshr->req->xc = req->xc;
 		tags->pseudoFill(source1_mshr, state, writebacks);
 	    }
-	    if (source1_mshr->hasTargets() && 
+	    if (source1_mshr->hasTargets() &&
 		source1_mshr->getTarget()->cmd == Copy) {
-		
+
 		MemReqPtr copy_request = source1_mshr->getTarget();
 		handleCopy(copy_request, source1,
 			   tags->findBlock(source1, asid), source1_mshr);
 	    } else {
 		// Refetch if necessary, or free the MSHR.
-		missQueue->handleResponse(source1_mshr->req, 
+		missQueue->handleResponse(source1_mshr->req,
 					  curTick + hitLatency);
 	    }
 
@@ -988,23 +988,23 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		    source2_mshr->req->xc = req->xc;
 		    tags->pseudoFill(source2_mshr, state, writebacks);
 		}
-		if (source2_mshr->hasTargets() && 
+		if (source2_mshr->hasTargets() &&
 		    source2_mshr->getTarget()->cmd == Copy) {
-		    
+
 		    MemReqPtr copy_request = source2_mshr->getTarget();
 		    handleCopy(copy_request, source2,
 			       tags->findBlock(source2, asid), source2_mshr);
 		} else {
 		    // Refetch if necessary, or free the MSHR.
-		    missQueue->handleResponse(source2_mshr->req, 
+		    missQueue->handleResponse(source2_mshr->req,
 					      curTick + hitLatency);
 		}
 	    }
-	    
+
 	    // Restart the first destination
 	    MSHR* dest1_mshr = missQueue->findMSHR(dest1, asid);
 	    // Restart the target list.
-	    missQueue->handleResponse(dest1_mshr->req, 
+	    missQueue->handleResponse(dest1_mshr->req,
 
 				      curTick + hitLatency);
 
@@ -1012,7 +1012,7 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 	    if (dest_unaligned) {
 		MSHR* dest2_mshr = missQueue->findMSHR(dest2, asid);
 		// Restart the target list.
-		missQueue->handleResponse(dest2_mshr->req, 
+		missQueue->handleResponse(dest2_mshr->req,
 					  curTick + hitLatency);
 	    }
 	}
@@ -1045,23 +1045,23 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 	    // Store the block for later
 	    pseudoFill(mshr);
 	}
-	    
+
 	if (!req->pendingCopy()) {
 	    MSHR* source1_mshr = missQueue->findMSHR(source1, asid);
 	    MSHR* source2_mshr = missQueue->findMSHR(source2, asid);
 	    MSHR* dest1_mshr = missQueue->findMSHR(dest1, asid);
 	    MSHR* dest2_mshr = missQueue->findMSHR(dest2, asid);
-	 
+
 	    // Refill the first Source
 	    CacheBlk::State state = source1_mshr->order;
 	    source1_mshr->req->xc = req->xc;
 	    tags->handleFill(NULL, source1_mshr->req, state, writebacks, NULL);
-	    
+
 	    // Refill the second source, if necessary
 	    if (source_unaligned) {
 		state = source2_mshr->order;
 		source2_mshr->req->xc = req->xc;
-		tags->handleFill(NULL, source2_mshr->req, state, writebacks, 
+		tags->handleFill(NULL, source2_mshr->req, state, writebacks,
 				 NULL);
 	    }
 
@@ -1076,87 +1076,87 @@ Cache<TagStore,Buffering,Coherence>::handleCopy(MemReqPtr &req, Addr addr,
 		tags->handleFill(NULL, dest2_mshr->req, state, writebacks,
 				 NULL);
 	    }
-	    
+
 	    // Perform the copy
 	    if (source_unaligned || dest_unaligned) {
 		tags->doUnalignedCopy(source, dest, asid, writebacks);
 	    } else {
 		tags->doCopy(source, dest, asid, writebacks);
 	    }
-	    
+
 	    if (blockOnCopy) {
 		clearBlocked(Blocked_Copy);
 	    }
-	    
+
 	    // Handle targets, if any
 	    tags->handleTargets(source1_mshr, writebacks);
 	    // If there is another outstanding copy, don't free
 	    // the MSHR here.
 	    if (source1_mshr->hasTargets() &&
 		source1_mshr->getTarget()->cmd == Copy) {
-			
+
 		MemReqPtr copy_request = source1_mshr->getTarget();
 		handleCopy(copy_request, source1,
 			   tags->findBlock(source1, asid), source1_mshr);
 	    } else {
 		// Refetch if necessary, or free the MSHR
-		missQueue->handleResponse(source1_mshr->req, 
+		missQueue->handleResponse(source1_mshr->req,
 					  curTick + hitLatency);
 	    }
-	    
+
 	    if (source_unaligned) {
 		tags->handleTargets(source2_mshr, writebacks);
 		// If there is another outstanding copy, don't free
 		// the MSHR here.
 		if (source2_mshr->hasTargets() &&
 		    source2_mshr->getTarget()->cmd == Copy) {
-		    
+
 		    MemReqPtr copy_request = source2_mshr->getTarget();
 		    handleCopy(copy_request, source2,
 			       tags->findBlock(source2, asid), source2_mshr);
 		} else {
 		    // Refetch if necessary, or free the MSHR
-		    missQueue->handleResponse(source2_mshr->req, 
+		    missQueue->handleResponse(source2_mshr->req,
 					      curTick + hitLatency);
 		}
 	    }
-	    
+
 	    tags->handleTargets(dest1_mshr, writebacks);
 	    // If there is another outstanding copy, don't free
 	    // the MSHR here.
-	    if (dest1_mshr->hasTargets() && 
+	    if (dest1_mshr->hasTargets() &&
 		dest1_mshr->getTarget()->cmd == Copy) {
-		
+
 		MemReqPtr copy_request = dest1_mshr->getTarget();
 		handleCopy(copy_request, dest1,
 			   tags->findBlock(dest1, asid), dest1_mshr);
 	    } else {
 		// Refetch if necessary, or free the MSHR
-		missQueue->handleResponse(dest1_mshr->req, 
+		missQueue->handleResponse(dest1_mshr->req,
 					  curTick + hitLatency);
 	    }
-	    
+
 	    if (dest_unaligned) {
 		tags->handleTargets(dest2_mshr, writebacks);
 		// If there is another outstanding copy, don't free
 		// the MSHR here.
-		if (dest2_mshr->hasTargets() && 
+		if (dest2_mshr->hasTargets() &&
 		    dest2_mshr->getTarget()->cmd == Copy) {
-		    
+
 		    MemReqPtr copy_request = dest2_mshr->getTarget();
 		    handleCopy(copy_request, dest2,
 			       tags->findBlock(dest2, asid), dest2_mshr);
 		} else {
 		    // Refetch if necessary, or free the MSHR
-		    missQueue->handleResponse(dest2_mshr->req, 
+		    missQueue->handleResponse(dest2_mshr->req,
 					      curTick + hitLatency);
 		}
 	    }
-		
-	    
+
+
 	}
     }
-    
+
     // Send off any writebacks
     while (!writebacks.empty()) {
 	if (writebacks.front()->cmd != Copy) {
@@ -1178,22 +1178,22 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::snoop(MemReqPtr &req)
 {
-    
-    
+
+
     Addr blk_addr = req->paddr & ~(Addr(blkSize-1));
     BlkType *blk = tags->findBlock(req);
     MSHR *mshr = missQueue->findMSHR(blk_addr, req->asid);
     if (isTopLevel() && coherence->hasProtocol()) { //@todo Move this into handle bus req
 	//If we find an mshr, and it is in service, we need to NACK or invalidate
-        
+
 	if (mshr) {
 	    if (mshr->inService) {
 		if ((mshr->req->cmd.isInvalidate() || !mshr->req->isCacheFill())
-		    && (req->cmd != Invalidate && req->cmd != WriteInvalidate)) { 
+		    && (req->cmd != Invalidate && req->cmd != WriteInvalidate)) {
 		    //If the outstanding request was an invalidate (upgrade,readex,..)
-		    //Then we need to ACK the request until we get the data 
+		    //Then we need to ACK the request until we get the data
 		    //Also NACK if the outstanding request is not a cachefill (writeback)
-		    req->flags |= NACKED_LINE; 
+		    req->flags |= NACKED_LINE;
 		    return;
 		}
 		else {
@@ -1204,10 +1204,10 @@ Cache<TagStore,Buffering,Coherence>::snoop(MemReqPtr &req)
 		    //and allow the other cache to go into the exclusive state.
 		    //@todo Make it so a read to a pending read doesn't invalidate.
 		    //@todo Make it so that a read to a pending read can't be exclusive now.
-		    
+
 		    //Set the address so find match works
 		    invalidateReq->paddr = req->paddr;
-		    
+
 		    //Append the invalidate on
 		    missQueue->addTarget(mshr,invalidateReq);
 		    DPRINTF(Cache, "Appending Invalidate to blk_addr: %x\n", req->paddr & (((ULL(1))<<48)-1));
@@ -1219,32 +1219,32 @@ Cache<TagStore,Buffering,Coherence>::snoop(MemReqPtr &req)
 	std::vector<MSHR *> writebacks;
 	if (missQueue->findWrites(blk_addr, req->asid, writebacks)) {
 	    DPRINTF(Cache, "Snoop hit in writeback to blk_addr: %x\n", req->paddr & (((ULL(1))<<48)-1));
-	    
+
 	    //Look through writebacks for any non-uncachable writes, use that
 	    for (int i=0; i<writebacks.size(); i++) {
 		mshr = writebacks[i];
-		
+
 		if (!mshr->req->isUncacheable()) {
 		    if (req->cmd.isRead()) {
 			//Only Upgrades don't get here
 			//Supply the data
 			req->flags |= SATISFIED;
-			
+
 			//If we are in an exclusive protocol, make it ask again
 			//to get write permissions (upgrade), signal shared
 			req->flags |= SHARED_LINE;
 
 			if (doData()) {
 			    assert(req->cmd.isRead());
-			    
+
 			    assert(req->offset < blkSize);
 			    assert(req->size <= blkSize);
 			    assert(req->offset + req->size <=blkSize);
 			    memcpy(req->data, mshr->req->data + req->offset, req->size);
 			}
 			respondToSnoop(req);
-		    } 
-		    
+		    }
+
 		    if (req->cmd.isInvalidate()) {
 			//This must be an upgrade or other cache will take ownership
 			missQueue->markInService(mshr->req);
@@ -1252,7 +1252,7 @@ Cache<TagStore,Buffering,Coherence>::snoop(MemReqPtr &req)
 		    return;
 		}
 	    }
-	}    
+	}
     }
     CacheBlk::State new_state;
     bool satisfy = coherence->handleBusRequest(req,blk,mshr, new_state);
@@ -1310,14 +1310,14 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
     if (!blk) {
 	// Need to check for outstanding misses and writes
 	Addr blk_addr = req->paddr & ~(blkSize - 1);
-	
+
 	// There can only be one matching outstanding miss.
 	MSHR* mshr = missQueue->findMSHR(blk_addr, req->asid);
-	
+
 	// There can be many matching outstanding writes.
 	vector<MSHR*> writes;
 	missQueue->findWrites(blk_addr, req->asid, writes);
-	
+
 	if (!update) {
 	    mi->sendProbe(req, update);
 	    // Check for data in MSHR and writebuffer.
@@ -1340,7 +1340,7 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 			    write_data = target->data + offset;
 			    data_size = target->size - offset;
 			    assert(data_size > 0);
-			    if (data_size > req->size) 
+			    if (data_size > req->size)
 				data_size = req->size;
 			} else {
 			    int offset = target->paddr - req->paddr;
@@ -1351,7 +1351,7 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 			    if (data_size > target->size)
 				data_size = target->size;
 			}
-			
+
 			if (req->cmd.isWrite()) {
 			    memcpy(req_data, write_data, data_size);
 			} else {
@@ -1373,7 +1373,7 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 			write_data = write->data + offset;
 			data_size = write->size - offset;
 			assert(data_size > 0);
-			if (data_size > req->size) 
+			if (data_size > req->size)
 			    data_size = req->size;
 		    } else {
 			int offset = write->paddr - req->paddr;
@@ -1384,17 +1384,17 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 			if (data_size > write->size)
 			    data_size = write->size;
 		    }
-			
+
 		    if (req->cmd.isWrite()) {
 			memcpy(req_data, write_data, data_size);
 		    } else {
 			memcpy(write_data, req_data, data_size);
 		    }
-		    
+
 		}
 	    }
 	    return 0;
-	} else { 
+	} else {
 	    // update the cache state and statistics
 	    if (mshr || !writes.empty()){
 		// Can't handle it, return request unsatisfied.
@@ -1406,23 +1406,23 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 		busReq->paddr = blk_addr;
 		busReq->size = blkSize;
 		busReq->data = new uint8_t[blkSize];
-		
+
 		BlkType *blk = tags->findBlock(req);
 		busReq->cmd = coherence->getBusCmd(req->cmd,
 						   (blk)? blk->status : 0);
-		
+
 		busReq->asid = req->asid;
 		busReq->xc = req->xc;
 		busReq->thread_num = req->thread_num;
 		busReq->time = curTick;
-		
+
 		lat = mi->sendProbe(busReq, update);
-		
+
 		if (!busReq->isSatisfied()) {
 		    // blocked at a higher level, just return
 		    return 0;
 		}
-		
+
 		misses[req->cmd.toIndex()][req->thread_num]++;
 
 		CacheBlk::State old_state = (blk) ? blk->status : 0;
@@ -1446,7 +1446,7 @@ Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 	    mi->sendProbe(writebacks.front(), update);
 	    writebacks.pop_front();
 	}
-	
+
 	if (update) {
 	    hits[req->cmd.toIndex()][req->thread_num]++;
 	} else if (req->cmd.isWrite()) {
@@ -1490,19 +1490,19 @@ Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
 
     vector<int> ownedBlocks = tags->perCoreOccupancy();
     assert(ownedBlocks.size() == cpuCount + 2);
-    
+
     ofstream file(profileFileName.c_str(), ofstream::app);
     file << curTick;
     for(int i=0;i<cpuCount+1;i++) file << ";" << (double) ((double) ownedBlocks[i] / (double) ownedBlocks[cpuCount+1]);
     file << "\n";
     file.flush();
     file.close();
-    
+
     profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 
 template<class TagStore, class Buffering, class Coherence>
-void 
+void
 Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
     assert(mtp != NULL);
     mtp->handleRepartitioningEvent();
@@ -1520,9 +1520,9 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
     assert(isShared);
 
     double threshold = 0.9;
-    
+
     map<int,int> retmap;
-    
+
     if(isBlockedNoMSHRs()){
         retmap = missQueue->assignBlockingBlame(true, false, threshold);
     }
@@ -1533,7 +1533,7 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
         retmap = missQueue->assignBlockingBlame(false, false, threshold);
     }
 //     fatal("assigning blocking blame but we are not blocked");
-    
+
     return retmap;
 }
 
@@ -1542,9 +1542,9 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::removePendingRequest(Addr address, MemReqPtr& req){
 
-    
+
     Addr blkAddr = address & ~((Addr)blkSize - 1);
-    
+
     map<Addr, pair<int, Tick> >::iterator result = pendingRequests.find(blkAddr);
     assert(result != pendingRequests.end());
     if(pendingRequests[blkAddr].first <= 0){
@@ -1559,9 +1559,9 @@ Cache<TagStore,Buffering,Coherence>::removePendingRequest(Addr address, MemReqPt
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::addPendingRequest(Addr address, MemReqPtr& req){
-    
+
     Addr blkAddr = address & ~((Addr)blkSize - 1);
-    
+
     if(!req->cmd.isNoResponse()){
         assert(req->cmd == Write || req->cmd == Read || req->cmd == Soft_Prefetch);
         if(pendingRequests.find(blkAddr) == pendingRequests.end()){

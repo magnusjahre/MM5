@@ -3,8 +3,8 @@
 
 using namespace std;
 
-AddressDependentIC::AddressDependentIC(const std::string &_name, 
-                                       int _width, 
+AddressDependentIC::AddressDependentIC(const std::string &_name,
+                                       int _width,
                                        int _clock,
                                        int _transDelay,
                                        int _arbDelay,
@@ -12,15 +12,15 @@ AddressDependentIC::AddressDependentIC(const std::string &_name,
                                        HierParams *_hier,
                                        AdaptiveMHA* _adaptiveMHA)
     : Interconnect(_name,
-                   _width, 
-                   _clock, 
-                   _transDelay, 
+                   _width,
+                   _clock,
+                   _transDelay,
                    _arbDelay,
                    _cpu_count,
                    _hier,
                    _adaptiveMHA)
 {
-    
+
 
 }
 
@@ -37,16 +37,16 @@ AddressDependentIC::request(Tick cycle, int fromID){
     event->schedule(cycle);
 }
 
-void 
+void
 AddressDependentIC::retriveRequest(int fromInterface){
-    
+
     DPRINTF(Crossbar, "Request recieved from interface %d, cpu %d\n", fromInterface, interconnectIDToProcessorIDMap[fromInterface]);
-    
+
     if(!allInterfaces[fromInterface]->isMaster()){
         allInterfaces[fromInterface]->grantData();
         return;
     }
-    
+
     if(!blockedLocalQueues[interconnectIDToProcessorIDMap[fromInterface]]){
         allInterfaces[fromInterface]->grantData();
     }
@@ -55,27 +55,27 @@ AddressDependentIC::retriveRequest(int fromInterface){
     }
 }
 
-void 
+void
 AddressDependentIC::setBlockedLocal(int fromCPUId){
     DPRINTF(Blocking, "Blocking the Interconnect due to full local queue for CPU %d\n", fromCPUId);
     assert(!blockedLocalQueues[fromCPUId]);
     blockedLocalQueues[fromCPUId] = true;
 }
 
-void 
+void
 AddressDependentIC::clearBlockedLocal(int fromCPUId){
     DPRINTF(Blocking, "Unblocking the Interconnect, local queue space available for CPU%d\n", fromCPUId);
     assert(blockedLocalQueues[fromCPUId]);
     blockedLocalQueues[fromCPUId] = false;
 }
 
-int 
+int
 AddressDependentIC::findNotDeliveredNextInterface(int firstInterfaceID, int secondInterfaceID){
-    
+
     MemReqPtr firstReq = allInterfaces[firstInterfaceID]->getPendingRequest();
     MemReqPtr secondReq = allInterfaces[secondInterfaceID]->getPendingRequest();
     int grantedID = -1;
-                    
+
     if(notRetrievedRequests[firstInterfaceID] > 0 && notRetrievedRequests[secondInterfaceID] == 0){
         allInterfaces[firstInterfaceID]->grantData();
         grantedID = firstInterfaceID;
@@ -87,10 +87,10 @@ AddressDependentIC::findNotDeliveredNextInterface(int firstInterfaceID, int seco
     else{
         assert(notRetrievedRequests[firstInterfaceID] > 0);
         assert(notRetrievedRequests[secondInterfaceID] > 0);
-                        
+
         Tick firstTime = firstReq ? firstReq->finishedInCacheAt : 0;
         Tick secondTime = secondReq ? secondReq->finishedInCacheAt : 0;
-                        
+
         if(firstTime <= secondTime){
             allInterfaces[firstInterfaceID]->grantData();
             grantedID = firstInterfaceID;
@@ -100,14 +100,14 @@ AddressDependentIC::findNotDeliveredNextInterface(int firstInterfaceID, int seco
             grantedID = secondInterfaceID;
         }
     }
-    
+
     notRetrievedRequests[grantedID]--;
     return grantedID;
 }
 
-void 
+void
 AddressDependentIC::retrieveAdditionalRequests(){
-    
+
     bool allZero = true;
     for(int i=0;i<allInterfaces.size();i++){
         if(!allInterfaces[i]->isMaster()){
@@ -115,21 +115,21 @@ AddressDependentIC::retrieveAdditionalRequests(){
         }
         if(notRetrievedRequests[i] > 0) allZero = false;
     }
-    
+
     if(!allZero){
         for(int i=0;i<cpu_count;i++){
-            
+
             if(processorIDToInterconnectIDs[i].empty()) continue;
-            
+
             if(processorIDToInterconnectIDs[i].size() == 2){
                 int firstInterfaceID = processorIDToInterconnectIDs[i].front();
                 int secondInterfaceID = processorIDToInterconnectIDs[i].back();
-    
-                while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0) 
+
+                while((notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0)
                     && !blockedLocalQueues[i]){
-                    
+
                     int grantedID = findNotDeliveredNextInterface(firstInterfaceID, secondInterfaceID);
-                    
+
                     DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, first waiting %d, second waiting %d\n", grantedID, i, notRetrievedRequests[firstInterfaceID], notRetrievedRequests[secondInterfaceID]);
                 }
             }
@@ -139,7 +139,7 @@ AddressDependentIC::retrieveAdditionalRequests(){
                 while(notRetrievedRequests[iID] > 0 && !blockedLocalQueues[i]){
                     allInterfaces[iID]->grantData();
                     notRetrievedRequests[iID]--;
-                    
+
                     DPRINTF(Crossbar, "Accepting new request from interface %d, proc %d, still waiting %d\n", iID, i, notRetrievedRequests[iID]);
                 }
             }
@@ -147,24 +147,24 @@ AddressDependentIC::retrieveAdditionalRequests(){
     }
 }
 
-void 
+void
 AddressDependentIC::updateEntryInterference(MemReqPtr& req, int fromID){
-    
+
     // FIXME: what about entries from the slave side?
     if(allInterfaces[fromID]->isMaster()){
         assert(curTick >= req->finishedInCacheAt);
-        int waitTime = curTick - req->finishedInCacheAt; 
+        int waitTime = curTick - req->finishedInCacheAt;
         entryDelay += waitTime;
-        
+
         assert(req->cmd == Read || req->cmd == Writeback);
         if(req->cmd == Read && waitTime > 0){
             assert(req->adaptiveMHASenderID != -1);
-                
+
             int extraDelay = (int) ((double) waitTime * 0.75);
             cpuEntryInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
             adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
             req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += extraDelay;
-            
+
             entryReadDelay += waitTime;
             perCpuTotalDelay[req->adaptiveMHASenderID] += waitTime;
         }

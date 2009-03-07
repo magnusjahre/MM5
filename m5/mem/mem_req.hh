@@ -84,7 +84,7 @@ const unsigned COPY_DEST1       = 0x4000;
 /** The request is a copy pending on the first destination block. */
 const unsigned COPY_DEST2       = 0x8000;
 /** The request saw another cache that had the block in shared state. */
-const uint32_t SHARED_LINE      = 0x10000; 
+const uint32_t SHARED_LINE      = 0x10000;
 /** The request is being NACKed. */
 const uint32_t NACKED_LINE      = 0x20000;
 /** The request should not allocate a line. */
@@ -129,7 +129,7 @@ class MemReq : public FastAlloc, public RefCounted
     Addr vaddr;
     /** The physical address of the request. */
     Addr paddr;
-    
+
     Addr oldAddr;
 
     /** Destination address for copies. */
@@ -138,7 +138,7 @@ class MemReq : public FastAlloc, public RefCounted
     /** The command to perform. */
     MemCmd cmd;
     MemCmd oldCmd;
-    
+
     /** Pointer to the associated MSHR. */
     MSHR *mshr;
 
@@ -151,7 +151,7 @@ class MemReq : public FastAlloc, public RefCounted
      */
     int busId;
     Tick firstSendTime;
-    
+
     /**
      * Addressing variables
      */
@@ -159,14 +159,14 @@ class MemReq : public FastAlloc, public RefCounted
     int toProcessorID;
     int toInterfaceID;
     int fromInterfaceID;
-    
+
     /** Adaptive MHA sender cache identification **/
     int adaptiveMHASenderID;
     int interferenceAccurateSenderID;
-    
+
     /** If the request is from a instruction cache or not **/
     bool readOnlyCache;
-    
+
     /** Data space for directory messages */
     int owner;
     bool* presentFlags;
@@ -205,7 +205,7 @@ class MemReq : public FastAlloc, public RefCounted
 
     Tick enteredMemSysAt;
     Tick writebackGeneratedAt;
-    
+
     Tick inserted_into_memory_controller;
     Tick inserted_into_crossbar;
 
@@ -216,39 +216,40 @@ class MemReq : public FastAlloc, public RefCounted
     int offset;
     /** Storage for any data transfered. */
     uint8_t *data;
-    
+
     bool expectCompletionEvent;
     bool isDDRTestReq;
     bool isMemTestReq;
     Tick virtualStartTime;
     bool instructionMiss;
-    
+
     Tick busDelay;
     Tick busQueueInterference;
     int shadowCtrlID;
     bool givenToShadow;
-    
+
     Tick interferenceMissAt;
     Tick finishedInCacheAt;
-    
+
     int memBusBlockedWaitCycles;
-    
+
     Tick busAloneServiceEstimate;
     Tick busAloneReadQueueEstimate;
     Tick busAloneWriteQueueEstimate;
     int waitWritebackCnt;
-    
+
     int entryReadCnt;
     int entryWriteCnt;
-    
+
     std::vector<int> latencyBreakdown;
     std::vector<int> interferenceBreakdown;
 
     DRAM_RESULT dramResult;
     int memCtrlIssuePosition;
     DRAM_RESULT privateResultEstimate;
-    
-    
+    Tick memCtrlSequenceNumber;
+
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -288,7 +289,7 @@ class MemReq : public FastAlloc, public RefCounted
 	  size(_size), flags(_flags),
           prefetched(0),
 	  completionEvent(NULL),
-	  //cpu_num(0), 
+	  //cpu_num(0),
 	  thread_num(0),
 	  time(0),
           enteredMemSysAt(0),
@@ -318,7 +319,8 @@ class MemReq : public FastAlloc, public RefCounted
           entryWriteCnt(0),
           dramResult(DRAM_RESULT_INVALID),
           memCtrlIssuePosition(-1),
-          privateResultEstimate(DRAM_RESULT_INVALID)
+          privateResultEstimate(DRAM_RESULT_INVALID),
+          memCtrlSequenceNumber(0)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -326,7 +328,7 @@ class MemReq : public FastAlloc, public RefCounted
 
     MemReq(const MemReq &r)
     {
-        
+
         vaddr = r.vaddr;
         paddr = r.paddr;
         oldAddr = r.oldAddr;
@@ -385,7 +387,8 @@ class MemReq : public FastAlloc, public RefCounted
         entryWriteCnt = r.entryWriteCnt;
         dramResult = r.dramResult;
         privateResultEstimate = r.privateResultEstimate;
-        
+        memCtrlSequenceNumber = r.memCtrlSequenceNumber;
+
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;
         memCtrlIssuePosition = r.memCtrlIssuePosition;
@@ -400,7 +403,7 @@ class MemReq : public FastAlloc, public RefCounted
 	xc = NULL;
 	if (data)
 	    delete [] data;
-        
+
         if (presentFlags != NULL){
             delete presentFlags;
         }
@@ -494,7 +497,7 @@ class MemReq : public FastAlloc, public RefCounted
 	    return paddr + size > req->paddr;
 	}
 	return req->paddr + req->size > paddr;
-    }		
+    }
 
     /**
      * Returns true if this request is a pending copy.
@@ -509,17 +512,17 @@ class MemReq : public FastAlloc, public RefCounted
     {
 	return flags & SHARED_LINE;
     }
-    
+
     const bool isDirectoryACK() const
     {
         return dirACK;
     }
-    
+
     const bool isDirectoryNACK() const
     {
         return dirNACK;
     }
-    
+
 };
 
 /** A ref counted pointer to a MemReq. */
@@ -527,7 +530,7 @@ typedef RefCountingPtr<MemReq> MemReqPtr;
 /** Typedef for a standard list of MemReqPtr. */
 typedef std::list<MemReqPtr> MemReqList;
 
-/** 
+/**
  * Return a Writeback request for the given parameters.
  * @param addr The address being written.
  * @param asid The address space ID.
@@ -537,12 +540,12 @@ typedef std::list<MemReqPtr> MemReqList;
  * @param compressed_size Number of bytes to write if we are doing compression.
  * @return A reference counted pointer to the generated MemReq.
  */
-MemReqPtr buildWritebackReq(Addr addr, int asid, ExecContext *xc, 
+MemReqPtr buildWritebackReq(Addr addr, int asid, ExecContext *xc,
 			    int size, uint8_t *data,
 			    int compressed_size);
-			    
+
 MemReqPtr buildDirectoryReq(Addr addr, int asid, ExecContext *xc,
-                            int size, uint8_t *data, 
+                            int size, uint8_t *data,
                             MemCmdEnum directoryCommand);
 
 MemReqPtr buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand);

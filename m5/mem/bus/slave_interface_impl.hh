@@ -66,10 +66,8 @@ MemAccessResult
 SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 {
     int retval;
-    bool already_satisfied = req->isSatisfied();
-    
-   
-    assert(!already_satisfied);
+
+    assert(!req->isSatisfied());
 
     if (this->inRange(req->paddr)) {
         if (this->isBlocked()) {
@@ -86,7 +84,7 @@ SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 	assert(!this->isBlocked() || mem->isBlocked());
 
 	if (this->isBlocked()) {
-            return BA_BLOCKED; //Out of MSHRS, now we block  
+            return BA_BLOCKED; //Out of MSHRS, now we block
         } else {
             return BA_SUCCESS;// This transaction went through ok
         }
@@ -100,8 +98,8 @@ SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 template <class MemType, class BusType>
 bool
 SlaveInterface<MemType, BusType>::grantData()
-{	
-    typename BusInterface<BusType>::DataResponseEntry entry = 
+{
+    typename BusInterface<BusType>::DataResponseEntry entry =
 	this->responseQueue.front();
 
     if (entry.size > 0) {
@@ -117,7 +115,7 @@ SlaveInterface<MemType, BusType>::grantData()
     if (!this->responseQueue.empty()) {
 	this->bus->requestDataBus(this->id, max(curTick, this->responseQueue.front().time));
     }
-    
+
     return false;
 }
 
@@ -154,22 +152,22 @@ SlaveInterface<Mem, Bus>::snoopResponseCall(MemReqPtr &req)
 
 
 template<class Mem, class Bus>
-bool 
-SlaveInterface<Mem, Bus>::isActive(MemReqPtr &req) 
+bool
+SlaveInterface<Mem, Bus>::isActive(MemReqPtr &req)
 {
   return mem->isActive(req);
 }
 
 template<class Mem, class Bus>
-bool 
-SlaveInterface<Mem, Bus>::bankIsClosed(MemReqPtr &req) 
+bool
+SlaveInterface<Mem, Bus>::bankIsClosed(MemReqPtr &req)
 {
   return mem->bankIsClosed(req);
 }
 
 template<class Mem, class Bus>
-bool 
-SlaveInterface<Mem, Bus>::isReady(MemReqPtr &req) 
+bool
+SlaveInterface<Mem, Bus>::isReady(MemReqPtr &req)
 {
   return mem->isReady(req);
 }

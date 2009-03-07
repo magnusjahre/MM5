@@ -38,7 +38,7 @@
 #include "cpu/exec_context.hh"
 
 MemReqPtr
-buildWritebackReq(Addr addr, int asid, ExecContext *xc, int size, 
+buildWritebackReq(Addr addr, int asid, ExecContext *xc, int size,
 			  uint8_t *data, int compressed_size)
 {
     MemReqPtr req = new MemReq();
@@ -60,7 +60,7 @@ buildWritebackReq(Addr addr, int asid, ExecContext *xc, int size,
 	// Assume thread_num is equal to asid.
 	req->thread_num = asid;
     }
-    
+
     req->writebackGeneratedAt = curTick;
 
     req->cmd = Writeback;
@@ -73,7 +73,7 @@ buildWritebackReq(Addr addr, int asid, ExecContext *xc, int size,
 }
 
 MemReqPtr
-buildDirectoryReq(Addr addr, int asid, ExecContext *xc, int size, 
+buildDirectoryReq(Addr addr, int asid, ExecContext *xc, int size,
                   uint8_t *data, MemCmdEnum directoryCommand)
 {
     MemReqPtr req = new MemReq();
@@ -84,7 +84,7 @@ buildDirectoryReq(Addr addr, int asid, ExecContext *xc, int size,
     if (data) {
         memcpy(req->data, data, size);
     }
-    
+
     req->xc = xc;
 
     req->cmd = directoryCommand;
@@ -96,7 +96,7 @@ MemReqPtr
 buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 {
     MemReqPtr req = new MemReq();
-    
+
     // set values
     req->vaddr = r->vaddr;
     req->paddr = r->paddr;
@@ -153,18 +153,19 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->dramResult = r->dramResult;
     req->memCtrlIssuePosition = r->memCtrlIssuePosition;
     req->privateResultEstimate = r->privateResultEstimate;
-    
+    req->memCtrlSequenceNumber = r->memCtrlSequenceNumber;
+
     req->latencyBreakdown = r->latencyBreakdown;
     req->interferenceBreakdown = r->interferenceBreakdown;
-    
+
     req->adaptiveMHASenderID = r->adaptiveMHASenderID;
     req->interferenceAccurateSenderID = r->interferenceAccurateSenderID;
-    
+
     req->data = new uint8_t[r->size];
     if (r->data != NULL) {
         memcpy(req->data, r->data, r->size);
     }
-    
+
     if(r->presentFlags != NULL){
         req->presentFlags = new bool[cpuCount];
         for(int i=0;i<cpuCount;i++){
@@ -237,18 +238,19 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->dramResult = from->dramResult;
     to->memCtrlIssuePosition = from->memCtrlIssuePosition;
     to->privateResultEstimate = from->privateResultEstimate;
-    
+    to->memCtrlSequenceNumber = from->memCtrlSequenceNumber;
+
     to->latencyBreakdown = from->latencyBreakdown;
     to->interferenceBreakdown = from->interferenceBreakdown;
-    
+
     to->adaptiveMHASenderID = from->adaptiveMHASenderID;
     to->interferenceAccurateSenderID = from->interferenceAccurateSenderID;
-    
+
     if (from->data != NULL) {
         to->data = new uint8_t[from->size];
         memcpy(to->data, from->data, from->size);
     }
-    
+
     if(from->presentFlags != NULL){
         to->presentFlags = new bool[cpuCount];
         for(int i=0;i<cpuCount;i++){

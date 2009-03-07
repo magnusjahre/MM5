@@ -92,19 +92,19 @@ class Bus : public BaseHier
     TimingMemoryController *simMemoryController;
     Tick detailedSimulationStart;
     int bank_count;
-    
+
     std::vector<std::vector<int> > busInterference;
     std::vector<std::vector<int> > conflictInterference;
     std::vector<std::vector<int> > hitToMissInterference;
-    
+
     std::vector<int> outstandingReads;
     std::vector<int> outstandingWrites;
-    
+
     bool infiniteBW;
-    
+
     std::vector<std::vector<std::vector<Tick> > > queueDelaySum;
     std::vector<std::vector<std::vector<int> > > queueDelayRequests;
-    
+
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -118,57 +118,57 @@ class Bus : public BaseHier
 
     std::list<AddrArbiterEvent*> arb_events;
 
-    bool arbiter_scheduled_flag; 
- 
+    bool arbiter_scheduled_flag;
+
     bool need_to_sort;
 
     AddrArbiterEvent* currently_scheduled;
 
     TimingMemoryController *memoryController;
-    
+
     AdaptiveMHA* adaptiveMHA;
 
   protected:
-    
+
     // statistics
     Stats::Scalar<> busUseCycles;
     Stats::Formula busUtilization;
-    
+
     Stats::Scalar<> unknownSenderCycles;
     Stats::Formula unknownSenderUtilization;
-    
+
     Stats::Scalar<> unknownSenderRequests;
     Stats::Formula unknownSenderFraction;
 
     Stats::Scalar<> totalQueueCycles;
     Stats::Scalar<> totalRequests;
     Stats::Formula avgQueueCycles;
-    
+
     Stats::Vector<> accessesPerCPU;
     Stats::Vector<> readsPerCPU;
     Stats::Vector<> writesPerCPU;
     Stats::Vector<> pageHitsPerCPU;
     Stats::Scalar<> noCPUrequests;
-    
+
     Stats::Scalar<> blockedCycles;
-    
+
     Stats::Scalar<> nullGrants;
-    
+
     Stats::Scalar<> interferenceRemovedHits;
     Stats::Scalar<> constructiveInterferenceHits;
-    
+
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuConflictInterferenceCycles;
     Stats::Vector<> cpuHtMInterferenceCycles;
-    
+
     Stats::Vector<> blockingInterferenceCycles;
-    
+
     Stats::Vector<> shadowCtrlPageHits;
     Stats::Vector<> shadowCtrlAccesses;
     Stats::Vector<> shadowUseCycles;
-    
+
     Stats::Vector<> shadowBlockedCycles;
-    
+
     Stats::Vector<> perCPUTotalEntryDelay;
     Stats::Vector<> perCPUTotalEntryRequests;
     Stats::Formula perCPUAvgEntryDelay;
@@ -177,23 +177,23 @@ class Bus : public BaseHier
     Tick runDataLast;
     /** The last cycle the address arbiter was run, used for debugging. */
     Tick runAddrLast;
-    
+
     Stats::Vector<> predictedServiceLatencySum;
     Stats::Vector<> numServiceLatencyRequests;
     Stats::Formula avgPredictedServiceLatency;
-    
+
     Stats::Scalar<> actualServiceLatencySum;
     Stats::Scalar<> actualServiceLatencyRequests;
     Stats::Formula avgActualServiceLatency;
-    
+
     Stats::Vector<> estimatedPrivateQueueLatency;
     Stats::Vector<> estimatedPrivateQueueRequests;
     Stats::Formula avgEstimatedPrivateQueueLatency;
-    
+
     Stats::Scalar<> actualQueueDelaySum;
     Stats::Scalar<> actualQueueDelayRequests;
     Stats::Formula avgActualQueueDelay;
-    
+
     /** Added by magnus **/
 //     Stats::Scalar<> freeCycles;
 
@@ -226,7 +226,7 @@ class Bus : public BaseHier
     int getBankCount(){
         return bank_count;
     }
-    
+
     /**
      * Mark the interface as needing the address bus.
      * @param id The id of the BusInterface making the request.
@@ -322,29 +322,29 @@ class Bus : public BaseHier
      * Notify all the attached interfaces that there has been a range change.
      */
     void rangeChange();
-    
+
     void incrementBlockedCycles(Tick cycles);
 
     void handleMemoryController(bool isShadow, int ctrlID);
 
     void latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow);
-    
+
     void switchMemoryController();
-    
+
     void updatePerCPUAccessStats(int cpuID, bool pageHit);
-    
+
     void incConstructiveInterference();
-    
+
     void incInterferenceMisses();
-    
+
     // Adaptive MHA methods
     double getAverageQueue(Tick sampleSize);
     std::vector<double> getAverageQueuePerCPU();
     double getDataBusUtilisation(Tick sampleSize);
     std::vector<int> getDataUsePerCPUId();
     void resetAdaptiveStats();
-    
-    
+
+
     std::vector<std::vector<int> > retrieveBusInterferenceStats();
     void resetBusInterferenceStats();
     std::vector<std::vector<int> > retrieveConflictInterferenceStats();
@@ -353,7 +353,7 @@ class Bus : public BaseHier
     void resetHitToMissInterferenceStats();
     void addInterference(int victimID, int interfererID, interference_type iType);
     void addInterferenceCycles(int victimID, Tick delay, interference_type iType);
-    
+
     void dumpQueueDelayStats();
 
   private:
@@ -361,13 +361,13 @@ class Bus : public BaseHier
     std::vector<int> perCPUQueueCycles;
     std::vector<int> perCPURequests;
     int adaptiveSampleSize;
-    
+
     int cpu_count;
-    
+
 #ifdef INJECT_TEST_REQUESTS
     std::list<MemReqPtr> testRequests;
 #endif
-    
+
     /** The next curTick that the address bus is free. */
     Tick nextAddrFree;
     /** The next curTick that the data bus is free. */
@@ -479,14 +479,14 @@ class Bus : public BaseHier
 	// Convert back to global cycles & return.
 	return busCycle * clockRate;
     }
-    
+
 //     void buildShadowControllers(int np, HierParams* hp);
-    
+
 #ifdef INJECT_TEST_REQUESTS
     void generateRequests();
 #endif
 
-    
+
 #ifdef DO_BUS_TRACE
     void writeTraceFileLine(Addr address, int bank, Addr page, Tick latency, MemCmd cmd, std::string message);
 #endif
@@ -505,7 +505,7 @@ class AddrArbiterEvent : public Event
     int interfaceid;
 
     Tick original_time;
-    
+
     int arbitrationLoopCounter;
 
   public:
@@ -603,7 +603,7 @@ class MemoryControllerEvent : public Event
     Bus *bus;
     bool isShadow;
     int controllerID;
-    
+
   public:
     // constructor
     /** A simple constructor. */
@@ -627,7 +627,7 @@ class MemoryControllerEvent : public Event
 class MemoryControllerSwitchEvent : public Event
 {
     Bus *bus;
-    
+
     public:
     // constructor
     /** A simple constructor. */
@@ -642,7 +642,7 @@ class MemoryControllerSwitchEvent : public Event
         bus->switchMemoryController();
         delete this;
     }
-    
+
     /**
     * Returns the string description of this event.
     * @return The description of this event.
@@ -656,14 +656,14 @@ class MemoryBusDumpEvent : public Event
 {
     private:
         Bus* bus;
-    
+
     public:
 
         MemoryBusDumpEvent(Bus *_bus)
             : Event(&mainEventQueue), bus(_bus)
         {
         }
-        
+
         void process(){
             bus->dumpQueueDelayStats();
             delete this;
