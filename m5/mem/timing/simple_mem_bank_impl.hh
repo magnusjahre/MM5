@@ -117,6 +117,7 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     traceparams.push_back("Inserted At");
     traceparams.push_back("Old Address");
     traceparams.push_back("Sequence Number");
+    traceparams.push_back("Command");
 
     pageTrace.initalizeTrace(traceparams);
 
@@ -386,6 +387,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     vals.push_back(RequestTraceEntry(req->inserted_into_memory_controller));
     vals.push_back(RequestTraceEntry(req->oldAddr == MemReq::inval_addr ? 0 : req->oldAddr ));
     vals.push_back(RequestTraceEntry(req->memCtrlSequenceNumber));
+    vals.push_back(RequestTraceEntry(req->cmd.toString()));
 
     pageTrace.addTrace(vals);
 #endif

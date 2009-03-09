@@ -102,6 +102,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
         params.push_back("Queued Reads");
         params.push_back("Queued Writes");
         params.push_back("Sequence Number");
+        params.push_back("Command");
 
         pageResultTraces[i].initalizeTrace(params);
     }
@@ -1126,6 +1127,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     vals.push_back(RequestTraceEntry(req->entryReadCnt));
     vals.push_back(RequestTraceEntry(req->entryWriteCnt));
     vals.push_back(RequestTraceEntry(req->memCtrlSequenceNumber));
+    vals.push_back(RequestTraceEntry(req->cmd.toString()));
 
     pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
 
