@@ -532,114 +532,119 @@ void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
 
-    if(isDirectoryAndL1DataCache()){
+	if(isDirectoryAndL1DataCache()){
 
-        if(directoryProtocol->handleDirectoryResponse(req, tags)){
-            return;
-        }
-    }
-
-    //shadow replacement
-    if(!shadowTags.empty()){
-        assert(req->adaptiveMHASenderID != -1);
-
-        LRU::BlkList shadow_compress_list;
-        MemReqList shadow_writebacks;
-        LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
-
-        // set block values to the values of the new occupant
-        shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
-        shadowBlk->asid = req->asid;
-        assert(req->xc || !doData());
-        shadowBlk->xc = req->xc;
-        shadowBlk->status = BlkValid;
-    }
-
-    if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
-        assert(req->adaptiveMHASenderID != -1);
-        int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
-        extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-        adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
-        numExtraMisses[req->adaptiveMHASenderID]++;
-    }
-
-    if(!isShared && adaptiveMHA != NULL){
-        adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
-    }
-
-    MemReqPtr copy_request;
-    BlkType *blk = NULL;
-
-    if (req->mshr || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
-
-        MemDebug::cacheResponse(req);
-	DPRINTF(Cache, "Handling reponse to %x, blk addr: %x\n",req->paddr,
-		req->paddr & (((ULL(1))<<48)-1));
-
-
-        if ((req->isCacheFill() && !req->isNoAllocate()) || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
-            blk = tags->findBlock(req);
-
-            MemReqList writebacks;
-
-            CacheBlk::State old_state = (blk) ? blk->status : 0;
-
-
-            if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
-                blk = tags->handleFill(blk, req->mshr,
-                                       coherence->getNewState(req,old_state),
-                                       writebacks,
-                                       req);
-            }
-            else{
-                assert(req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead);
-            }
-
-            // check that we don't write to a block we don't own
-            if(blk != NULL){
-                if (req->prefetched) {
-                  blk->status = blk->status | 0x20;
-                }
-                if(req->writeMiss){
-                    assert(blk->dirState == DirOwnedExGR
-                           || blk->dirState == DirOwnedNonExGR
-                           || req->owner == cacheCpuID);
-                }
-            }
-            // The shared cache case is handled cache tags, because we need to know
-            // which cache should become the new owner
-
-            bool doNotHandleResponse = false;
-            if(isDirectoryAndL1DataCache()){
-                doNotHandleResponse = directoryProtocol->handleDirectoryFill(req, blk, writebacks, tags);
-            }
-
-	    while (!writebacks.empty()) {
-
-		if (writebacks.front()->cmd == Copy) {
-		    copy_request = writebacks.front();
+		if(directoryProtocol->handleDirectoryResponse(req, tags)){
+			return;
 		}
-                else if(directoryProtocol ? directoryProtocol->doDirectoryWriteback(writebacks.front()) : false){
-                    // actions are handled in the check
-                }
-                else {
-                    if(!isShared) setSenderID(writebacks.front());
-		    missQueue->doWriteback(writebacks.front());
-		}
-		writebacks.pop_front();
-	    }
-
-            if(doNotHandleResponse) return;
 	}
 
-	if (copy_request) {
-	    // The mshr is handled in handleCopy
-	    handleCopy(copy_request, req->paddr, blk, req->mshr);
-	} else {
-            assert(req->mshr != NULL);
-	    missQueue->handleResponse(req, curTick + hitLatency);
+	//shadow replacement
+	if(!shadowTags.empty()){
+		assert(req->adaptiveMHASenderID != -1);
+
+		LRU::BlkList shadow_compress_list;
+		MemReqList shadow_writebacks;
+		LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
+
+		// set block values to the values of the new occupant
+		shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
+		shadowBlk->asid = req->asid;
+		assert(req->xc || !doData());
+		shadowBlk->xc = req->xc;
+		shadowBlk->status = BlkValid;
 	}
-    }
+
+	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
+		assert(req->adaptiveMHASenderID != -1);
+		int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
+		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
+		adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
+		numExtraMisses[req->adaptiveMHASenderID]++;
+	}
+
+	if(!isShared && adaptiveMHA != NULL){
+		adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
+	}
+
+	MemReqPtr copy_request;
+	BlkType *blk = NULL;
+
+	if (req->mshr || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
+
+		MemDebug::cacheResponse(req);
+		DPRINTF(Cache, "Handling reponse to %x, blk addr: %x\n",req->paddr,
+				req->paddr & (((ULL(1))<<48)-1));
+
+
+		if ((req->isCacheFill() && !req->isNoAllocate()) || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
+			blk = tags->findBlock(req);
+
+			MemReqList writebacks;
+
+			CacheBlk::State old_state = (blk) ? blk->status : 0;
+
+
+			if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
+				blk = tags->handleFill(blk, req->mshr,
+						coherence->getNewState(req,old_state),
+						writebacks,
+						req);
+			}
+			else{
+				assert(req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead);
+			}
+
+			// check that we don't write to a block we don't own
+			if(blk != NULL){
+				if (req->prefetched) {
+					blk->status = blk->status | 0x20;
+				}
+				if(req->writeMiss){
+					assert(blk->dirState == DirOwnedExGR
+							|| blk->dirState == DirOwnedNonExGR
+							|| req->owner == cacheCpuID);
+				}
+			}
+			// The shared cache case is handled cache tags, because we need to know
+			// which cache should become the new owner
+
+			bool doNotHandleResponse = false;
+			if(isDirectoryAndL1DataCache()){
+				doNotHandleResponse = directoryProtocol->handleDirectoryFill(req, blk, writebacks, tags);
+			}
+
+			while (!writebacks.empty()) {
+
+				if (writebacks.front()->cmd == Copy) {
+					copy_request = writebacks.front();
+				}
+				else if(directoryProtocol ? directoryProtocol->doDirectoryWriteback(writebacks.front()) : false){
+					// actions are handled in the check
+				}
+				else {
+					if(!isShared) setSenderID(writebacks.front());
+
+					if(isShared){
+						writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
+					}
+
+					missQueue->doWriteback(writebacks.front());
+				}
+				writebacks.pop_front();
+			}
+
+			if(doNotHandleResponse) return;
+		}
+
+		if (copy_request) {
+			// The mshr is handled in handleCopy
+			handleCopy(copy_request, req->paddr, blk, req->mshr);
+		} else {
+			assert(req->mshr != NULL);
+			missQueue->handleResponse(req, curTick + hitLatency);
+		}
+	}
 
 }
 

@@ -247,7 +247,9 @@ class MemReq : public FastAlloc, public RefCounted
     DRAM_RESULT dramResult;
     int memCtrlIssuePosition;
     DRAM_RESULT privateResultEstimate;
-    Tick memCtrlSequenceNumber;
+    int memCtrlSequenceNumber;
+    int memCtrlPrivateSeqNum;
+    int memCtrlGeneratingReadSeqNum;
 
 
     /**
@@ -320,7 +322,9 @@ class MemReq : public FastAlloc, public RefCounted
           dramResult(DRAM_RESULT_INVALID),
           memCtrlIssuePosition(-1),
           privateResultEstimate(DRAM_RESULT_INVALID),
-          memCtrlSequenceNumber(0)
+          memCtrlSequenceNumber(-1),
+          memCtrlPrivateSeqNum(-1),
+          memCtrlGeneratingReadSeqNum(-1)
     {
         latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
         interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -388,6 +392,8 @@ class MemReq : public FastAlloc, public RefCounted
         dramResult = r.dramResult;
         privateResultEstimate = r.privateResultEstimate;
         memCtrlSequenceNumber = r.memCtrlSequenceNumber;
+        memCtrlPrivateSeqNum = r.memCtrlPrivateSeqNum;
+        memCtrlGeneratingReadSeqNum = r.memCtrlGeneratingReadSeqNum;
 
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;

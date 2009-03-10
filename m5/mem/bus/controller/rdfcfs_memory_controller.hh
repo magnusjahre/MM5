@@ -69,6 +69,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     std::vector<RequestTrace> pageResultTraces;
     std::vector<Tick> requestSequenceNumbers;
+    std::vector<Tick> currentPrivateSeqNum;
 
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);

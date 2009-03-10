@@ -81,6 +81,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
     privateLatencyBuffer.resize(regbus->adaptiveMHA->getCPUCount(), vector<PrivateLatencyBufferEntry*>());
 
     requestSequenceNumbers.resize(regbus->adaptiveMHA->getCPUCount(),0);
+    currentPrivateSeqNum.resize(regbus->adaptiveMHA->getCPUCount(),0);
 
 #ifdef DO_ESTIMATION_TRACE
 
@@ -116,6 +117,8 @@ RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
     req->inserted_into_memory_controller = curTick;
+
+    cout << curTick << ": memory controller recv req addr " << req->paddr << ", cmd " << req->cmd << "\n";
 
     assert(req->adaptiveMHASenderID != -1);
     req->memCtrlSequenceNumber = requestSequenceNumbers[req->adaptiveMHASenderID];
@@ -162,6 +165,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
                 req->adaptiveMHASenderID,
                 req->paddr);
         assert(req->adaptiveMHASenderID != -1);
+
         PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
         if(headPointers[req->adaptiveMHASenderID] == NULL){
             headPointers[req->adaptiveMHASenderID] = newEntry;
@@ -178,6 +182,17 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         }
 
         privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
+
+        assert(req->cmd == Read || req->cmd == Writeback);
+        if(req->cmd == Read){
+        	req->memCtrlPrivateSeqNum = currentPrivateSeqNum[req->adaptiveMHASenderID];
+        	currentPrivateSeqNum[req->adaptiveMHASenderID];
+        }
+        else{
+        	cout << curTick << ": got writeback for addr " << req->paddr << ", generating seq num was\n";
+			fatal("writeback sequence number allocation not implemented");
+        }
+
     }
 
     assert(req->cmd == Read || req->cmd == Writeback);

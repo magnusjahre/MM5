@@ -88,23 +88,23 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
     infiniteBW = _infiniteBW;
-    
+
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
-    
+
     if(_adaptiveMHA != NULL) adaptiveMHA = _adaptiveMHA;
     else adaptiveMHA = NULL;
-    
+
     fwMemoryController = _fwController;
     simMemoryController = _memoryController;
-    
+
     if (width < 1 || (width & (width - 1)) != 0)
 	fatal("memory bus width must be positive non-zero and a power of two");
 
     if (clockRate < 1)
 	fatal("memory bus clock must be positive and non-zero");
-    
+
     if(_memoryController == NULL) fatal("A memory controller must be given");
 
     nextDataFree = 0;
@@ -114,7 +114,7 @@ Bus::Bus(const string &_name,
     runDataLast = 0;
 
     busBlockedTime = 0;
-    
+
     nextfree = 0;
 
     livearbs = 0;
@@ -128,14 +128,14 @@ Bus::Bus(const string &_name,
     arbiter_scheduled_flag = false;
 
     need_to_sort = true;
-    
+
     perCPUDataBusUse.resize(cpu_count, 0);
     perCPUQueueCycles.resize(cpu_count, 0);
     perCPURequests.resize(cpu_count, 0);
-    
+
     outstandingReads.resize(cpu_count, 0);
     outstandingWrites.resize(cpu_count, 0);
-    
+
     int rl = _memoryController->getReadQueueLength()+1;
     int wl = _memoryController->getWriteQueueLength()+1;
     queueDelaySum.resize(cpu_count, vector<vector<Tick> >(rl, vector<Tick>(wl, 0)));
@@ -144,23 +144,23 @@ Bus::Bus(const string &_name,
     dumpEvent->schedule(_final_sim_tick);
 
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
-    
+
 //     if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
     if(_fwController != NULL) fatal("Fast forward memory controller not implemented");
     if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
 //     _fwController->registerBus(this);
     _memoryController->registerBus(this, _cpu_count);
-    
+
 //     memoryController = fwMemoryController;
     memoryController = simMemoryController;
     memoryControllerEvent = new MemoryControllerEvent(this, false, -1);
-    
+
 //     MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
 //     ctrlSwitch->schedule(_switch_at);
     detailedSimulationStart = _switch_at;
-    
+
 //     buildShadowControllers(cpu_count, hier_params);
-    
+
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
     file << "";
@@ -171,16 +171,16 @@ Bus::Bus(const string &_name,
 #ifdef INJECT_TEST_REQUESTS
     generateRequests();
 #endif
-    
+
 #ifdef TRACE_QUEUE
-    
+
     for(int i=0;i<_cpu_count;i++){
         stringstream name;
         name << "MemoryBusQueueTrace" << i << ".txt";
         ofstream qfile(name.str().c_str());
-        
+
         qfile << setw(25) << "#Reads"
-              << setw(25) << "Writes" 
+              << setw(25) << "Writes"
               << setw(25) << "Queue Latency"
               << setw(25) << "Service Latency"
               << "\n";
@@ -210,38 +210,38 @@ Bus::regStats()
         .name(name() + ".bus_utilization")
         .desc("Data bus utilization")
         ;
-    
+
     busUtilization = busUseCycles / simTicks;
-    
+
     unknownSenderCycles
         .name(name() + ".unknown_sender_bus_use_cycles")
         .desc("Number of cycles the bus was used by an unknown sender")
         ;
-    
+
     unknownSenderUtilization
         .name(name() + ".unknown_sender_utilization")
         .desc("Bus utilization by unknown sender requests")
         ;
 
     unknownSenderUtilization = unknownSenderCycles / simTicks;
-    
+
     unknownSenderRequests
         .name(name() + ".unknown_sender_requests")
         .desc("Number of requests with unknown sender")
         ;
-    
+
     unknownSenderFraction
         .name(name() + ".unknown_sender_fraction")
         .desc("Percentage of requests that have an unknown origin")
         ;
-    
+
     unknownSenderFraction = unknownSenderRequests / totalRequests;
-    
+
     totalQueueCycles
             .name(name() + ".total_queue_cycles")
             .desc("Total number of cycles spent in memory controller queue")
             ;
-    
+
     totalRequests
             .name(name() + ".total_requests")
             .desc("Total number of requests to memory controller")
@@ -253,208 +253,208 @@ Bus::regStats()
             ;
 
     avgQueueCycles = totalQueueCycles / totalRequests;
-    
+
     accessesPerCPU.init(cpu_count);
     accessesPerCPU
             .name(name() + ".accesses_per_cpu")
             .desc("number of accesses for each CPU")
             .flags(total)
             ;
-    
+
     readsPerCPU
             .init(cpu_count)
             .name(name() + ".reads_per_cpu")
             .desc("number of reads for each CPU")
             .flags(total)
             ;
-    
+
     writesPerCPU
             .init(cpu_count)
             .name(name() + ".writes_per_cpu")
             .desc("number of writes for each CPU")
             .flags(total)
             ;
-    
+
     pageHitsPerCPU.init(cpu_count);
     pageHitsPerCPU
             .name(name() + ".page_hits_per_cpu")
             .desc("number of page hits for each CPU")
             .flags(total)
             ;
-    
+
     noCPUrequests
             .name(name() + ".no_cpu_sends")
             .desc("Counted to verify that per CPU stats got all requests")
             ;
-    
+
     blockedCycles
             .name(name() + ".blocked_cycles")
             .desc("Number of cycles the memory controller was blocked")
             ;
-    
+
     nullGrants
             .name(name() + ".null_grants")
             .desc("Number of times the bus was granted in error")
             ;
-    
+
     interferenceRemovedHits
             .name(name() + ".hits_removed_by_interference")
             .desc("The number of page misses that would be a hit in a private memory system")
             ;
-    
+
     constructiveInterferenceHits
             .name(name() + ".constructive_interference_hits")
             .desc("The number of page hits due to constructive interference")
             ;
-    
+
     cpuInterferenceCycles
         .init(cpu_count)
         .name(name() + ".cpu_interference_bus")
         .desc("aggregated delay due to serialization on bus")
         .flags(total)
         ;
-    
+
     cpuConflictInterferenceCycles
         .init(cpu_count)
         .name(name() + ".cpu_interference_conflict")
         .desc("aggregated delay due to bus conflicts")
         .flags(total)
         ;
-    
+
     blockingInterferenceCycles
         .init(cpu_count)
         .name(name() + ".blocking_interference_cycles")
         .desc("aggregated delay due to bus blocking")
         .flags(total)
         ;
-    
+
     perCPUTotalEntryDelay
         .init(cpu_count)
         .name(name() + ".per_cpu_entry_delay")
         .desc("number of cycles the read reqs had to wait for bus access")
         .flags(total)
         ;
-    
+
     perCPUTotalEntryRequests
         .init(cpu_count)
         .name(name() + ".per_cpu_entry_request")
         .desc("number of requests in total delay measurement")
         .flags(total)
         ;
-    
+
     perCPUAvgEntryDelay
         .name(name() + ".per_cpu_entry_avg_delay")
         .desc("average entry delay per read")
         .flags(total)
         ;
-    
+
     perCPUAvgEntryDelay = perCPUTotalEntryDelay / perCPUTotalEntryRequests;
-    
-    
+
+
     cpuHtMInterferenceCycles
         .init(cpu_count)
         .name(name() + ".cpu_interference_htm")
         .desc("aggregated delay due to hits becoming misses")
         .flags(total)
         ;
-    
+
     shadowCtrlPageHits
         .init(cpu_count)
         .name(name() + ".shadow_ctrl_hits")
         .desc("number of page hits for each shadow controller")
         .flags(total)
         ;
-            
+
     shadowCtrlAccesses
         .init(cpu_count)
         .name(name() + ".shadow_ctrl_accesses")
         .desc("number of page accesses for each shadow controller")
         .flags(total)
         ;
-    
+
     shadowUseCycles
         .init(cpu_count)
         .name(name() + ".shadow_use_cycles")
         .desc("number of cycles the shadow controller uses its shadow bus")
         .flags(total)
         ;
-    
+
     shadowBlockedCycles
         .init(cpu_count)
         .name(name() + ".shadow_blocked_cycles")
         .desc("the estimated number of cycles a shadow controller would have been blocked")
         .flags(total)
         ;
-    
+
     predictedServiceLatencySum
         .init(cpu_count)
         .name(name() + ".predicted_service_latency")
         .desc("The predicted private service latency")
         .flags(total)
         ;
-    
+
     numServiceLatencyRequests
         .init(cpu_count)
         .name(name() + ".service_latency_requests")
         .desc("Number of requests in service latency measurements")
         .flags(total)
         ;
-    
+
     avgPredictedServiceLatency
         .name(name() + ".avg_predicted_service_latency")
         .desc("The average predicted private service latency")
         ;
-    
+
     avgPredictedServiceLatency = predictedServiceLatencySum / numServiceLatencyRequests;
-    
+
     actualServiceLatencySum
         .name(name() + ".actual_service_latency")
         .desc("The actual service latency")
         ;
-    
+
     actualServiceLatencyRequests
         .name(name() + ".actual_service_latency_requests")
         .desc("Number of requests in the actual service latency measurements")
         ;
-    
+
     avgActualServiceLatency
         .name(name() + ".avg_actual_service_latency")
         .desc("The average actual service latency")
         ;
-    
+
     avgActualServiceLatency = actualServiceLatencySum / actualServiceLatencyRequests;
-    
+
     estimatedPrivateQueueLatency
         .init(cpu_count)
         .name(name() + ".estimated_private_queue_latency")
         .desc("Estimated private queue latency")
         .flags(total)
         ;
-    
+
     estimatedPrivateQueueRequests
         .init(cpu_count)
         .name(name() + ".estimated_private_queue_requests")
         .desc("Number of requests in the private queue latency measurements")
         .flags(total)
         ;
-    
+
     avgEstimatedPrivateQueueLatency
         .name(name() + ".avg_estimated_private_queue_latency")
         .desc("Average estimated private queue latency")
         ;
-    
+
     avgEstimatedPrivateQueueLatency = estimatedPrivateQueueLatency / estimatedPrivateQueueRequests;
-    
+
     actualQueueDelayRequests
             .name(name() + ".actual_queue_delay_requests")
             .desc("Number of requests in the actual queue delay measurements")
             ;
-    
+
     avgActualQueueDelay
             .name(name() + ".avg_actual_queue_delay")
             .desc("The average actual queue delay")
             ;
-    
+
     avgActualQueueDelay = actualQueueDelaySum / actualQueueDelayRequests;
 }
 
@@ -462,7 +462,7 @@ void
 Bus::incConstructiveInterference(){
     constructiveInterferenceHits++;
 }
-    
+
 void Bus::incInterferenceMisses(){
     interferenceRemovedHits++;
 }
@@ -481,13 +481,13 @@ Bus::requestDataBus(int id, Tick time)
 void
 Bus::requestAddrBus(int id, Tick time)
 {
-    
+
     assert(doEvents());
     assert(time>=curTick);
     DPRINTF(Bus, "id:%d Requesting Address Bus for cycle: %d\n", id, time);
-    
+
     AddrArbiterEvent *eventptr = new AddrArbiterEvent(this,id,time);
-    
+
     need_to_sort = true;
 
     if (!arbiter_scheduled_flag) {
@@ -508,7 +508,7 @@ Bus::requestAddrBus(int id, Tick time)
     else {
         arb_events.push_back(eventptr);
     }
-    
+
     livearbs++;
 }
 
@@ -536,14 +536,14 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         DPRINTF(Bus, "null request");
         return false;
     }
-    
+
     req->memBusBlockedWaitCycles = curTick - origReqTime;
-    
+
     assert(req->cmd == Read || req->cmd == Writeback);
     assert(req->adaptiveMHASenderID != -1);
     if(req->cmd == Read) readsPerCPU[req->adaptiveMHASenderID]++;
     else writesPerCPU[req->adaptiveMHASenderID]++;
-    
+
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
@@ -554,7 +554,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
         testRequests.pop_front();
     }
 #endif
-    
+
     // Warm up code that removes the effects of contention (possible to compare shared and alone configurations)
     // Infinite bandwidth, all requests are page hits
     if(curTick < detailedSimulationStart || infiniteBW){
@@ -563,20 +563,20 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
             DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
             deliverevent->schedule(origReqTime + WARMUP_LATENCY);
         }
-        
+
         return true;
     }
-    
+
     assert(req->cmd == Read || req->cmd == Writeback);
     assert(req->adaptiveMHASenderID != -1);
     if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
     else outstandingWrites[req->adaptiveMHASenderID]++;
-    
+
     req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
-    
-    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read 
+
+    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
        && req->adaptiveMHASenderID != -1 && cpu_count > 1){
-        
+
         // higher threshold --> more interference --> lower estimate
         // lower threshold --> less interference --> higher estimate
         double threshold = 0.2;
@@ -593,19 +593,19 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
                 addInterference = true;
             }
         }
-        
+
         if(addInterference){
             addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
             req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
         }
     }
-    
+
     if(req->cmd == Read){
         assert(req->adaptiveMHASenderID != -1);
         perCPUTotalEntryDelay[req->adaptiveMHASenderID] += curTick - origReqTime;
         perCPUTotalEntryRequests[req->adaptiveMHASenderID]++;
     }
-    
+
     // Insert request into memory controller
     memoryController->insertRequest(req);
     totalRequests++;
@@ -613,7 +613,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 #ifdef DO_BUS_TRACE
 #ifndef INJECT_TEST_REQUESTS
     assert(slaveInterfaces.size() == 1);
-    writeTraceFileLine(req->paddr, 
+    writeTraceFileLine(req->paddr,
                        slaveInterfaces[0]->getMemoryBankID(req->paddr),
                        (req->paddr >> slaveInterfaces[0]->getPageSize()),
                        -1,
@@ -621,7 +621,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
                        "Request");
 #endif
 #endif
-    
+
     // Schedule memory controller if not scheduled yet.
     if (!memoryControllerEvent->scheduled()) {
         memoryControllerEvent->schedule(curTick);
@@ -636,18 +636,20 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
     if (memoryController->hasMoreRequests()) {
 
         MemReqPtr request = memoryController->getRequest();
-        
+
+        cout << curTick << ": sending request for addr " << request->paddr << "\n";
+
         DPRINTF(Bus, "sending req %s addr %x \n", request->cmd.toString(), request->paddr);
-        
+
 #ifdef INJECT_TEST_REQUESTS
         if(!request->isDDRTestReq && (request->cmd == Read || request->cmd == Writeback)){
             fatal("Testing is finished, stopping execution");
         }
 #endif
-        
+
 #ifdef DO_BUS_TRACE
         assert(slaveInterfaces.size() == 1);
-        writeTraceFileLine(request->paddr, 
+        writeTraceFileLine(request->paddr,
                         slaveInterfaces[0]->getMemoryBankID(request->paddr),
                         (request->paddr >> slaveInterfaces[0]->getPageSize()),
                         -1,
@@ -668,14 +670,14 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
                 }
             }
         }
-        
+
         assert(slaveInterfaces.size() == 1);
         slaveInterfaces[0]->access(request);
     }
 }
 
 /* This function is called when the DRAM has calculated the latency */
-void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow) 
+void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 {
 
     if(req->cmd == Read || req->cmd == Writeback) assert(req->adaptiveMHASenderID != -1);
@@ -684,16 +686,16 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
     nextfree = time;
-    
-    DPRINTF(Bus, 
+
+    DPRINTF(Bus,
             "latency calculated req %s, addr %x, latency %d\n",
             req->cmd.toString(),
             req->paddr,
             time - curTick);
-    
+
 #ifdef DO_BUS_TRACE
     assert(slaveInterfaces.size() == 1);
-    writeTraceFileLine(req->paddr, 
+    writeTraceFileLine(req->paddr,
                        slaveInterfaces[0]->getMemoryBankID(req->paddr),
                        (req->paddr >> slaveInterfaces[0]->getPageSize()),
                        time - curTick,
@@ -710,14 +712,14 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         else{
             unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
         }
-        
+
     }
-    
+
 #ifdef INJECT_TEST_REQUESTS
     // the DDR Test Requests are generated in the bus, so we don't want to return them
     if(req->isDDRTestReq) return;
 #endif
-    
+
     if(req->cmd == Read || req->cmd == Writeback){
         assert(req->adaptiveMHASenderID != -1);
         if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]--;
@@ -727,29 +729,29 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
     }
-    
+
     if (req->cmd == Read) {
-        
+
         Tick serviceLatency = time - curTick;
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
 //         Tick totalLat = time - req->inserted_into_memory_controller;
-        
+
         req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
         req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
-        
+
         assert(req->entryReadCnt <= memoryController->getReadQueueLength());
         assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
         queueDelaySum[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt] += queueLatency;
         queueDelayRequests[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt]++;
-        
+
 #ifdef TRACE_QUEUE
-        
+
         assert(req->adaptiveMHASenderID != -1);
-        
+
         stringstream name;
         name << "MemoryBusQueueTrace" << req->adaptiveMHASenderID << ".txt";
         ofstream qfile(name.str().c_str(), ofstream::app);
-        
+
         qfile << setw(25) << req->entryReadCnt
               << setw(25) << req->entryWriteCnt
               << setw(25) << queueLatency
@@ -758,34 +760,34 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         qfile.flush();
         qfile.close();
 #endif
-        
+
         if(cpu_count > 1){
             assert(req->adaptiveMHASenderID != -1);
-            
+
 //             if(req->waitWritebackCnt >= 10){
 //                 req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
 //             }
-            
+
 //             int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
-            
+
             req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
             req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceLatency - req->busAloneServiceEstimate;
-            
-            estimatedPrivateQueueLatency[req->adaptiveMHASenderID] 
+
+            estimatedPrivateQueueLatency[req->adaptiveMHASenderID]
                     += req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate;
             estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
 
-            predictedServiceLatencySum[req->adaptiveMHASenderID] 
+            predictedServiceLatencySum[req->adaptiveMHASenderID]
                     += req->busAloneServiceEstimate;
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
         }
-        
+
         actualServiceLatencySum += serviceLatency;
         actualServiceLatencyRequests++;
-        
+
         actualQueueDelaySum += queueLatency;
         actualQueueDelayRequests++;
-        
+
         assert(req->busId < interfaces.size() && req->busId > -1);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
         deliverevent->schedule(time);
@@ -795,21 +797,21 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     }
 }
 
-void 
+void
 Bus::dumpQueueDelayStats(){
     ofstream qfile("MemoryBusQueueTime.txt");
-    
+
     int WIDTH = 10;
-    
+
     for(int i=0;i<cpu_count;i++){
         qfile << "CPU" << i << " queue trace\n\n";
-        
+
         qfile << setw(WIDTH) << "";
         for(int k=0;k<=memoryController->getWriteQueueLength();k++){
             qfile << setw(WIDTH) << k;
         }
         qfile << "\n";
-        
+
         for(int j=0;j<=memoryController->getReadQueueLength();j++){
             qfile << setw(WIDTH) << j << ": ";
             for(int k=0;k<=memoryController->getWriteQueueLength();k++){
@@ -818,15 +820,15 @@ Bus::dumpQueueDelayStats(){
             qfile << "\n";
         }
         qfile << "\n";
-        
+
         qfile << "CPU" << i << " request trace\n\n";
-        
+
         qfile << setw(WIDTH) << "";
         for(int k=0;k<=memoryController->getWriteQueueLength();k++){
             qfile << setw(WIDTH) << k;
         }
         qfile << "\n";
-        
+
         for(int j=0;j<=memoryController->getReadQueueLength();j++){
             qfile << setw(WIDTH-1) <<  j << ": ";
             for(int k=0;k<=memoryController->getWriteQueueLength();k++){
@@ -836,7 +838,7 @@ Bus::dumpQueueDelayStats(){
         }
         qfile << "\n";
     }
-    
+
     qfile.flush();
     qfile.close();
 }
@@ -860,7 +862,7 @@ Bus::registerInterface(BusInterface<Bus> *bi, bool master)
         simMemoryController->registerInterface(bi);
         transmitInterfaces.push_back(bi);
     }
-    
+
     return numInterfaces++;
 }
 void
@@ -893,7 +895,7 @@ Bus::resetAdaptiveStats(){
 
 double
 Bus::getAverageQueue(Tick sampleSize){
-    
+
     int sum = 0;
     int reqs = 0;
     for(int i=0;i<perCPUQueueCycles.size();i++) sum += perCPUQueueCycles[i];
@@ -904,7 +906,7 @@ Bus::getAverageQueue(Tick sampleSize){
 
 double
 Bus::getDataBusUtilisation(Tick sampleSize){
-    
+
     int sum = 0;
     for(int i=0;i<cpu_count;i++) sum += perCPUDataBusUse[i];
     return (double) ((double) sum / (double) sampleSize);
@@ -912,14 +914,14 @@ Bus::getDataBusUtilisation(Tick sampleSize){
 
 vector<int>
 Bus::getDataUsePerCPUId(){
-    
+
     vector<int> retval= perCPUDataBusUse;
     return retval;
 }
 
 vector<double>
 Bus::getAverageQueuePerCPU(){
-    
+
     vector<double> retval;
     retval.resize(perCPUQueueCycles.size(), 0);
     assert(perCPUQueueCycles.size() == perCPURequests.size());
@@ -932,13 +934,13 @@ Bus::getAverageQueuePerCPU(){
 
 void
 Bus::switchMemoryController(){
-    
+
     DPRINTF(Bus, "Switching from fast forward controller to simulation controller\n");
-    
+
     memoryController = simMemoryController;
-    
+
     simMemoryController->setOpenPages(fwMemoryController->getOpenPages());
-    
+
     list<MemReqPtr> pendingReqs = fwMemoryController->getPendingRequests();
     while(!pendingReqs.empty()){
         MemReqPtr tmp = pendingReqs.front();
@@ -950,18 +952,18 @@ Bus::switchMemoryController(){
 
 void
 Bus::updatePerCPUAccessStats(int cpuID, bool pageHit){
-   
+
     if(cpuID == -1){
         noCPUrequests++;
         return;
     }
-    
+
     assert(cpuID >= 0 && cpuID < cpu_count);
     if(pageHit) pageHitsPerCPU[cpuID]++;
     accessesPerCPU[cpuID]++;
 }
 
-std::vector<std::vector<int> > 
+std::vector<std::vector<int> >
 Bus::retrieveBusInterferenceStats(){
     return busInterference;
 }
@@ -989,11 +991,11 @@ Bus::resetConflictInterferenceStats(){
     }
 }
 
-std::vector<std::vector<int> > 
+std::vector<std::vector<int> >
 Bus::retrieveHitToMissInterferenceStats(){
     return hitToMissInterference;
 }
-    
+
 void
 Bus::resetHitToMissInterferenceStats(){
     for(int i=0;i<hitToMissInterference.size();i++){
@@ -1003,7 +1005,7 @@ Bus::resetHitToMissInterferenceStats(){
     }
 }
 
-void 
+void
 Bus::addInterference(int victimID, int interfererID, interference_type iType){
     switch(iType){
         case BUS_INTERFERENCE:
@@ -1051,7 +1053,7 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 
 // void
 // Bus::buildShadowControllers(int np, HierParams* hp){
-//     
+//
 //     if(np > 1){
 //         BaseMemory::Params params;
 //         params.in = this;
@@ -1063,7 +1065,7 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 //         params.CAS_latency = 4;
 //         params.precharge_latency = 4;
 //         params.min_activate_to_precharge_latency = 12;
-//         
+//
 //         for(int i=0;i<np;i++){
 //             stringstream ctrlName;
 //             ctrlName << "ShadowController" << i;
@@ -1072,23 +1074,23 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 //             shadowControllers.push_back(tmpCtrl);
 //             tmpCtrl->registerBus(this, np);
 //             tmpCtrl->setShadow();
-//             
+//
 //             stringstream memName;
 //             memName << "ShadowMemory" << i;
 //             SimpleMemBank<NullCompression>* tmpMem = new SimpleMemBank<NullCompression>(memName.str(), hp, params);
 //             shadowMemories.push_back(tmpMem);
-//             
+//
 //             stringstream slaveName;
 //             slaveName << "ShadowSlaveInterface" << i;
-//             SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave = 
+//             SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave =
 //                     new SlaveInterface<SimpleMemBank<NullCompression>, Bus>(slaveName.str(), hp, tmpMem, this, false, true);
 //             shadowSlaveInterfaces.push_back(tmpSlave);
 //             tmpCtrl->registerInterface(tmpSlave);
 //             tmpMem->setSlaveInterface(tmpSlave);
-//             
+//
 //             shadowEvents.push_back(new MemoryControllerEvent(this, true, i));
 //         }
-//         
+//
 //         latencyStorage.resize(np, map<Addr, int>());
 //     }
 // }
@@ -1096,12 +1098,12 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 #ifdef INJECT_TEST_REQUESTS
 void
 Bus::generateRequests(){
-    
+
     // TEST 1: Simple read and write page hits tests
     int numTests = 10;
     Addr address = 0x1000000;
     bool wb = false;
-    
+
     for(int i=0;i<numTests;i++){
         MemReqPtr tmp = new MemReq();
         tmp->paddr = address;
@@ -1111,15 +1113,15 @@ Bus::generateRequests(){
         wb = !wb;
         testRequests.push_back(tmp);
     }
-    
+
     // TEST 2: Read and write page hit bursts
     numTests = 10;
     address = 0x1000000;
     int reads = 5;
     int writes = 5;
-    
+
     for(int i=0;i<numTests;i++){
-        
+
         for(int j=0;j<reads;j++){
             MemReqPtr tmp = new MemReq();
             tmp->paddr = address;
@@ -1127,7 +1129,7 @@ Bus::generateRequests(){
             tmp->cmd = Read;
             testRequests.push_back(tmp);
         }
-        
+
         for(int j=0;j<writes;j++){
             MemReqPtr tmp = new MemReq();
             tmp->paddr = address;
@@ -1136,26 +1138,26 @@ Bus::generateRequests(){
             testRequests.push_back(tmp);
         }
     }
-    
+
     // TEST 3: Page conflicts
     numTests = 10;
     Addr pageA = 0x2000000;
     Addr pageB = 0x3000000;
     bool usePageA = true;
-    
+
     for(int i=0;i<numTests;i++){
         MemReqPtr tmp = new MemReq();
         tmp->isDDRTestReq = true;
         tmp->cmd = Read;
-        
+
         if(usePageA) tmp->paddr = pageA;
         else tmp->paddr = pageB;
         usePageA = !usePageA;
-        
+
         testRequests.push_back(tmp);
     }
-           
-    
+
+
     // TEST 4: Overlapped read and write page accesses
     // memory controller closes pages between reads and writes
     numTests = 10;
@@ -1163,24 +1165,24 @@ Bus::generateRequests(){
     int numWrites = 8;
     address = 0x1000000;
     int pagesize = 10;
-    
+
     for(int i=0;i<numTests;i++){
-        
+
         for(int j=0;j<numReads;j++){
-            
+
             Addr curAddr = address | (j << pagesize);
-            
+
             MemReqPtr tmp = new MemReq();
             tmp->paddr = curAddr;
             tmp->isDDRTestReq = true;
             tmp->cmd = Read;
             testRequests.push_back(tmp);
         }
-        
+
         for(int j=0;j<numWrites;j++){
-            
+
             Addr curAddr = address | (j << pagesize);
-            
+
             MemReqPtr tmp = new MemReq();
             tmp->paddr = curAddr;
             tmp->isDDRTestReq = true;
@@ -1188,12 +1190,12 @@ Bus::generateRequests(){
             testRequests.push_back(tmp);
         }
     }
-    
+
 #ifdef DO_BUS_TRACE
     list<MemReqPtr>::iterator it;
     for(it = testRequests.begin(); it != testRequests.end(); it++){
         MemReqPtr tmp = *it;
-        writeTraceFileLine(tmp->paddr, 
+        writeTraceFileLine(tmp->paddr,
                           (tmp->paddr >> 10) % 8,
                           (tmp->paddr >> 10),
                           -1,
@@ -1245,7 +1247,7 @@ AddrArbiterEvent::process()
             if (bus->need_to_sort) {
                 bus->arb_events.sort(event_compare());
                 bus->need_to_sort = false;
-            } 
+            }
 
             // Find next arb event and schedule it.
             AddrArbiterEvent *tmp = bus->arb_events.front();
@@ -1312,7 +1314,7 @@ MemoryControllerEvent::description()
 
 // Unused methods
 
-void 
+void
 Bus::delayData(int size, int senderID, MemCmdEnum cmd)
 {
     fatal("delayData() not used in new bus implementation");
