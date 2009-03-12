@@ -50,61 +50,60 @@ MSHR::MSHR()
     inService = false;
     ntargets = 0;
     threadNum = -1;
-    
+
 //     cache = NULL;
 }
 
 void
 MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
-	       MemReqPtr &target)
+		MemReqPtr &target)
 {
-    
-    assert(targets.empty());
-    addr = _addr;
-    asid = _asid;
 
-    req = new MemReq(); // allocate new memory request
-    req->completionEvent = 0; // Don't delete twice!
-    req->expectCompletionEvent = false;
-    req->paddr = addr; //picked physical address for now
-    req->asid = asid;
-    req->cmd = cmd;
-    req->size = size;
-    req->data = new uint8_t[size];
-    req->mshr = this;
-    //Set the time here for latency calculations
-    req->time = curTick;
+	assert(targets.empty());
+	addr = _addr;
+	asid = _asid;
 
-    if (target) {
-        
-	threadNum = target->thread_num;
-	req->nic_req = target->nic_req;
-	req->xc = target->xc;
-	allocateTarget(target);
-	req->thread_num = target->thread_num;
-	req->flags = target->flags;
-	req->pc = target->pc;
-        
-        req->oldAddr = target->oldAddr;
-        req->enteredMemSysAt = target->enteredMemSysAt;
-        req->writebackGeneratedAt = target->writebackGeneratedAt;
-        
-        // make sure owner ID is copied to the new request
-        // necessary for the AdaptiveMHA
-        req->adaptiveMHASenderID = target->adaptiveMHASenderID;
-        req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
-        req->interferenceMissAt = target->interferenceMissAt;
-        
-        req->finishedInCacheAt = target->finishedInCacheAt;
-        
-        if(cache->isShared){
-            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
-            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
-        }
-        
-//         if(cache->isInstructionCache) req->instructionMiss = true;
-//         else req->instructionMiss = target->instructionMiss;
-    }
+	req = new MemReq(); // allocate new memory request
+	req->completionEvent = 0; // Don't delete twice!
+	req->expectCompletionEvent = false;
+	req->paddr = addr; //picked physical address for now
+	req->asid = asid;
+	req->cmd = cmd;
+	req->size = size;
+	req->data = new uint8_t[size];
+	req->mshr = this;
+	//Set the time here for latency calculations
+	req->time = curTick;
+
+	if (target) {
+
+		threadNum = target->thread_num;
+		req->nic_req = target->nic_req;
+		req->xc = target->xc;
+		allocateTarget(target);
+		req->thread_num = target->thread_num;
+		req->flags = target->flags;
+		req->pc = target->pc;
+
+		req->oldAddr = target->oldAddr;
+		req->enteredMemSysAt = target->enteredMemSysAt;
+		req->writebackGeneratedAt = target->writebackGeneratedAt;
+
+		// make sure owner ID is copied to the new request
+		// necessary for the AdaptiveMHA
+		req->adaptiveMHASenderID = target->adaptiveMHASenderID;
+		req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
+		req->interferenceMissAt = target->interferenceMissAt;
+
+		req->finishedInCacheAt = target->finishedInCacheAt;
+
+		req->memCtrlGeneratingReadSeqNum = target->memCtrlGeneratingReadSeqNum;
+
+		if(cache->isShared){
+			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
+			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
+		}
+	}
 }
 
 // Since we aren't sure if data is being used, don't copy here.
@@ -130,29 +129,28 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->mshr = this;
     req->time = curTick;
     req->pc = target->pc;
-    
+
     req->oldAddr = target->oldAddr;
     req->writebackGeneratedAt = target->writebackGeneratedAt;
-    
+
     req->enteredMemSysAt = target->enteredMemSysAt;
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
     req->interferenceMissAt = target->interferenceMissAt;
     req->finishedInCacheAt = target->finishedInCacheAt;
-    
+
+    req->memCtrlGeneratingReadSeqNum = target->memCtrlGeneratingReadSeqNum;
+
     if(cache->isShared){
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
     }
-    
-//     if(cache->isInstructionCache) req->instructionMiss = true;
-//     else req->instructionMiss = target->instructionMiss;
 }
 
 void
 MSHR::deallocate()
 {
-    
+
     assert(targets.empty());
     assert(ntargets == 0);
     req = NULL;
@@ -167,8 +165,8 @@ MSHR::deallocate()
 void
 MSHR::allocateTarget(MemReqPtr &target)
 {
-    
-    //If we append an invalidate and we issued a read to the bus, 
+
+    //If we append an invalidate and we issued a read to the bus,
     //but now have some pending writes, we need to move
     //the invalidate to before the first non-read
     if (inService && req->cmd.isRead() && target->cmd.isInvalidate()) {
@@ -185,7 +183,7 @@ MSHR::allocateTarget(MemReqPtr &target)
 	//Now that we have all the reads off until first non-read, we can
 	//place the invalidate on
 	targets.push_front(target);
-	
+
 	//Now we pop off the temp_stack and put them back
 	while (temp.size() > 0) {
 	    targets.push_front(temp.front());
@@ -195,13 +193,13 @@ MSHR::allocateTarget(MemReqPtr &target)
     else {
 	targets.push_back(target);
     }
-    
+
     ++ntargets;
     assert(targets.size() == ntargets);
     /**
      * @todo really prioritize the target commands.
      */
-    
+
     if (!inService && target->cmd.isWrite()) {
     	req->cmd = Write;
     }

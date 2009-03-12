@@ -637,8 +637,6 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 
         MemReqPtr request = memoryController->getRequest();
 
-        cout << curTick << ": sending request for addr " << request->paddr << "\n";
-
         DPRINTF(Bus, "sending req %s addr %x \n", request->cmd.toString(), request->paddr);
 
 #ifdef INJECT_TEST_REQUESTS

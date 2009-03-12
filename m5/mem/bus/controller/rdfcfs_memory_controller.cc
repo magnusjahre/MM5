@@ -107,6 +107,30 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
         pageResultTraces[i].initalizeTrace(params);
     }
+
+    privateExecutionOrderTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
+    for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+        stringstream filename;
+        filename << "private_access_order_" << i;
+        privateExecutionOrderTraces[i] = RequestTrace("", filename.str().c_str());
+
+        vector<string> privorderparams;
+        privorderparams.push_back("Address");
+        privorderparams.push_back("Bank");
+        privorderparams.push_back("Command");
+
+        privateExecutionOrderTraces[i].initalizeTrace(privorderparams);
+    }
+
+    if(regbus->adaptiveMHA->getCPUCount() == 1){
+
+    	aloneAccessOrderTraces = RequestTrace("", "private_access_order");
+    	vector<string> aloneparams;
+    	aloneparams.push_back("Address");
+    	aloneparams.push_back("Band");
+    	aloneparams.push_back("Command");
+    	aloneAccessOrderTraces.initalizeTrace(aloneparams);
+    }
 #endif
 }
 
@@ -118,13 +142,15 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
     req->inserted_into_memory_controller = curTick;
 
-    cout << curTick << ": memory controller recv req addr " << req->paddr << ", cmd " << req->cmd << "\n";
-
     assert(req->adaptiveMHASenderID != -1);
     req->memCtrlSequenceNumber = requestSequenceNumbers[req->adaptiveMHASenderID];
     requestSequenceNumbers[req->adaptiveMHASenderID]++;
 
-    DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d\n", req->cmd, req->paddr, getMemoryBankID(req->paddr));
+    DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d, cmd %s\n",
+    		req->cmd,
+    		req->paddr,
+    		getMemoryBankID(req->paddr),
+    		req->cmd.toString());
 
     if(bus->adaptiveMHA->getCPUCount() > 1){
         int privReadCnt = 0;
@@ -161,10 +187,13 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     if(memCtrCPUCount > 1){
-        DPRINTF(MemoryControllerInterference, "Recieved request from CPU %d, addr %d\n",
+        DPRINTF(MemoryControllerInterference, "Recieved request from CPU %d, addr %d, cmd %s\n",
                 req->adaptiveMHASenderID,
-                req->paddr);
+                req->paddr,
+                req->cmd.toString());
         assert(req->adaptiveMHASenderID != -1);
+
+
 
         PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
         if(headPointers[req->adaptiveMHASenderID] == NULL){
@@ -181,21 +210,47 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
             newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
         }
 
-        privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
-
-        assert(req->cmd == Read || req->cmd == Writeback);
-        if(req->cmd == Read){
-        	req->memCtrlPrivateSeqNum = currentPrivateSeqNum[req->adaptiveMHASenderID];
-        	currentPrivateSeqNum[req->adaptiveMHASenderID];
+        if(req->memCtrlGeneratingReadSeqNum == -1){
+        	privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
         }
         else{
-        	cout << curTick << ": got writeback for addr " << req->paddr << ", generating seq num was\n";
-			fatal("writeback sequence number allocation not implemented");
-        }
+        	assert(req->cmd == Writeback);
 
+        	vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
+        	bool inserted = false;
+
+        	for( ; entryIt != privateLatencyBuffer[req->adaptiveMHASenderID].end(); entryIt++){
+        		PrivateLatencyBufferEntry* curEntry = *entryIt;
+        		if(!curEntry->scheduled && curEntry->req->memCtrlGeneratingReadSeqNum != -1){
+					if(req->memCtrlGeneratingReadSeqNum < curEntry->req->memCtrlGeneratingReadSeqNum){
+						DPRINTF(MemoryControllerInterference, "Entry is delayed writeback %d with seq num %d, inserting before %d, seq num %d\n",
+								newEntry->req->paddr,
+								newEntry->req->memCtrlGeneratingReadSeqNum,
+								curEntry->req->paddr,
+								curEntry->req->memCtrlGeneratingReadSeqNum);
+						privateLatencyBuffer[req->adaptiveMHASenderID].insert(entryIt, newEntry);
+						inserted = true;
+						break;
+					}
+        		}
+        	}
+        	if(!inserted){
+        		privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
+        	}
+        }
     }
 
-    assert(req->cmd == Read || req->cmd == Writeback);
+
+#ifdef DO_ESTIMATION_TRACE
+	if(memCtrCPUCount == 1){
+		assert(aloneAccessOrderTraces.isInitialized());
+    	vector<RequestTraceEntry> aloneparams;
+    	aloneparams.push_back(RequestTraceEntry(req->paddr));
+    	aloneparams.push_back(RequestTraceEntry(getMemoryBankID(req->paddr)));
+    	aloneparams.push_back(RequestTraceEntry(req->cmd.toString()));
+    	aloneAccessOrderTraces.addTrace(aloneparams);
+	}
+#endif
 
     return 0;
 }
@@ -846,6 +901,26 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
 
     DPRINTF(MemoryControllerInterference, "History traversal finished, estimated %d cycles of queue latency\n", queueLatency);
 
+#ifdef DO_ESTIMATION_TRACE
+    for(int i=0;i<privateLatencyBuffer[req->adaptiveMHASenderID].size();i++){
+    	PrivateLatencyBufferEntry* curTraceCandidate = privateLatencyBuffer[req->adaptiveMHASenderID][i];
+
+    	if(!curTraceCandidate->scheduled) break;
+
+    	if(!curTraceCandidate->inAccessTrace){
+
+    		curTraceCandidate->inAccessTrace = true;
+
+    		assert(privateExecutionOrderTraces[req->adaptiveMHASenderID].isInitialized());
+    		vector<RequestTraceEntry> privorderparams;
+    		privorderparams.push_back(RequestTraceEntry(curTraceCandidate->req->paddr));
+    		privorderparams.push_back(RequestTraceEntry(getMemoryBankID(curTraceCandidate->req->paddr)));
+    		privorderparams.push_back(RequestTraceEntry(curTraceCandidate->req->cmd.toString()));
+    		privateExecutionOrderTraces[curTraceCandidate->req->adaptiveMHASenderID].addTrace(privorderparams);
+    	}
+    }
+#endif
+
     // 3. Delete any requests that are no longer needed
     // i.e. are older than the oldest head element still needed
     DPRINTF(MemoryControllerInterference, "--- Step 3, delete old entries\n");
@@ -1055,6 +1130,12 @@ RDFCFSTimingMemoryController::executePrivateRequest(PrivateLatencyBufferEntry* e
     else{
         if(entry->req->cmd == Read) privateLatencyEstimate = 120;
         else privateLatencyEstimate = 109;
+    }
+
+    assert(entry->req->cmd == Read || entry->req->cmd == Writeback);
+    if(entry->req->cmd == Read){
+    	entry->req->memCtrlPrivateSeqNum = currentPrivateSeqNum[entry->req->adaptiveMHASenderID];
+    	currentPrivateSeqNum[entry->req->adaptiveMHASenderID]++;
     }
 
     DPRINTF(MemoryControllerInterference, "Estimated service latency for addr %d is %d\n", entry->req->paddr, privateLatencyEstimate);

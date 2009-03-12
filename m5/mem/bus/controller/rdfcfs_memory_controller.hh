@@ -68,6 +68,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int numReqsPastOldest;
 
     std::vector<RequestTrace> pageResultTraces;
+    std::vector<RequestTrace> privateExecutionOrderTraces;
+    RequestTrace aloneAccessOrderTraces;
     std::vector<Tick> requestSequenceNumbers;
     std::vector<Tick> currentPrivateSeqNum;
 
@@ -83,6 +85,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
         bool scheduled;
         bool latencyRetrieved;
         MemReqPtr req;
+        bool inAccessTrace;
 
         PrivateLatencyBufferEntry(MemReqPtr& _req){
             headAtEntry = NULL;
@@ -91,6 +94,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
             scheduled = false;
             latencyRetrieved = false;
             req = _req;
+            inAccessTrace = false;
         }
 
         bool canDelete(){
@@ -103,6 +107,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     std::vector<PrivateLatencyBufferEntry*> tailPointers;
     std::vector<int> readyFirstLimits;
     std::vector<vector<PrivateLatencyBufferEntry*> > privateLatencyBuffer;
+
     void estimatePrivateLatency(MemReqPtr& req);
     PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
     void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
