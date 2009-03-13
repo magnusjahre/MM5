@@ -193,24 +193,12 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
                 req->cmd.toString());
         assert(req->adaptiveMHASenderID != -1);
 
-
-
         PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
-        if(headPointers[req->adaptiveMHASenderID] == NULL){
-            headPointers[req->adaptiveMHASenderID] = newEntry;
-            newEntry->headAtEntry = newEntry;
-            DPRINTF(MemoryControllerInterference, "Updating head pointer is null, now pointing to %d\n", newEntry);
-        }
-        else{
-            DPRINTF(MemoryControllerInterference,
-                    "Head pointer is set, head at entry for addr %d is addr %d, entry addr %d\n",
-                    req->paddr,
-                    (*headPointers[req->adaptiveMHASenderID]).req->paddr,
-                    headPointers[req->adaptiveMHASenderID]);
-            newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
-        }
 
         if(req->memCtrlGeneratingReadSeqNum == -1){
+        	DPRINTF(MemoryControllerInterference,
+        			"No order information is known for addr %d, adding to end of queue\n",
+        			req->paddr);
         	privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
         }
         else{
@@ -234,10 +222,42 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 					}
         		}
         	}
+
         	if(!inserted){
+        		DPRINTF(MemoryControllerInterference,
+        		        			"Addr %d, order %d is the last of the currently seen requests with order information\n",
+        		        			newEntry->req->paddr,
+									newEntry->req->memCtrlGeneratingReadSeqNum);
         		privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
         	}
         }
+
+        if(headPointers[req->adaptiveMHASenderID] == NULL){
+            headPointers[req->adaptiveMHASenderID] = newEntry;
+            newEntry->headAtEntry = newEntry;
+            DPRINTF(MemoryControllerInterference, "Updating head pointer is null, now pointing to %d\n", newEntry);
+        }
+        else{
+            DPRINTF(MemoryControllerInterference,
+                    "Head pointer is set, head at entry for addr %d is addr %d, entry addr %d\n",
+                    req->paddr,
+                    (*headPointers[req->adaptiveMHASenderID]).req->paddr,
+                    headPointers[req->adaptiveMHASenderID]);
+
+			int headPos = getArrivalIndex(headPointers[req->adaptiveMHASenderID], req->adaptiveMHASenderID);
+			int newPos = getArrivalIndex(newEntry, newEntry->req->adaptiveMHASenderID);
+
+			assert(headPos != newPos);
+			if(headPos < newPos){
+				newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
+			}
+			else{
+				headPointers[req->adaptiveMHASenderID] = newEntry;
+				newEntry->headAtEntry = newEntry;
+			}
+        }
+
+
     }
 
 
@@ -1079,6 +1099,10 @@ RDFCFSTimingMemoryController::getArrivalIndex(PrivateLatencyBufferEntry* entry, 
 
 RDFCFSTimingMemoryController::PrivateLatencyBufferEntry*
 RDFCFSTimingMemoryController::schedulePrivateRequest(int fromCPU){
+
+	if(curTick == 10642216){
+		dumpBufferStatus(fromCPU);
+	}
 
     int headPos = -1;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
