@@ -627,7 +627,10 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 					if(isShared){
 						writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
+						writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
+						writebacks.front()->memCtrlWbGenBy = req->paddr;
 					}
+
 
 					missQueue->doWriteback(writebacks.front());
 				}

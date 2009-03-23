@@ -111,7 +111,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
     privateExecutionOrderTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
     for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
         stringstream filename;
-        filename << "private_access_order_" << i;
+        filename << "private_execution_order_" << i;
         privateExecutionOrderTraces[i] = RequestTrace("", filename.str().c_str());
 
         vector<string> privorderparams;
@@ -122,13 +122,44 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
         privateExecutionOrderTraces[i].initalizeTrace(privorderparams);
     }
 
+    privateExecutionOrderTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
+    for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+        stringstream filename;
+        filename << "private_execution_order_" << i;
+        privateExecutionOrderTraces[i] = RequestTrace("", filename.str().c_str());
+
+        vector<string> privorderparams;
+        privorderparams.push_back("Address");
+        privorderparams.push_back("Bank");
+        privorderparams.push_back("Command");
+
+        privateExecutionOrderTraces[i].initalizeTrace(privorderparams);
+    }
+
+    privateArrivalOrderEstimationTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
+    for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+        stringstream filename;
+        filename << "private_estimated_arrival_order_" << i;
+        privateArrivalOrderEstimationTraces[i] = RequestTrace("", filename.str().c_str());
+
+        vector<string> privorderparams;
+        privorderparams.push_back("Address");
+        privorderparams.push_back("Bank");
+        privorderparams.push_back("Command");
+        privorderparams.push_back("Arrived At");
+        privorderparams.push_back("Est Arrival");
+
+        privateArrivalOrderEstimationTraces[i].initalizeTrace(privorderparams);
+    }
+
     if(regbus->adaptiveMHA->getCPUCount() == 1){
 
     	aloneAccessOrderTraces = RequestTrace("", "private_access_order");
     	vector<string> aloneparams;
     	aloneparams.push_back("Address");
-    	aloneparams.push_back("Band");
+    	aloneparams.push_back("Bank");
     	aloneparams.push_back("Command");
+    	aloneparams.push_back("WB gen by");
     	aloneAccessOrderTraces.initalizeTrace(aloneparams);
     }
 #endif
@@ -195,42 +226,35 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
         PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
 
-        if(req->memCtrlGeneratingReadSeqNum == -1){
-        	DPRINTF(MemoryControllerInterference,
-        			"No order information is known for addr %d, adding to end of queue\n",
-        			req->paddr);
-        	privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
-        }
-        else{
-        	assert(req->cmd == Writeback);
+		vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
+		bool inserted = false;
+		Tick estimatedArrival = getEstimatedArrivalTime(req);
 
-        	vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
-        	bool inserted = false;
+		for( ; entryIt != privateLatencyBuffer[req->adaptiveMHASenderID].end(); entryIt++){
+			PrivateLatencyBufferEntry* curEntry = *entryIt;
 
-        	for( ; entryIt != privateLatencyBuffer[req->adaptiveMHASenderID].end(); entryIt++){
-        		PrivateLatencyBufferEntry* curEntry = *entryIt;
-        		if(!curEntry->scheduled && curEntry->req->memCtrlGeneratingReadSeqNum != -1){
-					if(req->memCtrlGeneratingReadSeqNum < curEntry->req->memCtrlGeneratingReadSeqNum){
-						DPRINTF(MemoryControllerInterference, "Entry is delayed writeback %d with seq num %d, inserting before %d, seq num %d\n",
+			Tick curEntryEstimatedArrival = getEstimatedArrivalTime(curEntry->req);
+
+			if(!curEntry->scheduled && estimatedArrival < curEntryEstimatedArrival){
+				DPRINTF(MemoryControllerInterference, "Entry is delayed writeback %d with seq num %d, inserting before %d, seq num %d\n",
+						newEntry->req->paddr,
+						newEntry->req->memCtrlGeneratingReadSeqNum,
+						curEntry->req->paddr,
+						curEntry->req->memCtrlGeneratingReadSeqNum);
+				privateLatencyBuffer[req->adaptiveMHASenderID].insert(entryIt, newEntry);
+				inserted = true;
+				break;
+			}
+		}
+
+		if(!inserted){
+			DPRINTF(MemoryControllerInterference,
+								"Addr %d, order %d is the last of the currently seen requests with order information\n",
 								newEntry->req->paddr,
-								newEntry->req->memCtrlGeneratingReadSeqNum,
-								curEntry->req->paddr,
-								curEntry->req->memCtrlGeneratingReadSeqNum);
-						privateLatencyBuffer[req->adaptiveMHASenderID].insert(entryIt, newEntry);
-						inserted = true;
-						break;
-					}
-        		}
-        	}
+								newEntry->req->memCtrlGeneratingReadSeqNum);
+			privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
+		}
 
-        	if(!inserted){
-        		DPRINTF(MemoryControllerInterference,
-        		        			"Addr %d, order %d is the last of the currently seen requests with order information\n",
-        		        			newEntry->req->paddr,
-									newEntry->req->memCtrlGeneratingReadSeqNum);
-        		privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
-        	}
-        }
 
         if(headPointers[req->adaptiveMHASenderID] == NULL){
             headPointers[req->adaptiveMHASenderID] = newEntry;
@@ -268,11 +292,27 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     	aloneparams.push_back(RequestTraceEntry(req->paddr));
     	aloneparams.push_back(RequestTraceEntry(getMemoryBankID(req->paddr)));
     	aloneparams.push_back(RequestTraceEntry(req->cmd.toString()));
+    	aloneparams.push_back(RequestTraceEntry(req->memCtrlWbGenBy == MemReq::inval_addr ? 0 : req->memCtrlWbGenBy));
     	aloneAccessOrderTraces.addTrace(aloneparams);
 	}
 #endif
 
     return 0;
+}
+
+Tick RDFCFSTimingMemoryController::getEstimatedArrivalTime(MemReqPtr& req){
+
+	assert(req->cmd == Read || req->cmd == Writeback);
+
+	if(req->cmd == Read){
+		return req->inserted_into_memory_controller -
+		(req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] +
+		 req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] +
+		 req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT]+
+		 req->interferenceBreakdown[MEM_BUS_ENTRY_LAT]);
+	}
+
+	return req->inserted_into_memory_controller - req->memCtrlGenReadInterference;
 }
 
 bool RDFCFSTimingMemoryController::hasMoreRequests() {
@@ -969,6 +1009,24 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
 
     assert(oldestNeededHeadIndex != INT_MAX);
     if(oldestNeededHeadIndex > 0 && oldestNeededHeadIndex < privateLatencyBuffer[fromCPU].size()){
+
+#ifdef DO_ESTIMATION_TRACE
+    	for(int i=0;i<oldestNeededHeadIndex;i++){
+			assert(privateArrivalOrderEstimationTraces[fromCPU].isInitialized());
+
+			PrivateLatencyBufferEntry* traceEntry = privateLatencyBuffer[fromCPU][i];
+
+			vector<RequestTraceEntry> privorderparams;
+			privorderparams.push_back(RequestTraceEntry(traceEntry->req->paddr));
+			privorderparams.push_back(RequestTraceEntry(getMemoryBankID(traceEntry->req->paddr)));
+			privorderparams.push_back(RequestTraceEntry(traceEntry->req->cmd.toString()));
+			privorderparams.push_back(RequestTraceEntry(traceEntry->req->inserted_into_memory_controller));
+			privorderparams.push_back(RequestTraceEntry(getEstimatedArrivalTime(traceEntry->req)));
+
+			privateArrivalOrderEstimationTraces[fromCPU].addTrace(privorderparams);
+    	}
+#endif
+
         deleteBufferRange(oldestNeededHeadIndex, fromCPU);
     }
 }

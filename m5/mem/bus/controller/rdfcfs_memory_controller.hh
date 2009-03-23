@@ -69,6 +69,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     std::vector<RequestTrace> pageResultTraces;
     std::vector<RequestTrace> privateExecutionOrderTraces;
+    std::vector<RequestTrace> privateArrivalOrderEstimationTraces;
     RequestTrace aloneAccessOrderTraces;
     std::vector<Tick> requestSequenceNumbers;
     std::vector<Tick> currentPrivateSeqNum;
@@ -124,6 +125,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     void estimatePageResult(MemReqPtr& req);
 
     void dumpBufferStatus(int CPUID);
+
+    Tick getEstimatedArrivalTime(MemReqPtr& req);
 
   public:
 

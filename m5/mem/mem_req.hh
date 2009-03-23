@@ -251,6 +251,9 @@ class MemReq : public FastAlloc, public RefCounted
     int memCtrlPrivateSeqNum;
     int memCtrlGeneratingReadSeqNum;
 
+    int memCtrlGenReadInterference;
+    Addr memCtrlWbGenBy;
+
 
     /**
      * Contruct and initialize a memory request.
@@ -260,74 +263,76 @@ class MemReq : public FastAlloc, public RefCounted
      * @param _flags The initial flags of the request.
      */
     MemReq(Addr va = inval_addr,
-	   ExecContext *ec = NULL,
-	   int _size = 0,
-	   unsigned _flags = 0)
-	: vaddr(va),
-	  paddr(inval_addr),
-          oldAddr(inval_addr),
-	  dest(inval_addr),
-          oldCmd(InvalidCmd),
-	  mshr(0),
-	  nic_req(false),
-	  busId(0),
-          firstSendTime(-1),
-          fromProcessorID(-1),
-          toProcessorID(-1),
-          toInterfaceID(-1),
-          fromInterfaceID(-1),
-          adaptiveMHASenderID(-1),
-          interferenceAccurateSenderID(-1),
-          readOnlyCache(false),
-          owner(-1),
-          presentFlags(NULL),
-          dirACK(false),
-          dirNACK(false),
-          writeMiss(false),
-          replacedByID(-1),
-          ownerWroteBack(false),
-	  asid(0),
-	  xc(ec),
-	  size(_size), flags(_flags),
-          prefetched(0),
-	  completionEvent(NULL),
-	  //cpu_num(0),
-	  thread_num(0),
-	  time(0),
-          enteredMemSysAt(0),
-          writebackGeneratedAt(0),
-          inserted_into_memory_controller(0),
-          inserted_into_crossbar(0),
-	  pc(0),
-	  offset(0),
-	  data(NULL),
-          expectCompletionEvent(false),
-          isDDRTestReq(false),
-          isMemTestReq(false),
-          virtualStartTime(0),
-          instructionMiss(false),
-          busDelay(0),
-          busQueueInterference(0),
-          shadowCtrlID(-1),
-          givenToShadow(false),
-          interferenceMissAt(0),
-          finishedInCacheAt(0),
-          memBusBlockedWaitCycles(0),
-          busAloneServiceEstimate(0),
-          busAloneReadQueueEstimate(0),
-          busAloneWriteQueueEstimate(0),
-          waitWritebackCnt(0),
-          entryReadCnt(0),
-          entryWriteCnt(0),
-          dramResult(DRAM_RESULT_INVALID),
-          memCtrlIssuePosition(-1),
-          privateResultEstimate(DRAM_RESULT_INVALID),
-          memCtrlSequenceNumber(-1),
-          memCtrlPrivateSeqNum(-1),
-          memCtrlGeneratingReadSeqNum(-1)
+    		ExecContext *ec = NULL,
+    		int _size = 0,
+    		unsigned _flags = 0)
+    : vaddr(va),
+    paddr(inval_addr),
+    oldAddr(inval_addr),
+    dest(inval_addr),
+    oldCmd(InvalidCmd),
+    mshr(0),
+    nic_req(false),
+    busId(0),
+    firstSendTime(-1),
+    fromProcessorID(-1),
+    toProcessorID(-1),
+    toInterfaceID(-1),
+    fromInterfaceID(-1),
+    adaptiveMHASenderID(-1),
+    interferenceAccurateSenderID(-1),
+    readOnlyCache(false),
+    owner(-1),
+    presentFlags(NULL),
+    dirACK(false),
+    dirNACK(false),
+    writeMiss(false),
+    replacedByID(-1),
+    ownerWroteBack(false),
+    asid(0),
+    xc(ec),
+    size(_size), flags(_flags),
+    prefetched(0),
+    completionEvent(NULL),
+    //cpu_num(0),
+    thread_num(0),
+    time(0),
+    enteredMemSysAt(0),
+    writebackGeneratedAt(0),
+    inserted_into_memory_controller(0),
+    inserted_into_crossbar(0),
+    pc(0),
+    offset(0),
+    data(NULL),
+    expectCompletionEvent(false),
+    isDDRTestReq(false),
+    isMemTestReq(false),
+    virtualStartTime(0),
+    instructionMiss(false),
+    busDelay(0),
+    busQueueInterference(0),
+    shadowCtrlID(-1),
+    givenToShadow(false),
+    interferenceMissAt(0),
+    finishedInCacheAt(0),
+    memBusBlockedWaitCycles(0),
+    busAloneServiceEstimate(0),
+    busAloneReadQueueEstimate(0),
+    busAloneWriteQueueEstimate(0),
+    waitWritebackCnt(0),
+    entryReadCnt(0),
+    entryWriteCnt(0),
+    dramResult(DRAM_RESULT_INVALID),
+    memCtrlIssuePosition(-1),
+    privateResultEstimate(DRAM_RESULT_INVALID),
+    memCtrlSequenceNumber(-1),
+    memCtrlPrivateSeqNum(-1),
+    memCtrlGeneratingReadSeqNum(-1),
+    memCtrlGenReadInterference(0),
+    memCtrlWbGenBy(inval_addr)
     {
-        latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
-        interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
+    	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
+    	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     }
 
     MemReq(const MemReq &r)
@@ -394,6 +399,8 @@ class MemReq : public FastAlloc, public RefCounted
         memCtrlSequenceNumber = r.memCtrlSequenceNumber;
         memCtrlPrivateSeqNum = r.memCtrlPrivateSeqNum;
         memCtrlGeneratingReadSeqNum = r.memCtrlGeneratingReadSeqNum;
+        memCtrlGenReadInterference = r.memCtrlGenReadInterference;
+        memCtrlWbGenBy = r.memCtrlWbGenBy;
 
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;

@@ -156,6 +156,8 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->memCtrlSequenceNumber = r->memCtrlSequenceNumber;
     req->memCtrlPrivateSeqNum = r->memCtrlPrivateSeqNum;
     req->memCtrlGeneratingReadSeqNum = r->memCtrlGeneratingReadSeqNum;
+    req->memCtrlGenReadInterference = r->memCtrlGenReadInterference;
+    req->memCtrlWbGenBy = r->memCtrlWbGenBy;
 
     req->latencyBreakdown = r->latencyBreakdown;
     req->interferenceBreakdown = r->interferenceBreakdown;
@@ -243,6 +245,8 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->memCtrlSequenceNumber = from->memCtrlSequenceNumber;
     to->memCtrlPrivateSeqNum = from->memCtrlPrivateSeqNum;
     to->memCtrlGeneratingReadSeqNum = from->memCtrlGeneratingReadSeqNum;
+    to->memCtrlGenReadInterference = from->memCtrlGenReadInterference;
+    to->memCtrlWbGenBy = from->memCtrlWbGenBy;
 
     to->latencyBreakdown = from->latencyBreakdown;
     to->interferenceBreakdown = from->interferenceBreakdown;

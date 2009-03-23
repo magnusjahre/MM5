@@ -98,6 +98,8 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 		req->finishedInCacheAt = target->finishedInCacheAt;
 
 		req->memCtrlGeneratingReadSeqNum = target->memCtrlGeneratingReadSeqNum;
+		req->memCtrlGenReadInterference = target->memCtrlGenReadInterference;
+		req->memCtrlWbGenBy = target->memCtrlWbGenBy;
 
 		if(cache->isShared){
 			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
@@ -140,6 +142,8 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->finishedInCacheAt = target->finishedInCacheAt;
 
     req->memCtrlGeneratingReadSeqNum = target->memCtrlGeneratingReadSeqNum;
+    req->memCtrlGenReadInterference = target->memCtrlGenReadInterference;
+    req->memCtrlWbGenBy = target->memCtrlWbGenBy;
 
     if(cache->isShared){
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
