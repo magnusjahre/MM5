@@ -114,6 +114,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
     void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
     int getArrivalIndex(PrivateLatencyBufferEntry* entry, int fromCPU);
+    int getQueuePosition(PrivateLatencyBufferEntry* entry, int fromCPU);
     void deleteBufferRange(int toIndex, int fromCPU);
 
     void checkPrivateOpenPage(MemReqPtr& req);

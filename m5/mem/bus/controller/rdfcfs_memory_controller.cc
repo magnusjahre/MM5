@@ -276,6 +276,13 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 				newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
 			}
 			else{
+				if(headPointers[req->adaptiveMHASenderID] == headPointers[req->adaptiveMHASenderID]->headAtEntry){
+					headPointers[req->adaptiveMHASenderID]->headAtEntry = newEntry;
+					DPRINTF(MemoryControllerInterference, "Setting head at entry pointer for addr %d to %d due to insertion before head\n",
+							headPointers[req->adaptiveMHASenderID]->req->paddr,
+							newEntry->req->paddr);
+				}
+
 				headPointers[req->adaptiveMHASenderID] = newEntry;
 				newEntry->headAtEntry = newEntry;
 			}
@@ -818,12 +825,12 @@ RDFCFSTimingMemoryController::dumpBufferStatus(int CPUID){
         PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
         cout << i << ": ";
         if(curEntry->scheduled){
-            cout << "Scheduled " << curEntry->req->paddr << " "
-                 << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " <- ";
+            cout << "Scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
+            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " <- ";
         }
         else{
-            cout << "Not scheduled " << curEntry->req->paddr << " "
-                 << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " " ;
+            cout << "Not scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
+            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " " ;
         }
 
         int pos = 0;
@@ -1007,7 +1014,12 @@ RDFCFSTimingMemoryController::estimatePrivateLatency(MemReqPtr& req){
         }
     }
 
-    assert(oldestNeededHeadIndex != INT_MAX);
+	assert(oldestNeededHeadIndex != INT_MAX);
+
+    DPRINTF(MemoryControllerInterference, "Setting oldest head index to %d, addr %d\n",
+    		oldestNeededHeadIndex,
+    		privateLatencyBuffer[fromCPU][oldestNeededHeadIndex]->req->paddr);
+
     if(oldestNeededHeadIndex > 0 && oldestNeededHeadIndex < privateLatencyBuffer[fromCPU].size()){
 
 #ifdef DO_ESTIMATION_TRACE
@@ -1131,6 +1143,8 @@ RDFCFSTimingMemoryController::deleteBufferRange(int toIndex, int fromCPU){
                     "Deleting unreachable element address %d\n",
                     delLBE->req->paddr);
 
+            assert(delLBE->canDelete());
+
             it = privateLatencyBuffer[fromCPU].erase(it);
 
             delLBE->next = NULL;
@@ -1155,12 +1169,21 @@ RDFCFSTimingMemoryController::getArrivalIndex(PrivateLatencyBufferEntry* entry, 
     return -1;
 }
 
+int
+RDFCFSTimingMemoryController::getQueuePosition(PrivateLatencyBufferEntry* entry, int fromCPU){
+
+	int pos = 0;
+	PrivateLatencyBufferEntry* searchPtr = tailPointers[fromCPU];
+	while(entry != searchPtr){
+		pos++;
+		searchPtr = searchPtr->previous;
+		assert(searchPtr != NULL);
+	}
+	return pos;
+}
+
 RDFCFSTimingMemoryController::PrivateLatencyBufferEntry*
 RDFCFSTimingMemoryController::schedulePrivateRequest(int fromCPU){
-
-	if(curTick == 10642216){
-		dumpBufferStatus(fromCPU);
-	}
 
     int headPos = -1;
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
