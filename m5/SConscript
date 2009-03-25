@@ -186,6 +186,7 @@ base_sources = Split('''
 	mem/bus/slave_interface.cc
         mem/bus/controller/memory_controller.cc
         mem/bus/controller/rdfcfs_memory_controller.cc
+        mem/bus/controller/controller_interference.cc
 
 	mem/cache/base_cache.cc
 	mem/cache/cache.cc
