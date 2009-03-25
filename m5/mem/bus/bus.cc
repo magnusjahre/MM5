@@ -844,6 +844,7 @@ Bus::dumpQueueDelayStats(){
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
+
     assert(numInterfaces == interfaces.size());
     interfaces.push_back(bi);
     addrBusRequests.push_back(BusRequestRecord());

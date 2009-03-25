@@ -12,18 +12,21 @@ using namespace std;
 ControllerInterference::ControllerInterference(TimingMemoryController* _ctlr, int _rflimitAllCPUs){
 
 	privateBankActSeqNum = 0;
+	privStorageInited = false;
 
     rfLimitAllCPUs = _rflimitAllCPUs;
     if(rfLimitAllCPUs < 1){
         fatal("RF-limit must be at least 1, 1 gives private FCFS scheduling");
     }
 
+    assert(_ctlr != NULL);
     memoryController = _ctlr;
-
 }
 
 void
 ControllerInterference::initialize(int cpu_count){
+
+	contIntCpuCount = cpu_count;
 
     headPointers.resize(cpu_count, NULL);
     tailPointers.resize(cpu_count, NULL);
@@ -31,9 +34,6 @@ ControllerInterference::initialize(int cpu_count){
     privateLatencyBuffer.resize(cpu_count, vector<PrivateLatencyBufferEntry*>());
 
     currentPrivateSeqNum.resize(cpu_count,0);
-
-    activatedPages.resize(cpu_count, std::vector<Addr>(memoryController->getMemoryInterface()->getMemoryBankCount(), 0));
-	activatedAt.resize(cpu_count, std::vector<Tick>(memoryController->getMemoryInterface()->getMemoryBankCount(), 0));
 
 #ifdef DO_ESTIMATION_TRACE
 
@@ -84,7 +84,18 @@ ControllerInterference::initialize(int cpu_count){
 }
 
 void
+ControllerInterference::initializeMemDepStructures(int bankCount){
+    activatedPages.resize(contIntCpuCount, std::vector<Addr>(bankCount, 0));
+	activatedAt.resize(contIntCpuCount, std::vector<Tick>(bankCount, 0));
+}
+
+void
 ControllerInterference::insertRequest(MemReqPtr& req){
+
+	if(!privStorageInited){
+		privStorageInited = true;
+		initializeMemDepStructures(memoryController->getMemoryInterface()->getMemoryBankCount());
+	}
 
 	DPRINTF(MemoryControllerInterference, "Recieved request from CPU %d, addr %d, cmd %s\n",
 			req->adaptiveMHASenderID,
@@ -156,57 +167,6 @@ ControllerInterference::insertRequest(MemReqPtr& req){
 		}
 	}
 
-}
-
-void
-ControllerInterference::estimatePageResult(MemReqPtr& req){
-
-    assert(req->cmd == Read || req->cmd == Writeback);
-
-    checkPrivateOpenPage(req);
-
-    if(isPageHitOnPrivateSystem(req)){
-        req->privateResultEstimate = DRAM_RESULT_HIT;
-    }
-    else if(isPageConflictOnPrivateSystem(req)){
-        req->privateResultEstimate = DRAM_RESULT_CONFLICT;
-    }
-    else{
-        req->privateResultEstimate = DRAM_RESULT_MISS;
-    }
-
-    updatePrivateOpenPage(req);
-}
-
-void
-ControllerInterference::dumpBufferStatus(int CPUID){
-
-    cout << "\nDumping buffer contents for CPU " << CPUID << " at " << curTick << "\n";
-
-    for(int i=0;i<privateLatencyBuffer[CPUID].size();i++){
-        PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
-        cout << i << ": ";
-        if(curEntry->scheduled){
-            cout << "Scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
-            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " <- ";
-        }
-        else{
-            cout << "Not scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
-            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " " ;
-        }
-
-        int pos = 0;
-        PrivateLatencyBufferEntry* tmp = curEntry->previous;
-        while(tmp != NULL){
-            cout << "(" << pos << ", " << tmp->req->paddr << ", "
-                 << (tmp->headAtEntry == NULL ? 0 : tmp->headAtEntry->req->paddr) << ") <- ";
-            tmp = tmp->previous;
-            pos++;
-        }
-
-        cout << "\n";
-    }
-    cout << "\n";
 }
 
 void
@@ -403,6 +363,57 @@ ControllerInterference::estimatePrivateLatency(MemReqPtr& req){
 
         deleteBufferRange(oldestNeededHeadIndex, fromCPU);
     }
+}
+
+void
+ControllerInterference::estimatePageResult(MemReqPtr& req){
+
+    assert(req->cmd == Read || req->cmd == Writeback);
+
+    checkPrivateOpenPage(req);
+
+    if(isPageHitOnPrivateSystem(req)){
+        req->privateResultEstimate = DRAM_RESULT_HIT;
+    }
+    else if(isPageConflictOnPrivateSystem(req)){
+        req->privateResultEstimate = DRAM_RESULT_CONFLICT;
+    }
+    else{
+        req->privateResultEstimate = DRAM_RESULT_MISS;
+    }
+
+    updatePrivateOpenPage(req);
+}
+
+void
+ControllerInterference::dumpBufferStatus(int CPUID){
+
+    cout << "\nDumping buffer contents for CPU " << CPUID << " at " << curTick << "\n";
+
+    for(int i=0;i<privateLatencyBuffer[CPUID].size();i++){
+        PrivateLatencyBufferEntry* curEntry = privateLatencyBuffer[CPUID][i];
+        cout << i << ": ";
+        if(curEntry->scheduled){
+            cout << "Scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
+            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " <- ";
+        }
+        else{
+            cout << "Not scheduled " << (curEntry->canDelete() ? "can delete" : "no del") << " " << curEntry->req->paddr << " "
+            << (curEntry->headAtEntry == NULL ? 0 : curEntry->headAtEntry->req->paddr) << " " ;
+        }
+
+        int pos = 0;
+        PrivateLatencyBufferEntry* tmp = curEntry->previous;
+        while(tmp != NULL){
+            cout << "(" << pos << ", " << tmp->req->paddr << ", "
+                 << (tmp->headAtEntry == NULL ? 0 : tmp->headAtEntry->req->paddr) << ") <- ";
+            tmp = tmp->previous;
+            pos++;
+        }
+
+        cout << "\n";
+    }
+    cout << "\n";
 }
 
 void

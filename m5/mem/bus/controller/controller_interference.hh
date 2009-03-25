@@ -18,6 +18,9 @@ class ControllerInterference{
 
 private:
 
+	int contIntCpuCount;
+	bool privStorageInited;
+
 	TimingMemoryController* memoryController;
 
 	std::vector<RequestTrace> privateExecutionOrderTraces;
@@ -64,9 +67,14 @@ public:
 
 	void initialize(int cpu_count);
 
+	void initializeMemDepStructures(int bankCount);
+
 	void insertRequest(MemReqPtr& req);
 
 	void estimatePrivateLatency(MemReqPtr& req);
+
+private:
+
 	PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
 	void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
 	void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
@@ -84,7 +92,6 @@ public:
 	void dumpBufferStatus(int CPUID);
 
 	Tick getEstimatedArrivalTime(MemReqPtr& req);
-
 
 };
 

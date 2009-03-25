@@ -12,6 +12,11 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/coherence/uni_coherence.hh"
 
+#include "mem/bus/bus.hh"
+#include "mem/bus/slave_interface.hh"
+#include "base/compression/null_compression.hh"
+#include "mem/timing/simple_mem_bank.hh"
+
 using namespace std;
 
 TimingMemoryController::TimingMemoryController(std::string _name)
@@ -20,6 +25,7 @@ TimingMemoryController::TimingMemoryController(std::string _name)
   isPrewriteBlockedFlag = false;
   isShadow = false;
   bus = NULL;
+  mem_interface = NULL;
 }
 
 /** Frees locally allocated memory. */
@@ -27,10 +33,15 @@ TimingMemoryController::~TimingMemoryController(){
 }
 
 void
-TimingMemoryController::registerBus(Bus* _bus, int cpuCount){ 
-    bus = _bus; 
+TimingMemoryController::registerBus(Bus* _bus, int cpuCount){
+    bus = _bus;
     memCtrCPUCount = cpuCount;
     initializeTraceFiles(_bus);
+}
+
+void
+TimingMemoryController::registerInterface(BaseInterface *interface){
+	mem_interface = interface;
 }
 
 void

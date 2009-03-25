@@ -62,6 +62,7 @@ class TimingMemoryController : public SimObject
     virtual bool hasMoreRequests() = 0;
 
     BaseInterface* getMemoryInterface(){
+    	assert(mem_interface != NULL);
     	return mem_interface;
     }
 
@@ -115,9 +116,7 @@ class TimingMemoryController : public SimObject
       return mem_interface->isReady(req);
     }
 
-    void registerInterface(BaseInterface *interface){
-        mem_interface = interface;
-    }
+    void registerInterface(BaseInterface *interface);
 
     int getMemoryBankID(Addr addr){
         return mem_interface->getMemoryBankID(addr);
