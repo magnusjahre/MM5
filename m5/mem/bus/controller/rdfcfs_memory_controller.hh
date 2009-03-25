@@ -6,6 +6,7 @@
 
 #include "mem/bus/controller/memory_controller.hh"
 #include "mem/requesttrace.hh"
+#include "mem/bus/controller/controller_interference.hh"
 
 using namespace std;
 /**
@@ -53,9 +54,6 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int writequeue_size;
     int reserved_slots;
 
-    std::vector<std::vector<Addr> > activatedPages;
-    std::vector<std::vector<Tick> > activatedAt;
-
     bool getActivate(MemReqPtr& req);
     bool getClose(MemReqPtr& req);
     bool getReady(MemReqPtr& req);
@@ -67,67 +65,15 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     int starvationPreventionThreshold;
     int numReqsPastOldest;
 
-    std::vector<RequestTrace> pageResultTraces;
-    std::vector<RequestTrace> privateExecutionOrderTraces;
-    std::vector<RequestTrace> privateArrivalOrderEstimationTraces;
-    RequestTrace aloneAccessOrderTraces;
-    std::vector<Tick> requestSequenceNumbers;
-    std::vector<Tick> currentPrivateSeqNum;
-
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
 
-    int rfLimitAllCPUs;
+    std::vector<Tick> requestSequenceNumbers;
 
-    struct PrivateLatencyBufferEntry{
-        PrivateLatencyBufferEntry* headAtEntry;
-        PrivateLatencyBufferEntry* previous;
-        PrivateLatencyBufferEntry* next;
-        bool scheduled;
-        bool latencyRetrieved;
-        MemReqPtr req;
-        bool inAccessTrace;
+    ControllerInterference* controllerInterference;
 
-        PrivateLatencyBufferEntry(MemReqPtr& _req){
-            headAtEntry = NULL;
-            previous = NULL;
-            next = NULL;
-            scheduled = false;
-            latencyRetrieved = false;
-            req = _req;
-            inAccessTrace = false;
-        }
-
-        bool canDelete(){
-            return scheduled && latencyRetrieved;
-        }
-    };
-
-    Tick privateBankActSeqNum;
-    std::vector<PrivateLatencyBufferEntry*> headPointers;
-    std::vector<PrivateLatencyBufferEntry*> tailPointers;
-    std::vector<int> readyFirstLimits;
-    std::vector<vector<PrivateLatencyBufferEntry*> > privateLatencyBuffer;
-
-    void estimatePrivateLatency(MemReqPtr& req);
-    PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
-    void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
-    void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
-    int getArrivalIndex(PrivateLatencyBufferEntry* entry, int fromCPU);
-    int getQueuePosition(PrivateLatencyBufferEntry* entry, int fromCPU);
-    void deleteBufferRange(int toIndex, int fromCPU);
-
-    void checkPrivateOpenPage(MemReqPtr& req);
-    bool isPageHitOnPrivateSystem(MemReqPtr& req);
-    bool isPageConflictOnPrivateSystem(MemReqPtr& req);
-    void updatePrivateOpenPage(MemReqPtr& req);
-    void initializePrivateStorage();
-
-    void estimatePageResult(MemReqPtr& req);
-
-    void dumpBufferStatus(int CPUID);
-
-    Tick getEstimatedArrivalTime(MemReqPtr& req);
+    RequestTrace aloneAccessOrderTraces;
+    std::vector<RequestTrace> pageResultTraces;
 
   public:
 
@@ -197,5 +143,9 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
     virtual void initializeTraceFiles(Bus* regbus);
+
+    int getMaxActivePages(){
+    	return max_active_pages;
+    }
 
 };

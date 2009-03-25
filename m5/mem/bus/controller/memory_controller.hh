@@ -13,10 +13,6 @@
 #include "sim/sim_object.hh"
 #include "sim/builder.hh"
 #include "mem/mem_req.hh"
-// #include "mem/base_hier.hh"
-// #include "base/statistics.hh"
-// #include "base/range.hh"
-// #include "sim/eventq.hh"
 #include "mem/bus/base_interface.hh"
 #include "mem/bus/bus.hh"
 
@@ -29,28 +25,28 @@ class TimingMemoryController : public SimObject
 {
   private:
     Tick totalBlocktime;
-    
+
   protected:
-    
+
     Bus* bus;
     int memCtrCPUCount;
-      
+
     bool isBlockedFlag;
     Tick startBlocking;
     bool isPrewriteBlockedFlag;
     BaseInterface *mem_interface;
-    
+
     bool isShadow;
-    
+
     Stats::Scalar<> pageHits;
     Stats::Formula pageHitRate;
-    
+
     Stats::Scalar<> pageMisses;
     Stats::Formula pageMissRate;
-    
+
     Stats::Scalar<> sentRequests;
-    
-    
+
+
   public:
     // constructor
     /** Constructs a Memory Controller object. */
@@ -60,25 +56,27 @@ class TimingMemoryController : public SimObject
     virtual ~TimingMemoryController();
 
     void registerBus(Bus* _bus, int cpuCount);
-    
+
     virtual int insertRequest(MemReqPtr &req) = 0;
 
     virtual bool hasMoreRequests() = 0;
 
+    BaseInterface* getMemoryInterface(){
+    	return mem_interface;
+    }
+
     virtual MemReqPtr getRequest(){
         fatal("not implemented");
     }
-    
-//     virtual MemReqPtr& getRequest() = 0;
-    
+
     virtual std::list<Addr> getOpenPages(){
         fatal("getOpenPages() is not implemented");
     }
-    
+
     virtual std::list<MemReqPtr>  getPendingRequests(){
         fatal("getPendingRequests() is not implemented");
     }
-    
+
     virtual void setOpenPages(std::list<Addr> pages) = 0;
 
     void setBlocked();
@@ -120,7 +118,7 @@ class TimingMemoryController : public SimObject
     void registerInterface(BaseInterface *interface){
         mem_interface = interface;
     }
-    
+
     int getMemoryBankID(Addr addr){
         return mem_interface->getMemoryBankID(addr);
     }
@@ -128,55 +126,37 @@ class TimingMemoryController : public SimObject
     Tick getBankActivatedAt(int bankID){
         return mem_interface->getBankActivatedAt(bankID);
     }
-    
-//     virtual bool isPageHitOnPrivateSystem(MemReqPtr& req, bool closedPagePolicy){
-//         fatal("does not make sense");
-//         return false;
-//     }
-//     
-//     virtual bool isPageConflictOnPrivateSystem(MemReqPtr& req, bool closedPagePolicy){
-//         fatal("does not make sense");
-//         return false;
-//     }
-//     
-//     virtual void updatePrivateOpenPage(MemReqPtr& req, bool closedPagePolicy){
-//         fatal("does not make sense");
-//     }
-//     
-//     virtual void checkPrivateOpenPage(MemReqPtr& req, bool closedPagePolicy){
-//         fatal("does not make sense");
-//     }
-//     
-//     virtual void initializePrivateStorage(){
-//         fatal("does not make sense");
-//     }
-    
+
     void setShadow(){
         isShadow = true;
     }
-    
+
     virtual int getReadQueueLength(){
         return 0;
     }
-    
+
     virtual int getWriteQueueLength(){
         return 0;
     }
-    
+
     virtual int getWaitingReadCount(){
         return 0;
     }
-    
+
     virtual int getWaitingWriteCount(){
         return 0;
     }
-    
+
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
         fatal("computeInterferenece() in TimingMemoryController does not make sense");
     }
 
     virtual void initializeTraceFiles(Bus* regbus){
         // does nothing unless impl in a subclass
+    }
+
+    virtual int getMaxActivePages(){
+    	return -1;
     }
 };
 
