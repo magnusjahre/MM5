@@ -145,21 +145,14 @@ Bus::Bus(const string &_name,
 
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
 
-//     if(_fwController == NULL) fatal("A fast forward memory controller must be provided to the memory bus");
     if(_fwController != NULL) fatal("Fast forward memory controller not implemented");
     if(_memoryController == NULL) fatal("A memory controller must be provided to the memory bus");
-//     _fwController->registerBus(this);
     _memoryController->registerBus(this, _cpu_count);
 
-//     memoryController = fwMemoryController;
     memoryController = simMemoryController;
     memoryControllerEvent = new MemoryControllerEvent(this, false, -1);
 
-//     MemoryControllerSwitchEvent* ctrlSwitch = new MemoryControllerSwitchEvent(this);
-//     ctrlSwitch->schedule(_switch_at);
     detailedSimulationStart = _switch_at;
-
-//     buildShadowControllers(cpu_count, hier_params);
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -574,31 +567,35 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 
     req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
-    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
-       && req->adaptiveMHASenderID != -1 && cpu_count > 1){
+    //TODO: might need to add a more clever way of estimating mem bus entry interference
+    // assumption: no memory bus blocking in private memory system
+    req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
-        // higher threshold --> more interference --> lower estimate
-        // lower threshold --> less interference --> higher estimate
-        double threshold = 0.2;
-        bool addInterference = false;
-        if(memoryController->getWaitingReadCount() > memoryController->getWaitingWriteCount()){
-            // assume blocked for reads
-            if(outstandingReads[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() * threshold){
-                addInterference = true;
-            }
-        }
-        else{
-            // assume blocked for writes
-            if(outstandingWrites[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength() * threshold){
-                addInterference = true;
-            }
-        }
-
-        if(addInterference){
-            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
-            req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
-        }
-    }
+//    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
+//       && req->adaptiveMHASenderID != -1 && cpu_count > 1){
+//
+//        // higher threshold --> more interference --> lower estimate
+//        // lower threshold --> less interference --> higher estimate
+//        double threshold = 0.2;
+//        bool addInterference = false;
+//        if(memoryController->getWaitingReadCount() > memoryController->getWaitingWriteCount()){
+//            // assume blocked for reads
+//            if(outstandingReads[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() * threshold){
+//                addInterference = true;
+//            }
+//        }
+//        else{
+//            // assume blocked for writes
+//            if(outstandingWrites[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength() * threshold){
+//                addInterference = true;
+//            }
+//        }
+//
+//        if(addInterference){
+//            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
+//            req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+//        }
+//    }
 
     if(req->cmd == Read){
         assert(req->adaptiveMHASenderID != -1);
