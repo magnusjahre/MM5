@@ -43,8 +43,8 @@ class DetailedCPU(FullCPU):
     dispatch_to_issue = 1
     decode_to_dispatch = 10
     mispred_recover = 3
-    #fetch_branches = 3 # creates large error: sensitivty analysis
-    fetch_branches = 0
+    fetch_branches = 3
+    #fetch_branches = 0
     ifq_size = 32
     num_icache_ports = 1
     branch_pred = DefaultBranchPred()
