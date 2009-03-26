@@ -2,7 +2,7 @@
 
 
 wl=$3
-bms=`python -c "import fairmha.getInterference as g;g.getBenchmarks('$wl',True,4)"`
+bms=`python -c "import fairmha.interference.interferencemethods as g;g.getBenchmarks('$wl',True,4)"`
 checkCPU=$4
 
 echo
@@ -36,7 +36,7 @@ cat ../$(echo $wl)_cpuSwitchInsts.txt
 
 rm -Rf *
 
-insts=`python -c "import fairmha.getCommittedInsts as c; c.getCommittedInsts('../stats_$wl.txt', $checkCPU, True)"`
+insts=`python -c "import fairmha.resultparse.getCommittedInsts as c; c.getCommittedInsts('../stats_$wl.txt', $checkCPU, True)"`
 
 bmarray=($bms)
 
@@ -62,7 +62,7 @@ s=shared_icache_lat.txt
 i=shared_icache_int.txt
 a=alone_icache_lat.txt
 
-python -c "import fairmha.getInterference as g;g.evaluateRequestEstimates('$s','$i','$a', True)"
+python -c "import fairmha.interference.interferencemethods as g;g.evaluateRequestEstimates('$s','$i','$a', True)"
 
 echo
 echo "Data cache evaluation"
@@ -73,4 +73,4 @@ s=shared_dcache_lat.txt
 i=shared_dcache_int.txt
 a=alone_dcache_lat.txt
 
-python -c "import fairmha.getInterference as g;g.evaluateRequestEstimates('$s','$i','$a', True)"
+python -c "import fairmha.interference.interferencemethods as g;g.evaluateRequestEstimates('$s','$i','$a', True)"
