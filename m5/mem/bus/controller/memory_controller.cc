@@ -20,12 +20,13 @@
 using namespace std;
 
 TimingMemoryController::TimingMemoryController(std::string _name)
-    : SimObject(_name) {
-  isBlockedFlag = false;
-  isPrewriteBlockedFlag = false;
-  isShadow = false;
-  bus = NULL;
-  mem_interface = NULL;
+: SimObject(_name) {
+	isBlockedFlag = false;
+	isPrewriteBlockedFlag = false;
+	isShadow = false;
+	bus = NULL;
+	mem_interface = NULL;
+	controllerInterference = NULL;
 }
 
 /** Frees locally allocated memory. */

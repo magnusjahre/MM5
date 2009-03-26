@@ -8,18 +8,26 @@
 #ifndef CONTROLLER_INTERFERENCE_HH_
 #define CONTROLLER_INTERFERENCE_HH_
 
+#include "sim/sim_object.hh"
+#include "sim/builder.hh"
+
 #include "mem/requesttrace.hh"
 #include "mem/mem_req.hh"
 #include "mem/bus/controller/memory_controller.hh"
 
+class TimingMemoryController;
+
 #include <vector>
 
-class ControllerInterference{
+class ControllerInterference : public SimObject{
 
 private:
 
 	int contIntCpuCount;
 	bool privStorageInited;
+	bool doOutOfOrderInsert;
+
+	bool initialized;
 
 	TimingMemoryController* memoryController;
 
@@ -63,7 +71,10 @@ private:
 	std::vector<std::vector<Tick> > activatedAt;
 
 public:
-	ControllerInterference(TimingMemoryController* _ctlr, int _rflimitAllCPUs);
+	ControllerInterference(const std::string& _name,
+						   TimingMemoryController* _ctlr,
+						   int _rflimitAllCPUs,
+						   bool _doOOOInsert);
 
 	void initialize(int cpu_count);
 
@@ -73,7 +84,14 @@ public:
 
 	void estimatePrivateLatency(MemReqPtr& req);
 
+	bool isInitialized(){
+		return initialized;
+	}
+
 private:
+
+	void insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBufferEntry* newEntry);
+	Tick getEstimatedArrivalTime(MemReqPtr& req);
 
 	PrivateLatencyBufferEntry* schedulePrivateRequest(int fromCPU);
 	void executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos);
@@ -91,8 +109,9 @@ private:
 
 	void dumpBufferStatus(int CPUID);
 
-	Tick getEstimatedArrivalTime(MemReqPtr& req);
+
 
 };
 
 #endif /* CONTROLLER_INTERFERENCE_HH_ */
+

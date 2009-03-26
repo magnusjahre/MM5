@@ -6,7 +6,6 @@
 
 #include "mem/bus/controller/memory_controller.hh"
 #include "mem/requesttrace.hh"
-#include "mem/bus/controller/controller_interference.hh"
 
 using namespace std;
 /**
@@ -70,8 +69,6 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     std::vector<Tick> requestSequenceNumbers;
 
-    ControllerInterference* controllerInterference;
-
     RequestTrace aloneAccessOrderTraces;
     std::vector<RequestTrace> pageResultTraces;
 
@@ -95,8 +92,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
                                  int _reserved_slots,
                                  bool _infinite_write_bw,
                                  priority_scheme _priority_scheme,
-                                 page_policy _page_policy,
-                                 int _rflimitAllCPUs);
+                                 page_policy _page_policy);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();

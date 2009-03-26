@@ -24,13 +24,17 @@ directory_protocols = ['stenstrom']
 
 def createMemBus(bankcnt):
     assert 'MEMORY-BUS-CHANNELS' in env
-    assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
-    banksPerBus = bankcnt / int(env['MEMORY-BUS-CHANNELS'])
     
-    root.membus = [ConventionalMemBus() for i in range(int(env['MEMORY-BUS-CHANNELS']))]
-    root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(int(env['MEMORY-BUS-CHANNELS']))]
+    channels = int(env['MEMORY-BUS-CHANNELS'])
     
-    for i in range(int(env['MEMORY-BUS-CHANNELS'])):
+    assert bankcnt >= channels
+    banksPerBus = bankcnt / channels
+    
+    
+    root.membus = [ConventionalMemBus() for i in range(channels)]
+    root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(channels)]
+        
+    for i in range(channels):
         root.membus[i].memory_controller = ReadyFirstMemoryController()
         root.membus[i].adaptive_mha = root.adaptiveMHA
         
@@ -38,8 +42,11 @@ def createMemBus(bankcnt):
             root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
         if "MEMORY-BUS-PRIORITY-SCHEME" in env:
             root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+            
+    root.controllerInterference = [ControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+    for i in range(channels):
         if "READY-FIRST-LIMIT-ALL-CPUS" in env:
-            root.membus[i].memory_controller.rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
+            root.controllerInterference[i].rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
 
 def initSharedCache(bankcnt):
     if int(env['NP']) == 4:

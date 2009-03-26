@@ -15,8 +15,10 @@
 #include "mem/mem_req.hh"
 #include "mem/bus/base_interface.hh"
 #include "mem/bus/bus.hh"
+#include "mem/bus/controller/controller_interference.hh"
 
 class Bus;
+class ControllerInterference;
 
 /**
  * A Memory controller.
@@ -38,6 +40,8 @@ class TimingMemoryController : public SimObject
 
     bool isShadow;
 
+    ControllerInterference* controllerInterference;
+
     Stats::Scalar<> pageHits;
     Stats::Formula pageHitRate;
 
@@ -45,7 +49,6 @@ class TimingMemoryController : public SimObject
     Stats::Formula pageMissRate;
 
     Stats::Scalar<> sentRequests;
-
 
   public:
     // constructor
@@ -117,6 +120,11 @@ class TimingMemoryController : public SimObject
     }
 
     void registerInterface(BaseInterface *interface);
+
+    void registerInterferenceMeasurement(ControllerInterference* contInt){
+    	assert(controllerInterference == NULL);
+    	controllerInterference = contInt;
+    }
 
     int getMemoryBankID(Addr addr){
         return mem_interface->getMemoryBankID(addr);

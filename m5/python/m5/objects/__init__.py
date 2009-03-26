@@ -16,6 +16,7 @@ file_bases = ['AdaptiveMHA',
               'Bus',
               'BusBridge',
               'CoherenceProtocol',
+              'ControllerInterference',
               'Crossbar', # Magnus
               'Debug',
               'Device',

@@ -7,12 +7,21 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
+//#define DO_ESTIMATION_TRACE
+
 using namespace std;
 
-ControllerInterference::ControllerInterference(TimingMemoryController* _ctlr, int _rflimitAllCPUs){
+ControllerInterference::ControllerInterference(const string& _name,
+											   TimingMemoryController* _ctlr,
+											   int _rflimitAllCPUs,
+											   bool _doOOOInsert)
+: SimObject(_name){
 
 	privateBankActSeqNum = 0;
 	privStorageInited = false;
+	initialized = false;
+
+	doOutOfOrderInsert = _doOOOInsert;
 
     rfLimitAllCPUs = _rflimitAllCPUs;
     if(rfLimitAllCPUs < 1){
@@ -21,10 +30,13 @@ ControllerInterference::ControllerInterference(TimingMemoryController* _ctlr, in
 
     assert(_ctlr != NULL);
     memoryController = _ctlr;
+    memoryController->registerInterferenceMeasurement(this);
 }
 
 void
 ControllerInterference::initialize(int cpu_count){
+
+	initialized = true;
 
 	contIntCpuCount = cpu_count;
 
@@ -40,22 +52,8 @@ ControllerInterference::initialize(int cpu_count){
     privateExecutionOrderTraces.resize(cpu_count, RequestTrace());
     for(int i=0;i<cpu_count;i++){
         stringstream filename;
-        filename << "private_execution_order_" << i;
-        privateExecutionOrderTraces[i] = RequestTrace("", filename.str().c_str());
-
-        vector<string> privorderparams;
-        privorderparams.push_back("Address");
-        privorderparams.push_back("Bank");
-        privorderparams.push_back("Command");
-
-        privateExecutionOrderTraces[i].initalizeTrace(privorderparams);
-    }
-
-    privateExecutionOrderTraces.resize(cpu_count, RequestTrace());
-    for(int i=0;i<cpu_count;i++){
-        stringstream filename;
-        filename << "private_execution_order_" << i;
-        privateExecutionOrderTraces[i] = RequestTrace("", filename.str().c_str());
+        filename << "_private_execution_order_" << i;
+        privateExecutionOrderTraces[i] = RequestTrace(name(), filename.str().c_str());
 
         vector<string> privorderparams;
         privorderparams.push_back("Address");
@@ -68,8 +66,8 @@ ControllerInterference::initialize(int cpu_count){
     privateArrivalOrderEstimationTraces.resize(cpu_count, RequestTrace());
     for(int i=0;i<cpu_count;i++){
         stringstream filename;
-        filename << "private_estimated_arrival_order_" << i;
-        privateArrivalOrderEstimationTraces[i] = RequestTrace("", filename.str().c_str());
+        filename << "_private_estimated_arrival_order_" << i;
+        privateArrivalOrderEstimationTraces[i] = RequestTrace(name(), filename.str().c_str());
 
         vector<string> privorderparams;
         privorderparams.push_back("Address");
@@ -105,10 +103,36 @@ ControllerInterference::insertRequest(MemReqPtr& req){
 
 	PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
 
-	vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
+	if(doOutOfOrderInsert){
+		insertRequestOutOfOrder(req, newEntry);
+	}
+	else{
+
+		privateLatencyBuffer[req->adaptiveMHASenderID].push_back(newEntry);
+
+		if(headPointers[req->adaptiveMHASenderID] == NULL){
+			headPointers[req->adaptiveMHASenderID] = newEntry;
+			newEntry->headAtEntry = newEntry;
+			DPRINTF(MemoryControllerInterference, "Updating head pointer is null, now pointing to %d\n", newEntry);
+		}
+		else{
+			newEntry->headAtEntry = headPointers[req->adaptiveMHASenderID];
+
+			DPRINTF(MemoryControllerInterference, "Setting head at entry for req %d to %d\n",
+					newEntry->req->paddr,
+					headPointers[req->adaptiveMHASenderID]->req->paddr);
+		}
+	}
+
+}
+
+
+void
+ControllerInterference::insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBufferEntry* newEntry){
 	bool inserted = false;
 	Tick estimatedArrival = getEstimatedArrivalTime(req);
 
+	vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
 	for( ; entryIt != privateLatencyBuffer[req->adaptiveMHASenderID].end(); entryIt++){
 		PrivateLatencyBufferEntry* curEntry = *entryIt;
 
@@ -303,7 +327,7 @@ ControllerInterference::estimatePrivateLatency(MemReqPtr& req){
     		assert(privateExecutionOrderTraces[req->adaptiveMHASenderID].isInitialized());
     		vector<RequestTraceEntry> privorderparams;
     		privorderparams.push_back(RequestTraceEntry(curTraceCandidate->req->paddr));
-    		privorderparams.push_back(RequestTraceEntry(getMemoryBankID(curTraceCandidate->req->paddr)));
+    		privorderparams.push_back(RequestTraceEntry(memoryController->getMemoryBankID(curTraceCandidate->req->paddr)));
     		privorderparams.push_back(RequestTraceEntry(curTraceCandidate->req->cmd.toString()));
     		privateExecutionOrderTraces[curTraceCandidate->req->adaptiveMHASenderID].addTrace(privorderparams);
     	}
@@ -352,7 +376,7 @@ ControllerInterference::estimatePrivateLatency(MemReqPtr& req){
 
 			vector<RequestTraceEntry> privorderparams;
 			privorderparams.push_back(RequestTraceEntry(traceEntry->req->paddr));
-			privorderparams.push_back(RequestTraceEntry(getMemoryBankID(traceEntry->req->paddr)));
+			privorderparams.push_back(RequestTraceEntry(memoryController->getMemoryBankID(traceEntry->req->paddr)));
 			privorderparams.push_back(RequestTraceEntry(traceEntry->req->cmd.toString()));
 			privorderparams.push_back(RequestTraceEntry(traceEntry->req->inserted_into_memory_controller));
 			privorderparams.push_back(RequestTraceEntry(getEstimatedArrivalTime(traceEntry->req)));
@@ -765,4 +789,32 @@ ControllerInterference::isPageConflictOnPrivateSystem(MemReqPtr& req){
 
     return curPage != activatedPages[cpuID][bank] && activatedPages[cpuID][bank] != 0;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(ControllerInterference)
+	SimObjectParam<TimingMemoryController*> memory_controller;
+    Param<int> rf_limit_all_cpus;
+    Param<bool> do_ooo_insert;
+END_DECLARE_SIM_OBJECT_PARAMS(ControllerInterference)
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(ControllerInterference)
+	INIT_PARAM_DFLT(memory_controller, "Associated memory controller", NULL),
+    INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5),
+    INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false)
+END_INIT_SIM_OBJECT_PARAMS(ControllerInterference)
+
+CREATE_SIM_OBJECT(ControllerInterference)
+{
+    return new ControllerInterference(getInstanceName(),
+									  memory_controller,
+									  rf_limit_all_cpus,
+									  do_ooo_insert);
+}
+
+REGISTER_SIM_OBJECT("ControllerInterference", ControllerInterference)
+
+#endif
+
+
 

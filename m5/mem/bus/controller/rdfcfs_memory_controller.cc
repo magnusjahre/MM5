@@ -9,7 +9,7 @@
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-#define DO_ESTIMATION_TRACE
+//#define DO_ESTIMATION_TRACE
 
 using namespace std;
 
@@ -19,8 +19,7 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
                                                            int _reserved_slots,
                                                            bool _infinite_write_bw,
                                                            priority_scheme _priority_scheme,
-                                                           page_policy _page_policy,
-                                                           int _rflimitAllCPUs)
+                                                           page_policy _page_policy)
     : TimingMemoryController(_name) {
 
     num_active_pages = 0;
@@ -62,19 +61,13 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     else{
         fatal("Unsupported page policy");
     }
-
-    controllerInterference = new ControllerInterference(this, _rflimitAllCPUs);
-
 }
 
 RDFCFSTimingMemoryController::~RDFCFSTimingMemoryController(){
-	delete controllerInterference;
 }
 
 void
 RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
-
-	controllerInterference->initialize(regbus->adaptiveMHA->getCPUCount());
 
 	requestSequenceNumbers.resize(regbus->adaptiveMHA->getCPUCount(),0);
 
@@ -83,10 +76,9 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
     pageResultTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
 
     for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
-        string tmpstr = "";
         stringstream filename;
-        filename << "estimation_access_trace_" << i;
-        pageResultTraces[i] = RequestTrace(tmpstr, filename.str().c_str());
+        filename << "_estimation_access_trace_" << i;
+        pageResultTraces[i] = RequestTrace(name(), filename.str().c_str());
 
         vector<string> params;
         params.push_back("Address");
@@ -105,7 +97,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
     if(regbus->adaptiveMHA->getCPUCount() == 1){
 
-    	aloneAccessOrderTraces = RequestTrace("", "private_access_order");
+    	aloneAccessOrderTraces = RequestTrace(name(), "_private_access_order");
     	vector<string> aloneparams;
     	aloneparams.push_back("Address");
     	aloneparams.push_back("Bank");
@@ -117,6 +109,10 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 }
 
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
+
+	if(controllerInterference != NULL && !controllerInterference->isInitialized()){
+		controllerInterference->initialize(memCtrCPUCount);
+	}
 
     req->inserted_into_memory_controller = curTick;
 
@@ -164,7 +160,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         }
     }
 
-    if(memCtrCPUCount > 1){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL){
         controllerInterference->insertRequest(req);
     }
 
@@ -662,8 +658,10 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
 void
 RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
 
-    //FIXME: how should additional L2 misses be handled
-    controllerInterference->estimatePrivateLatency(req);
+    //TODO: how should additional L2 misses be handled
+	if(controllerInterference != NULL){
+		controllerInterference->estimatePrivateLatency(req);
+	}
 
 #ifdef DO_ESTIMATION_TRACE
 
@@ -691,14 +689,12 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
-
     Param<int> readqueue_size;
     Param<int> writequeue_size;
     Param<int> reserved_slots;
     Param<bool> inf_write_bw;
     Param<string> page_policy;
     Param<string> priority_scheme;
-    Param<int> rf_limit_all_cpus;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -708,8 +704,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     INIT_PARAM_DFLT(reserved_slots, "Number of activations reserved for reads", 2),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false),
     INIT_PARAM_DFLT(page_policy, "Controller page policy", "ClosedPage"),
-    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS"),
-    INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5)
+    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS")
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -739,8 +734,7 @@ CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
                                             reserved_slots,
                                             inf_write_bw,
                                             priority,
-                                            policy,
-                                            rf_limit_all_cpus);
+                                            policy);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)
