@@ -40,7 +40,7 @@
 #include "mem/cache/miss/miss_queue.hh"
 #include "mem/cache/prefetch/base_prefetcher.hh"
 
-#define DO_REQUEST_TRACE
+//#define DO_REQUEST_TRACE
 
 using namespace std;
 
@@ -51,16 +51,16 @@ using namespace std;
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
 		     bool write_allocate, bool prefetch_miss)
-    : mq(numMSHRs, 4), wb(write_buffers,numMSHRs+1000), numMSHR(numMSHRs), 
-      numTarget(numTargets), writeBuffers(write_buffers), 
+    : mq(numMSHRs, 4), wb(write_buffers,numMSHRs+1000), numMSHR(numMSHRs),
+      numTarget(numTargets), writeBuffers(write_buffers),
       writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 {
     noTargetMSHR = NULL;
-    
+
     mqWasPrevQueue = false;
     changeQueue = false;
     prevTime = 0;
-    
+
     if(numTargets == 1){
         fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
     }
@@ -180,7 +180,7 @@ MissQueue::regStats(const string &name)
 	.desc("number of overall MSHR uncacheable misses")
 	.flags(total)
 	;
-    overallMshrUncacheable = mshr_uncacheable[Read] + mshr_uncacheable[Write] 
+    overallMshrUncacheable = mshr_uncacheable[Read] + mshr_uncacheable[Write]
 	+ mshr_uncacheable[Soft_Prefetch] + mshr_uncacheable[Hard_Prefetch];
 
     // MSHR miss latency statistics
@@ -201,7 +201,7 @@ MissQueue::regStats(const string &name)
 	.desc("number of overall MSHR uncacheable cycles")
 	.flags(total)
 	;
-    overallMshrUncacheableLatency = mshr_uncacheable_lat[Read] 
+    overallMshrUncacheableLatency = mshr_uncacheable_lat[Read]
 	+ mshr_uncacheable_lat[Write] + mshr_uncacheable_lat[Soft_Prefetch]
 	+ mshr_uncacheable_lat[Hard_Prefetch];
 
@@ -345,61 +345,61 @@ MissQueue::regStats(const string &name)
         .name(name +".num_roundtrip_responses")
         .desc("Number of responses reflected in the roundtrip latency")
         ;
-    
+
     avg_roundtrip_latency
         .name(name +".avg_roundtrip_latency")
         .desc("Average latency experienced by requests sent from this cache")
         ;
-    
+
     avg_roundtrip_latency = sum_roundtrip_latency / num_roundtrip_responses;
-    
+
     sum_roundtrip_interference
         .name(name +".sum_roundtrip_interference")
         .desc("Total amount of interference experienced by requests sent from this cache")
         ;
-    
+
     avg_roundtrip_interference
         .name(name +".avg_roundtrip_interference")
         .desc("Average interference experienced by requests sent from this cache")
         ;
-    
+
     avg_roundtrip_interference = sum_roundtrip_interference / num_roundtrip_responses;
 
     interconnect_entry_interference
       .name(name +".sum_ic_entry_interference")
       .desc("Aggregate interconnect entry interference")
       ;
-    
+
     interconnect_transfer_interference
       .name(name +".sum_ic_transfer_interference")
       .desc("Aggregate interconnect transfer interference")
       ;
-    
+
     interconnect_delivery_interference
       .name(name +".sum_ic_delivery_interference")
       .desc("Aggregate interconnect delivery interference")
       ;
-    
+
     bus_entry_interference
       .name(name +".sum_bus_entry_interference")
       .desc("Aggregate bus entry interference")
       ;
-    
+
     bus_queue_interference
       .name(name +".sum_bus_queue_interference")
       .desc("Aggregate bus queue interference")
       ;
-    
+
     bus_service_interference
         .name(name +".sum_bus_service_interference")
         .desc("Aggregate bus service interference")
         ;
-    
+
     avg_interconnect_entry_interference
       .name(name +".avg_ic_entry_interference")
       .desc("Average interconnect entry interference")
       ;
-    
+
     avg_interconnect_transfer_interference
       .name(name +".avg_ic_transfer_interference")
       .desc("Average interconnect transfer interference")
@@ -419,12 +419,12 @@ MissQueue::regStats(const string &name)
       .name(name +".avg_bus_queue_interference")
       .desc("Average bus queue interference")
       ;
-    
+
     avg_bus_service_interference
         .name(name +".avg_bus_service_interference")
         .desc("Average bus service interference")
         ;
-    
+
     avg_interconnect_entry_interference = interconnect_entry_interference / num_roundtrip_responses;
     avg_interconnect_transfer_interference = interconnect_transfer_interference / num_roundtrip_responses;
     avg_interconnect_delivery_interference = interconnect_delivery_interference / num_roundtrip_responses;
@@ -456,7 +456,7 @@ MissQueue::regStats(const string &name)
       .name(name +".sum_bus_queue_latency")
       .desc("Aggregate bus queue latency")
       ;
-    
+
     bus_service_latency
         .name(name +".sum_bus_service_latency")
         .desc("Aggregate bus service latency")
@@ -486,7 +486,7 @@ MissQueue::regStats(const string &name)
       .name(name +".avg_bus_queue_latency")
       .desc("Average bus queue latency")
       ;
-    
+
     avg_bus_service_latency
         .name(name +".avg_bus_service_latency")
         .desc("Average bus service latency")
@@ -507,12 +507,12 @@ MissQueue::setCache(BaseCache *_cache)
     blkSize = cache->getBlockSize();
     mq.setCache(cache);
     wb.setCache(cache);
-    
-#ifdef DO_REQUEST_TRACE 
+
+#ifdef DO_REQUEST_TRACE
     if(!cache->isShared && cache->adaptiveMHA != NULL){
-        
+
         latencyTrace = RequestTrace(_cache->name(), "LatencyTrace");
-        
+
         vector<string> params;
         params.push_back("Address");
         params.push_back("PC");
@@ -522,11 +522,11 @@ MissQueue::setCache(BaseCache *_cache)
         params.push_back("Mem Bus Blocking");
         params.push_back("Mem Bus Queue");
         params.push_back("Mem Bus Service");
-        
+
         latencyTrace.initalizeTrace(params);
-        
+
         interferenceTrace = RequestTrace(_cache->name(), "InterferenceTrace");
-        
+
         vector<string> params2;
         params2.push_back("Address");
         params2.push_back("PC");
@@ -536,7 +536,7 @@ MissQueue::setCache(BaseCache *_cache)
         params2.push_back("Mem Bus Blocking");
         params2.push_back("Mem Bus Queue");
         params2.push_back("Mem Bus Service");
-        
+
         interferenceTrace.initalizeTrace(params2);
     }
 #endif
@@ -551,14 +551,14 @@ MissQueue::setPrefetcher(BasePrefetcher *_prefetcher)
 MSHR*
 MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 {
-   
+
     MSHR* mshr = mq.allocate(req, size);
-    
+
     if(cache->isDirectoryAndL1DataCache()){
         assert(mshr->directoryOriginalCmd == InvalidCmd);
         mshr->directoryOriginalCmd = req->cmd;
     }
-    
+
     mshr->order = order++;
     if (!req->isUncacheable() ){//&& !req->isNoAllocate()) {
 	// Mark this as a cache line fill
@@ -571,9 +571,9 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	//If we need to request the bus (not on HW prefetch), do so
 	cache->setMasterRequest(Request_MSHR, time);
     }
-    
+
     if(mq.isFull()) assert(cache->isBlocked());
-    
+
     return mshr;
 }
 
@@ -592,9 +592,9 @@ MissQueue::allocateWrite(MemReqPtr &req, int size, Tick time)
 	    memcpy(mshr->req->data, req->data, req->actualSize);
 	} else {
 	    memcpy(mshr->req->data, req->data, req->size);
-	}   
+	}
     }
-    
+
     // set blocked if it is not already
     // FIXME: a response can cause a writeback while we are blocked, not ideal
     if (wb.isFull() && !cache->isBlockedNoWBBuffers()) {
@@ -613,41 +613,41 @@ MissQueue::allocateWrite(MemReqPtr &req, int size, Tick time)
 void
 MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 {
-    
+
     if (prefetchMiss) prefetcher->handleMiss(req, time);
 
     int size = blkSize;
     Addr blkAddr = req->paddr & ~(Addr)(blkSize-1);
-    
+
     MSHR* mshr = NULL;
     if (!req->isUncacheable()) {
         mshr = mq.findMatch(blkAddr, req->asid);
-        
+
 	if (mshr){
-            
+
             //@todo remove hw_pf here
             mshr_hits[req->cmd.toIndex()][req->thread_num]++;
             if (mshr->threadNum != req->thread_num) {
                 mshr->threadNum = -1;
             }
-            
+
             mq.allocateTarget(mshr, req);
-            
+
             if (mshr->req->isNoAllocate() && !req->isNoAllocate()) {
                 //We are adding an allocate after a no-allocate
                 mshr->req->flags &= ~NO_ALLOCATE;
             }
-            
+
             assert(mshr->getNumTargets() <= numTarget);
             if (mshr->getNumTargets() == numTarget) {
                 noTargetMSHR = mshr;
                 cache->setBlocked(Blocked_NoTargets);
-                
+
                 // this call creates deadlocks, not neccessary with new getMemReq impl
                 //mq.moveToFront(mshr);
             }
             return;
-            
+
 	}
 	if (req->isNoAllocate()) {
 	    //Count no-allocate requests differently
@@ -666,29 +666,29 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 	/**
 	 * @todo Add write merging here.
 	 */
-        
+
 	mshr = allocateWrite(req, req->size, time);
 	return;
     }
-    
+
     mshr = allocateMiss(req, size, time);
 }
 
-MSHR* 
+MSHR*
 MissQueue::fetchBlock(Addr addr, int asid, int blk_size, Tick time,
 		      MemReqPtr &target)
 {
-    
+
     Addr blkAddr = addr & ~(Addr)(blk_size - 1);
     assert(mq.findMatch(addr, asid) == NULL);
     MSHR *mshr = mq.allocateFetch(blkAddr, asid, blk_size, target);
     mshr->order = order++;
     mshr->req->flags |= CACHE_LINE_FILL;
     if (mq.isFull()) {
-        
+
 	cache->setBlocked(Blocked_NoMSHRs);
     }
-    
+
     cache->setMasterRequest(Request_MSHR, time);
     return mshr;
 }
@@ -699,13 +699,13 @@ MissQueue::getMemReq()
     MemReqPtr req = NULL;
     MemReqPtr mqReq = mq.getReq();
     MemReqPtr wbReq = wb.getReq();
-    
+
     if(mqReq) assert(mqReq->finishedInCacheAt != 0);
     if(wbReq) assert(wbReq->finishedInCacheAt != 0);
-    
-    if(mqReq && mqReq->finishedInCacheAt <= curTick 
+
+    if(mqReq && mqReq->finishedInCacheAt <= curTick
        && wbReq && wbReq->finishedInCacheAt <= curTick){
-        
+
         // POLICY: in allocation order in each queue, oldest first intra queue
         if(mqReq->finishedInCacheAt <= wbReq->finishedInCacheAt) req = mqReq;
         else req = wbReq;
@@ -734,14 +734,14 @@ MissQueue::getMemReq()
         }
       }
     }
-    
+
     return req;
 }
 
 void
 MissQueue::setBusCmd(MemReqPtr &req, MemCmd cmd)
 {
-    
+
     assert(req->mshr != 0);
     MSHR * mshr = req->mshr;
     mshr->originalCmd = req->cmd;
@@ -760,11 +760,11 @@ void
 MissQueue::markInService(MemReqPtr &req)
 {
     if(changeQueue) mqWasPrevQueue = !mqWasPrevQueue;
-    
+
     assert(req->mshr != 0);
     bool unblock = false;
     BlockedCause cause = NUM_BLOCKED_CAUSES;
-    
+
     /**
      * @todo Should include MSHRQueue pointer in MSHR to select the correct
      * one.
@@ -773,7 +773,7 @@ MissQueue::markInService(MemReqPtr &req)
 	// Forwarding a write/ writeback, don't need to change
 	// the command
 	unblock = wb.isFull();
-        
+
 	wb.markInService(req->mshr);
 	if (!wb.havePending()){
 	    cache->clearMasterRequest(Request_WB);
@@ -790,7 +790,7 @@ MissQueue::markInService(MemReqPtr &req)
 	    cache->clearMasterRequest(Request_MSHR);
 	}
 	if (req->mshr->originalCmd == Hard_Prefetch) {
-	    DPRINTF(HWPrefetch, "%s:Marking a HW_PF in service\n", 
+	    DPRINTF(HWPrefetch, "%s:Marking a HW_PF in service\n",
 		    cache->name());
 	    //Also clear pending if need be
 	    if (!prefetcher->havePending())
@@ -815,7 +815,7 @@ MissQueue::markInService(MemReqPtr &req)
 
 void
 MissQueue::measureInterference(MemReqPtr& req){
-    
+
     //NOTE: finishedInCacheAt is written in the L2 and cannot be used
     sum_roundtrip_latency += curTick - (req->time + cache->getHitLatency());
     num_roundtrip_responses++;
@@ -826,12 +826,12 @@ MissQueue::measureInterference(MemReqPtr& req){
     bus_entry_latency +=  req->latencyBreakdown[MEM_BUS_ENTRY_LAT];
     bus_queue_latency +=  req->latencyBreakdown[MEM_BUS_QUEUE_LAT];
     bus_service_latency +=  req->latencyBreakdown[MEM_BUS_SERVICE_LAT];
-    
+
     if(cache->cpuCount > 1){
         for(int i=0;i<req->interferenceBreakdown.size();i++){
             sum_roundtrip_interference += req->interferenceBreakdown[i];
         }
-    
+
         interconnect_entry_interference += req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT];
         interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
         interconnect_delivery_interference += req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT];
@@ -839,11 +839,11 @@ MissQueue::measureInterference(MemReqPtr& req){
         bus_queue_interference += req->interferenceBreakdown[MEM_BUS_QUEUE_LAT];
         bus_service_interference += req->interferenceBreakdown[MEM_BUS_SERVICE_LAT];
     }
-    
-#ifdef DO_REQUEST_TRACE 
-    
+
+#ifdef DO_REQUEST_TRACE
+
     if(curTick >= cache->detailedSimulationStartTick){
-        
+
         // Latency trace
         vector<RequestTraceEntry> lats;
         lats.push_back(RequestTraceEntry(req->paddr));
@@ -851,10 +851,10 @@ MissQueue::measureInterference(MemReqPtr& req){
         for(int i=0;i<req->latencyBreakdown.size();i++){
 	  lats.push_back(RequestTraceEntry(req->latencyBreakdown[i]));
         }
-        
+
         assert(latencyTrace.isInitialized());
         latencyTrace.addTrace(lats);
-        
+
         // Interference trace
         if(cache->cpuCount > 1){
             vector<RequestTraceEntry> interference;
@@ -863,7 +863,7 @@ MissQueue::measureInterference(MemReqPtr& req){
             for(int i=0;i<req->latencyBreakdown.size();i++){
                 interference.push_back(RequestTraceEntry(req->interferenceBreakdown[i]));
             }
-            
+
             assert(interferenceTrace.isInitialized());
             interferenceTrace.addTrace(interference);
         }
@@ -876,25 +876,25 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 {
     MSHR* mshr = req->mshr;
     if (req->mshr->originalCmd == Hard_Prefetch) {
-	DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n", 
+	DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n",
 		cache->name());
     }
-    
+
 #ifndef NDEBUG
     int num_targets = mshr->getNumTargets();
 #endif
-	
+
     bool unblock = false;
     bool unblock_target = false;
     BlockedCause cause = NUM_BLOCKED_CAUSES;
-    
+
     if (req->isCacheFill() && !req->isNoAllocate()) {
-        
-        
+
+
         mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
-        
+
         if(!cache->isShared && cache->adaptiveMHA != NULL) measureInterference(req);
-        
+
 	// targets were handled in the cache tags
 	if (mshr == noTargetMSHR) {
 	    // we always clear at least one target
@@ -902,14 +902,14 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 	    cause = Blocked_NoTargets;
 	    noTargetMSHR = NULL;
 	}
-	
+
 	if (mshr->hasTargets()) {
-            
+
 	    // Didn't satisfy all the targets, need to resend
 	    MemCmd cmd = mshr->getTarget()->cmd;
 	    mq.markPending(mshr, cmd);
 	    mshr->order = order++;
-            
+
             if(cache->isDirectoryAndL1DataCache()){
                 // reset the addressing from the previous request
                 req->toProcessorID = -1;
@@ -917,24 +917,24 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
                 req->toInterfaceID = -1;
                 req->fromInterfaceID = -1;
             }
-            
+
 	    cache->setMasterRequest(Request_MSHR, time);
 	}
 	else {
-            
+
 	    unblock = mq.isFull();
 	    mq.deallocate(mshr);
-            
+
 	    if (unblock) {
                 unblock = !mq.isFull();
                 cause = Blocked_NoMSHRs;
 	    }
 	}
-        
+
     } else {
-        
+
         assert(mshr != noTargetMSHR);
-        
+
 	if (req->isUncacheable()) {
 	    mshr_uncacheable_lat[req->cmd][req->thread_num] +=
 		curTick - req->time;
@@ -953,7 +953,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 	else if (mshr->hasTargets()) {
 	    //Must be a no_allocate with possibly more than one target
 	    assert(mshr->req->isNoAllocate());
-            
+
 	    while (mshr->hasTargets()) {
 		MemReqPtr target = mshr->getTarget();
 		mshr->popTarget();
@@ -963,11 +963,11 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 		cache->respond(target, time);
        	    }
 	}
-	
+
 	if (req->cmd.isWrite()) {
 	    // If the wrtie buffer is full, we might unblock now
-	    unblock = wb.isFull(); 
-            
+	    unblock = wb.isFull();
+
 	    wb.deallocate(mshr);
 	    if (unblock) {
 		// Did we really unblock?
@@ -983,16 +983,16 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 	    }
 	}
     }
-    
+
     if(unblock_target){
-        // if both are set, we have recently changed the number of MSHRs 
+        // if both are set, we have recently changed the number of MSHRs
         cache->clearBlocked(Blocked_NoTargets);
-        
+
         if(unblock && cache->isBlockedNoMSHRs()){
             // we are blocked for both targets and MSHRs at the same time (due to AMHA)
             cache->clearBlocked(Blocked_NoMSHRs);
         }
-        
+
     }
     else if(unblock){
         cache->clearBlocked(cause);
@@ -1002,7 +1002,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 void
 MissQueue::squash(int thread_number)
 {
-    
+
     bool unblock = false;
     bool unblock_target = false;
     BlockedCause cause = NUM_BLOCKED_CAUSES;
@@ -1020,7 +1020,7 @@ MissQueue::squash(int thread_number)
     if (!mq.havePending()) {
 	cache->clearMasterRequest(Request_MSHR);
     }
-    
+
     if(unblock && unblock_target){
         assert(cache->useAdaptiveMHA);
         cache->clearBlocked(Blocked_NoTargets);
@@ -1034,7 +1034,7 @@ MissQueue::squash(int thread_number)
 MSHR*
 MissQueue::findMSHR(Addr addr, int asid) const
 {
-    
+
     return mq.findMatch(addr,asid);
 }
 
@@ -1049,13 +1049,13 @@ MissQueue::doWriteback(Addr addr, int asid, ExecContext *xc,
 		       int size, uint8_t *data, bool compressed)
 {
     if(cache->useDirectory) fatal("Cache tags doWriteback() version not implemented with directory");
-    
+
     // Generate request
     MemReqPtr req = buildWritebackReq(addr, asid, xc, size, data,
 				      compressed);
 
     writebacks[req->thread_num]++;
-    
+
     allocateWrite(req, 0, curTick);
 }
 
@@ -1063,15 +1063,15 @@ MissQueue::doWriteback(Addr addr, int asid, ExecContext *xc,
 void
 MissQueue::doWriteback(MemReqPtr &req)
 {
-    
+
     writebacks[req->thread_num]++;
     assert(req->xc || !cache->doData());
-    
+
     allocateWrite(req, 0, curTick);
 }
 
 
-MSHR* 
+MSHR*
 MissQueue::allocateTargetList(Addr addr, int asid)
 {
    MSHR* mshr = mq.allocateTargetList(addr, asid, blkSize);
