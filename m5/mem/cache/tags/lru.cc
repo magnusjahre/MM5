@@ -106,9 +106,9 @@ CacheSet::moveToHead(LRUBlk *blk)
 LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor) :
     numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
 {
-    
+
     // the provided addresses are byte addresses, so the provided block address can be used directly
-    
+
     // Check parameters
     if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
 	fatal("Block size must be at least 4 and a power of 2");
@@ -122,12 +122,12 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     if (hitLatency <= 0) {
 	fatal("access latency must be greater than zero");
     }
-    
+
     LRUBlk  *blk;
     int i, j, blkIndex;
-    
+
     blkMask = (blkSize) - 1;
-    
+
     if(numBanks != -1){
         setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
         bankShift = FloorLog2(blkSize);
@@ -141,7 +141,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
     warmedUp = false;
     /** @todo Make warmup percentage a parameter. */
     warmupBound = numSets * assoc;
-    
+
     sets = new CacheSet[numSets];
     blks = new LRUBlk[numSets * assoc];
     // allocate data storage in one big chunk
@@ -176,12 +176,12 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	    blk->set = i;
 	}
     }
-    
+
     if(isShadow){
         perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
     }
 
-    
+
     accesses = 0;
     useMTPPartitioning = false;
 }
@@ -197,7 +197,7 @@ void
 LRU::initializeCounters(int cpuCount){
     if(!isShadow && numBanks > 0){ // only L2, real tags
         perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
-        
+
         if(cpuCount == 1 && divFactor < 1 && cache->useStaticPartInWarmup){
             fatal("A division factor must be given for single CPU static partitioning");
         }
@@ -222,28 +222,28 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 {
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
-    
+
     LRUBlk *blk = sets[set].findBlk(asid, tag);
-    
+
     lat = hitLatency;
     if (blk != NULL) {
 	// move this block to head of the MRU list
 	sets[set].moveToHead(blk);
-        
+
         if(cache->useUniformPartitioning){
             DPRINTF(UniformPartitioning, "Set %d: Hit in block (1), retrieved by processor %d, replaced block addr is %x\n",
                     set,
                     blk->origRequestingCpuID,
                     regenerateBlkAddr(blk->tag,blk->set));
         }
-        
+
 	if (blk->whenReady > curTick
 	    && blk->whenReady - curTick > hitLatency) {
 	    lat = blk->whenReady - curTick;
 	}
 	blk->refCount += 1;
     }
-    
+
     return blk;
 }
 
@@ -255,7 +255,7 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 
     Addr tag = extractTag(addr);
     unsigned set = extractSet(addr);
-    
+
     LRUBlk *blk = NULL;
     if(isShadow){
         accesses++;
@@ -264,7 +264,7 @@ LRU::findBlock(MemReqPtr &req, int &lat)
         if(blk != NULL){
             assert(hitIndex >= 0 && hitIndex < assoc);
             perSetHitCounters[set][hitIndex]++;
-            
+
         }
         else{
             assert(hitIndex == -1);
@@ -273,36 +273,36 @@ LRU::findBlock(MemReqPtr &req, int &lat)
     else{
         blk = sets[set].findBlk(asid, tag);
     }
-    
+
     lat = hitLatency;
     if (blk != NULL) {
 	// move this block to head of the MRU list
 	sets[set].moveToHead(blk);
-        
+
         if(cache->useUniformPartitioning){
             DPRINTF(UniformPartitioning, "Set %d: Hit in block (2), retrieved by processor %d, replaced block addr is %x\n",
                     set,
                     blk->origRequestingCpuID,
                     regenerateBlkAddr(blk->tag,blk->set));
         }
-        
+
 	if (blk->whenReady > curTick
 	    && blk->whenReady - curTick > hitLatency) {
 	    lat = blk->whenReady - curTick;
 	}
 	blk->refCount += 1;
     }
-    
+
     return blk;
 }
 
-void 
+void
 LRU::updateSetHitStats(MemReqPtr& req){
-    
+
     assert(!isShadow); // only real tags
     assert(numBanks > 0); // only L2 cache
     if(curTick < cache->detailedSimulationStartTick) return;
-    
+
     int hitIndex = -1;
     Addr tag = extractTag(req->paddr);
     unsigned set = extractSet(req->paddr);
@@ -316,7 +316,7 @@ LRU::updateSetHitStats(MemReqPtr& req){
     assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
     assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
     assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
-    
+
     perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
 }
 
@@ -325,9 +325,9 @@ LRU::dumpHitStats(){
     stringstream name;
     name << cache->name() << "HitStats.txt";
     ofstream outfile(name.str().c_str());
-   
+
     outfile << "Dumping hit statistics for " << cache->name() << " at tick " << curTick << "\n\n";
-    
+
     for(int i=0;i<perCPUperSetHitCounters.size();i++){
         outfile << "CPU " << i << " hit statistics\n";
         for(int j=0;j<perCPUperSetHitCounters[0].size();j++){
@@ -339,7 +339,7 @@ LRU::dumpHitStats(){
         }
         outfile << "\n";
     }
-    
+
     outfile.flush();
     outfile.close();
 }
@@ -358,18 +358,18 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 		     BlkList &compress_blocks)
 {
     unsigned set = extractSet(req->paddr);
-    
+
     // grab a replacement candidate
     LRUBlk *blk = NULL;
     if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
         || (useMTPPartitioning && !isShadow)
         || (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick && !isShadow)){
-        
+
         assert(!isShadow);
-        
+
         int fromProc = req->adaptiveMHASenderID;
         assert(fromProc >= 0 && fromProc < cache->cpuCount);
-        
+
         // we know that assoc is a power of two, checked in the constructor
         int maxBlks = -1;
         if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
@@ -384,16 +384,16 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             maxBlks = currentMTPPartition[fromProc];
         }
         assert(maxBlks >= 1);
-        
+
         vector<int> blkCnt(cache->cpuCount, 0);
         for(int i=0;i<assoc;i++){
-            int tmpID = sets[set].blks[i]->origRequestingCpuID; 
+            int tmpID = sets[set].blks[i]->origRequestingCpuID;
             if(tmpID >= 0){
                 assert(tmpID >= 0 && tmpID < cache->cpuCount);
                 blkCnt[tmpID]++;
             }
         }
-        
+
         bool found = false;
         if(blkCnt[fromProc] < maxBlks){
             blk = sets[set].blks[assoc-1];
@@ -405,7 +405,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
             else{
                 if(!blk->isTouched) found = true;
                 else{
-                    
+
                     // using MTP partitioning, evict the LRU block from a cache that is using more than its quota
                     for(int i = assoc-1;i>=0;i--){
                         blk = sets[set].blks[i];
@@ -434,13 +434,13 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
         blk = sets[set].blks[assoc-1];
     }
     assert(blk != NULL);
-    
+
     //estimate interference
     if(blk->origRequestingCpuID != req->adaptiveMHASenderID && blk->origRequestingCpuID != -1){
         assert(req->adaptiveMHASenderID != -1);
         cache->addCapacityInterference(blk->origRequestingCpuID, req->adaptiveMHASenderID);
     }
-    
+
     sets[set].moveToHead(blk);
     if (blk->isValid()) {
 	int thread_num = (blk->xc) ? blk->xc->thread_num : 0;
@@ -486,8 +486,8 @@ LRU::doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks)
 	dest_blk = findReplacement(req, writebacks, dummy_list);
 	if (dest_blk->isValid() && dest_blk->isModified()) {
 	    // Need to writeback data.
-	    req = buildWritebackReq(regenerateBlkAddr(dest_blk->tag, 
-						      dest_blk->set), 
+	    req = buildWritebackReq(regenerateBlkAddr(dest_blk->tag,
+						      dest_blk->set),
 				    dest_blk->asid,
 				    dest_blk->xc,
 				    blkSize,
@@ -498,7 +498,7 @@ LRU::doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks)
 	dest_blk->tag = extractTag(dest);
 	dest_blk->asid = asid;
 	/**
-	 * @todo Do we need to pass in the execution context, or can we 
+	 * @todo Do we need to pass in the execution context, or can we
 	 * assume its the same?
 	 */
 	assert(source_blk->xc);
@@ -507,7 +507,7 @@ LRU::doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks)
     /**
      * @todo Can't assume the status once we have coherence on copies.
      */
-    
+
     // Set this block as readable, writeable, and dirty.
     dest_blk->status = 7;
     if (cache->doData()) {
@@ -531,7 +531,7 @@ std::vector<int>
 LRU::perCoreOccupancy(){
     vector<int> ret(cache->cpuCount, 0);
     int notTouched = 0;
-    
+
     for(int i=0;i<numSets;i++){
         for(int j=0;j<assoc;j++){
             LRUBlk* blk = sets[i].blks[j];
@@ -545,14 +545,14 @@ LRU::perCoreOccupancy(){
             }
         }
     }
-    
+
     ret.push_back(notTouched);
     ret.push_back(numSets * assoc);
-    
+
     int sum = 0;
     for(int i=0;i<cache->cpuCount+1;i++) sum += ret[i];
     assert(sum == numSets * assoc);
-    
+
     return ret;
 }
 
@@ -560,19 +560,19 @@ void
 LRU::handleSwitchEvent(){
     assert(cache->useUniformPartitioning);
     assert(!isShadow);
-    
+
     for(int i=0;i<numSets;i++){
         for(int j=0;j<cache->cpuCount;j++){
-            
+
             int cnt = 0;
             for(int k=0;k<assoc;k++){
                 LRUBlk* blk = sets[i].blks[k];
                 if(blk->origRequestingCpuID == j) cnt++;
             }
-            
+
             int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-            assert(maxBlks > 1);
-            
+            assert(maxBlks >= 1);
+
             if(cnt > maxBlks){
                 int invalidated = 0;
                 int removeCnt = cnt - maxBlks;
@@ -590,7 +590,7 @@ LRU::handleSwitchEvent(){
                 }
             }
         }
-        
+
         // put all invalid blocks in LRU position
         int invalidIndex = 0;
         int passedCnt = 0;
@@ -601,7 +601,7 @@ LRU::handleSwitchEvent(){
                 break;
             }
         }
-        
+
         for(int k=invalidIndex+1;k<assoc;k++){
             LRUBlk* blk = sets[i].blks[k];
             if(blk->isValid()){
@@ -615,9 +615,9 @@ LRU::handleSwitchEvent(){
                 passedCnt++;
             }
         }
-        
+
         // verify that all invalid blocks are at the most LRU positions
-        LRUBlk* prevBlk = sets[i].blks[0]; 
+        LRUBlk* prevBlk = sets[i].blks[0];
         for(int k=1;k<assoc;k++){
 
             LRUBlk* blk = sets[i].blks[k];
@@ -651,37 +651,37 @@ LRU::dumpHitCounters(){
 
 std::vector<double>
 LRU::getMissRates(){
-    
+
     assert(isShadow);
-    
+
     vector<int> hits(assoc, 0);
     for(int i=0;i<numSets;i++){
         for(int j=0;j<assoc;j++){
             hits[j] += perSetHitCounters[i][j];
         }
     }
-    
+
     // transform to cumulative representation
     for(int i=1;i<hits.size();i++){
         hits[i] = hits[i] + hits[i-1];
     }
-    
+
     // compute miss rates
     vector<double> missrates(assoc, 0);
     assert(missrates.size() == hits.size());
     for(int i=0;i<missrates.size();i++){
         missrates[i] = (double) (((double) accesses - (double) hits[i]) / (double) accesses);
     }
-    
+
     return missrates;
 }
 
 double
 LRU::getTouchedRatio(){
-    
+
     int warmcnt = 0;
     int totalcnt = 0;
-    
+
     for(int i=0;i<numSets;i++){
         for(int j=0;j<assoc;j++){
             if(sets[i].blks[j]->isTouched) warmcnt++;
@@ -692,20 +692,20 @@ LRU::getTouchedRatio(){
     return (double) ((double) warmcnt / (double) totalcnt);
 }
 
-void 
+void
 LRU::setMTPPartition(std::vector<int> setQuotas){
-    
+
     int setcnt = 0;
     for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
-    
+
     DPRINTF(MTP, "Enforcing set quotas:");
     for(int i=0;i<setQuotas.size();i++){
         DPRINTFR(MTP, " %d:%d", i, setQuotas[i]);
     }
     DPRINTFR(MTP, "\n");
-    
+
     assert(setcnt == assoc);
-    
+
     useMTPPartitioning = true;
     assert(setQuotas.size() == cache->cpuCount);
     currentMTPPartition = setQuotas;
