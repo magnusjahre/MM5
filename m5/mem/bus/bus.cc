@@ -569,7 +569,9 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 
     //TODO: might need to add a more clever way of estimating mem bus entry interference
     // assumption: no memory bus blocking in private memory system
-    req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+    if(req->interferenceMissAt == 0){
+    	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+    }
 
 //    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
 //       && req->adaptiveMHASenderID != -1 && cpu_count > 1){
@@ -721,7 +723,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         else outstandingWrites[req->adaptiveMHASenderID]--;
     }
 
-    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
+    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1 && req->interferenceMissAt == 0){
         memoryController->computeInterference(req, time - curTick);
     }
 
@@ -756,7 +758,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         qfile.close();
 #endif
 
-        if(cpu_count > 1){
+        if(cpu_count > 1 && req->interferenceMissAt == 0){
+
             assert(req->adaptiveMHASenderID != -1);
 
 //             if(req->waitWritebackCnt >= 10){

@@ -395,6 +395,11 @@ MissQueue::regStats(const string &name)
         .desc("Aggregate bus service interference")
         ;
 
+    cache_capacity_interference
+		.name(name +".sum_cache_capacity_interference")
+		.desc("Aggregate cache capacity interference")
+		;
+
     avg_interconnect_entry_interference
       .name(name +".avg_ic_entry_interference")
       .desc("Average interconnect entry interference")
@@ -425,12 +430,18 @@ MissQueue::regStats(const string &name)
         .desc("Average bus service interference")
         ;
 
+    avg_cache_capacity_interference
+		.name(name +".avg_cache_capacity_interference")
+		.desc("Average cache capacity interference")
+		;
+
     avg_interconnect_entry_interference = interconnect_entry_interference / num_roundtrip_responses;
     avg_interconnect_transfer_interference = interconnect_transfer_interference / num_roundtrip_responses;
     avg_interconnect_delivery_interference = interconnect_delivery_interference / num_roundtrip_responses;
     avg_bus_entry_interference = bus_entry_interference / num_roundtrip_responses;
     avg_bus_queue_interference = bus_queue_interference / num_roundtrip_responses;
     avg_bus_service_interference = bus_service_interference / num_roundtrip_responses;
+    avg_cache_capacity_interference = cache_capacity_interference / num_roundtrip_responses;
 
     interconnect_entry_latency
       .name(name +".sum_ic_entry_latency")
@@ -831,6 +842,7 @@ MissQueue::measureInterference(MemReqPtr& req){
         for(int i=0;i<req->interferenceBreakdown.size();i++){
             sum_roundtrip_interference += req->interferenceBreakdown[i];
         }
+        sum_roundtrip_interference += req->cacheCapacityInterference;
 
         interconnect_entry_interference += req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT];
         interconnect_transfer_interference += req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT];
@@ -838,6 +850,8 @@ MissQueue::measureInterference(MemReqPtr& req){
         bus_entry_interference += req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
         bus_queue_interference += req->interferenceBreakdown[MEM_BUS_QUEUE_LAT];
         bus_service_interference += req->interferenceBreakdown[MEM_BUS_SERVICE_LAT];
+
+        cache_capacity_interference += req->cacheCapacityInterference;
     }
 
 #ifdef DO_REQUEST_TRACE
@@ -874,129 +888,129 @@ MissQueue::measureInterference(MemReqPtr& req){
 void
 MissQueue::handleResponse(MemReqPtr &req, Tick time)
 {
-    MSHR* mshr = req->mshr;
-    if (req->mshr->originalCmd == Hard_Prefetch) {
-	DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n",
-		cache->name());
-    }
+	MSHR* mshr = req->mshr;
+	if (req->mshr->originalCmd == Hard_Prefetch) {
+		DPRINTF(HWPrefetch, "%s:Handling the response to a HW_PF\n",
+				cache->name());
+	}
 
 #ifndef NDEBUG
-    int num_targets = mshr->getNumTargets();
+	int num_targets = mshr->getNumTargets();
 #endif
 
-    bool unblock = false;
-    bool unblock_target = false;
-    BlockedCause cause = NUM_BLOCKED_CAUSES;
+	bool unblock = false;
+	bool unblock_target = false;
+	BlockedCause cause = NUM_BLOCKED_CAUSES;
 
-    if (req->isCacheFill() && !req->isNoAllocate()) {
+	if (req->isCacheFill() && !req->isNoAllocate()) {
 
 
-        mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
+		mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
 
-        if(!cache->isShared && cache->adaptiveMHA != NULL) measureInterference(req);
+		if(!cache->isShared && cache->adaptiveMHA != NULL) measureInterference(req);
 
-	// targets were handled in the cache tags
-	if (mshr == noTargetMSHR) {
-	    // we always clear at least one target
-	    unblock_target = true;
-	    cause = Blocked_NoTargets;
-	    noTargetMSHR = NULL;
-	}
-
-	if (mshr->hasTargets()) {
-
-	    // Didn't satisfy all the targets, need to resend
-	    MemCmd cmd = mshr->getTarget()->cmd;
-	    mq.markPending(mshr, cmd);
-	    mshr->order = order++;
-
-            if(cache->isDirectoryAndL1DataCache()){
-                // reset the addressing from the previous request
-                req->toProcessorID = -1;
-                req->fromProcessorID = -1;
-                req->toInterfaceID = -1;
-                req->fromInterfaceID = -1;
-            }
-
-	    cache->setMasterRequest(Request_MSHR, time);
-	}
-	else {
-
-	    unblock = mq.isFull();
-	    mq.deallocate(mshr);
-
-	    if (unblock) {
-                unblock = !mq.isFull();
-                cause = Blocked_NoMSHRs;
-	    }
-	}
-
-    } else {
-
-        assert(mshr != noTargetMSHR);
-
-	if (req->isUncacheable()) {
-	    mshr_uncacheable_lat[req->cmd][req->thread_num] +=
-		curTick - req->time;
-	}
-	if (mshr->hasTargets() && req->isUncacheable()) {
-	    // Should only have 1 target if we had any
-	    assert(num_targets == 1);
-	    MemReqPtr target = mshr->getTarget();
-	    mshr->popTarget();
-	    if (cache->doData() && req->cmd.isRead()) {
-		memcpy(target->data, req->data, target->size);
-	    }
-	    cache->respond(target, time);
-	    assert(!mshr->hasTargets());
-	}
-	else if (mshr->hasTargets()) {
-	    //Must be a no_allocate with possibly more than one target
-	    assert(mshr->req->isNoAllocate());
-
-	    while (mshr->hasTargets()) {
-		MemReqPtr target = mshr->getTarget();
-		mshr->popTarget();
-		if (cache->doData() && req->cmd.isRead()) {
-		    memcpy(target->data, req->data, target->size);
+		// targets were handled in the cache tags
+		if (mshr == noTargetMSHR) {
+			// we always clear at least one target
+			unblock_target = true;
+			cause = Blocked_NoTargets;
+			noTargetMSHR = NULL;
 		}
-		cache->respond(target, time);
-       	    }
-	}
 
-	if (req->cmd.isWrite()) {
-	    // If the wrtie buffer is full, we might unblock now
-	    unblock = wb.isFull();
+		if (mshr->hasTargets()) {
 
-	    wb.deallocate(mshr);
-	    if (unblock) {
-		// Did we really unblock?
-		unblock = !wb.isFull();
-		cause = Blocked_NoWBBuffers;
-	    }
+			// Didn't satisfy all the targets, need to resend
+			MemCmd cmd = mshr->getTarget()->cmd;
+			mq.markPending(mshr, cmd);
+			mshr->order = order++;
+
+			if(cache->isDirectoryAndL1DataCache()){
+				// reset the addressing from the previous request
+				req->toProcessorID = -1;
+				req->fromProcessorID = -1;
+				req->toInterfaceID = -1;
+				req->fromInterfaceID = -1;
+			}
+
+			cache->setMasterRequest(Request_MSHR, time);
+		}
+		else {
+
+			unblock = mq.isFull();
+			mq.deallocate(mshr);
+
+			if (unblock) {
+				unblock = !mq.isFull();
+				cause = Blocked_NoMSHRs;
+			}
+		}
+
 	} else {
-	    unblock = mq.isFull();
-	    mq.deallocate(mshr);
-	    if (unblock) {
-		unblock = !mq.isFull();
-		cause = Blocked_NoMSHRs;
-	    }
+
+		assert(mshr != noTargetMSHR);
+
+		if (req->isUncacheable()) {
+			mshr_uncacheable_lat[req->cmd][req->thread_num] +=
+				curTick - req->time;
+		}
+		if (mshr->hasTargets() && req->isUncacheable()) {
+			// Should only have 1 target if we had any
+			assert(num_targets == 1);
+			MemReqPtr target = mshr->getTarget();
+			mshr->popTarget();
+			if (cache->doData() && req->cmd.isRead()) {
+				memcpy(target->data, req->data, target->size);
+			}
+			cache->respond(target, time);
+			assert(!mshr->hasTargets());
+		}
+		else if (mshr->hasTargets()) {
+			//Must be a no_allocate with possibly more than one target
+			assert(mshr->req->isNoAllocate());
+
+			while (mshr->hasTargets()) {
+				MemReqPtr target = mshr->getTarget();
+				mshr->popTarget();
+				if (cache->doData() && req->cmd.isRead()) {
+					memcpy(target->data, req->data, target->size);
+				}
+				cache->respond(target, time);
+			}
+		}
+
+		if (req->cmd.isWrite()) {
+			// If the wrtie buffer is full, we might unblock now
+			unblock = wb.isFull();
+
+			wb.deallocate(mshr);
+			if (unblock) {
+				// Did we really unblock?
+				unblock = !wb.isFull();
+				cause = Blocked_NoWBBuffers;
+			}
+		} else {
+			unblock = mq.isFull();
+			mq.deallocate(mshr);
+			if (unblock) {
+				unblock = !mq.isFull();
+				cause = Blocked_NoMSHRs;
+			}
+		}
 	}
-    }
 
-    if(unblock_target){
-        // if both are set, we have recently changed the number of MSHRs
-        cache->clearBlocked(Blocked_NoTargets);
+	if(unblock_target){
+		// if both are set, we have recently changed the number of MSHRs
+		cache->clearBlocked(Blocked_NoTargets);
 
-        if(unblock && cache->isBlockedNoMSHRs()){
-            // we are blocked for both targets and MSHRs at the same time (due to AMHA)
-            cache->clearBlocked(Blocked_NoMSHRs);
-        }
+		if(unblock && cache->isBlockedNoMSHRs()){
+			// we are blocked for both targets and MSHRs at the same time (due to AMHA)
+			cache->clearBlocked(Blocked_NoMSHRs);
+		}
 
-    }
-    else if(unblock){
-        cache->clearBlocked(cause);
-    }
+	}
+	else if(unblock){
+		cache->clearBlocked(cause);
+	}
 }
 
 void

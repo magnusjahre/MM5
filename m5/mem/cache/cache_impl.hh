@@ -151,21 +151,21 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     useAdaptiveMHA = false;
     if (params.in == NULL) {
-	topLevelCache = true;
-        if(params.adaptiveMHA != NULL && !params.isShared){
-            params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this, false);
-            useAdaptiveMHA = true;
-            adaptiveMHA = params.adaptiveMHA;
-        }
-        else if(params.adaptiveMHA != NULL && params.isShared){
-            //register for cache capacity measurements
-            params.adaptiveMHA->registerCache(-1, !params.isReadOnly, this, true);
-            useAdaptiveMHA = false;
-            adaptiveMHA = params.adaptiveMHA;
-        }
-        else{
-            adaptiveMHA = NULL;
-        }
+    	topLevelCache = true;
+    	if(params.adaptiveMHA != NULL && !params.isShared){
+    		params.adaptiveMHA->registerCache(cacheCpuID, !params.isReadOnly, this, false);
+    		useAdaptiveMHA = true;
+    		adaptiveMHA = params.adaptiveMHA;
+    	}
+    	else if(params.adaptiveMHA != NULL && params.isShared){
+    		//register for cache capacity measurements
+    		params.adaptiveMHA->registerCache(-1, !params.isReadOnly, this, true);
+    		useAdaptiveMHA = false;
+    		adaptiveMHA = params.adaptiveMHA;
+    	}
+    	else{
+    		adaptiveMHA = NULL;
+    	}
     }
 
     // needs these for the memory addresing bug workaround
@@ -432,18 +432,20 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		missesPerCPU[cacheCpuID]++;
 	}
 
-
 	if(simulateContention && curTick >= detailedSimulationStartTick){
 		Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
 
-		if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning){
-			req->interferenceMissAt = issueAt;
-		}
+		if(shadowHit) fatal("shadow handling not implemented with contention modeling");
 
 		req->finishedInCacheAt = issueAt;
 		missQueue->handleMiss(req, size, issueAt);
 	}
 	else{
+
+		if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning && curTick >= detailedSimulationStartTick){
+			req->interferenceMissAt = curTick + hitLatency;
+		}
+
 		req->finishedInCacheAt = curTick + hitLatency;
 		missQueue->handleMiss(req, size, curTick + hitLatency);
 	}
@@ -558,6 +560,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
 		assert(req->adaptiveMHASenderID != -1);
 		int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
+		req->cacheCapacityInterference += extraDelay;
 		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
 		adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
 		numExtraMisses[req->adaptiveMHASenderID]++;

@@ -96,7 +96,7 @@ CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
 
     // Set the block offset here
     req->offset = ct->extractBlkOffset(req->paddr);
-    
+
     BlkType *blk = NULL;
     if (update) {
 	blk = ct->findBlock(req, lat);
@@ -105,7 +105,7 @@ CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
 	lat = 0;
     }
     if (blk != NULL) {
-	
+
 	// Hit
 	if (blk->isPrefetch()) {
 
@@ -122,7 +122,7 @@ CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
 
 	if ((cmd.isWrite() && blk->isWritable()) ||
 	    (cmd.isRead() && blk->isValid())) {
-	    
+
 	    // We are satisfying the request
 	    req->flags |= SATISFIED;
 
@@ -156,13 +156,13 @@ CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
 			   req->size);
 		}
 
-		if (write_data || 
+		if (write_data ||
 		    (adaptiveCompression && blk->isCompressed()))
 		    {
 			// If we wrote data, need to update the internal block
 			// data.
-			updateData(blk, writebacks, 
-				   !(adaptiveCompression && 
+			updateData(blk, writebacks,
+				   !(adaptiveCompression &&
 				     blk->isReferenced()));
 		    }
 	    }
@@ -170,7 +170,7 @@ CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
 	    // permission violation, treat it as a miss
 	    blk = NULL;
 	}
-    } 
+    }
     return blk;
 }
 
@@ -181,14 +181,14 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk, MemReqPtr &req,
 					MemReqList & writebacks,
 					MemReqPtr target)
 {
-    
+
 #ifndef NDEBUG
     BlkType *tmp_blk = ct->findBlock(req->paddr, req->asid);
     assert(tmp_blk == blk);
 #endif
     DPRINTF(Cache, "handleFill\n");
     blk = doReplacement(blk, req, new_state, writebacks);
-    
+
     if (cache->doData()) {
 	if (req->cmd.isRead()) {
 	    memcpy(blk->data, req->data, blkSize);
@@ -203,14 +203,14 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk, MemReqPtr &req,
 	(req->isCompressed() ?
 	 compLatency/4 :
 	 0);
-    
+
     // Respond to target, if any
     if (target) {
-        
+
 	MemCmd cmd = target->cmd;
 
 	target->flags |= SATISFIED;
-	    		
+
 	if (cmd == Invalidate) {
 	    invalidateBlk(blk);
 	    blk = NULL;
@@ -218,7 +218,7 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk, MemReqPtr &req,
 
 	if (cmd == Copy) {
 	    writebacks.push_back(target);
-	} else {    
+	} else {
 	    if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
 		assert(cmd.isWrite() || cmd.isRead());
 		if (cmd.isWrite()) {
@@ -250,138 +250,132 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk, MemReqPtr &req,
 template <class Tags, class Compression>
 typename CacheTags<Tags,Compression>::BlkType*
 CacheTags<Tags,Compression>::handleFill(BlkType *blk,
-                                        MSHR * mshr,
-					CacheBlk::State new_state,
-					MemReqList & writebacks,
-                                        MemReqPtr fillRequest)
+		MSHR * mshr,
+		CacheBlk::State new_state,
+		MemReqList & writebacks,
+		MemReqPtr fillRequest)
 {
 #ifndef NDEBUG
-    BlkType *tmp_blk = ct->findBlock(mshr->req->paddr, mshr->req->asid);
-    assert(tmp_blk == blk);
+	BlkType *tmp_blk = ct->findBlock(mshr->req->paddr, mshr->req->asid);
+	assert(tmp_blk == blk);
 #endif
-    MemReqPtr req = mshr->req;
-    blk = doReplacement(blk, req, new_state, writebacks);
-    
-    if (cache->doData()) {
-	if (req->cmd.isRead()) {
-	    memcpy(blk->data, req->data, blkSize);
+	MemReqPtr req = mshr->req;
+	blk = doReplacement(blk, req, new_state, writebacks);
+
+	if (cache->doData()) {
+		if (req->cmd.isRead()) {
+			memcpy(blk->data, req->data, blkSize);
+		}
 	}
-    }
-    
-    int bus_transactions = (req->size > busWidth) ?
-	(req->size - busWidth) / busWidth :
-	0;
 
-    blk->whenReady = curTick + (busRatio * bus_transactions) +
-	(req->isCompressed() ?
-	 compLatency/4 :
-	 0);
+	int bus_transactions = (req->size > busWidth) ? (req->size - busWidth) / busWidth : 0;
 
-    // respond to MSHR targets, if any
-    Tick response_base = ((!req->isCompressed()) ? curTick : blk->whenReady) +
+	blk->whenReady = curTick + (busRatio * bus_transactions) + (req->isCompressed() ? compLatency/4 : 0);
+
+	// respond to MSHR targets, if any
+	Tick response_base = ((!req->isCompressed()) ? curTick : blk->whenReady) +
 	ct->getHitLatency();
 
-    // First offset for critical word first calculations
-    int initial_offset = 0;
-    
-    if (mshr->hasTargets()) {
-	initial_offset = mshr->getTarget()->offset;
-    }
-    
-    bool firstIsRead = (req->cmd == DirRedirectRead);
+	// First offset for critical word first calculations
+	int initial_offset = 0;
 
-    while (mshr->hasTargets()) {
-        
-	MemReqPtr target = mshr->getTarget();
-	MemCmd cmd = target->cmd;
-        
-	target->flags |= SATISFIED;
-	
-	// How many bytes pass the first request is this one
-	int transfer_offset = target->offset - initial_offset;
-	if (transfer_offset < 0) {
-	    transfer_offset += blkSize;
+	if (mshr->hasTargets()) {
+		initial_offset = mshr->getTarget()->offset;
 	}
-	
-	// Covert byte offset to cycle offset
-	int tgt_latency = (!target->isCompressed()) ?
-	    (transfer_offset/busWidth) * busRatio :
-	    0;
-	
-	Tick completion_time = response_base + tgt_latency;
-	
-        if(cache->isDirectoryAndL1DataCache()){
-            if(firstIsRead && cmd.isWrite() && req->owner != cache->getCacheCPUid()){
-                // since the first is read and we are not the owner, we need to retransmit
-                // re-request is done in missQueue handleMiss()
-                break;
-            }
-        }
-        
-	if (cmd == Invalidate) {
-	    //Mark the blk as invalid now, if it hasn't been already
-	    if (blk) {
-		invalidateBlk(blk);
-		blk = NULL;
-	    }
 
-	    //Also get rid of the invalidate
-	    mshr->popTarget();
+	bool firstIsRead = (req->cmd == DirRedirectRead);
 
-	    DPRINTF(Cache, "Popping off a Invalidate for blk_addr: %x\n",
-		    req->paddr & (((ULL(1))<<48)-1));
+	while (mshr->hasTargets()) {
 
-	    continue;
-	}
-	
-	if (cmd == Copy) {
-	    writebacks.push_back(target);
-	    break;
-	}
-	
-	if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
-	    assert(cmd.isWrite() || cmd.isRead());
-	    if (cmd.isWrite()) {
-		blk->status |= BlkDirty;
-		ct->fixCopy(req, writebacks);
-		if (cache->doData()) {
-		    assert(target->offset + target->size <= blkSize);
-		    memcpy(blk->data + target->offset,
-			   target->data, target->size);
+		MemReqPtr target = mshr->getTarget();
+		MemCmd cmd = target->cmd;
+
+		target->flags |= SATISFIED;
+
+		// How many bytes pass the first request is this one
+		int transfer_offset = target->offset - initial_offset;
+		if (transfer_offset < 0) {
+			transfer_offset += blkSize;
 		}
-	    } else {
-		if (cache->doData()) {
-		    assert(target->offset + target->size <= blkSize);
-		    memcpy(target->data, blk->data + target->offset,
-			   target->size);
-		}
-	    }
-	} else {
-	    // Invalid access, need to do another request
-	    // can occur if block is invalidated, or not correct 
-	    // permissions
-	    break;
-	}
-        
-        if(cache->isShared){
-            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-                target->interferenceBreakdown[i] = fillRequest->interferenceBreakdown[i];
-            }
-            for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
-                target->latencyBreakdown[i] = fillRequest->latencyBreakdown[i];
-            }
-        }
-        
-        mshr->popTarget();
-        cache->respondToMiss(target, completion_time, mshr->hasTargets());
-    }
-    
-    if (blk && cache->doData()) {
-	// Need to write the data into the block
-	updateData(blk, writebacks, !adaptiveCompression || true);
-    }
 
-    return blk;
+		// Covert byte offset to cycle offset
+		int tgt_latency = (!target->isCompressed()) ? (transfer_offset/busWidth) * busRatio : 0;
+
+		Tick completion_time = response_base + tgt_latency;
+
+		if(cache->isDirectoryAndL1DataCache()){
+			if(firstIsRead && cmd.isWrite() && req->owner != cache->getCacheCPUid()){
+				// since the first is read and we are not the owner, we need to retransmit
+				// re-request is done in missQueue handleMiss()
+				break;
+			}
+		}
+
+		if (cmd == Invalidate) {
+			//Mark the blk as invalid now, if it hasn't been already
+			if (blk) {
+				invalidateBlk(blk);
+				blk = NULL;
+			}
+
+			//Also get rid of the invalidate
+			mshr->popTarget();
+
+			DPRINTF(Cache, "Popping off a Invalidate for blk_addr: %x\n",
+					req->paddr & (((ULL(1))<<48)-1));
+
+			continue;
+		}
+
+		if (cmd == Copy) {
+			writebacks.push_back(target);
+			break;
+		}
+
+		if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
+			assert(cmd.isWrite() || cmd.isRead());
+			if (cmd.isWrite()) {
+				blk->status |= BlkDirty;
+				ct->fixCopy(req, writebacks);
+				if (cache->doData()) {
+					assert(target->offset + target->size <= blkSize);
+					memcpy(blk->data + target->offset,
+							target->data, target->size);
+				}
+			} else {
+				if (cache->doData()) {
+					assert(target->offset + target->size <= blkSize);
+					memcpy(target->data, blk->data + target->offset,
+							target->size);
+				}
+			}
+		} else {
+			// Invalid access, need to do another request
+			// can occur if block is invalidated, or not correct
+			// permissions
+			break;
+		}
+
+		if(cache->isShared){
+			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+				target->interferenceBreakdown[i] = fillRequest->interferenceBreakdown[i];
+			}
+			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++){
+				target->latencyBreakdown[i] = fillRequest->latencyBreakdown[i];
+			}
+			target->cacheCapacityInterference = fillRequest->cacheCapacityInterference;
+		}
+
+		mshr->popTarget();
+		cache->respondToMiss(target, completion_time, mshr->hasTargets());
+	}
+
+	if (blk && cache->doData()) {
+		// Need to write the data into the block
+		updateData(blk, writebacks, !adaptiveCompression || true);
+	}
+
+	return blk;
 }
 
 template <class Tags, class Compression>
@@ -399,31 +393,31 @@ CacheTags<Tags,Compression>::pseudoFill(MSHR * mshr,
 	    memcpy(blk->data, req->data, blkSize);
 	}
     }
-    
+
     fatal("latency breakdown not implemented in pseudoFill");
 
     blk->whenReady = curTick;
     // respond to MSHR targets, if any
     Tick response_base = curTick + ct->getHitLatency();
-    
+
     while (mshr->hasTargets()) {
 	MemReqPtr target = mshr->getTarget();
 	MemCmd cmd = target->cmd;
-	
+
 	target->flags |= SATISFIED;
 	Tick completion_time = response_base;
-	
+
 	if (cmd == Invalidate) {
 	    invalidateBlk(blk);
 	    blk = NULL;
 	    continue;
 	}
-	
+
 	if (cmd == Copy) {
 	    writebacks.push_back(target);
 	    break;
 	}
-	
+
 	if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
 	    assert(cmd.isWrite() || cmd.isRead());
 	    if (cmd.isWrite()) {
@@ -443,15 +437,15 @@ CacheTags<Tags,Compression>::pseudoFill(MSHR * mshr,
 	    }
 	} else {
 	    // Invalid access, need to do another request
-	    // can occur if block is invalidated, or not correct 
+	    // can occur if block is invalidated, or not correct
 	    // permissions
 	    break;
 	}
-        
+
         mshr->popTarget();
         cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
-    
+
     if (blk && cache->doData()) {
 	// Need to write the data into the block
 	updateData(blk, writebacks, !adaptiveCompression || true);
@@ -470,30 +464,30 @@ CacheTags<Tags,Compression>::handleTargets(MSHR *mshr, MemReqList &writebacks)
     assert(blk != NULL);
 
     bool write_data = false;
-    
+
     // respond to MSHR targets, if any
     Tick response_base = curTick + ct->getHitLatency();
-    
+
     fatal("latency breakdown not implemented in handleTargets");
-    
+
     while (mshr->hasTargets()) {
 	MemReqPtr target = mshr->getTarget();
 	MemCmd cmd = target->cmd;
-	
+
 	target->flags |= SATISFIED;
 	Tick completion_time = response_base;
-	
+
 	if (cmd == Invalidate) {
 	    invalidateBlk(blk);
 	    blk = NULL;
 	    continue;
 	}
-	
+
 	if (cmd == Copy) {
 	    writebacks.push_back(target);
 	    break;
 	}
-	
+
 	if (blk && (cmd.isWrite() ? blk->isWritable() : blk->isValid())) {
 	    assert(cmd.isWrite() || cmd.isRead());
 	    if (cmd.isWrite()) {
@@ -514,15 +508,15 @@ CacheTags<Tags,Compression>::handleTargets(MSHR *mshr, MemReqList &writebacks)
 	    }
 	} else {
 	    // Invalid access, need to do another request
-	    // can occur if block is invalidated, or not correct 
+	    // can occur if block is invalidated, or not correct
 	    // permissions
 	    break;
 	}
-        
+
         mshr->popTarget();
         cache->respondToMiss(target, completion_time, mshr->hasTargets());
     }
-    
+
     if (write_data && blk && cache->doData()) {
 	// Need to write the data into the block
 	updateData(blk, writebacks, !adaptiveCompression || true);
@@ -533,8 +527,8 @@ CacheTags<Tags,Compression>::handleTargets(MSHR *mshr, MemReqList &writebacks)
 
 template <class Tags, class Compression>
 void
-CacheTags<Tags,Compression>::handleSnoop(BlkType *blk, 
-					 CacheBlk::State new_state, 
+CacheTags<Tags,Compression>::handleSnoop(BlkType *blk,
+					 CacheBlk::State new_state,
 					 MemReqPtr &req)
 {
     if (blk) {
@@ -542,11 +536,11 @@ CacheTags<Tags,Compression>::handleSnoop(BlkType *blk,
 	if (cache->doData()) {
 	    // Can only supply data
 	    assert(req->cmd.isRead());
-	    
+
 	    assert(req->offset < blkSize);
 	    assert(req->size <= blkSize);
 	    assert(req->offset + req->size <=blkSize);
-	    memcpy(req->data, blk->data + req->offset, req->size);   
+	    memcpy(req->data, blk->data + req->offset, req->size);
 	}
 	handleSnoop(blk, new_state);
     }
@@ -585,23 +579,23 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
 	    delete [] tmp_data;
 	}
     }
-    
-    MemReqPtr writeback = 
-	buildWritebackReq(ct->regenerateBlkAddr(blk->tag, blk->set), 
-			  blk->asid, blk->xc, blkSize, 
-			  (cache->doData()) ? blk->data : 0, 
+
+    MemReqPtr writeback =
+	buildWritebackReq(ct->regenerateBlkAddr(blk->tag, blk->set),
+			  blk->asid, blk->xc, blkSize,
+			  (cache->doData()) ? blk->data : 0,
 			  data_size);
-    
+
     if(!cache->isShared){
         cache->setSenderID(writeback);
     }
     else{
         assert(blk->origRequestingCpuID != -1);
-        
+
 //         writeback->adaptiveMHASenderID = -1;
         writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
     }
-    
+
     blk->status &= ~BlkDirty;
     return writeback;
 }
@@ -610,7 +604,7 @@ template <class Tags, class Compression>
 void
 CacheTags<Tags,Compression>::doUnalignedCopy(Addr source, Addr dest, int asid,
 					     MemReqList &writebacks)
-{    
+{
     int source_offset = ct->extractBlkOffset(source);
     int dest_offset = ct->extractBlkOffset(dest);
 
@@ -626,8 +620,8 @@ CacheTags<Tags,Compression>::doUnalignedCopy(Addr source, Addr dest, int asid,
     int lat;
 
     // Reference the blocks.
-    // We need to do this to move the blocks into the primary tag store in 
-    // the IIC so that the pointers can't be invalidated by moving the tag 
+    // We need to do this to move the blocks into the primary tag store in
+    // the IIC so that the pointers can't be invalidated by moving the tag
     // later.
     BlkType *source1_blk = ct->findBlock(source1, asid, lat);
     BlkType *source2_blk = ct->findBlock(source2, asid, lat);
@@ -659,7 +653,7 @@ CacheTags<Tags,Compression>::doUnalignedCopy(Addr source, Addr dest, int asid,
 	req->paddr = dest;
 	req->asid = asid;
 	req->xc = source1_blk->xc;
-	dest1_blk = doReplacement(NULL, req, 
+	dest1_blk = doReplacement(NULL, req,
 				  BlkValid | BlkWritable,
 				  writebacks);
     } else {
@@ -668,7 +662,7 @@ CacheTags<Tags,Compression>::doUnalignedCopy(Addr source, Addr dest, int asid,
 	req->asid = asid;
 	ct->fixCopy(req, writebacks);
     }
-    
+
     if (dest_unaligned) {
 	dest2_blk->xc = source1_blk->xc;
 	dest2_blk->status |= BlkDirty;
@@ -677,9 +671,9 @@ CacheTags<Tags,Compression>::doUnalignedCopy(Addr source, Addr dest, int asid,
 	req->paddr = dest2;
 	ct->fixCopy(req, writebacks);
     }
-    
+
     dest1_blk->status |= BlkDirty;
-    
+
     if (cache->doData()) {
 	assert(dest_data);
 	if (dest_unaligned) {
@@ -711,7 +705,7 @@ CacheTags<Tags,Compression>::verifyData(BlkType *blk)
     uint8_t *tmp_data = blk_data;
     // The size of the data being stored, assumed uncompressed
     int data_size = blkSize;
-    
+
     // If the block is compressed need to uncompress to access
     if (blk->isCompressed()){
 	// Allocate new storage for the data
@@ -724,7 +718,7 @@ CacheTags<Tags,Compression>::verifyData(BlkType *blk)
     } else {
 	assert(blkSize == blk->size);
     }
-    
+
     retval = memcmp(tmp_data, blk->data, blkSize) == 0;
     delete [] tmp_data;
     return retval;
@@ -742,12 +736,12 @@ CacheTags<Tags,Compression>::updateData(BlkType *blk, MemReqList &writebacks,
 	if (new_size > (blkSize - ct->getSubBlockSize())){
 	    // no benefit to storing it compressed
 	    blk->status &= ~BlkCompressed;
-	    ct->writeData(blk, blk->data, blkSize, 
+	    ct->writeData(blk, blk->data, blkSize,
 			  writebacks);
 	} else {
 	    // Store the data compressed
 	    blk->status |= BlkCompressed;
-	    ct->writeData(blk, comp_data, new_size, 
+	    ct->writeData(blk, comp_data, new_size,
 			  writebacks);
 	}
 	delete [] comp_data;
@@ -759,70 +753,70 @@ CacheTags<Tags,Compression>::updateData(BlkType *blk, MemReqList &writebacks,
 
 template <class Tags, class Compression>
 typename CacheTags<Tags,Compression>::BlkType*
-CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req, 
-					   CacheBlk::State new_state, 
+CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
+					   CacheBlk::State new_state,
 					   MemReqList &writebacks)
 {
-    
+
     if (blk == NULL) {
-        
+
 	// need to do a replacement
 	BlkList compress_list;
 	blk = ct->findReplacement(req, writebacks, compress_list);
-        
+
 	while (adaptiveCompression && !compress_list.empty()) {
 	    updateData(compress_list.front(), writebacks, true);
 	    compress_list.pop_front();
 	}
-        
+
 	if (blk->isValid()) {
-            
+
             if(cache->isDirectoryAndL1DataCache()){
                 // This is a L1 data cache
-                
+
                 // All _data_ blocks must be owned
                 assert(blk->owner >= 0);
-                
+
                 if(blk->dirState == DirOwnedExGR || blk->dirState == DirOwnedNonExGR){
                     int numCopies = 0;
                     for(int i=0;i<cache->cpuCount;i++){
                         if(blk->presentFlags[i] == true) numCopies++;
                     }
-                    
+
                     assert(numCopies > 0);
-                    
+
                     if(numCopies == 1){
-                        
+
                         assert(blk->dirState == DirOwnedExGR);
-                        
+
                         if(blk->isModified()){
                             writebacks.push_back(writebackBlk(blk));
                         }
                         else{
-                            
+
                             MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
                                               blk->asid,
                                               blk->xc,
-                                              blkSize, 
+                                              blkSize,
                                               (cache->doData()) ? blk->data : 0,
                                               DirWriteback);
                             writebacks.push_back(wbBlk);
                         }
-                        
+
                     }
                     else{
                         MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
                                                             blk->asid,
                                                             blk->xc,
-                                                            blkSize, 
+                                                            blkSize,
                                                             (cache->doData()) ? blk->data : 0,
                                                             DirOwnerWriteback);
-                        
+
                         bool* pfCopy = new bool[cache->cpuCount];
                         for(int i=0;i<cache->cpuCount;i++){
                             pfCopy[i] = blk->presentFlags[i];
                         }
-                        
+
                         wbBlk->presentFlags = pfCopy;
                         writebacks.push_back(wbBlk);
                     }
@@ -831,18 +825,18 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
 
                     assert(blk->presentFlags == NULL);
                     assert(!blk->isModified());
-                    
+
                     MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
                                       blk->asid,
                                       blk->xc,
-                                      blkSize, 
+                                      blkSize,
                                       (cache->doData()) ? blk->data : 0,
                                       DirSharerWriteback);
-                    
+
                     writebacks.push_back(wbBlk);
                 }
-                
-                
+
+
                 // update cache block state info from request, set other values to initial values
                 blk->owner = req->owner;
                 blk->dirState = DirNoState;
@@ -850,18 +844,18 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
                     delete blk->presentFlags;
                     blk->presentFlags = NULL;
                 }
-                
+
                 // the block is written back so clear the dirty bit
                 blk->status &= ~BlkDirty;
             }
             else{
-            
-                DPRINTF(Cache, "replacement %d replacing %x with %x: %s\n", 
+
+                DPRINTF(Cache, "replacement %d replacing %x with %x: %s\n",
                         blk->asid,
-                        (ct->regenerateBlkAddr(blk->tag,blk->set) 
+                        (ct->regenerateBlkAddr(blk->tag,blk->set)
                         & (((ULL(1))<<48)-1)),req->paddr & (((ULL(1))<<48)-1),
                         (blk->isModified()) ? "writeback" : "clean");
-                
+
                 if (blk->isModified()) {
                     writebacks.push_back(writebackBlk(blk));
                 }
@@ -872,29 +866,29 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
             assert(blk->dirState != DirOwnedExGR);
             assert(blk->dirState != DirOwnedNonExGR);
         }
-        
+
         // set block values to the values of the new occupant
 	blk->tag = ct->extractTag(req->paddr, blk);
 	blk->asid = req->asid;
 	assert(req->xc || !cache->doData());
 	blk->xc = req->xc;
-        
+
         if(cache->isShared){
             assert(req->adaptiveMHASenderID != -1);
             blk->origRequestingCpuID = req->adaptiveMHASenderID;
         }
-        
+
     } else {
-        
+
         if(!cache->isDirectoryAndL1DataCache()){
             // A cache might recieve the same cache line twice (read and write at the same time)
             // we don't want this warning every time ;-)
             if (blk->status == new_state) warn("Changing state to same value\n");
         }
     }
-    
+
     blk->status = new_state;
-    
+
     return blk;
 }
 

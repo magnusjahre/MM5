@@ -90,6 +90,8 @@ ControllerInterference::initializeMemDepStructures(int bankCount){
 void
 ControllerInterference::insertRequest(MemReqPtr& req){
 
+	assert(req->interferenceMissAt == 0);
+
 	if(!privStorageInited){
 		privStorageInited = true;
 		initializeMemDepStructures(memoryController->getMemoryInterface()->getMemoryBankCount());
@@ -195,6 +197,8 @@ ControllerInterference::insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBu
 
 void
 ControllerInterference::estimatePrivateLatency(MemReqPtr& req){
+
+	assert(req->interferenceMissAt == 0);
 
     int fromCPU = req->adaptiveMHASenderID;
     assert(fromCPU != -1);

@@ -160,7 +160,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         }
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0){
         controllerInterference->insertRequest(req);
     }
 
@@ -658,7 +658,7 @@ RDFCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
 void
 RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
 
-    //TODO: how should additional L2 misses be handled
+    assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
 		controllerInterference->estimatePrivateLatency(req);
 	}

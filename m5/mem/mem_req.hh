@@ -230,6 +230,7 @@ class MemReq : public FastAlloc, public RefCounted
 
     Tick interferenceMissAt;
     Tick finishedInCacheAt;
+    Tick cacheCapacityInterference;
 
     int memBusBlockedWaitCycles;
 
@@ -315,6 +316,7 @@ class MemReq : public FastAlloc, public RefCounted
     givenToShadow(false),
     interferenceMissAt(0),
     finishedInCacheAt(0),
+    cacheCapacityInterference(0),
     memBusBlockedWaitCycles(0),
     busAloneServiceEstimate(0),
     busAloneReadQueueEstimate(0),
@@ -387,6 +389,7 @@ class MemReq : public FastAlloc, public RefCounted
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;
         finishedInCacheAt = r.finishedInCacheAt;
+        cacheCapacityInterference = r.cacheCapacityInterference;
         memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;
         busAloneServiceEstimate = r.busAloneServiceEstimate;
         busAloneReadQueueEstimate = r.busAloneReadQueueEstimate;

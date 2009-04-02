@@ -220,31 +220,31 @@ LRU::probe(int asid, Addr addr) const
 LRUBlk*
 LRU::findBlock(Addr addr, int asid, int &lat)
 {
-    Addr tag = extractTag(addr);
-    unsigned set = extractSet(addr);
+	Addr tag = extractTag(addr);
+	unsigned set = extractSet(addr);
 
-    LRUBlk *blk = sets[set].findBlk(asid, tag);
+	LRUBlk *blk = sets[set].findBlk(asid, tag);
 
-    lat = hitLatency;
-    if (blk != NULL) {
-	// move this block to head of the MRU list
-	sets[set].moveToHead(blk);
+	lat = hitLatency;
+	if (blk != NULL) {
+		// move this block to head of the MRU list
+		sets[set].moveToHead(blk);
 
-        if(cache->useUniformPartitioning){
-            DPRINTF(UniformPartitioning, "Set %d: Hit in block (1), retrieved by processor %d, replaced block addr is %x\n",
-                    set,
-                    blk->origRequestingCpuID,
-                    regenerateBlkAddr(blk->tag,blk->set));
-        }
+		if(cache->useUniformPartitioning){
+			DPRINTF(UniformPartitioning, "Set %d: Hit in block (1), retrieved by processor %d, replaced block addr is %x\n",
+					set,
+					blk->origRequestingCpuID,
+					regenerateBlkAddr(blk->tag,blk->set));
+		}
 
-	if (blk->whenReady > curTick
-	    && blk->whenReady - curTick > hitLatency) {
-	    lat = blk->whenReady - curTick;
+		if (blk->whenReady > curTick
+				&& blk->whenReady - curTick > hitLatency) {
+			lat = blk->whenReady - curTick;
+		}
+		blk->refCount += 1;
 	}
-	blk->refCount += 1;
-    }
 
-    return blk;
+	return blk;
 }
 
 LRUBlk*

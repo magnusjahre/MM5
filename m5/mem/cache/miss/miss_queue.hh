@@ -58,10 +58,10 @@ class MissQueue
     bool mqWasPrevQueue;
     bool changeQueue;
     Tick prevTime;
-    
+
     RequestTrace latencyTrace;
     RequestTrace interferenceTrace;
-    
+
   protected:
     /** The MSHRs. */
     MSHRQueue mq;
@@ -163,20 +163,21 @@ class MissQueue
     Stats::Vector<> soft_prefetch_mshr_full;
 
     Stats::Scalar<> mshr_no_allocate_misses;
-    
+
     Stats::Scalar<> sum_roundtrip_latency;
     Stats::Scalar<> num_roundtrip_responses;
     Stats::Formula avg_roundtrip_latency;
-    
+
     Stats::Scalar<> sum_roundtrip_interference;
     Stats::Formula avg_roundtrip_interference;
-    
+
     Stats::Scalar<> interconnect_entry_interference;
     Stats::Scalar<> interconnect_transfer_interference;
     Stats::Scalar<> interconnect_delivery_interference;
     Stats::Scalar<> bus_entry_interference;
     Stats::Scalar<> bus_queue_interference;
     Stats::Scalar<> bus_service_interference;
+    Stats::Scalar<> cache_capacity_interference;
 
     Stats::Formula avg_interconnect_entry_interference;
     Stats::Formula avg_interconnect_transfer_interference;
@@ -184,6 +185,7 @@ class MissQueue
     Stats::Formula avg_bus_entry_interference;
     Stats::Formula avg_bus_queue_interference;
     Stats::Formula avg_bus_service_interference;
+    Stats::Formula avg_cache_capacity_interference;
 
     Stats::Scalar<> interconnect_entry_latency;
     Stats::Scalar<> interconnect_transfer_latency;
@@ -198,7 +200,7 @@ class MissQueue
     Stats::Formula avg_bus_entry_latency;
     Stats::Formula avg_bus_queue_latency;
     Stats::Formula avg_bus_service_latency;
-    
+
     /**
      * @}
      */
@@ -215,7 +217,7 @@ class MissQueue
      * @return A pointer to the new MSHR.
      */
     MSHR* allocateMiss(MemReqPtr &req, int size, Tick time);
-    
+
     /**
      * Allocate a new WriteBuffer to handle the provided write.
      * @param req The write to handle.
@@ -390,13 +392,13 @@ class MissQueue
      * @return A pointer to the allocated MSHR.
      */
     MSHR* allocateTargetList(Addr addr, int asid);
-    
+
     // Adaptive MHA methods
     void incrementNumMSHRs(bool onMSHRs){
         if(onMSHRs) mq.incrementNumMSHRs();
         else wb.incrementNumMSHRs();
     }
-    
+
     void decrementNumMSHRs(bool onMSHRs){
         if(onMSHRs){
             mq.decrementNumMSHRs();
@@ -411,28 +413,28 @@ class MissQueue
             }
         }
     }
-    
+
     void incrementNumMSHRsByOne(bool onMSHRs){
         assert(onMSHRs);
         mq.incrementNumMSHRsByOne();
     }
-    
+
     void decrementNumMSHRsByOne(bool onMSHRs){
         assert(onMSHRs);
-        
+
         mq.decrementNumMSHRsByOne();
         if(mq.isFull() && !cache->isBlockedNoMSHRs()){
             cache->setBlocked(Blocked_NoMSHRs);
         }
     }
-    
+
     int getCurrentMSHRCount(bool onMSHRs){
         if(onMSHRs) return mq.getCurrentMSHRCount();
         else return wb.getCurrentMSHRCount();
     }
-    
+
     std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
-    
+
     void measureInterference(MemReqPtr& req);
 };
 
