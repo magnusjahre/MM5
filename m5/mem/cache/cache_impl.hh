@@ -88,6 +88,8 @@ Cache(const std::string &_name, HierParams *hier_params,
     bankID = params.bankID;
     bankCount = params.bankCount;
 
+    interferenceManager = params.interferenceManager;
+
     // init shadowtags
 #ifdef USE_CACHE_LRU
 
@@ -559,11 +561,14 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
 		assert(req->adaptiveMHASenderID != -1);
+		assert(req->cmd == Read);
 		int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
 		req->cacheCapacityInterference += extraDelay;
 		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-		adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, L2_CAPACITY_INTERFERENCE);
 		numExtraMisses[req->adaptiveMHASenderID]++;
+
+		assert(interferenceManager != NULL);
+		interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
 	}
 
 	if(!isShared && adaptiveMHA != NULL){

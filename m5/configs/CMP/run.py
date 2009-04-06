@@ -37,6 +37,7 @@ def createMemBus(bankcnt):
     for i in range(channels):
         root.membus[i].memory_controller = ReadyFirstMemoryController()
         root.membus[i].adaptive_mha = root.adaptiveMHA
+        root.membus[i].interference_manager = root.interferenceManager
         
         if "MEMORY-BUS-PAGE-POLICY" in env:
             root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
@@ -96,6 +97,7 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         root.SharedCache[i].bank_id = i
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
         root.SharedCache[i].do_modulo_addr = True
+        root.SharedCache[i].interference_manager = root.interferenceManager
         if l2mshrs != -1:
             root.SharedCache[i].mshrs = l2mshrs
         if l2mshrTargets != -1:
@@ -247,6 +249,9 @@ if progressInterval > 0:
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
 
+root.interferenceManager = InterferenceManager()
+root.interferenceManager.cpu_count = int(env["NP"])
+
 # Create CPUs
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,)
@@ -269,9 +274,11 @@ if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
                         
     for l1 in root.L1dcaches:
         l1.adaptive_mha = root.adaptiveMHA
+        l1.interference_manager = root.interferenceManager
         
     for l1 in root.L1icaches:
         l1.adaptive_mha = root.adaptiveMHA
+        l1.interference_manager = root.interferenceManager
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
@@ -654,6 +661,7 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.interconnect.shared_cache_writeback_buffers = root.SharedCache[0].write_buffers
     root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
     root.interconnect.adaptive_mha = root.adaptiveMHA
+    root.interconnect.interference_manager = root.interferenceManager
 
     setUpSharedCache(bankcnt, cacheProfileStart)
 
@@ -669,6 +677,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     root.interconnect = RingInterconnect()
     root.interconnect.adaptive_mha = root.adaptiveMHA
     root.interconnect.detailed_sim_start_tick = cacheProfileStart
+    root.interconnect.interference_manager = root.interferenceManager
     
     setUpSharedCache(bankcnt, cacheProfileStart)
     
@@ -679,6 +688,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].out_interconnect = root.interconnect
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
+        root.PrivateL2Cache[i].interference_manager = root.interferenceManager
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
             root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])

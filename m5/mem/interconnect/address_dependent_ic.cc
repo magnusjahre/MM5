@@ -10,7 +10,8 @@ AddressDependentIC::AddressDependentIC(const std::string &_name,
                                        int _arbDelay,
                                        int _cpu_count,
                                        HierParams *_hier,
-                                       AdaptiveMHA* _adaptiveMHA)
+                                       AdaptiveMHA* _adaptiveMHA,
+                                       InterferenceManager* _interferenceManager)
     : Interconnect(_name,
                    _width,
                    _clock,
@@ -21,6 +22,7 @@ AddressDependentIC::AddressDependentIC(const std::string &_name,
                    _adaptiveMHA)
 {
 
+	interferenceManager = _interferenceManager;
 
 }
 
@@ -161,6 +163,12 @@ AddressDependentIC::updateEntryInterference(MemReqPtr& req, int fromID){
         //TODO: might need to add a more sophisticated measurement scheme
         // assumes that all entry latency is interference
         req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += waitTime;
+
+        if(req->cmd == Read){
+        	interferenceManager->addInterference(InterferenceManager::InterconnectEntry, req, waitTime);
+        	interferenceManager->addLatency(InterferenceManager::InterconnectEntry, req, waitTime);
+        }
+
 
 //        assert(req->cmd == Read || req->cmd == Writeback);
 //        if(req->cmd == Read && waitTime > 0){

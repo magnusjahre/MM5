@@ -50,6 +50,8 @@
 #include "sim/eventq.hh"
 
 #include "mem/cache/miss/adaptive_mha.hh"
+#include "mem/interference_manager.hh"
+
 #include "mem/bus/controller/memory_controller.hh"
 
 #include "base/compression/null_compression.hh"
@@ -127,6 +129,7 @@ class Bus : public BaseHier
     TimingMemoryController *memoryController;
 
     AdaptiveMHA* adaptiveMHA;
+    InterferenceManager* interferenceManager;
 
   protected:
 
@@ -212,7 +215,8 @@ class Bus : public BaseHier
         TimingMemoryController* _fwController,
         TimingMemoryController* _memoryController,
         bool _infiniteBW,
-        Tick _final_sim_tick);
+        Tick _final_sim_tick,
+        InterferenceManager* intman);
 
     /** Frees locally allocated memory. */
     ~Bus();

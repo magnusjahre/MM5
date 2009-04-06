@@ -103,3 +103,4 @@ class BaseCache(BaseMem):
     simulate_contention = Param.Bool("true if this cache simulates contention")
     
     adaptive_mha = Param.AdaptiveMHA("Adaptive MHA Object")
+    interference_manager = Param.InterferenceManager("Interference Manager Object")

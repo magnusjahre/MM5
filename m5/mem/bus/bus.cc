@@ -80,7 +80,8 @@ Bus::Bus(const string &_name,
          TimingMemoryController* _fwController,
          TimingMemoryController* _memoryController,
          bool _infiniteBW,
-         Tick _final_sim_tick)
+         Tick _final_sim_tick,
+         InterferenceManager* intman)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -88,6 +89,8 @@ Bus::Bus(const string &_name,
     cpu_count = _cpu_count;
     bank_count = _bank_count;
     infiniteBW = _infiniteBW;
+
+    interferenceManager = intman;
 
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -567,10 +570,18 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 
     req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
+    if(req->cmd == Read){
+    	interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
+    }
+
     //TODO: might need to add a more clever way of estimating mem bus entry interference
     // assumption: no memory bus blocking in private memory system
     if(req->interferenceMissAt == 0){
     	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+
+    	if(req->cmd == Read){
+			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
+		}
     }
 
 //    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
@@ -736,6 +747,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
         req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
 
+        interferenceManager->addLatency(InterferenceManager::MemoryBusQueue, req, queueLatency);
+        interferenceManager->addLatency(InterferenceManager::MemoryBusService, req, serviceLatency);
+
         assert(req->entryReadCnt <= memoryController->getReadQueueLength());
         assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
         queueDelaySum[req->adaptiveMHASenderID][req->entryReadCnt][req->entryWriteCnt] += queueLatency;
@@ -768,8 +782,16 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
 //             int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
 
-            req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
-            req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceLatency - req->busAloneServiceEstimate;
+            int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
+            int serviceInterference = serviceLatency - req->busAloneServiceEstimate;
+
+            req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueInterference;
+            req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceInterference;
+
+            if(req->cmd == Read){
+            	interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queueInterference);
+            	interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, serviceInterference);
+            }
 
             estimatedPrivateQueueLatency[req->adaptiveMHASenderID]
                     += req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate;
@@ -1381,6 +1403,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<TimingMemoryController *> memory_controller;
     Param<bool> infinite_bw;
     Param<Tick> final_sim_tick;
+    SimObjectParam<InterferenceManager* > interference_manager;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1399,7 +1422,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
     INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false),
-    INIT_PARAM(final_sim_tick, "The tick simulation ends")
+    INIT_PARAM(final_sim_tick, "The tick simulation ends"),
+    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1417,7 +1441,8 @@ CREATE_SIM_OBJECT(Bus)
                    fast_forward_controller,
                    memory_controller,
                    infinite_bw,
-                   final_sim_tick);
+                   final_sim_tick,
+                   interference_manager);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)

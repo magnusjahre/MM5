@@ -16,7 +16,8 @@ Crossbar::Crossbar(const std::string &_name,
                    Tick _detailedSimStartTick,
                    int _shared_cache_wb_buffers,
                    int _shared_cache_mshrs,
-                   int _pipe_stages)
+                   int _pipe_stages,
+                   InterferenceManager* _intman)
     : AddressDependentIC(_name,
                          _width,
                          _clock,
@@ -24,7 +25,8 @@ Crossbar::Crossbar(const std::string &_name,
                          _arbDelay,
                          _cpu_count,
                          _hier,
-                         _adaptiveMHA)
+                         _adaptiveMHA,
+                         _intman)
 {
 
     detailedSimStartTick = _detailedSimStartTick;
@@ -268,11 +270,13 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                 for( ; it != currentQueue->end(); it++){
                     int toID = it->first->adaptiveMHASenderID;
                     assert(it->first->cmd == Read);
+
                     if(toID != req->adaptiveMHASenderID){
                         cpuTransferInterferenceCycles[toID] += requestOccupancyTicks;
-                        adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
                         it->first->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += requestOccupancyTicks;
+                        interferenceManager->addInterference(InterferenceManager::InterconnectResponseQueue, it->first, requestOccupancyTicks);
                     }
+
                 }
             }
 
@@ -296,7 +300,7 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
 
                             if(cmd == Read){
                                 cpuTransferInterferenceCycles[it->first->adaptiveMHASenderID] += requestOccupancyTicks;
-                                adaptiveMHA->addAloneInterference(requestOccupancyTicks, it->first->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
+                                interferenceManager->addInterference(InterferenceManager::InterconnectRequestQueue, it->first, requestOccupancyTicks);
                             }
                         }
 
@@ -311,12 +315,19 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
 
                         	if(cmd == Read){
                         		cpuDeliveryInterferenceCycles[it->first->adaptiveMHASenderID] += requestOccupancyTicks;
-                        		adaptiveMHA->addAloneInterference(requestOccupancyTicks, it->first->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
+
+                        		interferenceManager->addInterference(InterferenceManager::InterconnectDelivery, it->first, requestOccupancyTicks);
+
                         	}
 //                            }
                         }
                         it->first->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] -= requestOccupancyTicks;
                         it->first->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += requestOccupancyTicks;
+
+                        if(it->first->cmd == Read){
+                        	interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, it->first, -requestOccupancyTicks);
+                        	interferenceManager->addLatency(InterferenceManager::InterconnectDelivery, it->first, requestOccupancyTicks);
+                        }
                     }
                 }
 
@@ -337,8 +348,9 @@ Crossbar::attemptDelivery(list<pair<MemReqPtr, int> >* currentQueue, int* crossb
                         assert(it->first->cmd == Read);
                         if(toID != firstCPUID){
                             cpuTransferInterferenceCycles[toID] += requestOccupancyTicks;
-                            adaptiveMHA->addAloneInterference(requestOccupancyTicks, toID, INTERCONNECT_INTERFERENCE);
+
                             it->first->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += requestOccupancyTicks;
+                            interferenceManager->addInterference(InterferenceManager::InterconnectResponseQueue, it->first, requestOccupancyTicks);
                         }
                     }
                 }
@@ -361,7 +373,15 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
 
     req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += curTick - req->inserted_into_crossbar;
 
+
     if(allInterfaces[toID]->isMaster()){
+
+    	if(req->cmd == Read){
+			Tick queueDelay = (curTick - req->inserted_into_crossbar) - crossbarTransferDelay;
+			assert(queueDelay >= 0);
+			interferenceManager->addLatency(InterferenceManager::InterconnectResponseTransfer, req, crossbarTransferDelay);
+			interferenceManager->addLatency(InterferenceManager::InterconnectResponseQueue, req, queueDelay);
+    	}
 
         if(req->cmd == Read){
             assert(req->adaptiveMHASenderID != -1);
@@ -374,6 +394,14 @@ Crossbar::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
         deliverBufferRequests++;
     }
     else{
+
+    	if(req->cmd == Read){
+			Tick queueDelay = (curTick - req->inserted_into_crossbar) - crossbarTransferDelay;
+			assert(queueDelay >= 0);
+			interferenceManager->addLatency(InterferenceManager::InterconnectRequestTransfer, req, crossbarTransferDelay);
+			interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, req, queueDelay);
+    	}
+
         int toSlaveID = interconnectIDToL2IDMap[toID];
         if(blockedInterfaces[toSlaveID]){
 
@@ -416,6 +444,10 @@ Crossbar::clearBlocked(int fromInterface){
 
         req->latencyBreakdown[INTERCONNECT_DELIVERY_LAT] += curTick - queuedAt;
 
+        if(req->cmd == Read){
+        	interferenceManager->addLatency(InterferenceManager::InterconnectDelivery, req, curTick - queuedAt);
+        }
+
         deliverBufferDelay += curTick - queuedAt;
         deliverBufferRequests++;
 
@@ -431,6 +463,7 @@ Crossbar::clearBlocked(int fromInterface){
 		if(!entry.blameForBlocking && req->cmd == Read && cpu_count > 1){
 			Tick extraDelay = curTick - queuedAt;
 			req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT] += extraDelay;
+			interferenceManager->addInterference(InterferenceManager::InterconnectDelivery, req, extraDelay);
 		}
 
         assert(req->adaptiveMHASenderID != -1);
@@ -488,6 +521,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     Param<int> shared_cache_writeback_buffers;
     Param<int> shared_cache_mshrs;
     Param<int> pipe_stages;
+    SimObjectParam<InterferenceManager* > interference_manager;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -504,7 +538,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
     INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
     INIT_PARAM_DFLT(shared_cache_writeback_buffers, "Number of writeback buffers in the shared cache", -1),
     INIT_PARAM_DFLT(shared_cache_mshrs, "Number of MSHRs in the shared cache", -1),
-    INIT_PARAM_DFLT(pipe_stages, "Crossbar pipeline stages", -1)
+    INIT_PARAM_DFLT(pipe_stages, "Crossbar pipeline stages", -1),
+    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL)
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
@@ -521,7 +556,8 @@ CREATE_SIM_OBJECT(Crossbar)
                         detailed_sim_start_tick,
                         shared_cache_writeback_buffers,
                         shared_cache_mshrs,
-                        pipe_stages);
+                        pipe_stages,
+                        interference_manager);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)

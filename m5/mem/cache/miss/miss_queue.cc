@@ -80,15 +80,15 @@ MissQueue::regStats(const string &name)
 
     // MSHR hit statistics
     for (int access_idx = 0; access_idx < NUM_MEM_CMDS; ++access_idx) {
-	MemCmd cmd = (MemCmdEnum)access_idx;
-	const string &cstr = cmd.toString();
+    	MemCmd cmd = (MemCmdEnum)access_idx;
+    	const string &cstr = cmd.toString();
 
-	mshr_hits[access_idx]
-	    .init(maxThreadsPerCPU)
-	    .name(name + "." + cstr + "_mshr_hits")
-	    .desc("number of " + cstr + " MSHR hits")
-	    .flags(total | nozero | nonan)
-	    ;
+    	mshr_hits[access_idx]
+    	          .init(maxThreadsPerCPU)
+    	          .name(name + "." + cstr + "_mshr_hits")
+    	          .desc("number of " + cstr + " MSHR hits")
+    	          .flags(total | nozero | nonan)
+    	          ;
     }
 
     demandMshrHits
@@ -108,15 +108,15 @@ MissQueue::regStats(const string &name)
 
     // MSHR miss statistics
     for (int access_idx = 0; access_idx < NUM_MEM_CMDS; ++access_idx) {
-	MemCmd cmd = (MemCmdEnum)access_idx;
-	const string &cstr = cmd.toString();
+    	MemCmd cmd = (MemCmdEnum)access_idx;
+    	const string &cstr = cmd.toString();
 
-	mshr_misses[access_idx]
-	    .init(maxThreadsPerCPU)
-	    .name(name + "." + cstr + "_mshr_misses")
-	    .desc("number of " + cstr + " MSHR misses")
-	    .flags(total | nozero | nonan)
-	    ;
+    	mshr_misses[access_idx]
+    	            .init(maxThreadsPerCPU)
+    	            .name(name + "." + cstr + "_mshr_misses")
+    	            .desc("number of " + cstr + " MSHR misses")
+    	            .flags(total | nozero | nonan)
+    	            ;
     }
 
     demandMshrMisses
@@ -239,17 +239,17 @@ MissQueue::regStats(const string &name)
 
     // MSHR miss rate formulas
     for (int access_idx = 0; access_idx < NUM_MEM_CMDS; ++access_idx) {
-	MemCmd cmd = (MemCmdEnum)access_idx;
-	const string &cstr = cmd.toString();
+    	MemCmd cmd = (MemCmdEnum)access_idx;
+    	const string &cstr = cmd.toString();
 
-	mshrMissRate[access_idx]
-	    .name(name + "." + cstr + "_mshr_miss_rate")
-	    .desc("mshr miss rate for " + cstr + " accesses")
-	    .flags(total | nozero | nonan)
-	    ;
+    	mshrMissRate[access_idx]
+    	             .name(name + "." + cstr + "_mshr_miss_rate")
+    	             .desc("mshr miss rate for " + cstr + " accesses")
+    	             .flags(total | nozero | nonan)
+    	             ;
 
-	mshrMissRate[access_idx] =
-	    mshr_misses[access_idx] / cache->accesses[access_idx];
+    	mshrMissRate[access_idx] =
+    		mshr_misses[access_idx] / cache->accesses[access_idx];
     }
 
     demandMshrMissRate
@@ -907,7 +907,13 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 
 		mshr_miss_latency[mshr->originalCmd][req->thread_num] += curTick - req->time;
 
-		if(!cache->isShared && cache->adaptiveMHA != NULL) measureInterference(req);
+		if(!cache->isShared && cache->adaptiveMHA != NULL){
+			measureInterference(req);
+		}
+
+		if(!cache->isShared && cache->interferenceManager != NULL){
+			cache->interferenceManager->incrementTotalReqCount(req, curTick - (req->time + cache->getHitLatency()));
+		}
 
 		// targets were handled in the cache tags
 		if (mshr == noTargetMSHR) {

@@ -90,11 +90,11 @@
 #include "mem/bus/slave_interface.hh"
 #include "mem/bus/master_interface.hh"
 #include "mem/memory_interface.hh"
-        
+
 // Crossbar interfaces
 //#include "mem/crossbar/crossbar_master.hh"
 //#include "mem/crossbar/crossbar_slave.hh"
-        
+
 // Interconnect includes
 #include "mem/interconnect/interconnect.hh"
 #include "mem/interconnect/interconnect_master.hh"
@@ -125,10 +125,10 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> prioritizeRequests;
     SimObjectParam<Bus *> in_bus;
     SimObjectParam<Bus *> out_bus;
-    
+
     //SimObjectParam<Crossbar *> in_crossbar;  //Magnus
     //SimObjectParam<Crossbar *> out_crossbar; //Magnus
-    
+
     SimObjectParam<Interconnect *> in_interconnect;
     SimObjectParam<Interconnect *> out_interconnect;
     Param<int> cpu_count;
@@ -136,16 +136,16 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<int> memory_address_parts;
     Param<int> cpu_id;
     Param<bool> multiprog_workload;
-    
+
     // Directory coherence params
     Param<string> dirProtocolName;
     Param<bool> dirProtocolDoTrace;
     Param<Tick> dirProtocolTraceStart;
     Param<int> dirProtocolDumpInterval;
-    
+
     Param<bool> is_shared;
     Param<bool> is_read_only;
-    
+
     Param<bool> use_static_partitioning;
     Param<bool> use_mtp_partitioning;
     Param<Tick> mtp_epoch_size;
@@ -154,12 +154,12 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<Tick> detailed_sim_end_tick;
     Param<bool> use_static_partitioning_for_warmup;
     Param<int> static_partitioning_div_factor;
-    
+
     Param<bool> do_modulo_addr;
     Param<int> bank_id;
     Param<int> bank_count;
     Param<bool> simulate_contention;
-    
+
     Param<bool> do_copy;
     SimObjectParam<CoherenceProtocol *> protocol;
     Param<Addr> trace_addr;
@@ -191,8 +191,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> prefetch_cache_check_push;
     Param<bool> prefetch_use_cpu_id;
     Param<bool> prefetch_data_accesses_only;
-    
+
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
+    SimObjectParam<InterferenceManager *> interference_manager;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -208,13 +209,13 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(write_buffers, "number of write buffers", 8),
     INIT_PARAM_DFLT(prioritizeRequests, "always service demand misses first",
 		    false),
-    
+
     INIT_PARAM_DFLT(in_bus, "incoming bus object", NULL),
     INIT_PARAM_DFLT(out_bus, "outgoing bus object", NULL), /* Magnus added DFLT and NULL */
-    
+
     //INIT_PARAM_DFLT(in_crossbar, "incoming crossbar object", NULL),
     //INIT_PARAM_DFLT(out_crossbar, "outgoing crossbar object", NULL),
-    
+
     INIT_PARAM_DFLT(in_interconnect, "incoming interconnect object", NULL),
     INIT_PARAM_DFLT(out_interconnect, "outgoing interconnect object", NULL),
     INIT_PARAM_DFLT(cpu_count, "the number of CPUs in the system", -1),
@@ -222,12 +223,12 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(memory_address_parts, "the number address spaces to divide the memory into" , -1),
     INIT_PARAM_DFLT(cpu_id, "the ID of the processor that owns this cache", -1),
     INIT_PARAM_DFLT(multiprog_workload, "true if this is a multiprogrammed workload", false),
-    
+
     INIT_PARAM_DFLT(dirProtocolName, "directory protocol to use", "none"),
     INIT_PARAM_DFLT(dirProtocolDoTrace, "should protocol actions be traced", false),
     INIT_PARAM_DFLT(dirProtocolTraceStart, "when should protocol tracing start", 0),
     INIT_PARAM_DFLT(dirProtocolDumpInterval, "how often should protocol stats be dumped?", 0),
-    
+
     INIT_PARAM_DFLT(is_shared, "is this a shared cache?", false),
     INIT_PARAM_DFLT(is_read_only, "is this an instruction cache?", false),
     INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
@@ -238,12 +239,12 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(detailed_sim_end_tick, "the tick where detailed simulation ends", 0),
     INIT_PARAM_DFLT(use_static_partitioning_for_warmup, "if true, static partitioning is used in the warm up phase", false),
     INIT_PARAM_DFLT(static_partitioning_div_factor, "factor to divide cache space during fw by when there is 1 cpu core", -1),
-    
+
     INIT_PARAM_DFLT(do_modulo_addr, "use modulo operator to choose bank", false),
     INIT_PARAM_DFLT(bank_id, "the bank ID of this cache bank", -1),
     INIT_PARAM_DFLT(bank_count, "the number of cache banks", -1),
     INIT_PARAM_DFLT(simulate_contention, "true if this cache simulates contention", false),
-    
+
     INIT_PARAM_DFLT(do_copy, "perform fast copies in the cache", false),
     INIT_PARAM_DFLT(protocol, "coherence protocol to use in the cache", NULL),
     INIT_PARAM_DFLT(trace_addr, "address to trace", 0),
@@ -271,7 +272,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(hier,
 		    "Hierarchy global variables",
 		    &defaultHierParams),
-    INIT_PARAM_DFLT(addr_range, "The address range in bytes", 
+    INIT_PARAM_DFLT(addr_range, "The address range in bytes",
 		    vector<Range<Addr> >(1,RangeIn((Addr)0, MaxAddr))),
     INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),
     INIT_PARAM_DFLT(split, "Whether this is a partitioned cache", false),
@@ -289,8 +290,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(prefetch_cache_check_push, "Check if in cash on push or pop of prefetch queue", true),
     INIT_PARAM_DFLT(prefetch_use_cpu_id, "Use the CPU ID to seperate calculations of prefetches", true),
     INIT_PARAM_DFLT(prefetch_data_accesses_only, "Only prefetch on data not on instruction accesses", false),
-    
-    INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL)
+
+    INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL),
+    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -346,7 +348,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick, memory_address_offset, memory_address_parts); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick, memory_address_offset, memory_address_parts, interference_manager); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
@@ -505,15 +507,15 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 CREATE_SIM_OBJECT(BaseCache)
 {
-    
+
     string name = getInstanceName();
     int numSets = size / (assoc * block_size);
-    
+
     string pf_policy = prefetch_policy;
     if (subblock_size == 0) {
 	subblock_size = block_size;
     }
-    
+
     string dir_protocol_name = dirProtocolName;
     if(dir_protocol_name != "none"){
         if(dir_protocol_name != "stenstrom"){
@@ -527,15 +529,15 @@ CREATE_SIM_OBJECT(BaseCache)
 
     //Warnings about prefetcher policy
     if (pf_policy == "none" && (prefetch_miss || prefetch_access)) {
-	panic("With no prefetcher, you shouldn't prefetch from" 
-	      " either miss or access stream\n");	
+	panic("With no prefetcher, you shouldn't prefetch from"
+	      " either miss or access stream\n");
     }
-    if ((pf_policy == "tagged" || pf_policy == "stride" || 
+    if ((pf_policy == "tagged" || pf_policy == "stride" ||
 	 pf_policy == "ghb") && !(prefetch_miss || prefetch_access)) {
-	warn("With this prefetcher you should chose a prefetch"  
+	warn("With this prefetcher you should chose a prefetch"
 	     " stream (miss or access)\nNo Prefetching will occur\n");
     }
-    if ((pf_policy == "tagged" || pf_policy == "stride" || 
+    if ((pf_policy == "tagged" || pf_policy == "stride" ||
 	 pf_policy == "ghb") && prefetch_miss && prefetch_access) {
 	panic("Can't do prefetches from both miss and access"
 	      " stream\n");
@@ -546,7 +548,7 @@ CREATE_SIM_OBJECT(BaseCache)
 	      "['none','rpt','tagged','cdc']\n", pf_policy);
     }
 
-#if defined(USE_CACHE_IIC)    
+#if defined(USE_CACHE_IIC)
     // Build IIC params
     IIC::Params iic_params;
     iic_params.size = size;
@@ -568,7 +570,7 @@ CREATE_SIM_OBJECT(BaseCache)
     //} else {
 	MissQueue *mq = new MissQueue(mshrs, tgts_per_mshr, write_buffers,
 				      true, prefetch_miss);
-				      
+
 	BUILD_COHERENCE(MissQueue);
     //}
     return NULL;

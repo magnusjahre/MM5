@@ -8,3 +8,4 @@ class Crossbar(Interconnect):
     shared_cache_writeback_buffers = Param.Int("Number of writeback buffers in the shared cache")
     shared_cache_mshrs = Param.Int("Number of MSHRs in the shared cache")
     pipe_stages = Param.Int("Crossbar pipeline stages")
+    interference_manager = Param.InterferenceManager("InterferenceManager object")

@@ -45,7 +45,7 @@
 
 #include "mem/interconnect/interconnect.hh"
 #include "mem/cache/coherence/directory.hh"
-        
+
 #include "mem/cache/tags/lru.hh"
 #include "mem/config/cache.hh"
 
@@ -68,33 +68,33 @@ class Cache : public BaseCache
   private:
     bool idIsSet;
     std::string profileFileName;
-    
+
     CacheRepartitioningEvent* repartEvent;
     MultipleTimeSharingParititions* mtp;
-    
+
   public:
     /** Define the type of cache block to use. */
     typedef typename TagStore::BlkType BlkType;
 
     bool prefetchAccess;
-    
+
     std::string localName;
-    
+
   protected:
 
     /** Tag and data Storage */
     TagStore *tags;
-    
+
     std::vector<LRU*> shadowTags;
-    
+
     /** Miss and Writeback handler */
     Buffering *missQueue;
-    
+
     /** Coherence protocol. */
     Coherence *coherence;
     DirectoryProtocol<TagStore> *directoryProtocol;
 //     int interfaceID;
-    
+
     /** Prefetcher */
     Prefetcher<TagStore, Buffering> *prefetcher;
 
@@ -121,13 +121,13 @@ class Cache : public BaseCache
       * Used to append to target list, to cause an invalidation.
       */
     MemReqPtr invalidateReq;
-    
+
     /**
      * Temporarily move a block into a MSHR.
      * @todo Remove this when LSQ/SB are fixed and implemented in memtest.
      */
     void pseudoFill(Addr addr, int asid);
-    
+
     /**
      * Temporarily move a block into an existing MSHR.
      * @todo Remove this when LSQ/SB are fixed and implemented in memtest.
@@ -135,78 +135,79 @@ class Cache : public BaseCache
     void pseudoFill(MSHR *mshr);
 
     bool calculatePartitions();
-    
+
   public:
-    
-    class Params
-    {
-      public:
-	TagStore *tags;
-	Buffering *missQueue; 
-	Coherence *coherence;
-        DirectoryProtocol<TagStore> *directoryCoherence;
-	bool doCopy;
-	bool blockOnCopy;
-	BaseCache::Params baseParams;
-	Bus *in;
-	Bus *out;
-        //Crossbar *inCrossbar;
-        //Crossbar *outCrossbar;
-        Interconnect *inInterconnect;
-        Interconnect *outInterconnect;
-	Prefetcher<TagStore, Buffering> *prefetcher;
-	bool prefetchAccess;
-        int cpu_count;
-        int cpu_id;
-        bool multiprog_workload;
-        bool isShared;
-        bool isReadOnly;
-        bool doModuloBankAddr;
-        int bankID;
-        int bankCount;
-        AdaptiveMHA* adaptiveMHA;
-        bool useUniformPartitioning;
-        bool useMTPPartitioning;
-        Tick uniformPartitioningStart;
-        Tick detailedSimStartTick;
-        Tick mtpEpochSize;
-        bool simulateContention;
-        bool useStaticPartInWarmup;
-        Tick detailedSimEndTick;
-        int memoryAddressOffset;
-        int memoryAddressParts;
-        
-	Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
-	       bool do_copy, BaseCache::Params params,
-               Bus * in_bus, Bus * out_bus, 
-               // Crossbar* _inCrossbar, Crossbar * _outCrossbar,
-               Interconnect* _inInterconnect, Interconnect* _outInterconnect,
-               Prefetcher<TagStore, Buffering> *_prefetcher,
-               bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-               bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, Tick _detailedSimEndTick, int _memoryAddressOffset, int _memoryAddressParts)
-	    : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
-              ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
-              inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
-	      prefetcher(_prefetcher), prefetchAccess(prefetch_access), 
-              cpu_count(_cpu_count), cpu_id(_cpu_id), multiprog_workload(_multiprog_workload), 
-              isShared(_isShared), isReadOnly(_isReadOnly), 
-              doModuloBankAddr(_doModAddr), bankID(_bankID), bankCount(_bankCount),
-              adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
-              useMTPPartitioning(_useMTPPartitioning),
-              uniformPartitioningStart(_uniformPartitioningStart),
-              detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
-              simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup),
-              detailedSimEndTick(_detailedSimEndTick), memoryAddressOffset(_memoryAddressOffset),
-              memoryAddressParts(_memoryAddressParts)
-	{
-	}
-    };
+
+	  class Params
+	  {
+	  public:
+		  TagStore *tags;
+		  Buffering *missQueue;
+		  Coherence *coherence;
+		  DirectoryProtocol<TagStore> *directoryCoherence;
+		  bool doCopy;
+		  bool blockOnCopy;
+		  BaseCache::Params baseParams;
+		  Bus *in;
+		  Bus *out;
+		  //Crossbar *inCrossbar;
+		  //Crossbar *outCrossbar;
+		  Interconnect *inInterconnect;
+		  Interconnect *outInterconnect;
+		  Prefetcher<TagStore, Buffering> *prefetcher;
+		  bool prefetchAccess;
+		  int cpu_count;
+		  int cpu_id;
+		  bool multiprog_workload;
+		  bool isShared;
+		  bool isReadOnly;
+		  bool doModuloBankAddr;
+		  int bankID;
+		  int bankCount;
+		  AdaptiveMHA* adaptiveMHA;
+		  bool useUniformPartitioning;
+		  bool useMTPPartitioning;
+		  Tick uniformPartitioningStart;
+		  Tick detailedSimStartTick;
+		  Tick mtpEpochSize;
+		  bool simulateContention;
+		  bool useStaticPartInWarmup;
+		  Tick detailedSimEndTick;
+		  int memoryAddressOffset;
+		  int memoryAddressParts;
+		  InterferenceManager* interferenceManager;
+
+		  Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
+				  bool do_copy, BaseCache::Params params,
+				  Bus * in_bus, Bus * out_bus,
+				  // Crossbar* _inCrossbar, Crossbar * _outCrossbar,
+				  Interconnect* _inInterconnect, Interconnect* _outInterconnect,
+				  Prefetcher<TagStore, Buffering> *_prefetcher,
+				  bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
+				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, Tick _detailedSimEndTick, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman)
+		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
+		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
+		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
+		  prefetcher(_prefetcher), prefetchAccess(prefetch_access),
+		  cpu_count(_cpu_count), cpu_id(_cpu_id), multiprog_workload(_multiprog_workload),
+		  isShared(_isShared), isReadOnly(_isReadOnly),
+		  doModuloBankAddr(_doModAddr), bankID(_bankID), bankCount(_bankCount),
+		  adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
+		  useMTPPartitioning(_useMTPPartitioning),
+		  uniformPartitioningStart(_uniformPartitioningStart),
+		  detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
+		  simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup),
+		  detailedSimEndTick(_detailedSimEndTick), memoryAddressOffset(_memoryAddressOffset),
+		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman)
+		  {
+		  }
+	  };
 
     /** Instantiates a basic cache object. */
     Cache(const std::string &_name, HierParams *hier_params, Params &params);
 
     ~Cache();
-    
+
     void regStats();
 
     /**
@@ -322,84 +323,84 @@ class Cache : public BaseCache
      * @return The estimated completion time.
      */
     Tick snoopProbe(MemReqPtr &req, bool update);
-    
+
     bool isCache() { return true; }
-    
+
 //     void setInterfaceID(int id){
 //         assert(!idIsSet);
 //         interfaceID = id;
 //         idIsSet = true;
 //     }
-    
+
     int getProcessorID(){
         return cacheCpuID;
     }
-    
+
     bool isModuloAddressedBank(){
         return doModuloAddressing;
     }
-    
+
     int getBankID(){
         return bankID;
     }
-    
+
     int getBankCount(){
         return bankCount;
     }
-    
+
     int getNumSets(){
         return tags->getNumSets();
     }
-    
+
     std::map<int,int> assignBlockingBlame();
-    
+
     virtual void setMTPPartition(std::vector<int> setQuotas);
-    
+
     virtual void handleProfileEvent();
-    
+
     virtual void handleRepartitioningEvent();
-    
+
     virtual int getCacheCPUid(){
         return cacheCpuID;
     }
-    
+
     virtual CacheBlk::State getNewCoherenceState(MemReqPtr &req, CacheBlk::State old_state){
         return coherence->getNewState(req,old_state);
     }
-    
+
     virtual void missQueueHandleResponse(MemReqPtr &req, Tick time){
         missQueue->handleResponse(req, time);
     }
-    
+
     // Adaptive MHA methods
     virtual void incrementNumMSHRs(bool onMSHRs){
         missQueue->incrementNumMSHRs(onMSHRs);
     }
-    
+
     virtual void decrementNumMSHRs(bool onMSHRs){
         missQueue->decrementNumMSHRs(onMSHRs);
     }
-    
+
     virtual void incrementNumMSHRsByOne(bool onMSHRs){
         missQueue->incrementNumMSHRsByOne(onMSHRs);
     }
-    
+
     virtual void decrementNumMSHRsByOne(bool onMSHRs){
         missQueue->decrementNumMSHRsByOne(onMSHRs);
     }
-    
+
     virtual int getCurrentMSHRCount(bool onMSHRs){
         return missQueue->getCurrentMSHRCount(onMSHRs);
     }
-    
+
     virtual std::vector<int> perCoreOccupancy(){
         return tags->perCoreOccupancy();
     }
-    
+
     virtual void dumpHitStats(){
         tags->dumpHitStats();
     }
-    
+
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
     virtual void addPendingRequest(Addr address, MemReqPtr& req);

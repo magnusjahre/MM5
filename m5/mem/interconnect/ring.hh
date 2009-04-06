@@ -81,7 +81,8 @@ class Ring : public AddressDependentIC{
                        HierParams *_hier,
                        AdaptiveMHA* _adaptiveMHA,
                        Tick _detailedStart,
-                       int _singleProcessorID);
+                       int _singleProcessorID,
+                       InterferenceManager* _intman);
 
         virtual void send(MemReqPtr& req, Tick time, int fromID);
 

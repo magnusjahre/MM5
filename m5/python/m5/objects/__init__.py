@@ -34,6 +34,7 @@ file_bases = ['AdaptiveMHA',
               'IdealInterconnect', #Magnus
               'Interconnect', #Magnus
               'InterconnectProfile', #Magnus
+              'InterferenceManager',
               'IntervalStats',
               'IntrControl',
               'LinuxSystem',

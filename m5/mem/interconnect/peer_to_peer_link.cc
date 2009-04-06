@@ -4,8 +4,8 @@
 
 using namespace std;
 
-PeerToPeerLink::PeerToPeerLink(const std::string &_name, 
-                               int _width, 
+PeerToPeerLink::PeerToPeerLink(const std::string &_name,
+                               int _width,
                                int _clock,
                                int _transDelay,
                                int _arbDelay,
@@ -14,31 +14,32 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                                AdaptiveMHA* _adaptiveMHA,
                                Tick _detailedSimStart)
     : AddressDependentIC(_name,
-                         _width, 
-                         _clock, 
-                         _transDelay, 
+                         _width,
+                         _clock,
+                         _transDelay,
                          _arbDelay,
                          _cpu_count,
                          _hier,
-                         _adaptiveMHA)
+                         _adaptiveMHA,
+                         NULL)
 {
     initQueues(cpu_count, cpu_count);
     queueSize = 32;
-    
+
     arbEvent = new ADIArbitrationEvent(this);
-    
+
     slaveInterconnectID = -1;
     attachedCPUID = -1;
-    
+
     detailedSimStartTick = _detailedSimStart;
-    
+
     assert(_adaptiveMHA == NULL);
     assert(_transDelay > 0);
 }
 
 void
 PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
-    
+
     if(slaveInterconnectID == -1){
         assert(slaveInterfaces.size() == 1);
         for(int i=0;i<allInterfaces.size();i++){
@@ -49,9 +50,9 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
         }
         assert(slaveInterconnectID != -1);
     }
-    
+
     if(curTick < detailedSimStartTick){
-        
+
         if(allInterfaces[fromID]->isMaster()){
             req->toInterfaceID = slaveInterconnectID;
             ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, true);
@@ -61,24 +62,24 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
             ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, false);
             delivery->schedule(curTick + transferDelay);
         }
-        
+
         return;
     }
-    
+
     if(attachedCPUID == -1){
         attachedCPUID = req->adaptiveMHASenderID;
     }
     assert(attachedCPUID == req->adaptiveMHASenderID);
-    
+
     if(req->finishedInCacheAt < curTick){
         entryDelay += curTick - req->finishedInCacheAt;
     }
     entryRequests++;
-    
+
     req->inserted_into_crossbar = curTick;
-    
+
     if(allInterfaces[fromID]->isMaster()){
-        
+
         p2pRequestQueue.push_back(req);
         if(p2pRequestQueue.size() == queueSize){
             setBlockedLocal(req->adaptiveMHASenderID);
@@ -89,9 +90,9 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
         p2pResponseQueue.push_back(req);
         assert(p2pResponseQueue.size() <= queueSize);
     }
-    
+
     if(!arbEvent->scheduled()){
-        
+
         if(nextLegalArbTime < curTick+1){
             arbEvent->schedule(curTick+1);
         }
@@ -101,65 +102,65 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
     }
 }
 
-void 
+void
 PeerToPeerLink::arbitrate(Tick time){
-    
+
     nextLegalArbTime = curTick + transferDelay;
-    
+
     assert(slaveInterfaces.size() == 1);
-    
+
     if(!p2pRequestQueue.empty() && !blockedInterfaces[0]){
         MemReqPtr mreq = p2pRequestQueue.front();
         p2pRequestQueue.pop_front();
         mreq->toInterfaceID = slaveInterconnectID;
-        
+
         totalArbQueueCycles += curTick - mreq->inserted_into_crossbar;
         arbitratedRequests++;
-        
+
         ADIDeliverEvent* delivery = new ADIDeliverEvent(this, mreq, true);
         delivery->schedule(curTick + transferDelay);
     }
-    
+
     if(blockedLocalQueues[attachedCPUID] && p2pRequestQueue.size() < queueSize){
         clearBlockedLocal(attachedCPUID);
     }
-    
+
     if(!p2pResponseQueue.empty()){
         MemReqPtr sreq = p2pResponseQueue.front();
-        
+
         totalArbQueueCycles += curTick - sreq->inserted_into_crossbar;
         arbitratedRequests++;
-        
+
         p2pResponseQueue.pop_front();
         ADIDeliverEvent* delivery = new ADIDeliverEvent(this, sreq, false);
         delivery->schedule(curTick + transferDelay);
     }
-    
+
     retrieveAdditionalRequests();
-    
+
     if(isWaitingRequests() && !arbEvent->scheduled()){
         arbEvent->schedule(curTick + transferDelay);
     }
 }
 
-void 
+void
 PeerToPeerLink::retrieveAdditionalRequests(){
-    
+
     assert(processorIDToInterconnectIDs[attachedCPUID].size() == 2);
     int firstInterfaceID = processorIDToInterconnectIDs[attachedCPUID].front();
     int secondInterfaceID = processorIDToInterconnectIDs[attachedCPUID].back();
-    
+
     while(notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0){
         if(p2pRequestQueue.size() < queueSize) findNotDeliveredNextInterface(firstInterfaceID,secondInterfaceID);
         else return;
     }
 }
 
-void 
+void
 PeerToPeerLink::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
-    
+
     assert(toID != -1);
-    
+
     if(allInterfaces[toID]->isMaster()){
         allInterfaces[toID]->deliver(req);
     }
@@ -176,17 +177,17 @@ PeerToPeerLink::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     }
 }
 
-void 
+void
 PeerToPeerLink::clearBlocked(int fromInterface){
     Interconnect::clearBlocked(fromInterface);
-    
+
     while(!deliveryBuffer.empty()){
         MemReqPtr req = deliveryBuffer.front();
         deliveryBuffer.pop_front();
         MemAccessResult res = allInterfaces[slaveInterconnectID]->access(req);
         if(res == BA_BLOCKED) return;
     }
-    
+
     if(!arbEvent->scheduled()){
         if(nextLegalArbTime < curTick+1){
             arbEvent->schedule(curTick+1);

@@ -13,4 +13,5 @@ class Bus(BaseHier):
     memory_controller = Param.TimingMemoryController("Memory Controller Object")
     infinite_bw = Param.Bool("Infinite bandwidth and only page hits")
     final_sim_tick = Param.Tick("The tick simulation ends")
+    interference_manager = Param.InterferenceManager("Interference manager")
 

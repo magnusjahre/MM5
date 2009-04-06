@@ -38,7 +38,7 @@
 #define __BASE_CACHE_HH__
 
 #include <vector>
-        
+
 #include "base/statistics.hh"
 #include "base/trace.hh"
 #include "mem/base_mem.hh"
@@ -47,10 +47,11 @@
 #include "mem/mem_req.hh" // For MemReqPtr
 
 #include "mem/cache/miss/adaptive_mha.hh"
+#include "mem/interference_manager.hh"
 
 #include "mem/cache/coherence/directory.hh"
 #include "mem/cache/cache_blk.hh"
-        
+
 
 // Forward declarations
 class Bus;
@@ -109,18 +110,18 @@ class BaseCache : public BaseMem {
      * Bit vector for the outstanding requests for the slave interface.
      */
     uint8_t slaveRequests;
-    
+
     void printBlockedState();
-    
+
     // deadlock check variables
     CacheAliveCheckEvent* checkEvent;
     Tick blockedAt;
 
     std::vector<std::vector<int> > interferenceEventsBW;
     std::vector<std::vector<int> > interferenceEventsCapacity;
-    
+
   protected:
-      
+
     /** The master interface, typically nearer to Main Memory */
     BaseInterface *mi;
 
@@ -135,7 +136,7 @@ class BaseCache : public BaseMem {
 
     /** The number of misses to trigger an exit event. */
     Counter missCount;
-    
+
     // cache contention variables
     bool simulateContention;
     Tick nextFreeCache;
@@ -145,28 +146,28 @@ class BaseCache : public BaseMem {
         Tick endTick;
         int occCPUID;
         Tick originalRequestTick;
-        
-        cacheOccupancy(Tick _start, Tick _end, int _id, Tick _origReq) 
+
+        cacheOccupancy(Tick _start, Tick _end, int _id, Tick _origReq)
             : startTick(_start), endTick(_end), occCPUID(_id), originalRequestTick(_origReq)
         {
         }
-        
+
         std::string toString(){
             std::stringstream retstr;
             retstr << "Occupied by CPU" << occCPUID << " from " << startTick << " to " << endTick << ", first req at " << originalRequestTick;
             return retstr.str();
         }
     };
-    
+
     std::vector<cacheOccupancy> occupancy;
-    
+
   public:
-      
+
     /** Bank addressing scheme */
     bool doModuloAddressing;
     int bankID;
     int bankCount;
-      
+
     bool isShared;
     bool useDirectory;
     bool isReadOnly;
@@ -176,15 +177,17 @@ class BaseCache : public BaseMem {
     Tick uniformPartitioningStartTick;
     bool useMTPPartitioning;
     bool useStaticPartInWarmup;
-    
+
+    InterferenceManager* interferenceManager;
+
     Tick detailedSimulationStartTick;
-    
+
     CacheProfileEvent* profileEvent;
-    
+
 #ifdef CACHE_DEBUG
     std::map<Addr, std::pair<int, Tick> > pendingRequests;
 #endif
-    
+
     // Statistics
     /**
      * @addtogroup CacheStatistics
@@ -252,21 +255,21 @@ class BaseCache : public BaseMem {
 
     /** The number of good prefetches */
     Stats::Scalar<> goodprefetches;
-    
+
     /** Per cpu cache miss statistics */
     Stats::Vector<> missesPerCPU;
     /** Per cpu cache access statistics */
     Stats::Vector<> accessesPerCPU;
-    
+
     Stats::Scalar<> delayDueToCongestion;
-    
+
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuCapacityInterference;
-    
+
     Stats::Vector<> extraMissLatency;
     Stats::Vector<> numExtraMisses;
     Stats::Vector<> privateMissSharedHit;
-    
+
     Stats::Scalar<> recvMissResponses;
 
     /**
@@ -289,14 +292,14 @@ class BaseCache : public BaseMem {
 	int hitLatency;
 	/** The block size of this cache. */
 	int blkSize;
-	/** 
-	 * The maximum number of misses this cache should handle before 
+	/**
+	 * The maximum number of misses this cache should handle before
 	 * ending the simulation.
 	 */
 	Counter maxMisses;
-        
+
         int baseCacheCPUCount;
-        
+
 	/**
 	 * Construct an instance of this parameter class.
 	 */
@@ -307,16 +310,16 @@ class BaseCache : public BaseMem {
 	{
 	}
     };
-	
+
     /**
      * Create and initialize a basic cache object.
      * @param name The name of this cache.
-     * @param hier_params Pointer to the HierParams object for this hierarchy 
+     * @param hier_params Pointer to the HierParams object for this hierarchy
      * of this cache.
      * @param params The parameter object for this BaseCache.
      */
     BaseCache(const std::string &name, HierParams *hier_params, Params &params, bool _isShared, bool _useDirectory, bool _isReadOnly, bool _useUniformPartitioning, Tick _uniformPartitioningStart, bool _useMTPPartitioning);
-    
+
     /**
      * Set the master interface for this cache to the one provided.
      * @param i The new master interface.
@@ -354,18 +357,18 @@ class BaseCache : public BaseMem {
     {
 	return blocked != 0;
     }
-    
+
     bool isBlockedNoMSHRs()
     {
         uint8_t flag = 1 << Blocked_NoMSHRs;
         return (blocked & flag);
     }
-    
+
     bool isBlockedNoWBBuffers(){
         uint8_t flag = 1 << Blocked_NoWBBuffers;
         return (blocked & flag);
     }
-    
+
     bool isBlockedNoTargets(){
         uint8_t flag = 1 << Blocked_NoTargets;
         return (blocked & flag);
@@ -427,7 +430,7 @@ class BaseCache : public BaseMem {
 	masterRequests |= flag;
 	mi->request(time);
     }
-    
+
 
     /**
      * Clear the master bus request for the given cause.
@@ -489,7 +492,7 @@ class BaseCache : public BaseMem {
 
     Tick updateAndStoreInterference(MemReqPtr &req, Tick time);
     void updateInterference(MemReqPtr &req);
-    
+
     /**
      * Suppliess the data if cache to cache transfers are enabled.
      * @param req The bus transaction to fulfill.
@@ -504,64 +507,64 @@ class BaseCache : public BaseMem {
      * to do for a cache.
      */
     void rangeChange() {}
-    
+
 //     InterfaceType getMasterInterfaceType(){
 //         return mi->getInterfaceType();
 //     }
-//     
+//
 //     void setMasterRequestAddr(Addr address){
 //         /* This method only makes sense if the interconnect is a crossbar */
 //         assert(mi->getInterfaceType() == CROSSBAR);
 //         mi->setCurrentRequestAddr(address);
 //     }
-    
+
     bool isInstructionCache(){
         return isReadOnly;
     }
-    
+
     bool isDirectoryAndL2Cache(){
         return isShared && useDirectory;
     }
-    
+
     bool isDirectoryAndL1DataCache(){
         return !isReadOnly && !isShared && useDirectory;
     }
-    
+
     void checkIfCacheAlive();
-    
+
     void setSenderID(MemReqPtr& req);
-    
+
     std::vector<std::vector<int> > retrieveBWInterferenceStats();
     void resetBWInterferenceStats();
     std::vector<std::vector<int> > retrieveCapacityInterferenceStats();
     void resetCapacityInterferenceStats();
     void addCapacityInterference(int victimID, int interfererID);
-    
+
     virtual void setMTPPartition(std::vector<int> setQuotas) = 0;
-    
+
     virtual void handleProfileEvent() = 0;
-    
+
     virtual void handleRepartitioningEvent() = 0;
-    
+
 //     virtual DirectoryProtocol* getDirectoryProtocol() = 0;
-    
+
     virtual int getCacheCPUid() = 0;
-    
+
     virtual MemAccessResult access(MemReqPtr &req) = 0;
-    
+
     virtual CacheBlk::State getNewCoherenceState(MemReqPtr &req, CacheBlk::State old_state) = 0;
-    
+
     virtual void missQueueHandleResponse(MemReqPtr &req, Tick time) = 0;
-    
+
     // Adaptive MHA methods
     virtual void incrementNumMSHRs(bool onMSHRs) = 0;
     virtual void decrementNumMSHRs(bool onMSHRs) = 0;
     virtual void incrementNumMSHRsByOne(bool onMSHRs) = 0;
     virtual void decrementNumMSHRsByOne(bool onMSHRs) = 0;
     virtual int getCurrentMSHRCount(bool onMSHRs) = 0;
-    
+
     virtual std::vector<int> perCoreOccupancy() = 0;
-    
+
     virtual void dumpHitStats() = 0;
 
 #ifdef CACHE_DEBUG
@@ -574,14 +577,14 @@ class CacheAliveCheckEvent : public Event
 {
 
     public:
-        
+
         BaseCache* cache;
-        
+
         CacheAliveCheckEvent(BaseCache* _cache)
             : Event(&mainEventQueue), cache(_cache)
         {
         }
-        
+
         void process(){
             cache->checkIfCacheAlive();
         }
@@ -595,14 +598,14 @@ class CacheProfileEvent : public Event
 {
 
     public:
-        
+
         BaseCache* cache;
-        
+
         CacheProfileEvent(BaseCache* _cache)
         : Event(&mainEventQueue), cache(_cache)
         {
         }
-        
+
         void process(){
             cache->handleProfileEvent();
         }
@@ -616,14 +619,14 @@ class CacheRepartitioningEvent: public Event
 {
 
     public:
-        
+
         BaseCache* cache;
-        
+
         CacheRepartitioningEvent(BaseCache* _cache)
             : Event(&mainEventQueue), cache(_cache)
         {
         }
-        
+
         void process(){
             cache->handleRepartitioningEvent();
         }
@@ -637,14 +640,14 @@ class CacheDumpStatsEvent: public Event
 {
 
     public:
-        
+
         BaseCache* cache;
-        
+
         CacheDumpStatsEvent(BaseCache* _cache)
     : Event(&mainEventQueue), cache(_cache)
         {
         }
-        
+
         void process(){
             cache->dumpHitStats();
             delete this;

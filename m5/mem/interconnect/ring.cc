@@ -15,7 +15,8 @@ Ring::Ring(const std::string &_name,
                                HierParams *_hier,
                                AdaptiveMHA* _adaptiveMHA,
                                Tick _detailedStart,
-                               int _singleProcessorID)
+                               int _singleProcessorID,
+							   InterferenceManager* _intman)
     : AddressDependentIC(_name,
                          _width,
                          _clock,
@@ -23,7 +24,8 @@ Ring::Ring(const std::string &_name,
                          _arbDelay,
                          _cpu_count,
                          _hier,
-                         _adaptiveMHA)
+                         _adaptiveMHA,
+                         _intman)
 {
 
     sharedCacheBankCount = 4; //FIXME: parameterize
@@ -604,6 +606,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Ring)
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<Tick> detailed_sim_start_tick;
     Param<int> single_proc_id;
+    SimObjectParam<InterferenceManager* > interference_manager;
 END_DECLARE_SIM_OBJECT_PARAMS(Ring)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
@@ -615,7 +618,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
     INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
-    INIT_PARAM_DFLT(single_proc_id, "the expected CPU ID if there is only one processor", -1)
+    INIT_PARAM_DFLT(single_proc_id, "the expected CPU ID if there is only one processor", -1),
+    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL)
 END_INIT_SIM_OBJECT_PARAMS(Ring)
 
 CREATE_SIM_OBJECT(Ring)
@@ -629,7 +633,8 @@ CREATE_SIM_OBJECT(Ring)
                               hier,
                               adaptive_mha,
                               detailed_sim_start_tick,
-                              single_proc_id);
+                              single_proc_id,
+							  interference_manager);
 }
 
 REGISTER_SIM_OBJECT("Ring", Ring)
