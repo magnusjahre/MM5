@@ -472,8 +472,8 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
     bool sent = true;
     int orderPos = 0;
 
-    vector<bool> sentForCPUID(false, cpu_count);
-    bool isDeliveryInterference = false;
+    vector<bool> sentForCPUID(cpu_count,false);
+    vector<bool> isDeliveryInterference(cpu_count,false);
 
     while(sent && orderPos < order.size()){
         sent = false;
@@ -492,7 +492,8 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
                 if(toSlave){
                     int toSlaveID = interconnectIDToL2IDMap[(*queue)[order[orderPos]].front().req->toInterfaceID];
                     if(inFlightRequests[toSlaveID] == recvBufferSize){
-                    	isDeliveryInterference = true;
+
+                    	isDeliveryInterference[(*queue)[order[orderPos]].front().req->interferenceAccurateSenderID] = true;
                         list<RingRequestEntry>::iterator intIt = (*queue)[order[orderPos]].begin();
                         for( ; intIt != (*queue)[order[orderPos]].end() ; intIt ++){
                             intIt->req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] -= arbitrationDelay;
@@ -510,7 +511,7 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
     if(toSlave){
 
     	for(int i=0;i<cpu_count;i++){
-    		if(!sentForCPUID[i] && !(*queue)[i].empty() && !isDeliveryInterference){
+    		if(!sentForCPUID[i] && !(*queue)[i].empty() && !isDeliveryInterference[i]){
     			list<RingRequestEntry>::iterator intIt = (*queue)[i].begin();
     			for( ; intIt != (*queue)[i].end() ; intIt++){
     				intIt->req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += arbitrationDelay;
