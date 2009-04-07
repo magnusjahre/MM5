@@ -255,6 +255,8 @@ class MemReq : public FastAlloc, public RefCounted
     int memCtrlGenReadInterference;
     Addr memCtrlWbGenBy;
 
+    int interconnectTransferDelay;
+
 
     /**
      * Contruct and initialize a memory request.
@@ -331,7 +333,8 @@ class MemReq : public FastAlloc, public RefCounted
     memCtrlPrivateSeqNum(-1),
     memCtrlGeneratingReadSeqNum(-1),
     memCtrlGenReadInterference(0),
-    memCtrlWbGenBy(inval_addr)
+    memCtrlWbGenBy(inval_addr),
+    interconnectTransferDelay(0)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -408,6 +411,7 @@ class MemReq : public FastAlloc, public RefCounted
         latencyBreakdown = r.latencyBreakdown;
         interferenceBreakdown = r.interferenceBreakdown;
         memCtrlIssuePosition = r.memCtrlIssuePosition;
+        interconnectTransferDelay = r.interconnectTransferDelay;
     }
 
     /**

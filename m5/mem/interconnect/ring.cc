@@ -391,6 +391,7 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     }
 
     ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, toSlave);
+    entry.req->interconnectTransferDelay = transferDelay * entry.resourceReq.size();
     delivery->schedule(curTick + (transferDelay * entry.resourceReq.size()));
 
     totalTransferCycles += (transferDelay * entry.resourceReq.size());
@@ -501,6 +502,14 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
 
                             //TODO: this code assumes all delivery latency is interference
                             intIt->req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT] += arbitrationDelay;
+
+                            if(intIt->req->cmd == Read){
+
+                            	interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, intIt->req, -arbitrationDelay);
+                            	interferenceManager->addLatency(InterferenceManager::InterconnectDelivery, intIt->req, arbitrationDelay);
+
+                            	interferenceManager->addInterference(InterferenceManager::InterconnectDelivery, intIt->req, arbitrationDelay);
+                            }
                         }
                     }
                 }
@@ -515,6 +524,9 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
     			list<RingRequestEntry>::iterator intIt = (*queue)[i].begin();
     			for( ; intIt != (*queue)[i].end() ; intIt++){
     				intIt->req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += arbitrationDelay;
+    				if(intIt->req->cmd == Read){
+    					interferenceManager->addInterference(InterferenceManager::InterconnectRequestQueue, intIt->req, arbitrationDelay);
+    				}
     			}
     		}
     	}
@@ -528,6 +540,9 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
 						MemReqPtr posDelReq = intIt->req;
 						if(posDelReq->interferenceAccurateSenderID == i){
 							posDelReq->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT] += arbitrationDelay;
+							if(posDelReq->cmd == Read){
+								interferenceManager->addInterference(InterferenceManager::InterconnectResponseQueue, posDelReq, arbitrationDelay);
+							}
 						}
 					}
     			}
@@ -543,16 +558,30 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     assert(req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] >= 0);
     assert(req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] >= req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT]);
 
+    int queueDelay = (curTick - req->inserted_into_crossbar) - req->interconnectTransferDelay;
+    assert(queueDelay >= 0);
+
     assert(req->adaptiveMHASenderID != -1);
     perCpuTotalDelay[req->adaptiveMHASenderID] += curTick - req->inserted_into_crossbar;
     perCpuRequests[req->adaptiveMHASenderID]++;
 
     if(allInterfaces[toID]->isMaster()){
 
+    	if(req->cmd == Read){
+    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseTransfer, req, req->interconnectTransferDelay);
+    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseQueue, req, queueDelay);
+    	}
+
         DPRINTF(Crossbar, "Delivering to master %d, req from CPU %d\n", toID, req->interferenceAccurateSenderID);
         allInterfaces[toID]->deliver(req);
     }
     else{
+
+    	if(req->cmd == Read){
+			interferenceManager->addLatency(InterferenceManager::InterconnectRequestTransfer, req, req->interconnectTransferDelay);
+			interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, req, queueDelay);
+		}
+
         int toSlaveID = interconnectIDToL2IDMap[toID];
         if(!blockedInterfaces[toSlaveID] && deliverBuffer[toSlaveID].empty()){
             DPRINTF(Crossbar, "Delivering to slave IC ID %d, slave id %d, req from CPU %d, %d reqs in flight\n", toID, toSlaveID, req->interferenceAccurateSenderID, inFlightRequests[toSlaveID]);
@@ -587,6 +616,11 @@ Ring::clearBlocked(int fromInterface){
 
         //TODO: assumes all delivery latency is interference
         entry.req->interferenceBreakdown[INTERCONNECT_DELIVERY_LAT] += curTick - entry.enteredAt;
+
+        if(entry.req->cmd == Read){
+        	interferenceManager->addLatency(InterferenceManager::InterconnectDelivery, entry.req, curTick - entry.enteredAt);
+        	interferenceManager->addInterference(InterferenceManager::InterconnectDelivery, entry.req, curTick - entry.enteredAt);
+        }
 
         MemAccessResult res = allInterfaces[fromInterface]->access(entry.req);
         inFlightRequests[unblockedSlaveID]--;
