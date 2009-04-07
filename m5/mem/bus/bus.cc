@@ -568,18 +568,15 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
     else outstandingWrites[req->adaptiveMHASenderID]++;
 
-    req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
-
-    if(req->cmd == Read){
-    	interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
-    }
 
     //TODO: might need to add a more clever way of estimating mem bus entry interference
     // assumption: no memory bus blocking in private memory system
     if(req->interferenceMissAt == 0){
+    	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
     	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
     	if(req->cmd == Read){
+    		interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
 			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
 		}
     }
@@ -744,11 +741,13 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
 //         Tick totalLat = time - req->inserted_into_memory_controller;
 
-        req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
-        req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
+        if(req->interferenceMissAt == 0){
+			req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
+			req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
 
-        interferenceManager->addLatency(InterferenceManager::MemoryBusQueue, req, queueLatency);
-        interferenceManager->addLatency(InterferenceManager::MemoryBusService, req, serviceLatency);
+			interferenceManager->addLatency(InterferenceManager::MemoryBusQueue, req, queueLatency);
+			interferenceManager->addLatency(InterferenceManager::MemoryBusService, req, serviceLatency);
+        }
 
         assert(req->entryReadCnt <= memoryController->getReadQueueLength());
         assert(req->entryWriteCnt <= memoryController->getWriteQueueLength());
