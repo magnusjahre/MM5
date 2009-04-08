@@ -46,6 +46,7 @@ def createMemBus(bankcnt):
             
     root.controllerInterference = [ControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
     for i in range(channels):
+        root.controllerInterference[i].cpu_count = int(env['NP'])
         if "READY-FIRST-LIMIT-ALL-CPUS" in env:
             root.controllerInterference[i].rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
 

@@ -157,49 +157,45 @@ class Bus : public BaseHier
 
     Stats::Scalar<> nullGrants;
 
-    Stats::Scalar<> interferenceRemovedHits;
-    Stats::Scalar<> constructiveInterferenceHits;
+//    Stats::Scalar<> interferenceRemovedHits;
+//    Stats::Scalar<> constructiveInterferenceHits;
 
-    Stats::Vector<> cpuInterferenceCycles;
-    Stats::Vector<> cpuConflictInterferenceCycles;
-    Stats::Vector<> cpuHtMInterferenceCycles;
+//    Stats::Vector<> cpuInterferenceCycles;
+//    Stats::Vector<> cpuConflictInterferenceCycles;
+//    Stats::Vector<> cpuHtMInterferenceCycles;
 
-    Stats::Vector<> blockingInterferenceCycles;
+    //    Stats::Vector<> shadowCtrlPageHits;
+    //    Stats::Vector<> shadowCtrlAccesses;
+    //    Stats::Vector<> shadowUseCycles;
+    //
+    //    Stats::Vector<> shadowBlockedCycles;
 
-    Stats::Vector<> shadowCtrlPageHits;
-    Stats::Vector<> shadowCtrlAccesses;
-    Stats::Vector<> shadowUseCycles;
-
-    Stats::Vector<> shadowBlockedCycles;
+//    Stats::Vector<> blockingInterferenceCycles;
 
     Stats::Vector<> perCPUTotalEntryDelay;
     Stats::Vector<> perCPUTotalEntryRequests;
     Stats::Formula perCPUAvgEntryDelay;
 
-    /** The last cycle the data arbiter was run, used for debugging. */
-    Tick runDataLast;
-    /** The last cycle the address arbiter was run, used for debugging. */
-    Tick runAddrLast;
-
     Stats::Vector<> predictedServiceLatencySum;
     Stats::Vector<> numServiceLatencyRequests;
     Stats::Formula avgPredictedServiceLatency;
 
-    Stats::Scalar<> actualServiceLatencySum;
-    Stats::Scalar<> actualServiceLatencyRequests;
+    Stats::Vector<> actualServiceLatencySum;
+    Stats::Vector<> actualServiceLatencyRequests;
     Stats::Formula avgActualServiceLatency;
 
     Stats::Vector<> estimatedPrivateQueueLatency;
     Stats::Vector<> estimatedPrivateQueueRequests;
     Stats::Formula avgEstimatedPrivateQueueLatency;
 
-    Stats::Scalar<> actualQueueDelaySum;
-    Stats::Scalar<> actualQueueDelayRequests;
+    Stats::Vector<> actualQueueDelaySum;
+    Stats::Vector<> actualQueueDelayRequests;
     Stats::Formula avgActualQueueDelay;
 
-    /** Added by magnus **/
-//     Stats::Scalar<> freeCycles;
-
+    /** The last cycle the data arbiter was run, used for debugging. */
+	Tick runDataLast;
+	/** The last cycle the address arbiter was run, used for debugging. */
+	Tick runAddrLast;
 
   public:
     // constructor

@@ -293,37 +293,6 @@ Bus::regStats()
             .desc("Number of times the bus was granted in error")
             ;
 
-    interferenceRemovedHits
-            .name(name() + ".hits_removed_by_interference")
-            .desc("The number of page misses that would be a hit in a private memory system")
-            ;
-
-    constructiveInterferenceHits
-            .name(name() + ".constructive_interference_hits")
-            .desc("The number of page hits due to constructive interference")
-            ;
-
-    cpuInterferenceCycles
-        .init(cpu_count)
-        .name(name() + ".cpu_interference_bus")
-        .desc("aggregated delay due to serialization on bus")
-        .flags(total)
-        ;
-
-    cpuConflictInterferenceCycles
-        .init(cpu_count)
-        .name(name() + ".cpu_interference_conflict")
-        .desc("aggregated delay due to bus conflicts")
-        .flags(total)
-        ;
-
-    blockingInterferenceCycles
-        .init(cpu_count)
-        .name(name() + ".blocking_interference_cycles")
-        .desc("aggregated delay due to bus blocking")
-        .flags(total)
-        ;
-
     perCPUTotalEntryDelay
         .init(cpu_count)
         .name(name() + ".per_cpu_entry_delay")
@@ -345,42 +314,6 @@ Bus::regStats()
         ;
 
     perCPUAvgEntryDelay = perCPUTotalEntryDelay / perCPUTotalEntryRequests;
-
-
-    cpuHtMInterferenceCycles
-        .init(cpu_count)
-        .name(name() + ".cpu_interference_htm")
-        .desc("aggregated delay due to hits becoming misses")
-        .flags(total)
-        ;
-
-    shadowCtrlPageHits
-        .init(cpu_count)
-        .name(name() + ".shadow_ctrl_hits")
-        .desc("number of page hits for each shadow controller")
-        .flags(total)
-        ;
-
-    shadowCtrlAccesses
-        .init(cpu_count)
-        .name(name() + ".shadow_ctrl_accesses")
-        .desc("number of page accesses for each shadow controller")
-        .flags(total)
-        ;
-
-    shadowUseCycles
-        .init(cpu_count)
-        .name(name() + ".shadow_use_cycles")
-        .desc("number of cycles the shadow controller uses its shadow bus")
-        .flags(total)
-        ;
-
-    shadowBlockedCycles
-        .init(cpu_count)
-        .name(name() + ".shadow_blocked_cycles")
-        .desc("the estimated number of cycles a shadow controller would have been blocked")
-        .flags(total)
-        ;
 
     predictedServiceLatencySum
         .init(cpu_count)
@@ -404,11 +337,13 @@ Bus::regStats()
     avgPredictedServiceLatency = predictedServiceLatencySum / numServiceLatencyRequests;
 
     actualServiceLatencySum
+		.init(cpu_count)
         .name(name() + ".actual_service_latency")
         .desc("The actual service latency")
         ;
 
     actualServiceLatencyRequests
+		.init(cpu_count)
         .name(name() + ".actual_service_latency_requests")
         .desc("Number of requests in the actual service latency measurements")
         ;
@@ -441,26 +376,35 @@ Bus::regStats()
 
     avgEstimatedPrivateQueueLatency = estimatedPrivateQueueLatency / estimatedPrivateQueueRequests;
 
+    actualQueueDelaySum
+		.init(cpu_count)
+		.name(name() + ".actual_queue_delay_sum")
+		.desc("Sum of the actual queue delay latency")
+		.flags(total)
+		;
+
     actualQueueDelayRequests
-            .name(name() + ".actual_queue_delay_requests")
-            .desc("Number of requests in the actual queue delay measurements")
-            ;
+		.init(cpu_count)
+		.name(name() + ".actual_queue_delay_requests")
+		.desc("Number of requests in the actual queue delay measurements")
+		.flags(total)
+		;
 
     avgActualQueueDelay
-            .name(name() + ".avg_actual_queue_delay")
-            .desc("The average actual queue delay")
-            ;
+		.name(name() + ".avg_actual_queue_delay")
+		.desc("The average actual queue delay")
+		;
 
     avgActualQueueDelay = actualQueueDelaySum / actualQueueDelayRequests;
 }
 
 void
 Bus::incConstructiveInterference(){
-    constructiveInterferenceHits++;
+    fatal("deprecated");
 }
 
 void Bus::incInterferenceMisses(){
-    interferenceRemovedHits++;
+	fatal("deprecated");
 }
 
 void
@@ -580,32 +524,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
 		}
     }
-
-//    if(origReqTime < curTick && req->interferenceMissAt == 0 && req->cmd == Read
-//       && req->adaptiveMHASenderID != -1 && cpu_count > 1){
-//
-//        // higher threshold --> more interference --> lower estimate
-//        // lower threshold --> less interference --> higher estimate
-//        double threshold = 0.2;
-//        bool addInterference = false;
-//        if(memoryController->getWaitingReadCount() > memoryController->getWaitingWriteCount()){
-//            // assume blocked for reads
-//            if(outstandingReads[req->adaptiveMHASenderID] <= memoryController->getReadQueueLength() * threshold){
-//                addInterference = true;
-//            }
-//        }
-//        else{
-//            // assume blocked for writes
-//            if(outstandingWrites[req->adaptiveMHASenderID] <= memoryController->getWriteQueueLength() * threshold){
-//                addInterference = true;
-//            }
-//        }
-//
-//        if(addInterference){
-//            addInterferenceCycles(req->adaptiveMHASenderID, curTick - origReqTime, BUS_BLOCKING_INTERFERENCE);
-//            req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
-//        }
-//    }
 
     if(req->cmd == Read){
         assert(req->adaptiveMHASenderID != -1);
@@ -775,12 +693,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
             assert(req->adaptiveMHASenderID != -1);
 
-//             if(req->waitWritebackCnt >= 10){
-//                 req->busAloneWriteQueueEstimate = (Tick) ((double) req->busAloneWriteQueueEstimate * 2.0);
-//             }
-
-//             int interference = totalLat - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate + req->busAloneServiceEstimate);
-
             int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
             int serviceInterference = serviceLatency - req->busAloneServiceEstimate;
 
@@ -801,11 +713,13 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
         }
 
-        actualServiceLatencySum += serviceLatency;
-        actualServiceLatencyRequests++;
+        if(req->adaptiveMHASenderID != -1 && req->interferenceMissAt == 0){
+			actualServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency;
+			actualServiceLatencyRequests[req->adaptiveMHASenderID]++;
 
-        actualQueueDelaySum += queueLatency;
-        actualQueueDelayRequests++;
+			actualQueueDelaySum[req->adaptiveMHASenderID] += queueLatency;
+			actualQueueDelayRequests[req->adaptiveMHASenderID]++;
+        }
 
         assert(req->busId < interfaces.size() && req->busId > -1);
         DeliverEvent *deliverevent = new DeliverEvent(interfaces[req->busId], req);
@@ -1044,76 +958,8 @@ Bus::addInterference(int victimID, int interfererID, interference_type iType){
 
 void
 Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
-    switch(iType){
-        case BUS_INTERFERENCE:
-            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_SERIALIZATION_INTERFERENCE);
-            cpuInterferenceCycles[victimID] += delay;
-            break;
-        case BUS_BLOCKING_INTERFERENCE:
-            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_BLOCKED_INTERFERENCE);
-            blockingInterferenceCycles[victimID] += delay;
-            break;
-        case BUS_PRIVATE_BLOCKING_INTERFERENCE:
-            fatal("currently not in use");
-            adaptiveMHA->addAloneInterference(delay, victimID, MEMORY_PRIVATE_BLOCKED_INTERFERENCE);
-            shadowBlockedCycles[victimID] += delay;
-            break;
-        case CONFLICT_INTERFERENCE:
-            fatal("currently not in use");
-            cpuConflictInterferenceCycles[victimID] += delay;
-            break;
-        case HIT_TO_MISS_INTERFERENCE:
-            fatal("currently not in use");
-            cpuHtMInterferenceCycles[victimID] += delay;
-            break;
-        default:
-            fatal("Unknown interference type");
-    }
+	fatal("deprecated");
 }
-
-// void
-// Bus::buildShadowControllers(int np, HierParams* hp){
-//
-//     if(np > 1){
-//         BaseMemory::Params params;
-//         params.in = this;
-//         params.snarf_updates = false;
-//         params.do_writes = false;
-//         params.addrRange = vector<Range<Addr> >(1, RangeIn((Addr) 0, MaxAddr));
-//         params.num_banks = 8;
-//         params.RAS_latency = 4;
-//         params.CAS_latency = 4;
-//         params.precharge_latency = 4;
-//         params.min_activate_to_precharge_latency = 12;
-//
-//         for(int i=0;i<np;i++){
-//             stringstream ctrlName;
-//             ctrlName << "ShadowController" << i;
-//             RDFCFSTimingMemoryController* tmpCtrl = new RDFCFSTimingMemoryController(ctrlName.str(),
-//                     memoryController->getReadQueueLength(), memoryController->getWriteQueueLength(), 0, false);
-//             shadowControllers.push_back(tmpCtrl);
-//             tmpCtrl->registerBus(this, np);
-//             tmpCtrl->setShadow();
-//
-//             stringstream memName;
-//             memName << "ShadowMemory" << i;
-//             SimpleMemBank<NullCompression>* tmpMem = new SimpleMemBank<NullCompression>(memName.str(), hp, params);
-//             shadowMemories.push_back(tmpMem);
-//
-//             stringstream slaveName;
-//             slaveName << "ShadowSlaveInterface" << i;
-//             SlaveInterface<SimpleMemBank<NullCompression>, Bus>* tmpSlave =
-//                     new SlaveInterface<SimpleMemBank<NullCompression>, Bus>(slaveName.str(), hp, tmpMem, this, false, true);
-//             shadowSlaveInterfaces.push_back(tmpSlave);
-//             tmpCtrl->registerInterface(tmpSlave);
-//             tmpMem->setSlaveInterface(tmpSlave);
-//
-//             shadowEvents.push_back(new MemoryControllerEvent(this, true, i));
-//         }
-//
-//         latencyStorage.resize(np, map<Addr, int>());
-//     }
-// }
 
 #ifdef INJECT_TEST_REQUESTS
 void

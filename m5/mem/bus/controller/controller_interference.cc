@@ -14,12 +14,16 @@ using namespace std;
 ControllerInterference::ControllerInterference(const string& _name,
 											   TimingMemoryController* _ctlr,
 											   int _rflimitAllCPUs,
-											   bool _doOOOInsert)
+											   bool _doOOOInsert,
+											   int _cpu_count)
 : SimObject(_name){
 
 	privateBankActSeqNum = 0;
 	privStorageInited = false;
 	initialized = false;
+
+	if(_cpu_count == -1) fatal("the number of CPUs must be provided");
+	contIntCpuCount = _cpu_count;
 
 	doOutOfOrderInsert = _doOOOInsert;
 
@@ -34,11 +38,28 @@ ControllerInterference::ControllerInterference(const string& _name,
 }
 
 void
+ControllerInterference::regStats(){
+
+	estimatedNumberOfHits
+		.init(contIntCpuCount)
+		.name(name() + ".estimated_private_hits_per_cpu")
+		.desc("estimated number of private hits per cpu");
+
+	estimatedNumberOfMisses
+		.init(contIntCpuCount)
+		.name(name() + ".estimated_private_misses_per_cpu")
+		.desc("estimated number of private misses per cpu");
+
+	estimatedNumberOfConflicts
+		.init(contIntCpuCount)
+		.name(name() + ".estimated_private_conflicts_per_cpu")
+		.desc("estimated number of private conflicts per cpu");
+}
+
+void
 ControllerInterference::initialize(int cpu_count){
 
 	initialized = true;
-
-	contIntCpuCount = cpu_count;
 
     headPointers.resize(cpu_count, NULL);
     tailPointers.resize(cpu_count, NULL);
@@ -627,13 +648,17 @@ ControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* entry, 
     entry->req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
     if(entry->req->privateResultEstimate == DRAM_RESULT_HIT){
+    	estimatedNumberOfHits[fromCPU]++;
         privateLatencyEstimate = 40;
     }
     else if(entry->req->privateResultEstimate == DRAM_RESULT_CONFLICT){
+    	estimatedNumberOfConflicts[fromCPU]++;
         if(entry->req->cmd == Read) privateLatencyEstimate = 191;
         else privateLatencyEstimate = 184;
     }
     else{
+    	assert(entry->req->privateResultEstimate == DRAM_RESULT_MISS);
+    	estimatedNumberOfMisses[fromCPU]++;
         if(entry->req->cmd == Read) privateLatencyEstimate = 120;
         else privateLatencyEstimate = 109;
     }
@@ -800,12 +825,14 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ControllerInterference)
 	SimObjectParam<TimingMemoryController*> memory_controller;
     Param<int> rf_limit_all_cpus;
     Param<bool> do_ooo_insert;
+    Param<int> cpu_count;
 END_DECLARE_SIM_OBJECT_PARAMS(ControllerInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ControllerInterference)
 	INIT_PARAM_DFLT(memory_controller, "Associated memory controller", NULL),
     INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5),
-    INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false)
+    INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false),
+    INIT_PARAM_DFLT(cpu_count, "number of cpus",-1)
 END_INIT_SIM_OBJECT_PARAMS(ControllerInterference)
 
 CREATE_SIM_OBJECT(ControllerInterference)
@@ -813,7 +840,8 @@ CREATE_SIM_OBJECT(ControllerInterference)
     return new ControllerInterference(getInstanceName(),
 									  memory_controller,
 									  rf_limit_all_cpus,
-									  do_ooo_insert);
+									  do_ooo_insert,
+									  cpu_count);
 }
 
 REGISTER_SIM_OBJECT("ControllerInterference", ControllerInterference)

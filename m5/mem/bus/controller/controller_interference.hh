@@ -15,6 +15,8 @@
 #include "mem/mem_req.hh"
 #include "mem/bus/controller/memory_controller.hh"
 
+#include "base/statistics.hh"
+
 class TimingMemoryController;
 
 #include <vector>
@@ -70,11 +72,18 @@ private:
 	std::vector<std::vector<Addr> > activatedPages;
 	std::vector<std::vector<Tick> > activatedAt;
 
+protected:
+
+	Stats::Vector<> estimatedNumberOfMisses;
+	Stats::Vector<> estimatedNumberOfHits;
+	Stats::Vector<> estimatedNumberOfConflicts;
+
 public:
 	ControllerInterference(const std::string& _name,
 						   TimingMemoryController* _ctlr,
 						   int _rflimitAllCPUs,
-						   bool _doOOOInsert);
+						   bool _doOOOInsert,
+						   int _cpu_count);
 
 	void initialize(int cpu_count);
 
@@ -87,6 +96,8 @@ public:
 	bool isInitialized(){
 		return initialized;
 	}
+
+	void regStats();
 
 private:
 
