@@ -7,7 +7,8 @@ bms=`python -c "import fairmha.interference.interferencemethods as g;g.getBenchm
 
 memsys=$5
 rflimit=$6
-args=$7
+controller=$7
+args=$8
 
 dumpFreq=500
 
@@ -18,6 +19,7 @@ echo "Workload:   $wl"
 echo "Benchmarks: $bms"
 echo "Memsys:     $memsys"
 echo "RF-limit    $rflimit"
+echo "Scheduling  $controller"
 echo "Extra args: $args"
 
 rm stats_*txt
@@ -29,10 +31,12 @@ echo "Running workload $wl..."
 
 cd runtmp
 
-../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=RDFCFS -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > /dev/null 2> /dev/null
+../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=$controller -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > shared-trace.txt 2> /dev/null
 cp test_output.txt ../stats_$wl.txt
 cp cpuSwitchInsts.txt ../$(echo $wl)_cpuSwitchInsts.txt
 cp CPU*InterferenceTrace.txt ../
+cp shared-trace.txt ../
+
 
 COUNTER=0
 for i in $bms
@@ -43,7 +47,7 @@ do
     
     echo "Running benchmark $i until it has committed $insts instructions..."
 
-    ../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=$i -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=RDFCFS -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$COUNTER -EMEMORY-ADDRESS-PARTS=$np -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > /dev/null 2> /dev/null
+    ../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=$i -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=$controller -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$COUNTER -EMEMORY-ADDRESS-PARTS=$np -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > /dev/null 2> /dev/null
     cp test_output.txt ../stats_$i.txt
     cp cpuSwitchInsts.txt ../$(echo $i)_cpuSwitchInsts.txt
     cp CPU0InterferenceTrace.txt ../$(echo $i)_priv_interferencetrace.txt
