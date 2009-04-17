@@ -47,7 +47,6 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     std::map<int,ActivationEntry>::iterator pageIterator;
 
     int num_active_pages;
-    int max_active_pages;
 
     int readqueue_size;
     int writequeue_size;
@@ -139,9 +138,5 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
     virtual void initializeTraceFiles(Bus* regbus);
-
-    int getMaxActivePages(){
-    	return max_active_pages;
-    }
 
 };

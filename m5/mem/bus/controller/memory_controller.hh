@@ -40,6 +40,8 @@ class TimingMemoryController : public SimObject
 
     bool isShadow;
 
+    int max_active_pages;
+
     ControllerInterference* controllerInterference;
 
     Stats::Scalar<> pageHits;
@@ -163,7 +165,7 @@ class TimingMemoryController : public SimObject
     }
 
     virtual int getMaxActivePages(){
-    	return -1;
+    	return max_active_pages;
     }
 };
 

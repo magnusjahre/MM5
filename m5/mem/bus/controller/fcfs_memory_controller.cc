@@ -8,18 +8,13 @@
 
 using namespace std;
 
+#define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
+
 FCFSTimingMemoryController::FCFSTimingMemoryController(std::string _name, int _queueLength)
     : TimingMemoryController(_name) {
-    
+
     queueLength = _queueLength;
-    
-    activePage = 0;
-    pageActivated = false;
-    prevActivate = false;
-    
-    pageCmd = new MemReq();
-    pageCmd->cmd = Activate;
-    pageCmd->paddr = 0;
+    numActivePages = 0;
 }
 
 /** Frees locally allocated memory. */
@@ -28,11 +23,26 @@ FCFSTimingMemoryController::~FCFSTimingMemoryController(){
 
 int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
+	if(activePages.empty()){
+		assert(getMemoryInterface()->getMemoryBankCount() > 1);
+		activePages.resize(getMemoryInterface()->getMemoryBankCount(), MemReq::inval_addr);
+		activatedAt.resize(getMemoryInterface()->getMemoryBankCount(), 0);
+	}
+
     req->inserted_into_memory_controller = curTick;
     memoryRequestQueue.push_back(req);
 
+    DPRINTF(MemoryControllerInterference, "Recieved request from CPU %d, addr %d, cmd %s\n",
+    			                          req->adaptiveMHASenderID,
+    			                          req->paddr,
+    			                          req->cmd.toString());
+
     if (!isBlocked() && memoryRequestQueue.size() >= queueLength) {
        setBlocked();
+    }
+
+    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0){
+    	controllerInterference->insertRequest(req);
     }
 
     return 0;
@@ -42,73 +52,114 @@ bool FCFSTimingMemoryController::hasMoreRequests() {
     return !memoryRequestQueue.empty();
 }
 
-MemReqPtr& FCFSTimingMemoryController::getRequest() {
-    
-    MemReqPtr& retval = pageCmd; // dummy initialization
-    
-    if(!takeOverActiveList.empty()){
-        
-        // taking over from other scheduler, close all active pages
-        pageCmd->cmd = Close;
-        pageCmd->paddr = getPageAddr(takeOverActiveList.front());
-        takeOverActiveList.pop_front();
-        pageCmd->flags &= ~SATISFIED;
-        retval = pageCmd;
-        pageActivated = false;
-        activePage = 0;
-        
-        DPRINTF(MemoryController, "Closing active page due to takeover, cmd %s, addr %x\n", pageCmd->cmd, pageCmd->paddr);
-    
+MemReqPtr FCFSTimingMemoryController::getRequest() {
+
+    MemReqPtr retval = new MemReq(); // dummy initialization
+
+    MemReqPtr oldest = memoryRequestQueue.front();
+    int toBank = getMemoryBankID(oldest->paddr);
+
+    if(isActive(oldest) || isReady(oldest)){
+
+    	retval = oldest;
+    	memoryRequestQueue.pop_front();
+
+    	DPRINTF(MemoryController,
+    			"Returning ready request for addr %d bank %d, %d active pages\n", oldest->paddr, toBank, numActivePages);
     }
     else{
-        
-        // common case scheduling
-        
-        if(pageActivated){
-            if(isActive(memoryRequestQueue.front())){
-                retval = memoryRequestQueue.front();
-                memoryRequestQueue.pop_front();
-            }
-            else{
-                pageCmd->cmd = Close;
-                pageCmd->paddr = getPageAddr(activePage);
-                pageCmd->flags &= ~SATISFIED;
-                retval = pageCmd;
-                pageActivated = false;
-                activePage = 0;
-                
-            }
-        }
-        else{
-            // update internals
-            assert(activePage == 0);
-            MemReqPtr req = memoryRequestQueue.front();
-            activePage = getPage(req);
-            pageActivated = true;
-            prevActivate = true;
-            
-            // issue an activate
-            pageCmd->cmd = Activate;
-            pageCmd->paddr = getPageAddr(activePage);
-            pageCmd->flags &= ~SATISFIED;
-            retval = pageCmd;
-        }
+    	if(activePages[toBank] == MemReq::inval_addr){
+
+			if(numActivePages == max_active_pages){
+				int oldestBankID = -1;
+				Tick oldestTime = TICK_T_MAX;
+				int activeCnt = 0;
+
+				for(int i=0;i<activePages.size();i++){
+					if(activePages[i] != MemReq::inval_addr){
+						activeCnt++;
+						assert(activatedAt[i] != 0);
+						if(activatedAt[i] < oldestTime){
+							oldestTime = activatedAt[i];
+							oldestBankID = i;
+						}
+					}
+				}
+
+				assert(oldestBankID != -1);
+				assert(activeCnt == max_active_pages);
+
+				retval->cmd = Close;
+				retval->paddr = getPageAddr(activePages[oldestBankID]);
+
+				activePages[oldestBankID] = MemReq::inval_addr;
+				activatedAt[oldestBankID] = 0;
+				numActivePages--;
+
+				DPRINTF(MemoryController,
+						"Need to activate but the max number of banks (%d) is active, closing oldest bank %d, activated by %d, %d active now\n",
+						max_active_pages,
+						oldestBankID,
+						getPageAddr(activePages[oldestBankID]),
+						numActivePages);
+			}
+			else{
+				// no active page, issue activate
+				assert(numActivePages < max_active_pages);
+
+				retval->cmd = Activate;
+				retval->paddr = oldest->paddr;
+
+				activePages[toBank] = getPage(oldest);
+				activatedAt[toBank] = curTick;
+				numActivePages++;
+
+				DPRINTF(MemoryController,
+						"Activating page %d in bank %d, %d pages activated\n",
+						getPageAddr(oldest),
+						toBank,
+						numActivePages);
+			}
+    	}
+    	else{
+    		// needed bank is active, issue close command
+    		retval->cmd = Close;
+    		retval->paddr = getPageAddr(activePages[toBank]);
+    		activePages[toBank] = MemReq::inval_addr;
+    		activatedAt[toBank] = 0;
+    		numActivePages--;
+
+    		DPRINTF(MemoryController,
+    				"Closing page %d in bank %d, %d pages activated\n",
+    				retval->paddr,
+    				toBank,
+    				numActivePages);
+    	}
+
     }
-    
+
+    assert(numActivePages <= max_active_pages);
+
     if(isBlocked() && memoryRequestQueue.size() < queueLength){
         setUnBlocked();
     }
-    
-    DPRINTF(MemoryController, "Returning memory request, cmd %s, addr %x\n", retval->cmd, retval->paddr);
-    
+
+    DPRINTF(MemoryController, "Returning memory request, cmd %s, addr %d\n", retval->cmd, retval->paddr);
+
     return retval;
 }
 
 void
+FCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+    assert(req->interferenceMissAt == 0);
+	if(controllerInterference != NULL){
+		controllerInterference->estimatePrivateLatency(req);
+	}
+}
+
+void
 FCFSTimingMemoryController::setOpenPages(std::list<Addr> pages){
-    assert(takeOverActiveList.empty());
-    takeOverActiveList.splice(takeOverActiveList.begin(), pages);
-    DPRINTF(MemoryController, "Recieved take over list\n");
+	fatal("setOpenPages is deprecated");
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

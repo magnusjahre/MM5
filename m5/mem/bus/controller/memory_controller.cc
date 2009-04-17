@@ -27,6 +27,8 @@ TimingMemoryController::TimingMemoryController(std::string _name)
 	bus = NULL;
 	mem_interface = NULL;
 	controllerInterference = NULL;
+
+	max_active_pages = 4;
 }
 
 /** Frees locally allocated memory. */

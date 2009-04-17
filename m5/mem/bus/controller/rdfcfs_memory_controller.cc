@@ -23,7 +23,6 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     : TimingMemoryController(_name) {
 
     num_active_pages = 0;
-    max_active_pages = 4;
 
     readqueue_size = _readqueue_size;
     writequeue_size = _writequeue_size;

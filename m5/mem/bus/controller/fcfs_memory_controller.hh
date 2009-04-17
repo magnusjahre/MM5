@@ -1,6 +1,6 @@
 /**
  * @file
- * FCFS memory controller 
+ * FCFS memory controller
  *
  */
 
@@ -11,33 +11,33 @@
  */
 class FCFSTimingMemoryController : public TimingMemoryController
 {
-    
+
     private:
         int queueLength;
-        MemReqPtr pageCmd;
-        bool prevActivate;
-        
-        Addr activePage;
-        bool pageActivated;
-        
-        std::list<Addr> takeOverActiveList;
-    
+
+        std::vector<Addr> activePages;
+        std::vector<Tick> activatedAt;
+        int numActivePages;
+
+
     public:
-        std::list<MemReqPtr> memoryRequestQueue; 
-        
+        std::list<MemReqPtr> memoryRequestQueue;
+
         /** Constructs a Memory Controller object. */
         FCFSTimingMemoryController(std::string _name, int _queueLength);
-    
+
         /** Frees locally allocated memory. */
         ~FCFSTimingMemoryController();
-    
+
         int insertRequest(MemReqPtr &req);
-    
+
         bool hasMoreRequests();
-    
-        MemReqPtr& getRequest();
-        
+
+        MemReqPtr getRequest();
+
         virtual void setOpenPages(std::list<Addr> pages);
+
+        virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
 };
 

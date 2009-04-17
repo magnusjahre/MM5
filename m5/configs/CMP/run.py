@@ -34,21 +34,39 @@ def createMemBus(bankcnt):
     root.membus = [ConventionalMemBus() for i in range(channels)]
     root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(channels)]
         
+    assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS"
     for i in range(channels):
-        root.membus[i].memory_controller = ReadyFirstMemoryController()
-        root.membus[i].adaptive_mha = root.adaptiveMHA
-        root.membus[i].interference_manager = root.interferenceManager
         
-        if "MEMORY-BUS-PAGE-POLICY" in env:
-            root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
-        if "MEMORY-BUS-PRIORITY-SCHEME" in env:
-            root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+            root.membus[i].memory_controller = ReadyFirstMemoryController()
+            root.membus[i].adaptive_mha = root.adaptiveMHA
+            root.membus[i].interference_manager = root.interferenceManager
             
-    root.controllerInterference = [ControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+            if "MEMORY-BUS-PAGE-POLICY" in env:
+                root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
+            if "MEMORY-BUS-PRIORITY-SCHEME" in env:
+                root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+                
+        else:
+            assert env["MEMORY-BUS-SCHEDULER"] == "FCFS"
+            root.membus[i].memory_controller = InOrderMemoryController()
+            root.membus[i].adaptive_mha = root.adaptiveMHA
+            
+            
+    
+    if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+        for i in range(channels):
+            if "READY-FIRST-LIMIT-ALL-CPUS" in env:
+                root.controllerInterference[i].rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
+    else:
+        assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" 
+        root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+
     for i in range(channels):
         root.controllerInterference[i].cpu_count = int(env['NP'])
-        if "READY-FIRST-LIMIT-ALL-CPUS" in env:
-            root.controllerInterference[i].rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
+        
+                
 
 def initSharedCache(bankcnt):
     if int(env['NP']) == 4:

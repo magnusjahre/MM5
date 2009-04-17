@@ -519,7 +519,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
     	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
-    	if(req->cmd == Read){
+    	if(req->cmd == Read && interferenceManager != NULL){
     		interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
 			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
 		}
@@ -663,8 +663,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 			req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
 			req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
 
-			interferenceManager->addLatency(InterferenceManager::MemoryBusQueue, req, queueLatency);
-			interferenceManager->addLatency(InterferenceManager::MemoryBusService, req, serviceLatency);
+			if(interferenceManager != NULL){
+				interferenceManager->addLatency(InterferenceManager::MemoryBusQueue, req, queueLatency);
+				interferenceManager->addLatency(InterferenceManager::MemoryBusService, req, serviceLatency);
+			}
         }
 
         assert(req->entryReadCnt <= memoryController->getReadQueueLength());
@@ -699,7 +701,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueInterference;
             req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceInterference;
 
-            if(req->cmd == Read){
+            if(req->cmd == Read && interferenceManager != NULL){
             	interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queueInterference);
             	interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, serviceInterference);
             }

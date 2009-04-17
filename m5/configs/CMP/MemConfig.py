@@ -320,7 +320,7 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
     #reserved_slots = 2
     
 class InOrderMemoryController(FCFSMemoryController):
-    queue_size = 64
+    queue_size = 128
     
 class FairNFQMemoryController(NFQMemoryController):
     #rd_queue_size = 64
