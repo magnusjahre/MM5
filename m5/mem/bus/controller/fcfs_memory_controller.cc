@@ -24,8 +24,9 @@ FCFSTimingMemoryController::~FCFSTimingMemoryController(){
 int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
 	if(activePages.empty()){
+	  Addr inval_addr = MemReq::inval_addr;
 		assert(getMemoryInterface()->getMemoryBankCount() > 1);
-		activePages.resize(getMemoryInterface()->getMemoryBankCount(), MemReq::inval_addr);
+		activePages.resize(getMemoryInterface()->getMemoryBankCount(), inval_addr);
 		activatedAt.resize(getMemoryInterface()->getMemoryBankCount(), 0);
 	}
 
