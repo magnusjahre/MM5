@@ -547,6 +547,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	if(!shadowTags.empty()){
 		assert(req->adaptiveMHASenderID != -1);
 
+		//TODO: shadow writebacks should be checked against regular writebacks
 		LRU::BlkList shadow_compress_list;
 		MemReqList shadow_writebacks;
 		LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);

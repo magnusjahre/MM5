@@ -51,6 +51,7 @@ def createMemBus(bankcnt):
             assert env["MEMORY-BUS-SCHEDULER"] == "FCFS"
             root.membus[i].memory_controller = InOrderMemoryController()
             root.membus[i].adaptive_mha = root.adaptiveMHA
+            root.membus[i].interference_manager = root.interferenceManager
             
             
     
