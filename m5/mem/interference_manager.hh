@@ -6,6 +6,7 @@
 #include "base/misc.hh"
 #include "mem_req.hh"
 #include "base/statistics.hh"
+#include "requesttrace.hh"
 
 #include <vector>
 
@@ -20,8 +21,22 @@ private:
 	std::vector<std::vector<int> > numLatencyReqs;
 
 	std::vector<int> totalRequestCount;
+	std::vector<Tick> runningLatencySum;
 
 	int intManCPUCount;
+
+	bool traceStarted;
+	int sampleSize;
+	int resetInterval;
+
+	std::vector<RequestTrace> estimateTraces;
+	std::vector<RequestTrace> latencyTraces;
+
+	void traceInterference(int fromCPU, std::vector<double> avgLats);
+
+	std::vector<double> traceLatency(int fromCPU);
+
+	void resetInterferenceMeasurements(int fromCPU);
 
 public:
 	typedef enum{
@@ -58,9 +73,11 @@ protected:
 
 public:
 
-	InterferenceManager(std::string _name, int _cpu_count);
+	InterferenceManager(std::string _name, int _cpu_count, int _sample_size, int _num_reqs_at_reset);
 
 	void regStats();
+
+	void resetStats();
 
 	void addInterference(LatencyType t, MemReqPtr& req, int interference);
 
