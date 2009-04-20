@@ -39,16 +39,16 @@
 
 using namespace std;
 
-BaseMemory::BaseMemory(const std::string &name, HierParams *hier, 
+BaseMemory::BaseMemory(const std::string &name, HierParams *hier,
 		       Params &params)
-    : BaseMem(name, hier, params.access_lat, params.addrRange), 
+    : BaseMem(name, hier, params.access_lat, params.addrRange),
 #if FULL_SYSTEM
       funcMem(params.funcMem),
 #endif
       uncacheLatency(params.uncache_lat),
       snarfUpdates(params.snarf_updates), doWrites(params.do_writes)
 {
-    
+
     assert(hier != NULL);
     bmCPUCount = hier->hpCpuCount;
 }
@@ -82,7 +82,7 @@ BaseMemory::regStats()
             .name(name() + ".total_latency")
             .desc("Total latency")
             ;
-    
+
     average_latency
             .name(name() + ".average_latency")
             .desc("Average latency")
@@ -90,11 +90,11 @@ BaseMemory::regStats()
 
     average_latency = total_latency / (number_of_reads + number_of_writes);
 
-    read_hit_rate 
+    read_hit_rate
             .name(name() + ".read_hit_rate")
             .desc("Rate of hitting open pages on read")
             ;
-    
+
     read_hit_rate = number_of_reads_hit / number_of_reads;
 
     write_hit_rate
@@ -108,9 +108,9 @@ BaseMemory::regStats()
             .name(name() + ".overall_hit_rate")
             .desc("Overall page hit rate")
             ;
-    
+
     overall_hit_rate = (number_of_reads_hit + number_of_writes_hit) / (number_of_reads + number_of_writes);
-    
+
     number_of_slow_read_hits
             .name(name() + ".number_of_slow_read_hits")
             .desc("Number of transitions from write to read")
@@ -125,127 +125,127 @@ BaseMemory::regStats()
             .name(name() + ".number_of_non_overlap_activate")
             .desc("Number of non overlapping activates")
             ;
-    
+
     accessesPerBank.init(num_banks);
     accessesPerBank
             .name(name() + ".accesses_per_bank")
             .desc("number of accesses for each bank")
             .flags(total)
             ;
-    
+
     pageConflicts
         .init(DRAM_CMD_CNT)
         .name(name() + ".number_of_page_conflicts")
         .desc("number of page conflits")
         ;
-    
+
     pageMisses
         .init(DRAM_CMD_CNT)
         .name(name() + ".number_of_page_misses")
         .desc("number of page misses")
         ;
-    
+
     pageHits
         .init(DRAM_CMD_CNT)
         .name(name() + ".number_of_page_hits")
         .desc("number of page hits")
         ;
-    
+
     pageConflictLatency
         .init(DRAM_CMD_CNT)
         .name(name() + ".total_page_conflict_latency")
         .desc("total page conflict latency")
         ;
-    
+
     pageConflictLatency.subname(0, "read");
     pageConflictLatency.subname(1, "write");
-    
+
     pageMissLatency
         .init(DRAM_CMD_CNT)
         .name(name() + ".total_page_miss_latency")
         .desc("total page miss latency")
         ;
-    
+
     pageMissLatency.subname(0, "read");
     pageMissLatency.subname(1, "write");
-    
+
     pageHitLatency
         .init(DRAM_CMD_CNT)
         .name(name() + ".total_page_hit_latency")
         .desc("total page hit latency")
         ;
-    
+
     pageHitLatency.subname(0, "read");
     pageHitLatency.subname(1, "write");
-    
+
     avgPageConflictLatency
         .name(name() + ".average_page_conflict_latency")
         .desc("Average page conflict latency")
         ;
-    
+
     avgPageConflictLatency.subname(0, "read");
     avgPageConflictLatency.subname(1, "write");
-    
+
     avgPageConflictLatency = pageConflictLatency / pageConflicts;
-    
+
     avgPageMissLatency
         .name(name() + ".average_page_miss_latency")
         .desc("Average page miss latency")
         ;
-    
+
     avgPageMissLatency.subname(0, "read");
     avgPageMissLatency.subname(1, "write");
-    
+
     avgPageMissLatency = pageMissLatency / pageMisses;
-    
+
     avgPageHitLatency
         .name(name() + ".average_page_hit_latency")
         .desc("Average page hit latency")
         ;
-    
+
     avgPageHitLatency.subname(0, "read");
     avgPageHitLatency.subname(1, "write");
-    
+
     avgPageHitLatency = pageHitLatency / pageHits;
-    
+
     pageConflictLatencyDistribution
-         .init(DRAM_CMD_CNT, 40, 250, 10)
+         .init(DRAM_CMD_CNT, 40, 300, 5)
         .name(name() + ".conflict_distribution")
         .desc("Conflict latency distribution")
         .flags(total | pdf | cdf)
         ;
-    
+
     pageConflictLatencyDistribution.subname(0, "_read");
     pageConflictLatencyDistribution.subname(1, "_write");
-    
+
     pageMissLatencyDistribution
-        .init(DRAM_CMD_CNT, 40, 120, 10)
+        .init(DRAM_CMD_CNT, 40, 120, 5)
         .name(name() + ".miss_distribution")
         .desc("Miss latency distribution")
         .flags(total | pdf | cdf)
         ;
-    
+
     pageMissLatencyDistribution.subname(0, "_read");
     pageMissLatencyDistribution.subname(1, "_write");
-    
+
     perCPUPageConflicts
         .init(bmCPUCount)
         .name(name() + ".per_cpu_page_conflicts")
         .desc("number of page conflicts per CPU")
         ;
-    
+
     perCPUPageMisses
         .init(bmCPUCount)
         .name(name() + ".per_cpu_page_misses")
         .desc("number of page misses per CPU")
         ;
-    
+
     perCPUPageHits
         .init(bmCPUCount)
         .name(name() + ".per_cpu_page_hits")
         .desc("number of page hits per CPU")
         ;
-    
+
     perCPURequests
         .init(bmCPUCount)
         .name(name() + ".per_cpu_requests")
@@ -256,21 +256,21 @@ BaseMemory::regStats()
         .name(name() + ".per_cpu_page_conflict_rate")
         .desc("per CPU page conflict rate")
         ;
-    
+
     perCPUConflictRate = perCPUPageConflicts / perCPURequests;
 
     perCPUMissRate
         .name(name() + ".per_cpu_page_miss_rate")
         .desc("per CPU page miss rate")
         ;
-    
+
     perCPUMissRate = perCPUPageMisses / perCPURequests;
-    
+
     perCPUHitRate
         .name(name() + ".per_cpu_page_hit_rate")
         .desc("per CPU page hit rate")
         ;
-    
+
     perCPUHitRate = perCPUPageHits / perCPURequests;
-    
+
 }
