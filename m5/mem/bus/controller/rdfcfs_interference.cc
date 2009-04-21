@@ -596,18 +596,19 @@ RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* e
     Tick privateLatencyEstimate = 0;
     if(entry->req->privateResultEstimate == DRAM_RESULT_HIT){
     	estimatedNumberOfHits[fromCPU]++;
-        privateLatencyEstimate = 40;
+    	if(entry->req->cmd == Read) privateLatencyEstimate = 40;
+    	else privateLatencyEstimate = 30;
     }
     else if(entry->req->privateResultEstimate == DRAM_RESULT_CONFLICT){
     	estimatedNumberOfConflicts[fromCPU]++;
-        if(entry->req->cmd == Read) privateLatencyEstimate = 191;
-        else privateLatencyEstimate = 184;
+        if(entry->req->cmd == Read) privateLatencyEstimate = 218;
+        else privateLatencyEstimate = 186;
     }
     else{
     	assert(entry->req->privateResultEstimate == DRAM_RESULT_MISS);
     	estimatedNumberOfMisses[fromCPU]++;
         if(entry->req->cmd == Read) privateLatencyEstimate = 120;
-        else privateLatencyEstimate = 109;
+        else privateLatencyEstimate = 110;
     }
 
     assert(entry->req->cmd == Read || entry->req->cmd == Writeback);

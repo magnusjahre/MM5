@@ -29,21 +29,21 @@ FCFSControllerInterference::insertRequest(MemReqPtr& req){
 
 	estimatePageResult(req);
 
-	//TODO: update estimations with FCFS-numbers
     if(req->privateResultEstimate == DRAM_RESULT_HIT){
     	estimatedNumberOfHits[fromCPU]++;
-        privateLatencyEstimate = 40;
+    	if(req->cmd == Read) privateLatencyEstimate = 40;
+    	else privateLatencyEstimate = 30;
     }
     else if(req->privateResultEstimate == DRAM_RESULT_CONFLICT){
     	estimatedNumberOfConflicts[fromCPU]++;
-        if(req->cmd == Read) privateLatencyEstimate = 191;
-        else privateLatencyEstimate = 184;
+        if(req->cmd == Read) privateLatencyEstimate = 218;
+        else privateLatencyEstimate = 186;
     }
     else{
     	assert(req->privateResultEstimate == DRAM_RESULT_MISS);
     	estimatedNumberOfMisses[fromCPU]++;
         if(req->cmd == Read) privateLatencyEstimate = 120;
-        else privateLatencyEstimate = 109;
+        else privateLatencyEstimate = 110;
     }
 
     for(int i=0;i<privateRequestQueues[fromCPU].size();i++){
