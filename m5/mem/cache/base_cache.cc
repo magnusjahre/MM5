@@ -43,18 +43,18 @@
 
 using namespace std;
 
-BaseCache::BaseCache(const std::string &name, 
-                     HierParams *hier_params, 
-                     Params &params, 
-                     bool _isShared, 
-                     bool _useDirectory, 
+BaseCache::BaseCache(const std::string &name,
+                     HierParams *hier_params,
+                     Params &params,
+                     bool _isShared,
+                     bool _useDirectory,
                      bool _isReadOnly,
                      bool _useUniformPartitioning,
                      Tick _uniformPartitioningStart,
                      bool _useMTPPartitioning)
-    : BaseMem(name, hier_params, params.hitLatency, params.addrRange), 
+    : BaseMem(name, hier_params, params.hitLatency, params.addrRange),
               blocked(0), blockedSnoop(0), masterRequests(0), slaveRequests(0),
-              topLevelCache(false),  blkSize(params.blkSize), 
+              topLevelCache(false),  blkSize(params.blkSize),
               missCount(params.maxMisses), isShared(_isShared),
               useDirectory(_useDirectory), isReadOnly(_isReadOnly),
               useUniformPartitioning(_useUniformPartitioning),
@@ -65,16 +65,16 @@ BaseCache::BaseCache(const std::string &name,
         if(!_isShared) panic("The cache must be shared to use static uniform partitioning!");
         if(_uniformPartitioningStart == -1) panic("An uniform partitioning start tick must be provided");
     }
-    
+
     checkEvent = new CacheAliveCheckEvent(this);
     checkEvent->schedule(CACHE_CHECK_INTERVAL);
     blockedAt = 0;
-    
+
     if(_isShared){
         interferenceEventsBW = vector<vector<int> >(params.baseCacheCPUCount, vector<int>(params.baseCacheCPUCount,0));
         interferenceEventsCapacity = vector<vector<int> >(params.baseCacheCPUCount, vector<int>(params.baseCacheCPUCount,0));
     }
-    
+
     nextFreeCache = 0;
 }
 
@@ -285,7 +285,7 @@ BaseCache::regStats()
 	.name(name() + ".fast_writes")
 	.desc("number of fast writes performed")
 	;
-    
+
     cacheCopies
 	.name(name() + ".cache_copies")
 	.desc("number of cache copies performed")
@@ -302,54 +302,54 @@ BaseCache::regStats()
         .desc("number of misses for each CPU")
         .flags(total)
         ;
-    
+
     accessesPerCPU.init(cpuCount);
     accessesPerCPU
         .name(name() + ".accesses_per_cpu")
         .desc("number of accesses for each CPU")
         .flags(total)
         ;
-    
+
     delayDueToCongestion
         .name(name() + ".congestion_delay")
         .desc("Additional delay due to congestion")
         ;
-    
+
     cpuInterferenceCycles
         .init(cpuCount)
         .name(name() + ".cpu_interference_cycles")
         .desc("total number of cycles the requests of a CPU was delayed")
         .flags(total)
         ;
-    
+
     cpuCapacityInterference
         .init(cpuCount)
         .name(name() + ".cpu_capacity_interference")
         .desc("total number of evictions by a different processor")
         .flags(total)
         ;
-    
+
     extraMissLatency
         .init(cpuCount)
         .name(name() + ".cpu_extra_latency")
         .desc("extra latency due to blocks being evicted from the cache")
         .flags(total)
         ;
-    
+
     numExtraMisses
         .init(cpuCount)
         .name(name() + ".cpu_extra_misses")
         .desc("number of extra misses measured with shadow tags")
         .flags(total)
         ;
-    
+
     privateMissSharedHit
         .init(cpuCount)
         .name(name() + ".private_miss_shared_hit")
         .desc("number of misses which are hits in the shared cache but misses in the shadow tags")
         .flags(total)
         ;
-    
+
     recvMissResponses
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")
@@ -359,32 +359,32 @@ BaseCache::regStats()
 void
 BaseCache::setBlocked(BlockedCause cause)
 {
-    
+
     blockedAt = curTick;
-    
+
     uint8_t flag = 1 << cause;
     if (blocked == 0) {
         blocked_causes[cause]++;
         blockedCycle = curTick;
     }
-    
+
     assert((blocked & flag) == 0);
-    
+
     blocked |= flag;
     DPRINTF(Cache,"Blocking for cause %s\n", cause);
     DPRINTF(Blocking, "Blocking for cause %s\n", cause);
     si->setBlocked();
-    
+
 }
 
 void
 BaseCache::clearBlocked(BlockedCause cause)
 {
-    
+
     uint8_t flag = 1 << cause;
-    
+
     assert((blocked & flag) > 0);
-    
+
     blocked &= ~flag;
     blockedSnoop &= ~flag;
     DPRINTF(Cache,"Unblocking for cause %s\n", cause);
@@ -401,9 +401,9 @@ BaseCache::clearBlocked(BlockedCause cause)
 
 void
 BaseCache::printBlockedState(){
-    
+
     cout << curTick << " " << name() << ": Blocked state is ";
-    
+
     for(int i=8;i>=0;i--){
         uint8_t tmpFlag = 1 << i;
         cout << ((tmpFlag & blocked) == 0 ? "0" : "1");
@@ -413,7 +413,7 @@ BaseCache::printBlockedState(){
 
 void
 BaseCache::checkIfCacheAlive(){
-    
+
     if(isBlocked()){
         if(blockedAt < (curTick - CACHE_CHECK_INTERVAL)){
             cout << "CACHE DEADLOCK!, " << name() << " blocked at " << blockedAt << "\n";
@@ -421,45 +421,45 @@ BaseCache::checkIfCacheAlive(){
             panic("%s has been blocked for 100000 clock cycles", name());
         }
     }
-    
+
     checkEvent->schedule(curTick + CACHE_CHECK_INTERVAL);
 }
 
 void
 BaseCache::respondToMiss(MemReqPtr &req, Tick time, bool moreTargetsToService)
 {
-    
+
     Tick originalReqTime = time;
-    
+
     // assumes that the targets are delivered to the interconnect in parallel
     if(simulateContention && !moreTargetsToService && curTick >= detailedSimulationStartTick){
         fatal("contentention implementation is broken by new crossbar");
         time = updateAndStoreInterference(req, time);
     }
-    
+
     if(!isShared && adaptiveMHA != NULL && !moreTargetsToService){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->time, req->paddr, true);
     }
-    
+
     if (!req->isUncacheable()) {
         recvMissResponses++;
         missLatency[req->cmd.toIndex()][req->thread_num] += time - req->time;
     }
-    
+
     delayDueToCongestion += originalReqTime - time;
-    
+
     si->respond(req,time);
 }
 
 Tick
 BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
-    
+
     assert(curTick == (time - hitLatency));
-        
+
     for(int i=0;i<occupancy.size();i++){
         if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);
     }
-    
+
     assert(req->adaptiveMHASenderID >= 0);
     if(nextFreeCache < curTick){
         occupancy.push_back(cacheOccupancy(curTick, curTick + CONTENTION_DELAY, req->adaptiveMHASenderID, curTick));
@@ -467,7 +467,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
     }
     else{
         assert(occupancy.back().originalRequestTick <= curTick);
-        
+
         // search to discover which part(s) of the delay is actually due to interference with a different processor
         vector<bool> waitingFor(cpuCount, false);
         vector<int> waitingPosition(cpuCount, -1);
@@ -477,7 +477,7 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
               waitingPosition[occupancy[i].occCPUID] = i;
           }
         }
-        
+
         vector<vector<Tick> > interference(cpuCount, vector<Tick>(cpuCount, 0));
         vector<vector<bool> > delayedIsRead(cpuCount, vector<bool>(cpuCount, false));
         for(int i=0;i<waitingFor.size();i++){
@@ -491,16 +491,15 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
 
               interference[req->adaptiveMHASenderID][i] = curIP;
               delayedIsRead[req->adaptiveMHASenderID][i] = (req->cmd == Read);
-              
+
               assert(req->cmd == Read || req->cmd == Writeback);
               if(req->cmd == Read){
                 interferenceEventsBW[req->adaptiveMHASenderID][i] += curIP;
                 cpuInterferenceCycles[req->adaptiveMHASenderID] += curIP;
-                if(curIP > 0) adaptiveMHA->addAloneInterference(curIP, req->adaptiveMHASenderID, L2_INTERFERENCE);
               }
             }
         }
-                
+
         if(adaptiveMHA != NULL){
             adaptiveMHA->addInterferenceDelay(interference,
                                             req->paddr,
@@ -509,34 +508,34 @@ BaseCache::updateAndStoreInterference(MemReqPtr &req, Tick time){
                                             L2_INTERFERENCE,
                                             delayedIsRead);
         }
-        
+
         time = nextFreeCache + hitLatency;
         nextFreeCache += CONTENTION_DELAY;
         occupancy.push_back(cacheOccupancy(nextFreeCache - CONTENTION_DELAY,nextFreeCache, req->adaptiveMHASenderID, curTick));
     }
-    
+
     return time;
 }
 
 void
 BaseCache::updateInterference(MemReqPtr &req){
-    
+
     if(nextFreeCache < curTick) nextFreeCache = curTick + CONTENTION_DELAY;
     else nextFreeCache += CONTENTION_DELAY;
-    
+
     assert(req->adaptiveMHASenderID != -1);
     occupancy.push_back(cacheOccupancy(nextFreeCache - CONTENTION_DELAY, nextFreeCache, req->adaptiveMHASenderID, curTick));
-    
+
     for(int i=0;i<occupancy.size();i++){
         if(occupancy[i].endTick < curTick) occupancy.erase(occupancy.begin()+i);
     }
 }
 
-std::vector<std::vector<int> > 
+std::vector<std::vector<int> >
 BaseCache::retrieveBWInterferenceStats(){
     return interferenceEventsBW;
 }
-        
+
 void
 BaseCache::resetBWInterferenceStats(){
     for(int i=0;i<interferenceEventsBW.size();i++){
@@ -552,7 +551,7 @@ BaseCache::retrieveCapacityInterferenceStats(){
 }
 
 
-void 
+void
 BaseCache::resetCapacityInterferenceStats(){
     for(int i=0;i<interferenceEventsCapacity.size();i++){
         for(int j=0;j<interferenceEventsCapacity[0].size();j++){
@@ -569,7 +568,7 @@ BaseCache::addCapacityInterference(int victimID, int interfererID){
 
 void
 BaseCache::setSenderID(MemReqPtr& req){
-    
+
     req->adaptiveMHASenderID = cacheCpuID;
     if(cpuCount == 1){
         assert(memoryAddressOffset != -1);

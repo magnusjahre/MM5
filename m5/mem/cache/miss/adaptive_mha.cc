@@ -9,7 +9,6 @@
 using namespace std;
 
 #include "fair_mha.cc"
-#include "interference.cc"
 
 AdaptiveMHA::AdaptiveMHA(const std::string &name,
                          double _lowThreshold,
@@ -34,14 +33,14 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     sampleFrequency = _sampleFrequency;
     highThreshold = _highThreshold;
     lowThreshold = _lowThreshold;
-    
+
     onlyTraceBus = _onlyTraceBus;
-    
+
     resetCounter = _resetCounter;
     localResetCounter = _resetCounter;
     reductionThreshold = _reductionThreshold;
     interferencePointMinAllowed = _interferencePointMinAllowed;
-    
+
     useAvgLat = false; // FIXME: parameterize
     useTwoPhaseThroughput = true; // FIXME: parameterize
     tpUtilizationLimit = _tpUtilizationLimit;
@@ -54,11 +53,11 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         assert(finalSimTick > 0);
         dumpEvent->schedule(finalSimTick);
     }
-    
+
     interconnect = NULL;
-    
+
     cpus.resize(cpu_count, 0);
-    
+
     totalInterferenceDelayRead = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
     totalInterferenceDelayWrite = vector<vector<Tick> >(cpu_count, vector<Tick>(cpu_count, 0));
     totalSharedDelay.resize(cpu_count, 0);
@@ -68,43 +67,43 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     numInterferenceRequests = 0;
     numDelayRequests = 0;
     interferenceOverflow = 0;
-    
+
     interferenceBlacklist = vector<vector<bool> >(cpu_count, vector<bool>(cpu_count, false));
     lastInterfererID = -1;
     lastVictimID = -1;
     lastInterferenceValue = 0.0;
-    
+
     neededRepeatDecisions = _neededRepeatDecisions;
-    
+
     currentCandidate = -1;
     numRepeatDecisions = 0;
-    
+
     Tick start = _startTick;
     if(start % sampleFrequency != 0){
         start = start + (sampleFrequency - (start % sampleFrequency));
     }
     assert(start % sampleFrequency == 0);
     startRunning = start;
-    
+
     firstSample = true;
-            
+
     maxMshrs = -1;
     maxWB = -1;
-    
+
     assert(_staticAsymmetricMHA.size() == cpu_count);
     bool allStaticM1 = true;
     for(int i=0;i<_staticAsymmetricMHA.size();i++) if(_staticAsymmetricMHA[i] != -1) allStaticM1 = false;
-    
+
     if(!allStaticM1) staticAsymmetricMHAs = _staticAsymmetricMHA;
 
     useFairAMHA = _useFairAMHA;
-    
+
     dataCaches.resize(adaptiveMHAcpuCount, NULL);
     instructionCaches.resize(adaptiveMHAcpuCount, NULL);
-            
+
     sampleEvent = new AdaptiveMHASampleEvent(this);
     sampleEvent->schedule(start);
-    
+
     if(!onlyTraceBus){
         adaptiveMHATraceFileName = "adaptiveMHATrace.txt";
         ofstream mhafile(adaptiveMHATraceFileName.c_str());
@@ -117,7 +116,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         mhafile.flush();
         mhafile.close();
     }
-    
+
     memTraceFileName = "memoryBusTrace.txt";
     ofstream memfile(memTraceFileName.c_str());
     memfile << "Tick;DataUtil";
@@ -127,7 +126,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     memfile << "\n";
     memfile.flush();
     memfile.close();
-    
+
     ipcTraceFileName = "ipcTrace.txt";
     ofstream ipcfile(ipcTraceFileName.c_str());
     ipcfile << "Tick";
@@ -135,9 +134,9 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     ipcfile << "\n";
     ipcfile.flush();
     ipcfile.close();
-    
+
     dumpAtNumReqs = _numReqsBetweenIDumps;
-    
+
     aloneInterferenceFileName = "InterferenceTrace.txt";
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         stringstream filename;
@@ -147,18 +146,18 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
         interferencefile.flush();
         interferencefile.close();
     }
-    
+
     busInterference.resize(adaptiveMHAcpuCount, 0);
     busBlockedInterference.resize(adaptiveMHAcpuCount, 0);
     busPrivateBlockedInterference.resize(adaptiveMHAcpuCount, 0);
     l2CapInterference.resize(adaptiveMHAcpuCount, 0);
     l2BwInterference.resize(adaptiveMHAcpuCount, 0);
     interconnectInterference.resize(adaptiveMHAcpuCount, 0);
-    
+
     totalAloneDelay.resize(adaptiveMHAcpuCount, 0);
     numberOfAloneRequests.resize(adaptiveMHAcpuCount, 0);
     dumpCount.resize(adaptiveMHAcpuCount, 0);
-    
+
     // Two phase AMHA vars
     lastIPCs.resize(adaptiveMHAcpuCount, 0);
     lastDesicionID = 0;
@@ -167,40 +166,40 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     twoPhaseResetCount = 1;
     tfamhaBlacklist.resize(adaptiveMHAcpuCount, false);
     useAMHAInSession = true;
-    
+
     firstPhaseStep = 0;
     firstPhaseTwo = false;
     throughputMeasurements.resize(5, -1.0);
-    
+
     speedDifferences.resize(5, vector<double>(adaptiveMHAcpuCount, -1.0));
-    
+
     stepMapping.resize(5,0);
     stepMapping[0] = 0;
     stepMapping[1] = 1;
     stepMapping[2] = 2;
     stepMapping[3] = 3;
     stepMapping[4] = 4;
-    
+
     performanceOrdering.resize(adaptiveMHAcpuCount, -1);
-    
+
     ofstream amhatrace("amhaTrace.txt");
     amhatrace << "EXECUTION TRACE FOR ADAPTIVE MHA\n\n";
     amhatrace.flush();
     amhatrace.close();
 }
-        
+
 AdaptiveMHA::~AdaptiveMHA(){
     delete sampleEvent;
 }
 
 void
 AdaptiveMHA::regStats(){
-    
+
     dataSampleTooLarge
             .name(name() + ".data_sample_too_large")
             .desc("Number of samples where there data sample was to large")
             ;
-    
+
     addrSampleTooLarge
             .name(name() + ".addr_sample_too_large")
             .desc("Number of samples where there address sample was to large")
@@ -209,7 +208,7 @@ AdaptiveMHA::regStats(){
 
 void
 AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache, bool isShared){
-    
+
     if(!isShared){
         if(isDataCache){
             assert(dataCaches[cpu_id] == NULL);
@@ -219,11 +218,11 @@ AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache, bool 
             assert(instructionCaches[cpu_id] == NULL);
             instructionCaches[cpu_id] = cache;
         }
-        
+
         if(!onlyTraceBus){
             if(maxMshrs == -1) maxMshrs = cache->getCurrentMSHRCount(true);
             else assert(maxMshrs == cache->getCurrentMSHRCount(true));
-            
+
             if(isDataCache){
                 if(maxWB == -1) maxWB = cache->getCurrentMSHRCount(false);
                 else assert(maxWB == cache->getCurrentMSHRCount(false));
@@ -237,7 +236,7 @@ AdaptiveMHA::registerCache(int cpu_id, bool isDataCache, BaseCache* cache, bool 
 
 void
 AdaptiveMHA::handleSampleEvent(Tick time){
-    
+
     bool wasFirst = false;
     if(firstSample){
         wasFirst = true;
@@ -253,7 +252,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         numInterferenceRequests = 0;
         oracleStorage.clear();
         firstSample = false;
-        
+
         // reset interference stats
         assert(interconnect != NULL);
         interconnect->resetInterferenceStats();
@@ -264,7 +263,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         bus->resetBusInterferenceStats();
         bus->resetConflictInterferenceStats();
         bus->resetHitToMissInterferenceStats();
-        
+
         if(staticAsymmetricMHAs.size() != 0){
             assert(onlyTraceBus);
             for(int i=0;i<staticAsymmetricMHAs.size();i++){
@@ -274,13 +273,13 @@ AdaptiveMHA::handleSampleEvent(Tick time){
             }
         }
     }
-    
+
     // sanity check
     assert(cpus.size() == dataCaches.size());
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         assert(cpus[i]->CPUParamsCpuID == dataCaches[i]->cacheCpuID);
     }
-    
+
     // gather information
     double dataBusUtil = bus->getDataBusUtilisation(sampleFrequency);
     vector<int> dataUsers = bus->getDataUsePerCPUId();
@@ -288,13 +287,13 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     vector<double> avgQueueDelayPerUser = bus->getAverageQueuePerCPU();
     bus->resetAdaptiveStats();
     assert(dataUsers.size() == adaptiveMHAcpuCount);
-    
+
     int dataSum=0;
     for(int i=0;i<dataUsers.size();i++) dataSum += dataUsers[i];
     if((double) ((double) dataSum / (double) sampleFrequency) > dataBusUtil){
         dataSampleTooLarge++;
     }
-    
+
     vector<double> IPCs(adaptiveMHAcpuCount, 0);
     assert(IPCs.size() == cpus.size());
     assert(cpus.size() == adaptiveMHAcpuCount);
@@ -302,7 +301,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         IPCs[i] = cpus[i]->getCommittedInstructionSample(sampleFrequency);
         cpus[i]->resetCommittedInstructionSample();
     }
-    
+
     // analyse data according to selected scheme
     if(!onlyTraceBus){
         if(useFairAMHA && !wasFirst) doFairAMHA();
@@ -314,14 +313,14 @@ AdaptiveMHA::handleSampleEvent(Tick time){
                 doThroughputAMHA(dataBusUtil, dataUsers, avgQueueDelayPerUser);
             }
         }
-        
+
         if(wasFirst){
             ofstream fairfile("fairAlgTrace.txt");
             fairfile << "";
             fairfile.flush();
             fairfile.close();
         }
-        
+
         // write Adaptive MHA trace file
         ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
         mhafile << time;
@@ -333,8 +332,8 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         mhafile.flush();
         mhafile.close();
     }
-    
-    
+
+
     //write bus use trace
     ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
     memTraceFile << time;
@@ -343,10 +342,10 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     memTraceFile << ";" << avgQueueDelay;
     for(int i=0;i<avgQueueDelayPerUser.size();i++) memTraceFile << ";" << avgQueueDelayPerUser[i];
     memTraceFile << "\n";
-    
+
     memTraceFile.flush();
     memTraceFile.close();
-    
+
     // write IPC trace
     ipcTraceFileName = "ipcTrace.txt";
     ofstream ipcfile(ipcTraceFileName.c_str(), ofstream::app);
@@ -356,7 +355,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     ipcfile.flush();
     ipcfile.close();
 
-        
+
     assert(!sampleEvent->scheduled());
     sampleEvent->schedule(time + sampleFrequency);
 }
@@ -364,7 +363,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
 
 void
 AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, vector<double> avgQueueLatencies){
-    
+
     double desicionValue = dataBusUtil;
 
     if(useAvgLat){
@@ -374,7 +373,7 @@ AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, ve
         }
         desicionValue = tmpMax;
     }
-    
+
     bool decreaseCalled = false;
     if(desicionValue >= highThreshold){
         throughputDecreaseNumMSHRs(dataUsers);
@@ -383,24 +382,24 @@ AdaptiveMHA::doThroughputAMHA(double dataBusUtil, std::vector<int> dataUsers, ve
     if(desicionValue <= lowThreshold){
         throughputIncreaseNumMSHRs();
     }
-        
+
     if(!decreaseCalled){
         numRepeatDecisions = 0;
         currentCandidate = -1;
     }
 }
 
-void 
+void
 AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQueueLatencies, vector<double> curIPCs, double dataBusUtil){
-    
-    
+
+
     //NOTE: repeats are used to store the number of events between full resets
     //NOTE: high thres is the average latency that determines the border between inc and dec of MSHRs in phase two
     //NOTE: low thres gives the speedup needed to accept a change
 //     assert(highThreshold > 0.0);
 
     assert(neededRepeatDecisions > 2);
-    
+
 //     double maxlat = 0.0;
 //     double sum = 0.0;
 //     for(int i=0;i<avgQueueLatencies.size();i++){
@@ -413,24 +412,24 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
 
     ofstream amhatrace("amhaTrace.txt", ofstream::app);
     amhatrace << "\nAMHA Running at tick " << curTick << "\n";
-    
+
     if(twoPhaseResetCount == neededRepeatDecisions){
-      
+
         amhatrace << "Reset count is " << twoPhaseResetCount << ", resetting AMHA\n";
         inPhaseOne = true;
         useAMHAInSession = true;
         for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
         twoPhaseResetCount = 0;
         firstPhaseStep = 0;
-        
-        
+
+
         // restore all caches to their original configs
         for(int i=0;i<dataCaches.size();i++){
             while(dataCaches[i]->getCurrentMSHRCount(true) < maxMshrs){
                 changeNumMSHRs(i, true, false);
             }
         }
-        
+
         // make first phase one desicion
         // int decrID = findMaxNotBlacklisted(dataUsers);
 //         assert(decrID != -1);
@@ -441,7 +440,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
     else{
       if(useAMHAInSession){
         if(inPhaseOne){
-            
+
             if(twoPhaseResetCount == 1){
                 if(dataBusUtil < tpUtilizationLimit){
                     amhatrace << "Data bus utilization is " << dataBusUtil << ", limit " << tpUtilizationLimit << ", disabling AMHA\n";
@@ -457,27 +456,27 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
 
             // NOTE: might want to use rollback checks in the first phase
 //             if(twoPhaseResetCount > 1){
-//                 
+//
 //                 assert(lastWasDecrease);
 //                 assert(lastDesicionID != -1);
-//                 
+//
 //                 if(!acceptSpeedup(curIPCs)){
 //                     //rollback and blacklist
 //                     tfamhaBlacklist[lastDesicionID] = true;
 //                     changeNumMSHRs(lastDesicionID, true, true);
 //                 }
 //             }
-            
+
 //             int decrID = findMaxNotBlacklisted(dataUsers);
 //             if(decrID == -1){
-            
+
             // start from full MSHR count for simplicity
             for(int i=0;i<dataCaches.size();i++){
                 while(dataCaches[i]->getCurrentMSHRCount(true) < maxMshrs){
                     changeNumMSHRs(i, true, false);
                 }
             }
-            
+
             amhatrace << "Current IPC measurements: ";
             // store IPC
             for(int i=0;i<curIPCs.size();i++){
@@ -485,7 +484,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                 amhatrace << curIPCs[i] << " ";
             }
             amhatrace << "\n";
-                
+
             // compute weighted speedup relative to 16 MSHR config
             double sum = 0.0;
             for(int i=0;i<curIPCs.size();i++){
@@ -493,11 +492,11 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
             }
             throughputMeasurements[firstPhaseStep] = sum;
             amhatrace << "Estimated throughput in phase "<< firstPhaseStep << ": " << sum << "\n";
-            
+
             if(firstPhaseStep == stepMapping.size()-1){
-                
+
                 // first phase finished
-                
+
                 // find best symmetric MHA
                 double max = throughputMeasurements[0] + lowThreshold;
                 int maxid = 0;
@@ -508,7 +507,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                     }
                 }
                 amhatrace << "First phase finished, best phase was" << maxid << "\n";
-                
+
                 amhatrace << "Speedups vs 16 MHA:";
                 vector<double> speedups(adaptiveMHAcpuCount, false);
                 for(int i=0;i<speedups.size();i++){
@@ -516,7 +515,7 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                     amhatrace << speedups[i] << " ";
                 }
                 amhatrace << "\n";
-                
+
                 vector<bool> marked(adaptiveMHAcpuCount, false);
                 for(int i=0;i<performanceOrdering.size();i++){
                     double tmpmax = 0.0;
@@ -530,11 +529,11 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                         }
                     }
                     assert(tmpmaxid != -1);
-                    
+
                     marked[tmpmaxid] = true;
                     performanceOrdering[i] = tmpmaxid;
                 }
-                
+
                 // implement best scheme
                 int decreaseOps = stepMapping[maxid];
                 for(int i=0;i<dataCaches.size();i++){
@@ -542,13 +541,13 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                         changeNumMSHRs(i, false, true);
                     }
                 }
-                
+
                 // enter phase two
                 inPhaseOne = false;
                 firstPhaseTwo = true;
                 lastDesicionID = 0;
                 for(int i=0;i<tfamhaBlacklist.size();i++) tfamhaBlacklist[i] = false;
-//                 
+//
 //                 bool inc = false;
 //                 int desID = -1;
 //                 getPhaseTwoAction(avgQueueLatencies, &desID, &inc, dataBusUtil);
@@ -560,10 +559,10 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
 //                 else{
 //                     lastDesicionID = -1;
 //                 }
-                
+
             }
             else{
-                
+
                 // create new symmetric MHA for next phase
                 int decreaseOps = stepMapping[firstPhaseStep+1];
                 for(int i=0;i<dataCaches.size();i++){
@@ -571,21 +570,21 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                         changeNumMSHRs(i, false, true);
                     }
                 }
-                
+
             }
             firstPhaseStep++;
-            
+
 //             else{
 //                 changeNumMSHRs(decrID, false, true);
 //                 lastDesicionID = decrID;
 //                 lastWasDecrease = true;
 //             }
-            
-            
+
+
         }
         else{
-            
-            if(lastDesicionID != -1){ 
+
+            if(lastDesicionID != -1){
 
                 if(firstPhaseTwo){
                     firstPhaseTwo = false;
@@ -599,13 +598,13 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
                         changeNumMSHRs(lastDesicionID, lastWasDecrease, true); // attempt a more aggressive p2
                     }
                 }
-                
+
                 bool inc = false;
                 int desID = -1;
                 getPhaseTwoAction(avgQueueLatencies, &desID, &inc, dataBusUtil);
-                
+
                 amhatrace << "Phase two decision: " << (inc ? "increase" : "decrease") << " " << desID << "\n";
-                
+
                 if(desID != -1){
 //                     changeNumMSHRs(desID, inc, false);
                     changeNumMSHRs(desID, inc, true); // attempt a more aggressive p2
@@ -625,25 +624,25 @@ AdaptiveMHA::doTwoPhaseThroughputAMHA(vector<int> dataUsers, vector<double> avgQ
     // update storage
     twoPhaseResetCount++;
     for(int i=0;i<curIPCs.size();i++) lastIPCs[i] = curIPCs[i];
-    
+
     amhatrace.flush();
     amhatrace.close();
 }
 
 bool
 AdaptiveMHA::acceptSpeedup(vector<double> curIPCs, std::ofstream &amhatrace){
-    
+
     assert(lastDesicionID != -1);
-    
+
     //NOTE: low thresold denotes the sum of speedups needed for a change to be accepted
     assert(lowThreshold > 0.0);
-    
+
     double diff = 0.0;
-    
+
     if(lastWasDecrease){
-        
+
         amhatrace << "Last was decrease, speedups: ";
-        
+
         double sum = 0.0;
         for(int i=0;i<curIPCs.size();i++){
             if(i != lastDesicionID){
@@ -652,18 +651,18 @@ AdaptiveMHA::acceptSpeedup(vector<double> curIPCs, std::ofstream &amhatrace){
                 if(speedup > 0.0) sum += speedup;
             }
         }
-        
+
         double degr = (curIPCs[lastDesicionID] / lastIPCs[lastDesicionID]) - 1;
         amhatrace << "\nDegradation: " << degr << "\n";
         if(degr > 0.0) degr = 0.0;
         assert(degr <= 0.0);
         diff = sum + degr;
-        
+
     }
     else{
-        
+
         amhatrace << "Last was increase, degradations: ";
-        
+
         double dsum = 0.0;
         for(int i=0;i<curIPCs.size();i++){
             if(i != lastDesicionID){
@@ -672,20 +671,20 @@ AdaptiveMHA::acceptSpeedup(vector<double> curIPCs, std::ofstream &amhatrace){
                 if(speedup < 0.0) dsum += speedup;
             }
         }
-        
+
         if(dsum > 0.0) dsum = 0.0;
         double speedup = (curIPCs[lastDesicionID] / lastIPCs[lastDesicionID]) - 1;
         amhatrace << "\nSpeedup is " << speedup << "\n";
         diff = speedup + dsum;
     }
-    
+
     amhatrace << "Difference is " << diff << ", low thres " << lowThreshold << ", returning "<< (diff > lowThreshold ? "true" : "false") << "\n";
     return diff > lowThreshold;
 }
 
-int 
+int
 AdaptiveMHA::findMaxNotBlacklisted(std::vector<int> dataUsers){
-    
+
     for(int i=0;i<dataUsers.size();i++){
         if(!tfamhaBlacklist[i] && dataCaches[i]->getCurrentMSHRCount(true) > 1){
             return i;
@@ -694,7 +693,7 @@ AdaptiveMHA::findMaxNotBlacklisted(std::vector<int> dataUsers){
     return -1;
 }
 
-void 
+void
 AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* increase, double dataBusUtil){
 
     if(dataBusUtil < tpUtilizationLimit){
@@ -705,13 +704,13 @@ AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* 
         // high latency, attempt decrease
         *increase = false;
     }
-    
+
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         int searchID = performanceOrdering[i];
         if(!tfamhaBlacklist[searchID]){
             if(dataCaches[searchID]->getCurrentMSHRCount(true) == 1 && !*increase) continue;
-            if(dataCaches[searchID]->getCurrentMSHRCount(true) == maxMshrs && *increase) continue; 
-            
+            if(dataCaches[searchID]->getCurrentMSHRCount(true) == maxMshrs && *increase) continue;
+
             *id = searchID;
             return;
         }
@@ -719,11 +718,11 @@ AdaptiveMHA::getPhaseTwoAction(std::vector<double> avgLatencies, int* id, bool* 
     *id = -1;
 }
 
-void 
+void
 AdaptiveMHA::changeNumMSHRs(int id, bool increment, bool exponential){
-    
+
     if(increment){
-        
+
         assert(dataCaches[id]->getCurrentMSHRCount(true) < maxMshrs);
         if(exponential){
             dataCaches[id]->incrementNumMSHRs(true);
@@ -731,7 +730,7 @@ AdaptiveMHA::changeNumMSHRs(int id, bool increment, bool exponential){
         else{
             dataCaches[id]->incrementNumMSHRsByOne(true);
         }
-        
+
         // Unblock the cache if it is blocked due to too few MSHRs
         if(dataCaches[id]->isBlockedNoMSHRs()){
             assert(dataCaches[id]->isBlocked());
@@ -752,7 +751,7 @@ AdaptiveMHA::changeNumMSHRs(int id, bool increment, bool exponential){
 
 void
 AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
-    
+
     int index = -1;
     int largest = 0;
     for(int i=0;i<currentVector.size();i++){
@@ -761,17 +760,17 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
             index = i;
         }
     }
-    
+
     if(index == -1){
         // we have reduced all bus users to blocking cache configurations
         // the others do not use the bus, return
         return;
     }
-    
+
     assert(index > -1);
 
     if(index == currentCandidate){
-        
+
         numRepeatDecisions++;
         if(numRepeatDecisions >= neededRepeatDecisions){
             dataCaches[index]->decrementNumMSHRs(true);
@@ -782,7 +781,7 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
 
         currentCandidate = index;
         numRepeatDecisions = 1;
-        
+
         if(neededRepeatDecisions == 1){
             dataCaches[index]->decrementNumMSHRs(true);
             numRepeatDecisions = 0;
@@ -794,27 +793,27 @@ AdaptiveMHA::throughputDecreaseNumMSHRs(vector<int> currentVector){
 
 void
 AdaptiveMHA::throughputIncreaseNumMSHRs(){
-    
+
     int smallest = 100;
     int index = -1;
-    
+
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         if(dataCaches[i]->getCurrentMSHRCount(true) < smallest){
             smallest = dataCaches[i]->getCurrentMSHRCount(true);
             index = i;
         }
     }
-    
+
     assert(index > -1);
     if(smallest == maxMshrs) return;
-    
+
     // reset the decrease stats
     currentCandidate = -1;
     numRepeatDecisions = 0;
-    
+
     // no filtering here, we should increase quickly
     dataCaches[index]->incrementNumMSHRs(true);
-    
+
     // Unblock the cache if it is blocked due to too few MSHRs
     if(dataCaches[index]->isBlockedNoMSHRs()){
         assert(dataCaches[index]->isBlocked());
@@ -824,36 +823,36 @@ AdaptiveMHA::throughputIncreaseNumMSHRs(){
 
 void
 AdaptiveMHA::handleInterferenceDumpEvent(){
-    
+
     ofstream interferenceFile("interferenceStats.txt");
-    
+
     interferenceFile << "\nInterference statistics dump at tick " << curTick << "\n\n";
-    
+
     // Retrieve and print interference
     vector<vector<int> > icStats = interconnect->retrieveInterferenceStats();
     printMatrix(icStats, interferenceFile, "Interconnect Interference Events");
-    
+
     for(int i=0;i<sharedCaches.size();i++){
         stringstream header;
         header << "Cache Bandwidth Interference Events for cache " << sharedCaches[i]->name();
         vector<vector<int> > cacheBWStats = sharedCaches[i]->retrieveBWInterferenceStats();
         printMatrix(cacheBWStats, interferenceFile, header.str());
-        
+
         stringstream header2;
         header2 << "Cache Capacity Interference Events for cache " << sharedCaches[i]->name();
         vector<vector<int> > cacheCapacityStats = sharedCaches[i]->retrieveCapacityInterferenceStats();
         printMatrix(cacheCapacityStats, interferenceFile, header2.str());
     }
-    
+
     vector<vector<int> > busStats = bus->retrieveBusInterferenceStats();
     printMatrix(busStats, interferenceFile, "Interference due to serialization on memory bus");
-    
+
     vector<vector<int> > busConflictStats = bus->retrieveConflictInterferenceStats();
     printMatrix(busConflictStats, interferenceFile, "Interference from page conflicts");
-    
+
     vector<vector<int> > busHitToMissStats = bus->retrieveHitToMissInterferenceStats();
     printMatrix(busHitToMissStats, interferenceFile, "Interference from page hits becoming page misses");
-    
+
     interferenceFile.flush();
     interferenceFile.close();
 }
@@ -901,7 +900,7 @@ END_INIT_SIM_OBJECT_PARAMS(AdaptiveMHA)
 
 CREATE_SIM_OBJECT(AdaptiveMHA)
 {
-    
+
     return new AdaptiveMHA(getInstanceName(),
                            lowThreshold,
                            highThreshold,

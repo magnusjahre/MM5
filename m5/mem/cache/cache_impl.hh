@@ -572,10 +572,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
 	}
 
-	if(!isShared && adaptiveMHA != NULL){
-		adaptiveMHA->addRequestLatency(curTick - req->time, cacheCpuID);
-	}
-
 	MemReqPtr copy_request;
 	BlkType *blk = NULL;
 
