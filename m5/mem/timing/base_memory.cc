@@ -219,7 +219,7 @@ BaseMemory::regStats()
     pageConflictLatencyDistribution.subname(1, "_write");
 
     pageMissLatencyDistribution
-        .init(DRAM_CMD_CNT, 40, 120, 5)
+        .init(DRAM_CMD_CNT, 40, 130, 5)
         .name(name() + ".miss_distribution")
         .desc("Miss latency distribution")
         .flags(total | pdf | cdf)

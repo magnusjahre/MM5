@@ -43,7 +43,7 @@
     /* DDR2 states */
 
 enum DDR2State {
-        DDR2Idle,   
+        DDR2Idle,
         DDR2Active,
         DDR2Written,
         DDR2Read
@@ -81,11 +81,13 @@ class SimpleMemBank : public BaseMemory
     std::vector<Tick> lastCmdFinish;
     std::vector<Tick> closeTime;
     std::vector<Addr> openpage;
-    
+
     std::vector<bool> bankInConflict;
-    
+
     RequestTrace pageTrace;
-    
+
+    bool updateLatencyDistribution(bool isHit, int latency, int bank, MemReqPtr& req);
+
   protected:
     /** The compression algorithm. */
     Compression compress;
@@ -107,8 +109,8 @@ class SimpleMemBank : public BaseMemory
      * @param req The request to perform.
      * @return MA_HIT
      */
-    MemAccessResult access(MemReqPtr &req);    
-    
+    MemAccessResult access(MemReqPtr &req);
+
     /**
      * Probe the memory for the request.
      * @param req The request to probe.
@@ -122,27 +124,27 @@ class SimpleMemBank : public BaseMemory
     bool isActive(MemReqPtr &req);
     bool bankIsClosed(MemReqPtr &req);
     bool isReady(MemReqPtr &req);
-    
+
     int getMemoryBankID(Addr addr){
         return (addr >> pagesize) % num_banks;
     }
-    
+
     int getMemoryBankCount(){
         return num_banks;
     }
-    
+
     int getPageSize(){
         return pagesize;
     }
-    
+
     Tick getDataTransTime(){
         return data_time; //converted to CPU cycles in the constructor
     }
-    
+
     Tick getBankActivatedAt(int bankID){
         return activateTime[bankID];
     }
-    
+
 };
 
 #endif

@@ -297,81 +297,19 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
     }
 
-#ifdef DO_HIT_TRACE
-    bool isConfict = false;
-#endif
-
     assert(req->adaptiveMHASenderID != -1);
     perCPURequests[req->adaptiveMHASenderID]++;
 
     assert(req->cmd == Writeback || req->cmd == Read);
     if (curTick < readyTime[bank]) {
-        // Wait until activation completes;
+    	assert(!isHit);
+
+    	// Wait until activation completes;
         latency += readyTime[bank] - curTick;
         number_of_non_overlap_activate++;
-
-        assert(!isHit);
-        if(bankInConflict[bank]){
-
-#ifdef DO_HIT_TRACE
-            isConfict = true;
-#endif
-
-            req->dramResult = DRAM_RESULT_CONFLICT;
-
-            perCPUPageConflicts[req->adaptiveMHASenderID]++;
-
-            pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
-            pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
-            pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
-        }
-        else{
-
-            req->dramResult = DRAM_RESULT_MISS;
-
-            perCPUPageMisses[req->adaptiveMHASenderID]++;
-
-            pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
-            pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
-            pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
-        }
     }
-    else{
-        if(bankInConflict[bank]){
-            assert(!isHit);
 
-#ifdef DO_HIT_TRACE
-            isConfict = true;
-#endif
-
-            req->dramResult = DRAM_RESULT_CONFLICT;
-
-            perCPUPageConflicts[req->adaptiveMHASenderID]++;
-
-            pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
-            pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
-            pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
-        }
-        else if(isHit){
-
-            req->dramResult = DRAM_RESULT_HIT;
-
-            perCPUPageHits[req->adaptiveMHASenderID]++;
-
-            pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
-            pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
-        }
-        else{
-
-            req->dramResult = DRAM_RESULT_MISS;
-
-            perCPUPageMisses[req->adaptiveMHASenderID]++;
-
-            pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
-            pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
-            pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
-        }
-    }
+    bool isConfict = updateLatencyDistribution(isHit, latency, bank, req);
     bankInConflict[bank] = false;
 
 #ifdef DO_HIT_TRACE
@@ -419,6 +357,47 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
     return latency;
 }
 
+template <class Compression>
+bool
+SimpleMemBank<Compression>::updateLatencyDistribution(bool isHit, int latency, int bank, MemReqPtr& req){
+
+	bool isConflict = false;
+
+    if(bankInConflict[bank]){
+        assert(!isHit);
+
+        isConflict = true;
+
+        req->dramResult = DRAM_RESULT_CONFLICT;
+
+        perCPUPageConflicts[req->adaptiveMHASenderID]++;
+
+        pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+        pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+        pageConflictLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+    }
+    else if(isHit){
+
+        req->dramResult = DRAM_RESULT_HIT;
+
+        perCPUPageHits[req->adaptiveMHASenderID]++;
+
+        pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+        pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+    }
+    else{
+
+        req->dramResult = DRAM_RESULT_MISS;
+
+        perCPUPageMisses[req->adaptiveMHASenderID]++;
+
+        pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
+        pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
+        pageMissLatencyDistribution[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)].sample(latency);
+    }
+
+    return isConflict;
+}
 
 /* Handle memory bank access latencies */
 template <class Compression>
