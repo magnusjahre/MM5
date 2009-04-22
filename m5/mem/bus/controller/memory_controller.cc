@@ -29,10 +29,34 @@ TimingMemoryController::TimingMemoryController(std::string _name)
 	controllerInterference = NULL;
 
 	max_active_pages = 4;
+	memCtrCPUCount = -1;
 }
 
 /** Frees locally allocated memory. */
 TimingMemoryController::~TimingMemoryController(){
+}
+
+void
+TimingMemoryController::regStats(){
+
+	assert(memCtrCPUCount != -1);
+
+	sumQueueLength
+		.init(memCtrCPUCount)
+		.name(name() + ".sum_queue_lengths")
+		.desc("sum of the estimated number of reqs a had to wait for");
+
+	numRequests
+		.init(memCtrCPUCount)
+		.name(name() + ".number_of_requests")
+		.desc("number of requests ");
+
+	avgQueueLength
+		.name(name() + ".avg_queue_length")
+		.desc("average number of requests a request has to wait for");
+
+	avgQueueLength = sumQueueLength / numRequests;
+
 }
 
 void

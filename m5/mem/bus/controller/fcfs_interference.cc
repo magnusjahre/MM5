@@ -36,8 +36,53 @@ FCFSControllerInterference::insertRequest(MemReqPtr& req){
     }
     else if(req->privateResultEstimate == DRAM_RESULT_CONFLICT){
     	estimatedNumberOfConflicts[fromCPU]++;
-        if(req->cmd == Read) privateLatencyEstimate = 218;
-        else privateLatencyEstimate = 186;
+
+    	bool previousIsWrite = false;
+    	if(!privateRequestQueues[fromCPU].empty()){
+    		if(privateRequestQueues[fromCPU].back()->cmd == Writeback){
+    			previousIsWrite = true;
+    		}
+    	}
+
+    	int thisBank = memoryController->getMemoryBankID(req->paddr);
+
+    	bool previousIsForSameBank = false;
+    	if(!privateRequestQueues[fromCPU].empty()){
+    		int previousBank = memoryController->getMemoryBankID(privateRequestQueues[fromCPU].back()->paddr);
+
+    		if(thisBank == previousBank){
+    			previousIsForSameBank = true;
+    		}
+    	}
+
+        if(req->cmd == Read){
+        	if(previousIsWrite){
+        		privateLatencyEstimate = 260;
+        	}
+        	else{
+        		if(previousIsForSameBank){
+        			privateLatencyEstimate = 200;
+        		}
+        		else{
+        			privateLatencyEstimate = 170;
+        		}
+        	}
+        }
+        else{
+        	if(previousIsWrite){
+        		privateLatencyEstimate = 250;
+        	}
+        	else{
+        		if(previousIsForSameBank){
+        			privateLatencyEstimate = 190;
+        		}
+        		else{
+        			privateLatencyEstimate = 160;
+        		}
+        	}
+        }
+
+        sumConflictLatEstimate[fromCPU] += privateLatencyEstimate;
     }
     else{
     	assert(req->privateResultEstimate == DRAM_RESULT_MISS);
@@ -46,6 +91,8 @@ FCFSControllerInterference::insertRequest(MemReqPtr& req){
         else privateLatencyEstimate = 110;
     }
 
+    numRequests[fromCPU]++;
+    sumPrivateQueueLenghts[fromCPU] += privateRequestQueues[fromCPU].size();
     for(int i=0;i<privateRequestQueues[fromCPU].size();i++){
     	privateQueueEstimate += privateRequestQueues[fromCPU][i]->busAloneServiceEstimate;
     }

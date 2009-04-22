@@ -40,6 +40,14 @@ protected:
 	Stats::Vector<> estimatedNumberOfHits;
 	Stats::Vector<> estimatedNumberOfConflicts;
 
+	Stats::Vector<> sumConflictLatEstimate;
+	Stats::Formula avgConflictLatEstimate;
+
+	Stats::Vector<> sumPrivateQueueLenghts;
+	Stats::Vector<> numRequests;
+	Stats::Formula avgQueueLengthEstimate;
+
+
 	TimingMemoryController* memoryController;
 	int contIntCpuCount;
 

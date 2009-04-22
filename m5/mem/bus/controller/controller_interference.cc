@@ -33,6 +33,33 @@ ControllerInterference::regStats(){
 		.init(contIntCpuCount)
 		.name(name() + ".estimated_private_conflicts_per_cpu")
 		.desc("estimated number of private conflicts per cpu");
+
+	sumConflictLatEstimate
+		.init(contIntCpuCount)
+		.name(name() + ".sum_conflict_latency_estimate")
+		.desc("sum of conflict latency estimates per CPU");
+
+	avgConflictLatEstimate
+		.name(name() + ".avg_conflict_latency_estimate")
+		.desc("average conflict latency estimates per CPU");
+
+	avgConflictLatEstimate = sumConflictLatEstimate / estimatedNumberOfConflicts;
+
+	sumPrivateQueueLenghts
+		.init(contIntCpuCount)
+		.name(name() + ".sum_private_queue_lengths")
+		.desc("sum of the estimated number of reqs a had to wait for");
+
+	numRequests
+		.init(contIntCpuCount)
+		.name(name() + ".number_of_reqs_in_estimations")
+		.desc("number of requests in the estimations");
+
+	avgQueueLengthEstimate
+		.name(name() + ".avg_estimated_queue_length")
+		.desc("average number of requests a request has to wait for");
+
+	avgQueueLengthEstimate = sumPrivateQueueLenghts / numRequests;
 }
 
 void

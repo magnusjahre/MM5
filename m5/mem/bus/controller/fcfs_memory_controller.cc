@@ -30,6 +30,9 @@ int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 		activatedAt.resize(getMemoryInterface()->getMemoryBankCount(), 0);
 	}
 
+	numRequests[req->adaptiveMHASenderID]++;
+	sumQueueLength[req->adaptiveMHASenderID] += memoryRequestQueue.size();
+
     req->inserted_into_memory_controller = curTick;
     memoryRequestQueue.push_back(req);
 

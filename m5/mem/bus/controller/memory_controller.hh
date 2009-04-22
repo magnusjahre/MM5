@@ -52,6 +52,10 @@ class TimingMemoryController : public SimObject
 
     Stats::Scalar<> sentRequests;
 
+    Stats::Vector<> sumQueueLength;
+    Stats::Vector<> numRequests;
+    Stats::Formula avgQueueLength;
+
   public:
     // constructor
     /** Constructs a Memory Controller object. */
@@ -59,6 +63,8 @@ class TimingMemoryController : public SimObject
 
     /** Frees locally allocated memory. */
     virtual ~TimingMemoryController();
+
+    void regStats();
 
     void registerBus(Bus* _bus, int cpuCount);
 
