@@ -151,7 +151,9 @@ writeFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 
     int bytes_written = write(fd, bufArg.bufferPtr(), nbytes);
 
-    fsync(fd);
+    // Magnus: commented out this call as it breaks the simulator with Sixtrack
+    // I'm not able to see why it should be necessary to empty all buffers on every write
+//    fsync(fd);
 
     return bytes_written;
 }
