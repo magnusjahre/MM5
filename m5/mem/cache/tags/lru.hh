@@ -74,7 +74,7 @@ class CacheSet
      * @return Pointer to the block if found.
      */
     LRUBlk* findBlk(int asid, Addr tag) const;
-    
+
     LRUBlk* findBlk(int asid, Addr tag, int* hitIndex);
 
     /**
@@ -103,9 +103,9 @@ class LRU : public BaseTags
     const int assoc;
     /** The hit latency. */
     const int hitLatency;
-    
+
     const int numBanks;
-    
+
     const bool isShadow;
 
     /** The cache sets. */
@@ -124,16 +124,16 @@ class LRU : public BaseTags
     unsigned setMask;
     /** Mask out all bits that aren't part of the block offset. */
     unsigned blkMask;
-    
+
     int bankShift;
-    
+
     std::vector<std::vector<int> > perSetHitCounters;
     int accesses;
     std::vector<int> currentMTPPartition;
     bool useMTPPartitioning;
-    
+
     std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
-    
+
     int divFactor;
 
 public:
@@ -169,11 +169,11 @@ public:
     {
 	return blkSize;
     }
-    
+
     int getNumSets(){
         return numSets;
     }
-    
+
     int getAssoc(){
         return assoc;
     }
@@ -330,7 +330,7 @@ public:
 	assert(size <= blkSize);
 	blk->size = size;
     }
-    
+
     /**
      * Perform a block aligned copy from the source address to the destination.
      * @param source The block-aligned source address.
@@ -351,25 +351,25 @@ public:
      * Called at end of simulation to complete average block reference stats.
      */
     virtual void cleanupRefs();
-    
+
     virtual std::vector<int> perCoreOccupancy();
-    
+
     virtual void handleSwitchEvent();
-    
+
     void resetHitCounters();
-    
+
     void dumpHitCounters();
-    
+
     std::vector<double> getMissRates();
-    
+
     double getTouchedRatio();
-    
+
     virtual void setMTPPartition(std::vector<int> setQuotas);
-    
+
     virtual void updateSetHitStats(MemReqPtr& req);
-    
+
     virtual void dumpHitStats();
-    
+
     virtual void initializeCounters(int cpuCount);
 };
 

@@ -99,6 +99,10 @@ def initSharedCache(bankcnt):
             bank.use_mtp_partitioning = True
             bank.use_static_partitioning = True
             bank.static_part_start_tick = uniformPartStart
+            
+    if "WRITEBACK-OWNER-POLICY" in env:
+        for bank in root.SharedCache:
+            bank.writeback_owner_policy = env["WRITEBACK-OWNER-POLICY"]
    
 def setUpSharedCache(bankcnt, detailedStartTick):
     

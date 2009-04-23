@@ -163,6 +163,15 @@ class BaseCache : public BaseMem {
 
   public:
 
+	enum WritebackOwnerPolicy{
+		WB_POLICY_UNKNOWN,
+		WB_POLICY_OWNER,
+		WB_POLICY_REPLACER,
+		NUM_WB_POLICIES
+	};
+
+	WritebackOwnerPolicy writebackOwnerPolicy;
+
     /** Bank addressing scheme */
     bool doModuloAddressing;
     int bankID;

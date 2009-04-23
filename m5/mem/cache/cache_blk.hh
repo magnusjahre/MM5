@@ -79,11 +79,11 @@ class CacheBlk
     int asid;
     /** Data block tag value. */
     Addr tag;
-    /** 
+    /**
      * Contains a copy of the data in this block for easy access. This is used
      * for efficient execution when the data could be actually stored in
-     * another format (COW, compressed, sub-blocked, etc). In all cases the 
-     * data stored here should be kept consistant with the actual data 
+     * another format (COW, compressed, sub-blocked, etc). In all cases the
+     * data stored here should be kept consistant with the actual data
      * referenced by this block.
      */
     uint8_t *data;
@@ -95,22 +95,23 @@ class CacheBlk
 
     /** The current status of this block. @sa CacheBlockStatusBits */
     State status;
-    
+
     /** Directory protocol state */
     DirectoryState dirState;
     int owner;
     bool* presentFlags;
-    
+
     /** Shared cache owner info */
     int origRequestingCpuID;
+    int prevOrigRequestingCpuID;
 
     /** Which curTick will this block be accessable */
     Tick whenReady;
 
     /** Save the exec context so that writebacks can use them. */
     ExecContext *xc;
-    
-    /** 
+
+    /**
      * The set this block belongs to.
      * @todo Move this into subclasses when we fix CacheTags to use them.
      */
@@ -121,11 +122,11 @@ class CacheBlk
 
     CacheBlk()
 	: asid(-1), tag(0), data(0) ,size(0), status(0),
-          dirState(DirNoState), owner(-1), presentFlags(NULL), origRequestingCpuID(-1),
-          whenReady(0), xc(0), 
+          dirState(DirNoState), owner(-1), presentFlags(NULL), origRequestingCpuID(-1),prevOrigRequestingCpuID(-1),
+          whenReady(0), xc(0),
 	  set(-1), refCount(0)
     {}
-    
+
     ~CacheBlk(){
         if(presentFlags != NULL){
             delete presentFlags;
@@ -210,15 +211,15 @@ class CacheBlk
     bool isOwnedExclusiveGR(){
         return (dirState == DirOwnedExGR);
     }
-    
+
     bool isDirInvalid(){
         return (dirState == DirInvalid);
     }
-    
+
     bool isOwnedNonExclusiveGR(){
         return (dirState == DirOwnedNonExGR);
     }
-    
+
     void initPresentFlags(int cpu_count){
         presentFlags = new bool[cpu_count];
         for(int i=0;i<cpu_count;i++){

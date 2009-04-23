@@ -5,6 +5,8 @@ class Prefetch(Enum): vals = ['none', 'tagged', 'stride', 'ghb']
 
 class DirectoryProtocol(Enum): vals = ['none', 'stenstrom']
 
+class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer']
+
 class BaseCache(BaseMem):
     type = 'BaseCache'
     adaptive_compression = Param.Bool(False,
@@ -104,3 +106,5 @@ class BaseCache(BaseMem):
     
     adaptive_mha = Param.AdaptiveMHA("Adaptive MHA Object")
     interference_manager = Param.InterferenceManager("Interference Manager Object")
+    
+    writeback_owner_policy = Param.WritebackOwnerPolicy("The policy used for providing sender IDs to shared cache writebacks")

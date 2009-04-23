@@ -195,6 +195,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     SimObjectParam<InterferenceManager *> interference_manager;
 
+    Param<string> writeback_owner_policy;
+
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
 
@@ -292,7 +294,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(prefetch_data_accesses_only, "Only prefetch on data not on instruction accesses", false),
 
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL),
-    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
+    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
+    INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner")
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -348,7 +351,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick, memory_address_offset, memory_address_parts, interference_manager); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, detailed_sim_end_tick, memory_address_offset, memory_address_parts, interference_manager, wbpolicy); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
@@ -521,6 +524,21 @@ CREATE_SIM_OBJECT(BaseCache)
         if(dir_protocol_name != "stenstrom"){
             fatal("Unknown directory protocol");
         }
+    }
+
+    BaseCache::WritebackOwnerPolicy wbpolicy;
+    string wb_policy_name = writeback_owner_policy;
+    if(wb_policy_name == "unknown"){
+    	wbpolicy = BaseCache::WB_POLICY_UNKNOWN;
+    }
+    else if(wb_policy_name == "owner"){
+    	wbpolicy = BaseCache::WB_POLICY_OWNER;
+    }
+    else if(wb_policy_name == "replacer"){
+    	wbpolicy = BaseCache::WB_POLICY_REPLACER;
+    }
+    else{
+    	fatal("Unknown writeback policy provided to cache");
     }
 
     // Build BaseCache param object

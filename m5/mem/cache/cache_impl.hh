@@ -89,6 +89,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     bankCount = params.bankCount;
 
     interferenceManager = params.interferenceManager;
+    writebackOwnerPolicy = params.wbPolicy;
 
     // init shadowtags
 #ifdef USE_CACHE_LRU
@@ -589,7 +590,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 			CacheBlk::State old_state = (blk) ? blk->status : 0;
 
-
 			if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
 				blk = tags->handleFill(blk, req->mshr,
 						coherence->getNewState(req,old_state),
@@ -599,6 +599,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			else{
 				assert(req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead);
 			}
+
 
 			// check that we don't write to a block we don't own
 			if(blk != NULL){
@@ -628,9 +629,24 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 					// actions are handled in the check
 				}
 				else {
-					if(!isShared) setSenderID(writebacks.front());
+					if(!isShared){
+						setSenderID(writebacks.front());
+					}
+					else{
 
-					if(isShared){
+						switch(writebackOwnerPolicy){
+						case BaseCache::WB_POLICY_OWNER:
+							assert(blk->prevOrigRequestingCpuID != -1);
+							writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
+							break;
+						case BaseCache::WB_POLICY_REPLACER:
+							writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
+							break;
+						default:
+							writebacks.front()->adaptiveMHASenderID = -1;
+							break;
+						}
+
 						writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
 						writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
 						writebacks.front()->memCtrlWbGenBy = req->paddr;

@@ -589,12 +589,6 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
     if(!cache->isShared){
         cache->setSenderID(writeback);
     }
-    else{
-        assert(blk->origRequestingCpuID != -1);
-
-//         writeback->adaptiveMHASenderID = -1;
-        writeback->adaptiveMHASenderID = blk->origRequestingCpuID;
-    }
 
     blk->status &= ~BlkDirty;
     return writeback;
@@ -758,138 +752,139 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
 					   MemReqList &writebacks)
 {
 
-    if (blk == NULL) {
+	if (blk == NULL) {
 
-	// need to do a replacement
-	BlkList compress_list;
-	blk = ct->findReplacement(req, writebacks, compress_list);
+		// need to do a replacement
+		BlkList compress_list;
+		blk = ct->findReplacement(req, writebacks, compress_list);
 
-	while (adaptiveCompression && !compress_list.empty()) {
-	    updateData(compress_list.front(), writebacks, true);
-	    compress_list.pop_front();
+		while (adaptiveCompression && !compress_list.empty()) {
+			updateData(compress_list.front(), writebacks, true);
+			compress_list.pop_front();
+		}
+
+		if (blk->isValid()) {
+
+			if(cache->isDirectoryAndL1DataCache()){
+				// This is a L1 data cache
+
+				// All _data_ blocks must be owned
+				assert(blk->owner >= 0);
+
+				if(blk->dirState == DirOwnedExGR || blk->dirState == DirOwnedNonExGR){
+					int numCopies = 0;
+					for(int i=0;i<cache->cpuCount;i++){
+						if(blk->presentFlags[i] == true) numCopies++;
+					}
+
+					assert(numCopies > 0);
+
+					if(numCopies == 1){
+
+						assert(blk->dirState == DirOwnedExGR);
+
+						if(blk->isModified()){
+							writebacks.push_back(writebackBlk(blk));
+						}
+						else{
+
+							MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
+									blk->asid,
+									blk->xc,
+									blkSize,
+									(cache->doData()) ? blk->data : 0,
+											DirWriteback);
+							writebacks.push_back(wbBlk);
+						}
+
+					}
+					else{
+						MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
+								blk->asid,
+								blk->xc,
+								blkSize,
+								(cache->doData()) ? blk->data : 0,
+										DirOwnerWriteback);
+
+						bool* pfCopy = new bool[cache->cpuCount];
+						for(int i=0;i<cache->cpuCount;i++){
+							pfCopy[i] = blk->presentFlags[i];
+						}
+
+						wbBlk->presentFlags = pfCopy;
+						writebacks.push_back(wbBlk);
+					}
+				}
+				else{
+
+					assert(blk->presentFlags == NULL);
+					assert(!blk->isModified());
+
+					MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
+							blk->asid,
+							blk->xc,
+							blkSize,
+							(cache->doData()) ? blk->data : 0,
+									DirSharerWriteback);
+
+					writebacks.push_back(wbBlk);
+				}
+
+
+				// update cache block state info from request, set other values to initial values
+				blk->owner = req->owner;
+				blk->dirState = DirNoState;
+				if(blk->presentFlags != NULL){
+					delete blk->presentFlags;
+					blk->presentFlags = NULL;
+				}
+
+				// the block is written back so clear the dirty bit
+				blk->status &= ~BlkDirty;
+			}
+			else{
+
+				DPRINTF(Cache, "replacement %d replacing %x with %x: %s\n",
+						blk->asid,
+						(ct->regenerateBlkAddr(blk->tag,blk->set)
+								& (((ULL(1))<<48)-1)),req->paddr & (((ULL(1))<<48)-1),
+								(blk->isModified()) ? "writeback" : "clean");
+
+				if (blk->isModified()) {
+					writebacks.push_back(writebackBlk(blk));
+				}
+			}
+		}
+		else{
+			assert(blk->dirState != DirInvalid);
+			assert(blk->dirState != DirOwnedExGR);
+			assert(blk->dirState != DirOwnedNonExGR);
+		}
+
+		// set block values to the values of the new occupant
+		blk->tag = ct->extractTag(req->paddr, blk);
+		blk->asid = req->asid;
+		assert(req->xc || !cache->doData());
+		blk->xc = req->xc;
+
+		if(cache->isShared){
+			assert(req->adaptiveMHASenderID != -1);
+			blk->prevOrigRequestingCpuID = blk->origRequestingCpuID;
+			blk->origRequestingCpuID = req->adaptiveMHASenderID;
+		}
+
+	} else {
+
+		if(!cache->isDirectoryAndL1DataCache()){
+			// A cache might recieve the same cache line twice (read and write at the same time)
+			// we don't want this warning every time ;-)
+			if (blk->status == new_state) warn("Changing state to same value\n");
+		}
 	}
 
-	if (blk->isValid()) {
+	blk->status = new_state;
 
-            if(cache->isDirectoryAndL1DataCache()){
-                // This is a L1 data cache
-
-                // All _data_ blocks must be owned
-                assert(blk->owner >= 0);
-
-                if(blk->dirState == DirOwnedExGR || blk->dirState == DirOwnedNonExGR){
-                    int numCopies = 0;
-                    for(int i=0;i<cache->cpuCount;i++){
-                        if(blk->presentFlags[i] == true) numCopies++;
-                    }
-
-                    assert(numCopies > 0);
-
-                    if(numCopies == 1){
-
-                        assert(blk->dirState == DirOwnedExGR);
-
-                        if(blk->isModified()){
-                            writebacks.push_back(writebackBlk(blk));
-                        }
-                        else{
-
-                            MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
-                                              blk->asid,
-                                              blk->xc,
-                                              blkSize,
-                                              (cache->doData()) ? blk->data : 0,
-                                              DirWriteback);
-                            writebacks.push_back(wbBlk);
-                        }
-
-                    }
-                    else{
-                        MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
-                                                            blk->asid,
-                                                            blk->xc,
-                                                            blkSize,
-                                                            (cache->doData()) ? blk->data : 0,
-                                                            DirOwnerWriteback);
-
-                        bool* pfCopy = new bool[cache->cpuCount];
-                        for(int i=0;i<cache->cpuCount;i++){
-                            pfCopy[i] = blk->presentFlags[i];
-                        }
-
-                        wbBlk->presentFlags = pfCopy;
-                        writebacks.push_back(wbBlk);
-                    }
-                }
-                else{
-
-                    assert(blk->presentFlags == NULL);
-                    assert(!blk->isModified());
-
-                    MemReqPtr wbBlk = buildDirectoryReq(ct->regenerateBlkAddr(blk->tag,blk->set),
-                                      blk->asid,
-                                      blk->xc,
-                                      blkSize,
-                                      (cache->doData()) ? blk->data : 0,
-                                      DirSharerWriteback);
-
-                    writebacks.push_back(wbBlk);
-                }
-
-
-                // update cache block state info from request, set other values to initial values
-                blk->owner = req->owner;
-                blk->dirState = DirNoState;
-                if(blk->presentFlags != NULL){
-                    delete blk->presentFlags;
-                    blk->presentFlags = NULL;
-                }
-
-                // the block is written back so clear the dirty bit
-                blk->status &= ~BlkDirty;
-            }
-            else{
-
-                DPRINTF(Cache, "replacement %d replacing %x with %x: %s\n",
-                        blk->asid,
-                        (ct->regenerateBlkAddr(blk->tag,blk->set)
-                        & (((ULL(1))<<48)-1)),req->paddr & (((ULL(1))<<48)-1),
-                        (blk->isModified()) ? "writeback" : "clean");
-
-                if (blk->isModified()) {
-                    writebacks.push_back(writebackBlk(blk));
-                }
-            }
-	}
-        else{
-            assert(blk->dirState != DirInvalid);
-            assert(blk->dirState != DirOwnedExGR);
-            assert(blk->dirState != DirOwnedNonExGR);
-        }
-
-        // set block values to the values of the new occupant
-	blk->tag = ct->extractTag(req->paddr, blk);
-	blk->asid = req->asid;
-	assert(req->xc || !cache->doData());
-	blk->xc = req->xc;
-
-        if(cache->isShared){
-            assert(req->adaptiveMHASenderID != -1);
-            blk->origRequestingCpuID = req->adaptiveMHASenderID;
-        }
-
-    } else {
-
-        if(!cache->isDirectoryAndL1DataCache()){
-            // A cache might recieve the same cache line twice (read and write at the same time)
-            // we don't want this warning every time ;-)
-            if (blk->status == new_state) warn("Changing state to same value\n");
-        }
-    }
-
-    blk->status = new_state;
-
-    return blk;
+	return blk;
 }
 
 template <class Tags, class Compression>
