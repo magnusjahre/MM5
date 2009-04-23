@@ -19,9 +19,9 @@ class FCFSTimingMemoryController : public TimingMemoryController
         std::vector<Tick> activatedAt;
         int numActivePages;
 
+        std::list<MemReqPtr> memoryRequestQueue;
 
     public:
-        std::list<MemReqPtr> memoryRequestQueue;
 
         /** Constructs a Memory Controller object. */
         FCFSTimingMemoryController(std::string _name, int _queueLength);

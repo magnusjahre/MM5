@@ -31,7 +31,14 @@ int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 	}
 
 	numRequests[req->adaptiveMHASenderID]++;
-	sumQueueLength[req->adaptiveMHASenderID] += memoryRequestQueue.size();
+	int currentPrivateCnt = 0;
+	list<MemReqPtr>::iterator queueIt = memoryRequestQueue.begin();
+	for( ; queueIt != memoryRequestQueue.end(); queueIt++){
+		if((*queueIt)->adaptiveMHASenderID == req->adaptiveMHASenderID){
+			currentPrivateCnt++;
+		}
+	}
+	sumPrivateQueueLength[req->adaptiveMHASenderID] += currentPrivateCnt;
 
     req->inserted_into_memory_controller = curTick;
     memoryRequestQueue.push_back(req);

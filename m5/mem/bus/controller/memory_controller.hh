@@ -52,9 +52,9 @@ class TimingMemoryController : public SimObject
 
     Stats::Scalar<> sentRequests;
 
-    Stats::Vector<> sumQueueLength;
+    Stats::Vector<> sumPrivateQueueLength;
     Stats::Vector<> numRequests;
-    Stats::Formula avgQueueLength;
+    Stats::Formula avgPrivateQueueLength;
 
   public:
     // constructor

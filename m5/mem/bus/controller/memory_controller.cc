@@ -41,9 +41,9 @@ TimingMemoryController::regStats(){
 
 	assert(memCtrCPUCount != -1);
 
-	sumQueueLength
+	sumPrivateQueueLength
 		.init(memCtrCPUCount)
-		.name(name() + ".sum_queue_lengths")
+		.name(name() + ".sum_private_queue_lengths")
 		.desc("sum of the estimated number of reqs a had to wait for");
 
 	numRequests
@@ -51,11 +51,11 @@ TimingMemoryController::regStats(){
 		.name(name() + ".number_of_requests")
 		.desc("number of requests ");
 
-	avgQueueLength
-		.name(name() + ".avg_queue_length")
+	avgPrivateQueueLength
+		.name(name() + ".avg_private_queue_length")
 		.desc("average number of requests a request has to wait for");
 
-	avgQueueLength = sumQueueLength / numRequests;
+	avgPrivateQueueLength = sumPrivateQueueLength / numRequests;
 
 }
 
