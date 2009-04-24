@@ -115,9 +115,10 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
     req->inserted_into_memory_controller = curTick;
 
-    assert(req->adaptiveMHASenderID != -1);
-    req->memCtrlSequenceNumber = requestSequenceNumbers[req->adaptiveMHASenderID];
-    requestSequenceNumbers[req->adaptiveMHASenderID]++;
+    if(req->adaptiveMHASenderID != -1){
+    	req->memCtrlSequenceNumber = requestSequenceNumbers[req->adaptiveMHASenderID];
+    	requestSequenceNumbers[req->adaptiveMHASenderID]++;
+    }
 
     DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d, cmd %s\n",
     		req->cmd,
@@ -129,13 +130,13 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         int privReadCnt = 0;
         for(queueIterator = readQueue.begin();queueIterator != readQueue.end(); queueIterator++){
             MemReqPtr tmp = *queueIterator;
-            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID) privReadCnt++;
+            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID && req->adaptiveMHASenderID != -1) privReadCnt++;
         }
 
         int privWriteCnt = 0;
         for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
             MemReqPtr tmp = *queueIterator;
-            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID) privWriteCnt++;
+            if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID && req->adaptiveMHASenderID != -1) privWriteCnt++;
         }
 
         req->entryReadCnt = privReadCnt;
@@ -159,7 +160,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         }
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
         controllerInterference->insertRequest(req);
     }
 

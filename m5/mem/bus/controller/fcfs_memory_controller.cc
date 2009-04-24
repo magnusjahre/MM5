@@ -30,15 +30,18 @@ int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 		activatedAt.resize(getMemoryInterface()->getMemoryBankCount(), 0);
 	}
 
-	numRequests[req->adaptiveMHASenderID]++;
-	int currentPrivateCnt = 0;
-	list<MemReqPtr>::iterator queueIt = memoryRequestQueue.begin();
-	for( ; queueIt != memoryRequestQueue.end(); queueIt++){
-		if((*queueIt)->adaptiveMHASenderID == req->adaptiveMHASenderID){
-			currentPrivateCnt++;
+	if(req->adaptiveMHASenderID != -1){
+		numRequests[req->adaptiveMHASenderID]++;
+		int currentPrivateCnt = 0;
+		list<MemReqPtr>::iterator queueIt = memoryRequestQueue.begin();
+		for( ; queueIt != memoryRequestQueue.end(); queueIt++){
+			if((*queueIt)->adaptiveMHASenderID == req->adaptiveMHASenderID){
+				currentPrivateCnt++;
+			}
 		}
+		sumPrivateQueueLength[req->adaptiveMHASenderID] += currentPrivateCnt;
 	}
-	sumPrivateQueueLength[req->adaptiveMHASenderID] += currentPrivateCnt;
+
 
     req->inserted_into_memory_controller = curTick;
     memoryRequestQueue.push_back(req);
@@ -52,7 +55,7 @@ int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
        setBlocked();
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
     	controllerInterference->insertRequest(req);
     }
 

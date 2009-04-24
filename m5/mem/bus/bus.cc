@@ -480,9 +480,10 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     req->memBusBlockedWaitCycles = curTick - origReqTime;
 
     assert(req->cmd == Read || req->cmd == Writeback);
-    assert(req->adaptiveMHASenderID != -1);
-    if(req->cmd == Read) readsPerCPU[req->adaptiveMHASenderID]++;
-    else writesPerCPU[req->adaptiveMHASenderID]++;
+    if(req->adaptiveMHASenderID != -1){
+    	if(req->cmd == Read) readsPerCPU[req->adaptiveMHASenderID]++;
+    	else writesPerCPU[req->adaptiveMHASenderID]++;
+    }
 
     DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
@@ -508,14 +509,15 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     }
 
     assert(req->cmd == Read || req->cmd == Writeback);
-    assert(req->adaptiveMHASenderID != -1);
-    if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
-    else outstandingWrites[req->adaptiveMHASenderID]++;
+    if(req->adaptiveMHASenderID != -1){
+    	if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]++;
+    	else outstandingWrites[req->adaptiveMHASenderID]++;
+    }
 
 
     //TODO: might need to add a more clever way of estimating mem bus entry interference
     // assumption: no memory bus blocking in private memory system
-    if(req->interferenceMissAt == 0){
+    if(req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
     	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
     	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
 
@@ -525,8 +527,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 		}
     }
 
-    if(req->cmd == Read){
-        assert(req->adaptiveMHASenderID != -1);
+    if(req->cmd == Read && req->adaptiveMHASenderID != -1){
         perCPUTotalEntryDelay[req->adaptiveMHASenderID] += curTick - origReqTime;
         perCPUTotalEntryRequests[req->adaptiveMHASenderID]++;
     }
@@ -603,8 +604,6 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 {
 
-    if(req->cmd == Read || req->cmd == Writeback) assert(req->adaptiveMHASenderID != -1);
-
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
     memoryControllerEvent->schedule(time);
@@ -643,17 +642,18 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->isDDRTestReq) return;
 #endif
 
-    if(req->cmd == Read || req->cmd == Writeback){
-        assert(req->adaptiveMHASenderID != -1);
+    if((req->cmd == Read || req->cmd == Writeback) && req->adaptiveMHASenderID != -1){
         if(req->cmd == Read) outstandingReads[req->adaptiveMHASenderID]--;
         else outstandingWrites[req->adaptiveMHASenderID]--;
     }
 
-    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1 && req->interferenceMissAt == 0){
+    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1 && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
         memoryController->computeInterference(req, time - curTick);
     }
 
     if (req->cmd == Read) {
+
+    	assert(req->adaptiveMHASenderID != -1);
 
         Tick serviceLatency = time - curTick;
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
@@ -676,8 +676,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
 #ifdef TRACE_QUEUE
 
-        assert(req->adaptiveMHASenderID != -1);
-
         stringstream name;
         name << "MemoryBusQueueTrace" << req->adaptiveMHASenderID << ".txt";
         ofstream qfile(name.str().c_str(), ofstream::app);
@@ -692,8 +690,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 #endif
 
         if(cpu_count > 1 && req->interferenceMissAt == 0){
-
-            assert(req->adaptiveMHASenderID != -1);
 
             int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
             int serviceInterference = serviceLatency - req->busAloneServiceEstimate;
@@ -715,7 +711,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             numServiceLatencyRequests[req->adaptiveMHASenderID]++;
         }
 
-        if(req->adaptiveMHASenderID != -1 && req->interferenceMissAt == 0){
+        if(req->interferenceMissAt == 0){
 			actualServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency;
 			actualServiceLatencyRequests[req->adaptiveMHASenderID]++;
 

@@ -297,8 +297,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
     }
 
-    assert(req->adaptiveMHASenderID != -1);
-    perCPURequests[req->adaptiveMHASenderID]++;
+    if(req->adaptiveMHASenderID != -1) perCPURequests[req->adaptiveMHASenderID]++;
 
     assert(req->cmd == Writeback || req->cmd == Read);
     if (curTick < readyTime[bank]) {
@@ -370,7 +369,7 @@ SimpleMemBank<Compression>::updateLatencyDistribution(bool isHit, int latency, i
 
         req->dramResult = DRAM_RESULT_CONFLICT;
 
-        perCPUPageConflicts[req->adaptiveMHASenderID]++;
+        if(req->adaptiveMHASenderID != -1) perCPUPageConflicts[req->adaptiveMHASenderID]++;
 
         pageConflicts[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
         pageConflictLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
@@ -380,7 +379,7 @@ SimpleMemBank<Compression>::updateLatencyDistribution(bool isHit, int latency, i
 
         req->dramResult = DRAM_RESULT_HIT;
 
-        perCPUPageHits[req->adaptiveMHASenderID]++;
+        if(req->adaptiveMHASenderID != -1) perCPUPageHits[req->adaptiveMHASenderID]++;
 
         pageHits[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
         pageHitLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
@@ -389,7 +388,7 @@ SimpleMemBank<Compression>::updateLatencyDistribution(bool isHit, int latency, i
 
         req->dramResult = DRAM_RESULT_MISS;
 
-        perCPUPageMisses[req->adaptiveMHASenderID]++;
+        if(req->adaptiveMHASenderID != -1) perCPUPageMisses[req->adaptiveMHASenderID]++;
 
         pageMisses[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)]++;
         pageMissLatency[(req->cmd == Read ? DRAM_READ  : DRAM_WRITE)] += latency;
