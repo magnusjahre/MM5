@@ -61,6 +61,8 @@
 #include "cpu/exec_context.hh"
 #include "sim/process.hh"
 
+#include <strstream>
+
 ///
 /// System call descriptor.
 ///
@@ -327,44 +329,60 @@ SyscallReturn
 openFunc(SyscallDesc *desc, int callnum, Process *process,
 	 ExecContext *xc)
 {
-    std::string path;
+	std::string path;
 
-    if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault)
-	return -EFAULT;
+	if (xc->mem->readString(path, xc->getSyscallArg(0)) != No_Fault) return -EFAULT;
 
-    if (path == "/dev/sysdev0") {
-	// This is a memory-mapped high-resolution timer device on Alpha.
-	// We don't support it, so just punt.
-	warn("Ignoring open(%s, ...)\n", path);
-	return -ENOENT;
-    }
-
-    int tgtFlags = xc->getSyscallArg(1);
-    int mode = xc->getSyscallArg(2);
-    int hostFlags = 0;
-
-    // translate open flags
-    for (int i = 0; i < OS::NUM_OPEN_FLAGS; i++) {
-	if (tgtFlags & OS::openFlagTable[i].tgtFlag) {
-	    tgtFlags &= ~OS::openFlagTable[i].tgtFlag;
-	    hostFlags |= OS::openFlagTable[i].hostFlag;
+	if (path == "/dev/sysdev0") {
+		// This is a memory-mapped high-resolution timer device on Alpha.
+		// We don't support it, so just punt.
+		warn("Ignoring open(%s, ...)\n", path);
+		return -ENOENT;
 	}
-    }
 
-    // any target flags left?
-    if (tgtFlags != 0)
-	warn("Syscall: open: cannot decode flags 0x%x", tgtFlags);
+	int tgtFlags = xc->getSyscallArg(1);
+	int mode = xc->getSyscallArg(2);
+	int hostFlags = 0;
+
+	// translate open flags
+	for (int i = 0; i < OS::NUM_OPEN_FLAGS; i++) {
+		if (tgtFlags & OS::openFlagTable[i].tgtFlag) {
+			tgtFlags &= ~OS::openFlagTable[i].tgtFlag;
+			hostFlags |= OS::openFlagTable[i].hostFlag;
+		}
+	}
+
+	// any target flags left?
+	if (tgtFlags != 0)
+		warn("Syscall: open: cannot decode flags 0x%x", tgtFlags);
 
 #ifdef __CYGWIN32__
-    hostFlags |= O_BINARY;
+	hostFlags |= O_BINARY;
 #endif
 
-    DPRINTF(SyscallVerbose, "opening file %s\n", path.c_str());
+	DPRINTF(SyscallVerbose, "opening file %s\n", path.c_str());
 
-    // open the file
-    int fd = open(path.c_str(), hostFlags, mode);
+	// open the file
+	int fd = -1;
+	if(path.find("fort.11") != std::string::npos){
 
-    return (fd == -1) ? -errno : process->open_fd(fd);
+		// HACK: This file needs to be on a local filesystem for performance
+		assert((hostFlags & O_RDWR) != 0);
+		assert((hostFlags & O_CREAT) != 0);
+		hostFlags |= O_TRUNC;
+
+		srand(time(NULL));
+		int random = rand();
+		std::stringstream name;
+		name << "/tmp/fort.11." << random << ".tmp";
+
+		fd = open(name.str().c_str() , hostFlags, mode);
+	}
+	else{
+		fd = open(path.c_str(), hostFlags, mode);
+	}
+
+	return (fd == -1) ? -errno : process->open_fd(fd);
 }
 
 
