@@ -371,7 +371,7 @@ openFunc(SyscallDesc *desc, int callnum, Process *process,
 		assert((hostFlags & O_CREAT) != 0);
 		hostFlags |= O_TRUNC;
 
-		srand(time(NULL));
+		srand(time(NULL) + getpid());
 		int random = rand();
 		std::stringstream name;
 		name << "/tmp/fort.11." << random << ".tmp";
