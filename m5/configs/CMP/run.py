@@ -1,5 +1,4 @@
 from m5 import *
-import Splash2
 import TestPrograms
 import Spec2000
 import workloads
@@ -422,36 +421,8 @@ else:
 uniformPartStart = -1
 cacheProfileStart = -1
 simulationEnds = -1
-if env['BENCHMARK'] in Splash2.benchmarkNames:
-    # Scientific workloads
-    root.sampler = Sampler()
-    root.sampler.phase0_cpus = Parent.simpleCPU
-    root.sampler.phase1_cpus = Parent.detailedCPU
-    if 'ISEXPERIMENT' in env and env['PROTOCOL'] in directory_protocols:
-        root.sampler.periods = [0, 50000000000] # sampler is not used
-        root.adaptiveMHA.startTick = 0
-        for cpu in root.detailedCPU:
-            cpu.max_insts_any_thread = \
-                Splash2.instructions[int(env['NP'])][env['BENCHMARK']]
-    elif 'SIMINSTS' in env:
-        root.sampler.periods = [0, 50000000000] # sampler is not used
-        root.adaptiveMHA.startTick = 0
-        for cpu in root.detailedCPU:
-            cpu.max_insts_any_thread = int(env['SIMINSTS'])
-    elif 'FASTFORWARDTICKS' not in env:
-        fwticks, simticks = Splash2.fastforward[env['BENCHMARK']]
-        root.sampler.periods = [fwticks, simticks]
-        root.adaptiveMHA.startTick = fwticks
-        uniformPartStart = fwticks
-    else:
-        root.sampler.periods = [env['FASTFORWARDTICKS'], 
-                                int(env['SIMULATETICKS'])]
-        root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
-        uniformPartStart = int(env['FASTFORWARDTICKS'])
-            
-    root.setCPU(root.simpleCPU)
 
-elif env['BENCHMARK'] in single_core.configuration:
+if env['BENCHMARK'] in single_core.configuration:
     assert int(env['NP']) == 1
     
     fwticks = 0
@@ -563,15 +534,7 @@ if simulationEnds != -1:
 # Interconnect, L2 caches and Memory Bus
 ###############################################################################
 
-if env['BENCHMARK'] in Splash2.benchmarkNames:
-    BaseCache.multiprog_workload = False
-else:
-    BaseCache.multiprog_workload = True
-
-if env['BENCHMARK'] in Splash2.benchmarkNames and 'FASTFORWARDTICKS' not in env:
-    if 'PROFILEIC' in env:
-        print >>sys.stderr, "warning: Production workload, ignoring user supplied profile start"
-    icProfileStart = 0 #Splash2.fastforward[env['BENCHMARK']][0]
+BaseCache.multiprog_workload = True
 
 if env['BENCHMARK'].isdigit() and 'ISEXPERIMENT' in env:
     if 'PROFILEIC' in env:
