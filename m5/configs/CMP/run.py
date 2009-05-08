@@ -274,6 +274,11 @@ root.adaptiveMHA.cpuCount = int(env["NP"])
 
 root.interferenceManager = InterferenceManager()
 root.interferenceManager.cpu_count = int(env["NP"])
+if "INTERFERENCE-MANAGER-RESET-INTERVAL" in env:
+    root.interferenceManager.reset_interval = int(env["INTERFERENCE-MANAGER-RESET-INTERVAL"])
+if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
+    root.interferenceManager.sample_size = int(env["INTERFERENCE-MANAGER-SAMPLE-SIZE"])
+    
 
 # Create CPUs
 BaseCPU.workload = Parent.workload

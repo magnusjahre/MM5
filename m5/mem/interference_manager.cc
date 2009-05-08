@@ -183,7 +183,6 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
 		vector<double> avgLats = traceLatency(req->adaptiveMHASenderID);
 		traceInterference(req->adaptiveMHASenderID, avgLats);
-
 	}
 
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
@@ -203,7 +202,7 @@ InterferenceManager::traceInterference(int fromCPU, vector<double> avgLats){
 	std::vector<RequestTraceEntry> data;
 	data.resize(NUM_LAT_TYPES+2, RequestTraceEntry(0.0));
 
-	data[0] = totalRequestCount[fromCPU];
+	data[0] = requests[fromCPU].value();
 	data[1] = avgLats[0] - avgInterference;
 
 	for(int i=0;i<NUM_LAT_TYPES;i++){
@@ -228,7 +227,7 @@ InterferenceManager::traceLatency(int fromCPU){
 	std::vector<RequestTraceEntry> data;
 	data.resize(NUM_LAT_TYPES+2, RequestTraceEntry(0.0));
 
-	data[0] = totalRequestCount[fromCPU];
+	data[0] = requests[fromCPU].value();
 	data[1] = avgLats[0];
 
 	for(int i=0;i<NUM_LAT_TYPES;i++){
