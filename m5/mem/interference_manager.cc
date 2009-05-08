@@ -37,6 +37,16 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 	sampleSize = _sample_size;
 	resetInterval = _num_reqs_at_reset;
 
+	if(resetInterval != -1){
+		if(resetInterval < sampleSize){
+			fatal("InterferenceManager: resetting measurements more often than they are taken does not make sense.");
+		}
+
+		if(resetInterval % sampleSize != 0){
+			fatal("InterferenceManager: The reset interval must be a multiple of the sample size");
+		}
+	}
+
 	estimateTraces.resize(_cpu_count, RequestTrace());
 	latencyTraces.resize(_cpu_count, RequestTrace());
 
