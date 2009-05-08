@@ -11,6 +11,8 @@
 
 //#define DO_ESTIMATION_TRACE
 
+#define DO_OCCUPANCY_TRACE
+
 using namespace std;
 
 RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
@@ -70,6 +72,30 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
 	requestSequenceNumbers.resize(regbus->adaptiveMHA->getCPUCount(),0);
 
+#ifdef DO_OCCUPANCY_TRACE
+	queueOccupancyTrace = RequestTrace(name(), "QueueOccupancyTrace");
+
+	vector<string> occParams;
+	occParams.resize(regbus->adaptiveMHA->getCPUCount() * 2, "");
+	cout << "params has len " << occParams.size() << "\n";
+	for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
+		stringstream filename;
+		filename << "CPU" << i << " Reads";
+		occParams[i] = filename.str();
+	}
+
+	for(int i=regbus->adaptiveMHA->getCPUCount();i<occParams.size();i++){
+		stringstream filename;
+		filename << "CPU" << i - regbus->adaptiveMHA->getCPUCount()  << " Writes";
+		occParams[i] = filename.str();
+	}
+
+	queueOccupancyTrace.initalizeTrace(occParams);
+
+#endif
+
+
+
 #ifdef DO_ESTIMATION_TRACE
 
     pageResultTraces.resize(regbus->adaptiveMHA->getCPUCount(), RequestTrace());
@@ -118,6 +144,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     if(req->adaptiveMHASenderID != -1){
     	req->memCtrlSequenceNumber = requestSequenceNumbers[req->adaptiveMHASenderID];
     	requestSequenceNumbers[req->adaptiveMHASenderID]++;
+
     }
 
     DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d, cmd %s\n",
@@ -126,17 +153,24 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     		getMemoryBankID(req->paddr),
     		req->cmd.toString());
 
+    vector<int> waitingReads;
+    vector<int> waitingWrites;
+    waitingReads.resize(bus->adaptiveMHA->getCPUCount(), 0);
+    waitingWrites.resize(bus->adaptiveMHA->getCPUCount(), 0);
+
     if(bus->adaptiveMHA->getCPUCount() > 1){
         int privReadCnt = 0;
         for(queueIterator = readQueue.begin();queueIterator != readQueue.end(); queueIterator++){
             MemReqPtr tmp = *queueIterator;
             if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID && req->adaptiveMHASenderID != -1) privReadCnt++;
+            if(tmp->adaptiveMHASenderID != -1) waitingReads[tmp->adaptiveMHASenderID]++;
         }
 
         int privWriteCnt = 0;
         for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
             MemReqPtr tmp = *queueIterator;
             if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID && req->adaptiveMHASenderID != -1) privWriteCnt++;
+            if(tmp->adaptiveMHASenderID != -1) waitingWrites[tmp->adaptiveMHASenderID]++;
         }
 
         req->entryReadCnt = privReadCnt;
@@ -145,7 +179,18 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     else{
         req->entryReadCnt = readQueue.size();
         req->entryWriteCnt = writeQueue.size();
+
+        assert(waitingReads.size() == 1 && waitingWrites.size() == 1);
+        waitingReads[0] = readQueue.size();
+        waitingWrites[0] = writeQueue.size();
     }
+
+#ifdef DO_OCCUPANCY_TRACE
+    vector<RequestTraceEntry> tracevals;
+    for(int i=0;i<waitingReads.size();i++) tracevals.push_back(RequestTraceEntry(waitingReads[i]));
+    for(int i=0;i<waitingWrites.size();i++) tracevals.push_back(RequestTraceEntry(waitingWrites[i]));
+    queueOccupancyTrace.addTrace(tracevals);
+#endif
 
     if (req->cmd == Read) {
         readQueue.push_back(req);

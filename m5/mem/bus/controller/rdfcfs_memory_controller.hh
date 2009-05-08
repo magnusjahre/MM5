@@ -71,6 +71,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     RequestTrace aloneAccessOrderTraces;
     std::vector<RequestTrace> pageResultTraces;
 
+    RequestTrace queueOccupancyTrace;
+
   public:
 
     typedef enum{
