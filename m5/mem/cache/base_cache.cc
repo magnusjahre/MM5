@@ -354,6 +354,13 @@ BaseCache::regStats()
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")
         ;
+
+    shadowTagWritebacks
+		.init(cpuCount)
+		.name(name() + ".shadow_tag_writebacks")
+		.desc("the number of writebacks detected in the shadowtags")
+		.flags(total)
+		;
 }
 
 void

@@ -281,6 +281,8 @@ class BaseCache : public BaseMem {
 
     Stats::Scalar<> recvMissResponses;
 
+    Stats::Vector<> shadowTagWritebacks;
+
     /**
      * @}
      */

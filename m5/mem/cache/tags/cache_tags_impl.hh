@@ -90,88 +90,88 @@ CacheTags<Tags,Compression>::setPrefetcher(BasePrefetcher *_prefetcher)
 template <class Tags, class Compression>
 typename CacheTags<Tags,Compression>::BlkType*
 CacheTags<Tags,Compression>::handleAccess(MemReqPtr &req, int & lat,
-					  MemReqList & writebacks, bool update)
+		MemReqList & writebacks, bool update)
 {
-    MemCmd cmd = req->cmd;
+	MemCmd cmd = req->cmd;
 
-    // Set the block offset here
-    req->offset = ct->extractBlkOffset(req->paddr);
+	// Set the block offset here
+	req->offset = ct->extractBlkOffset(req->paddr);
 
-    BlkType *blk = NULL;
-    if (update) {
-	blk = ct->findBlock(req, lat);
-    } else {
-	blk = ct->findBlock(req->paddr, req->asid);
-	lat = 0;
-    }
-    if (blk != NULL) {
-
-	// Hit
-	if (blk->isPrefetch()) {
-
-	    //Signal that this was a hit under prefetch (no need for use prefetch (only can get here if true)
-	    DPRINTF(HWPrefetch, "%s:Hit a block that was prefetched\n", cache->name());
-          cache->goodprefetches++;
-	    blk->status &= ~BlkHWPrefetched;
-	    if (prefetchMiss) {
-		//If we are using the miss stream, signal the prefetcher
-		//otherwise the access stream would have already signaled this hit
-		prefetcher->handleMiss(req, curTick);
-	    }
+	BlkType *blk = NULL;
+	if (update) {
+		blk = ct->findBlock(req, lat);
+	} else {
+		blk = ct->findBlock(req->paddr, req->asid);
+		lat = 0;
 	}
+	if (blk != NULL) {
 
-	if ((cmd.isWrite() && blk->isWritable()) ||
-	    (cmd.isRead() && blk->isValid())) {
+		// Hit
+		if (blk->isPrefetch()) {
 
-	    // We are satisfying the request
-	    req->flags |= SATISFIED;
-
-	    if (cmd.isWrite()){
-		blk->status |= BlkDirty;
-		ct->fixCopy(req, writebacks);
-	    }
-
-	    if (blk->isCompressed()) {
-		// If the data is compressed, need to increase the latency
-		lat += (compLatency/4);
-	    }
-
-	    if (cache->doData()) {
-		bool write_data = false;
-
-		assert(verifyData(blk));
-
-		if (cmd.isWrite()){
-		    write_data = true;
-		    assert(req->offset < blkSize);
-		    assert(req->size <= blkSize);
-		    assert(req->offset+req->size <= blkSize);
-		    memcpy(blk->data + req->offset, req->data,
-			   req->size);
-		} else {
-		    assert(req->offset < blkSize);
-		    assert(req->size <= blkSize);
-		    assert(req->offset + req->size <=blkSize);
-		    memcpy(req->data, blk->data + req->offset,
-			   req->size);
+			//Signal that this was a hit under prefetch (no need for use prefetch (only can get here if true)
+			DPRINTF(HWPrefetch, "%s:Hit a block that was prefetched\n", cache->name());
+			cache->goodprefetches++;
+			blk->status &= ~BlkHWPrefetched;
+			if (prefetchMiss) {
+				//If we are using the miss stream, signal the prefetcher
+				//otherwise the access stream would have already signaled this hit
+				prefetcher->handleMiss(req, curTick);
+			}
 		}
 
-		if (write_data ||
-		    (adaptiveCompression && blk->isCompressed()))
-		    {
-			// If we wrote data, need to update the internal block
-			// data.
-			updateData(blk, writebacks,
-				   !(adaptiveCompression &&
-				     blk->isReferenced()));
-		    }
-	    }
-	} else {
-	    // permission violation, treat it as a miss
-	    blk = NULL;
+		if ((cmd.isWrite() && blk->isWritable()) ||
+				(cmd.isRead() && blk->isValid())) {
+
+			// We are satisfying the request
+			req->flags |= SATISFIED;
+
+			if (cmd.isWrite()){
+				blk->status |= BlkDirty;
+				ct->fixCopy(req, writebacks);
+			}
+
+			if (blk->isCompressed()) {
+				// If the data is compressed, need to increase the latency
+				lat += (compLatency/4);
+			}
+
+			if (cache->doData()) {
+				bool write_data = false;
+
+				assert(verifyData(blk));
+
+				if (cmd.isWrite()){
+					write_data = true;
+					assert(req->offset < blkSize);
+					assert(req->size <= blkSize);
+					assert(req->offset+req->size <= blkSize);
+					memcpy(blk->data + req->offset, req->data,
+							req->size);
+				} else {
+					assert(req->offset < blkSize);
+					assert(req->size <= blkSize);
+					assert(req->offset + req->size <=blkSize);
+					memcpy(req->data, blk->data + req->offset,
+							req->size);
+				}
+
+				if (write_data ||
+						(adaptiveCompression && blk->isCompressed()))
+				{
+					// If we wrote data, need to update the internal block
+					// data.
+					updateData(blk, writebacks,
+							!(adaptiveCompression &&
+									blk->isReferenced()));
+				}
+			}
+		} else {
+			// permission violation, treat it as a miss
+			blk = NULL;
+		}
 	}
-    }
-    return blk;
+	return blk;
 }
 
 template <class Tags, class Compression>

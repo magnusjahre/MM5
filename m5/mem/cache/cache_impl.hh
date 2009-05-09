@@ -182,8 +182,6 @@ Cache(const std::string &_name, HierParams *hier_params,
         directoryProtocol->setCpuCount(cpuCount, params.cpu_id);
     }
 
-
-
     /* CPU ID sanity checks */
     if(params.directoryCoherence != NULL){
         if(!params.isShared && !params.isReadOnly){
@@ -282,8 +280,17 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		// access tags to update LRU stack
 		assert(isShared);
 		assert(req->adaptiveMHASenderID != -1);
+		assert(req->cmd == Writeback || req->cmd == Read);
 		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
-		shadowHit = (shadowBlk != NULL);
+		if(shadowBlk != NULL){
+			shadowHit = true;
+			if(req->cmd == Writeback){
+				shadowBlk->status |= BlkDirty;
+			}
+		}
+		else{
+			shadowHit = false;
+		}
 	}
 
 	// update hit statistics
@@ -319,7 +326,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 			req->flags |= SATISFIED;
 			return MA_HIT;
 		}
-
 		blk = tags->handleAccess(req, lat, writebacks);
 	} else {
 		size = req->size;
@@ -350,7 +356,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	while (!writebacks.empty()) {
 
 		if(useDirectory && !isShared){
-			cout << "Writing back block " << ((writebacks.front())->paddr & ~((Addr)blkSize - 1)) << "\n";
 			fatal("directory write back handling not implemented (Cache access() ) ");
 		}
 
@@ -462,49 +467,49 @@ MemReqPtr
 Cache<TagStore,Buffering,Coherence>::getMemReq()
 {
 
-    if(directoryProtocol != NULL && !directoryProtocol->directoryRequests.empty()){
+	if(directoryProtocol != NULL && !directoryProtocol->directoryRequests.empty()){
 
-        // the request is removed in sendResult()
-        MemReqPtr dirReq = directoryProtocol->directoryRequests.front();
-        assert(dirReq->time <= curTick);
-        return dirReq;
-    }
-
-
-    MemReqPtr req = missQueue->getMemReq();
-
-    if (req) {
-
-	if (!req->isUncacheable()) {
-
-            if (req->cmd == Hard_Prefetch) misses[Hard_Prefetch][req->thread_num]++;
-	    BlkType *blk = tags->findBlock(req);
-	    MemCmd cmd = coherence->getBusCmd(req->cmd,
-	    				      (blk)? blk->status : 0);
-
-            // Inform L2 if the cache intends to write this line or not
-            bool setWrite = false;
-            req->oldCmd = req->cmd; //remember the old command
-            if(isDirectoryAndL1DataCache() && req->cmd == Write){
-                setWrite = true;
-            }
-
-
-            missQueue->setBusCmd(req, cmd);
-
-            if(setWrite){
-                req->writeMiss = true;
-            }
+		// the request is removed in sendResult()
+		MemReqPtr dirReq = directoryProtocol->directoryRequests.front();
+		assert(dirReq->time <= curTick);
+		return dirReq;
 	}
-    }
 
 
-    assert(!doMasterRequest() || missQueue->havePending());
-    assert(!req || req->time <= curTick);
-    if(req && !isShared) assert(req->adaptiveMHASenderID != -1);
+	MemReqPtr req = missQueue->getMemReq();
+
+	if (req) {
+
+		if (!req->isUncacheable()) {
+
+			if (req->cmd == Hard_Prefetch) misses[Hard_Prefetch][req->thread_num]++;
+			BlkType *blk = tags->findBlock(req);
+			MemCmd cmd = coherence->getBusCmd(req->cmd,
+					(blk)? blk->status : 0);
+
+			// Inform L2 if the cache intends to write this line or not
+			bool setWrite = false;
+			req->oldCmd = req->cmd; //remember the old command
+			if(isDirectoryAndL1DataCache() && req->cmd == Write){
+				setWrite = true;
+			}
 
 
-    return req;
+			missQueue->setBusCmd(req, cmd);
+
+			if(setWrite){
+				req->writeMiss = true;
+			}
+		}
+	}
+
+
+	assert(!doMasterRequest() || missQueue->havePending());
+	assert(!req || req->time <= curTick);
+	if(req && !isShared) assert(req->adaptiveMHASenderID != -1);
+
+
+	return req;
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -548,10 +553,16 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	if(!shadowTags.empty()){
 		assert(req->adaptiveMHASenderID != -1);
 
-		//TODO: shadow writebacks should be checked against regular writebacks
 		LRU::BlkList shadow_compress_list;
 		MemReqList shadow_writebacks;
 		LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
+		assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
+
+		if(shadowBlk->isModified()){
+			shadowTagWritebacks[req->adaptiveMHASenderID]++;
+		}
+
+		//TODO: add functionality for inserting shadow-writebacks
 
 		// set block values to the values of the new occupant
 		shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
