@@ -77,7 +77,6 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
 	vector<string> occParams;
 	occParams.resize(regbus->adaptiveMHA->getCPUCount() * 2, "");
-	cout << "params has len " << occParams.size() << "\n";
 	for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
 		stringstream filename;
 		filename << "CPU" << i << " Reads";
