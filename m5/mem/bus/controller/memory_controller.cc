@@ -123,6 +123,11 @@ TimingMemoryController::getPageAddr(Addr addr)
     return (addr << mem_interface->getPageSize());
 }
 
+void
+TimingMemoryController::insertPrivateVirtualRequest(MemReqPtr& req){
+	controllerInterference->insertPrivateVirtualRequest(req);
+}
+
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

@@ -560,9 +560,16 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 		if(shadowBlk->isModified()){
 			shadowTagWritebacks[req->adaptiveMHASenderID]++;
-		}
 
-		//TODO: add functionality for inserting shadow-writebacks
+			if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
+				MemReqPtr virtualWriteback = new MemReq();
+				virtualWriteback->cmd = VirtualPrivateWriteback;
+				virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
+				virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
+
+				mi->viritualPrivateWriteAccess(virtualWriteback);
+			}
+		}
 
 		// set block values to the values of the new occupant
 		shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
@@ -570,6 +577,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		assert(req->xc || !doData());
 		shadowBlk->xc = req->xc;
 		shadowBlk->status = BlkValid;
+		assert(!shadowBlk->isModified());
 	}
 
 	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){

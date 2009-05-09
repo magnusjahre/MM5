@@ -78,9 +78,9 @@ MasterInterface<MemType, BusType>::access(MemReqPtr &req)
     int satisfied_before = req->flags & SATISFIED;
     // Cache Coherence call goes here
 //     cout << "access from MasterInterface " << this->id << "\n";
-    
+
     mem->snoop(req);
-    
+
     if (satisfied_before != (req->flags & SATISFIED)) {
 	return BA_SUCCESS;
     }
@@ -100,8 +100,8 @@ MasterInterface<Mem, Bus>::snoopResponseCall(MemReqPtr &req)
 template<class MemType, class BusType>
 bool
 MasterInterface<MemType, BusType>::grantData()
-{	
-    typename BusInterface<BusType>::DataResponseEntry entry = 
+{
+    typename BusInterface<BusType>::DataResponseEntry entry =
 	this->responseQueue.front();
 
     if (entry.size > 0) {
@@ -120,7 +120,7 @@ MasterInterface<MemType, BusType>::grantData()
 	this->bus->requestDataBus(
             this->id, max(curTick, this->responseQueue.front().time));
     }
-    
+
     return false;
 }
 
@@ -140,7 +140,7 @@ MasterInterface<MemType, BusType>::respond(MemReqPtr &req, Tick time)
 }
 
 template<class MemType, class BusType>
-void 
+void
 MasterInterface<MemType, BusType>::addPrewrite(MemReqPtr &req)
 {
     // DEtte kommer vi aldri til aa huske :p
@@ -152,4 +152,10 @@ bool
 MasterInterface<MemType, BusType>::canPrewrite()
 {
    return (this->bus->memoryController->isPrewriteBlocked());
+}
+
+template<class MemType, class BusType>
+void
+MasterInterface<MemType, BusType>::viritualPrivateWriteAccess(MemReqPtr& req){
+	this->bus->viritualPrivateWriteAccess(req);
 }

@@ -173,6 +173,9 @@ class TimingMemoryController : public SimObject
     virtual int getMaxActivePages(){
     	return max_active_pages;
     }
+
+    void insertPrivateVirtualRequest(MemReqPtr& req);
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

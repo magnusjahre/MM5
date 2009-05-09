@@ -120,11 +120,11 @@ class MasterInterface : public BusInterface<BusType>
      * Add the address ranges of this interface to the provided list.
      * @param range_list The list of ranges.
      */
-    virtual void getRange(std::list<Range<Addr> > &range_list) 
+    virtual void getRange(std::list<Range<Addr> > &range_list)
     {
 	range_list.push_back(RangeIn((Addr)0, MaxAddr));
     }
-		
+
     /**
      * Notify this interface of a range change on the bus.
      */
@@ -135,9 +135,10 @@ class MasterInterface : public BusInterface<BusType>
 
     virtual void snoopResponseCall(MemReqPtr &req);
 
-    virtual void addPrewrite(MemReqPtr &req); 
-    virtual bool canPrewrite(); 
-    
+    virtual void addPrewrite(MemReqPtr &req);
+    virtual bool canPrewrite();
+
+    virtual void viritualPrivateWriteAccess(MemReqPtr& req);
 };
 
 #endif // __MEM_BUS_MASTER_INTERFACE_HH__

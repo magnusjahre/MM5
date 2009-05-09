@@ -59,13 +59,14 @@ MemCmd::strings[NUM_MEM_CMDS] = {
     (char*) "new owner multicast",
     (char*) "Close memory page",
     (char*) "Activate memory page",
-    (char*) "Prewrite cache block"
+    (char*) "Prewrite cache block",
+    (char*) "Virtual Private Writeback"
 };
 
 int
 MemCmd::behaviors[NUM_MEM_CMDS] = {
     0, rd, wr, rd|pf, rd|pf, wr|nr, in|nr, rd|in, wr|in, in, nr, nr|hw,
-    rd|nr|directory, rd|directory, rd|directory, rd|directory, rd|directory, rd|directory, wr, wr, wr
+    rd|nr|directory, rd|directory, rd|directory, rd|directory, rd|directory, rd|directory, wr, wr, wr, wr
 };
 
 

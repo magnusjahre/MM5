@@ -5,7 +5,7 @@ class Prefetch(Enum): vals = ['none', 'tagged', 'stride', 'ghb']
 
 class DirectoryProtocol(Enum): vals = ['none', 'stenstrom']
 
-class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer']
+class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer', 'shadow-tags']
 
 class BaseCache(BaseMem):
     type = 'BaseCache'

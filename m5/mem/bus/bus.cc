@@ -466,6 +466,14 @@ Bus::arbitrateDataBus()
     fatal("arbitrateDataBus() called!");
 }
 
+void
+Bus::viritualPrivateWriteAccess(MemReqPtr& req){
+
+	if(curTick < detailedSimulationStart) return;
+
+	memoryController->insertPrivateVirtualRequest(req);
+}
+
 bool
 Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 {

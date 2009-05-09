@@ -48,7 +48,7 @@
 
 /* Enumeration for the possible interface types */
 typedef enum{CROSSBAR, BUS, MEMORY, INTERCONNECT} InterfaceType;
-        
+
 /**
  * A base class for memory interface objects.
  */
@@ -65,7 +65,7 @@ class BaseInterface : public BaseHier
     std::vector<Range<Addr> > ranges;
 
   public:
-    
+
     /**
      * Construct and initialize this interface.
      * @param name The name of this interface.
@@ -129,7 +129,7 @@ class BaseInterface : public BaseHier
      * @return The estimated completion time.
      */
     virtual Tick probe(MemReqPtr &req, bool update) = 0;
-    
+
     /**
      * Returns true if this interface is blocked.
      * @return True if this interface is blocked.
@@ -160,14 +160,14 @@ class BaseInterface : public BaseHier
      * @param range_list The list of ranges.
      */
     virtual void getRange(std::list<Range<Addr> > &range_list) = 0;
-    
+
     /**
      * Notify this interface of a range change on the bus.
      */
     virtual void rangeChange() = 0;
 
     /**
-     * Set the address ranges of this interface to the list provided. This 
+     * Set the address ranges of this interface to the list provided. This
      * function removes any existing ranges.
      * @param range_list List of addr ranges to add.
      * @post range_list is empty.
@@ -201,7 +201,7 @@ class BaseInterface : public BaseHier
     virtual void addPrewrite(MemReqPtr &req) {
         fatal("ARGLE!");
     }
-    
+
     virtual bool canPrewrite() {
         fatal("ARGLE!");
         return false;
@@ -226,36 +226,40 @@ class BaseInterface : public BaseHier
       fatal("Should not be called");
       return 0;
     }
-    
+
     virtual Tick getDataTransTime(){
         fatal("Should not be called");
         return 0;
     }
-    
+
     virtual int getPageSize(){
         fatal("Should not be called");
         return 0;
     }
-    
+
     virtual int getMemoryBankID(Addr addr){
         fatal("Should not be called");
         return 0;
     }
-    
+
     virtual int getMemoryBankCount(){
         fatal("Should not be called");
         return 0;
     };
-    
+
     virtual Tick getBankActivatedAt(int bankID){
         fatal("Should not be called");
         return 0;
     }
 
+    virtual void viritualPrivateWriteAccess(MemReqPtr& req){
+    	fatal("Should not be called");
+    }
+
 //     virtual InterfaceType getInterfaceType() = 0;
-    
+
 //     virtual void setCurrentRequestAddr(Addr address) = 0;
-    
+
 };
 
 #endif //__MEM_BUS_BASE_INTERFACE_HH__

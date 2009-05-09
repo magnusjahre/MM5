@@ -356,6 +356,8 @@ class Bus : public BaseHier
 
     void dumpQueueDelayStats();
 
+    void viritualPrivateWriteAccess(MemReqPtr& req);
+
   private:
     std::vector<int> perCPUDataBusUse;
     std::vector<int> perCPUQueueCycles;

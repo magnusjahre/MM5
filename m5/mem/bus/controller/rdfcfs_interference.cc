@@ -116,6 +116,16 @@ RDFCFSControllerInterference::insertRequest(MemReqPtr& req){
 
 }
 
+void
+RDFCFSControllerInterference::insertPrivateVirtualRequest(MemReqPtr& req){
+
+	if(!this->isInitialized()){
+		initialize(contIntCpuCount);
+	}
+
+	insertRequest(req);
+}
+
 
 void
 RDFCFSControllerInterference::insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBufferEntry* newEntry){
@@ -611,7 +621,7 @@ RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* e
         else privateLatencyEstimate = 110;
     }
 
-    assert(entry->req->cmd == Read || entry->req->cmd == Writeback);
+    assert(entry->req->cmd == Read || entry->req->cmd == Writeback || entry->req->cmd == VirtualPrivateWriteback);
     if(entry->req->cmd == Read){
     	entry->req->memCtrlPrivateSeqNum = currentPrivateSeqNum[entry->req->adaptiveMHASenderID];
     	currentPrivateSeqNum[entry->req->adaptiveMHASenderID]++;

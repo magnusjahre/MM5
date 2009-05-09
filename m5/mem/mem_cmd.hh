@@ -93,6 +93,7 @@ enum MemCmdEnum
     Close,
     Activate,
     Prewrite,
+    VirtualPrivateWriteback,
     NUM_MEM_CMDS
 };
 
@@ -146,7 +147,7 @@ class MemCmd
     inline bool isInvalidate() const { return behaviors[cmd] & in; }
     /** Return true if this command expects no response. */
     inline bool isNoResponse() const { return behaviors[cmd] & nr; }
-    
+
     inline bool isDirectoryMessage() const { return behaviors[cmd] & directory; }
 
     /** Return the string representation of this command. */
@@ -158,7 +159,7 @@ class MemCmd
 
     /** The descriptions for each memory access result @sa MemAccessResult */
     static const char *memAccessDesc[NUM_MEM_ACCESS_RESULTS];
-    
+
   private:
     /** This command is a read. */
     static const int rd   = 0x00000001;
@@ -172,7 +173,7 @@ class MemCmd
     static const int hw   = 0x00000010;
     /** This command does not expect a response. */
     static const int nr   = 0x00000020;
-    
+
     static const int directory = 0x00000040;
 
     /** The behaviors for each command. @sa MemCmdEnum */

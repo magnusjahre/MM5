@@ -66,6 +66,8 @@ public:
 		return initialized;
 	}
 
+	void insertPrivateVirtualRequest(MemReqPtr& req);
+
 private:
 
 	void insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBufferEntry* newEntry);

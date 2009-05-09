@@ -71,7 +71,7 @@ ControllerInterference::initializeMemDepStructures(int bankCount){
 void
 ControllerInterference::estimatePageResult(MemReqPtr& req){
 
-    assert(req->cmd == Read || req->cmd == Writeback);
+    assert(req->cmd == Read || req->cmd == Writeback || req->cmd == VirtualPrivateWriteback);
 
     checkPrivateOpenPage(req);
 

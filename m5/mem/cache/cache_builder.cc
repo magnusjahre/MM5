@@ -537,6 +537,9 @@ CREATE_SIM_OBJECT(BaseCache)
     else if(wb_policy_name == "replacer"){
     	wbpolicy = BaseCache::WB_POLICY_REPLACER;
     }
+    else if(wb_policy_name == "shadow-tags"){
+    	wbpolicy = BaseCache::WB_POLICY_SHADOW_TAGS;
+    }
     else{
     	fatal("Unknown writeback policy provided to cache");
     }
