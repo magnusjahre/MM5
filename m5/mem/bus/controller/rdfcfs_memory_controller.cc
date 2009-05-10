@@ -11,7 +11,7 @@
 
 //#define DO_ESTIMATION_TRACE
 
-//#define DO_OCCUPANCY_TRACE
+#define DO_OCCUPANCY_TRACE
 
 using namespace std;
 
@@ -76,7 +76,7 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 	queueOccupancyTrace = RequestTrace(name(), "QueueOccupancyTrace");
 
 	vector<string> occParams;
-	occParams.resize(regbus->adaptiveMHA->getCPUCount() * 2, "");
+	occParams.resize(regbus->adaptiveMHA->getCPUCount() * 3, "");
 	for(int i=0;i<regbus->adaptiveMHA->getCPUCount();i++){
 		stringstream filename;
 		filename << "CPU" << i << " Reads";
@@ -85,7 +85,12 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 
 	for(int i=regbus->adaptiveMHA->getCPUCount();i<occParams.size();i++){
 		stringstream filename;
-		filename << "CPU" << i - regbus->adaptiveMHA->getCPUCount()  << " Writes";
+		if(i<regbus->adaptiveMHA->getCPUCount()*2){
+			filename << "CPU" << i - regbus->adaptiveMHA->getCPUCount()  << " Priv Writes";
+		}
+		else{
+			filename << "CPU" << i - regbus->adaptiveMHA->getCPUCount()*2  << " Shared Writes";
+		}
 		occParams[i] = filename.str();
 	}
 
@@ -155,7 +160,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
     vector<int> waitingReads;
     vector<int> waitingWrites;
     waitingReads.resize(bus->adaptiveMHA->getCPUCount(), 0);
-    waitingWrites.resize(bus->adaptiveMHA->getCPUCount(), 0);
+    waitingWrites.resize(bus->adaptiveMHA->getCPUCount()*2, 0);
 
     if(bus->adaptiveMHA->getCPUCount() > 1){
         int privReadCnt = 0;
@@ -169,7 +174,14 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
             MemReqPtr tmp = *queueIterator;
             if(tmp->adaptiveMHASenderID == req->adaptiveMHASenderID && req->adaptiveMHASenderID != -1) privWriteCnt++;
-            if(tmp->adaptiveMHASenderID != -1) waitingWrites[tmp->adaptiveMHASenderID]++;
+            if(tmp->adaptiveMHASenderID != -1){
+            	if(tmp->adaptiveMHASenderID != -1){
+            		waitingWrites[tmp->adaptiveMHASenderID]++;
+            	}
+            	else{
+            		waitingWrites[tmp->adaptiveMHASenderID + bus->adaptiveMHA->getCPUCount()]++;
+            	}
+            }
         }
 
         req->entryReadCnt = privReadCnt;

@@ -39,9 +39,9 @@ private:
 		}
 
 		bool canDelete(){
-		  if(req->cmd == VirtualPrivateWriteback){
-		    return scheduled;
-		  }
+			if(req->cmd == VirtualPrivateWriteback){
+				return scheduled;
+			}
 
 			return scheduled && latencyRetrieved;
 		}
