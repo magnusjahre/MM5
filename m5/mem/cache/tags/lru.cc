@@ -250,50 +250,50 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 LRUBlk*
 LRU::findBlock(MemReqPtr &req, int &lat)
 {
-    Addr addr = req->paddr;
-    int asid = req->asid;
+	Addr addr = req->paddr;
+	int asid = req->asid;
 
-    Addr tag = extractTag(addr);
-    unsigned set = extractSet(addr);
+	Addr tag = extractTag(addr);
+	unsigned set = extractSet(addr);
 
-    LRUBlk *blk = NULL;
-    if(isShadow){
-        accesses++;
-        int hitIndex = -1;
-        blk = sets[set].findBlk(asid, tag, &hitIndex);
-        if(blk != NULL){
-            assert(hitIndex >= 0 && hitIndex < assoc);
-            perSetHitCounters[set][hitIndex]++;
+	LRUBlk *blk = NULL;
+	if(isShadow){
+		accesses++;
+		int hitIndex = -1;
+		blk = sets[set].findBlk(asid, tag, &hitIndex);
+		if(blk != NULL){
+			assert(hitIndex >= 0 && hitIndex < assoc);
+			perSetHitCounters[set][hitIndex]++;
 
-        }
-        else{
-            assert(hitIndex == -1);
-        }
-    }
-    else{
-        blk = sets[set].findBlk(asid, tag);
-    }
-
-    lat = hitLatency;
-    if (blk != NULL) {
-	// move this block to head of the MRU list
-	sets[set].moveToHead(blk);
-
-        if(cache->useUniformPartitioning){
-            DPRINTF(UniformPartitioning, "Set %d: Hit in block (2), retrieved by processor %d, replaced block addr is %x\n",
-                    set,
-                    blk->origRequestingCpuID,
-                    regenerateBlkAddr(blk->tag,blk->set));
-        }
-
-	if (blk->whenReady > curTick
-	    && blk->whenReady - curTick > hitLatency) {
-	    lat = blk->whenReady - curTick;
+		}
+		else{
+			assert(hitIndex == -1);
+		}
 	}
-	blk->refCount += 1;
-    }
+	else{
+		blk = sets[set].findBlk(asid, tag);
+	}
 
-    return blk;
+	lat = hitLatency;
+	if (blk != NULL) {
+		// move this block to head of the MRU list
+		sets[set].moveToHead(blk);
+
+		if(cache->useUniformPartitioning){
+			DPRINTF(UniformPartitioning, "Set %d: Hit in block (2), retrieved by processor %d, replaced block addr is %x\n",
+					set,
+					blk->origRequestingCpuID,
+					regenerateBlkAddr(blk->tag,blk->set));
+		}
+
+		if (blk->whenReady > curTick
+				&& blk->whenReady - curTick > hitLatency) {
+			lat = blk->whenReady - curTick;
+		}
+		blk->refCount += 1;
+	}
+
+	return blk;
 }
 
 void
@@ -363,9 +363,9 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 	LRUBlk *blk = NULL;
 	if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
 			|| (useMTPPartitioning && !isShadow)
-			|| (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick && !isShadow)){
+			|| (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick)){
 
-		assert(!isShadow);
+		if(curTick > cache->uniformPartitioningStartTick) assert(!isShadow);
 
 		int fromProc = req->adaptiveMHASenderID;
 		assert(fromProc >= 0 && fromProc < cache->cpuCount);
@@ -419,6 +419,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 			}
 		}
 		else{
+
 			// replace the LRU block belonging to this cache
 			for(int i = assoc-1;i>=0;i--){
 				blk = sets[set].blks[i];
@@ -436,7 +437,7 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 	assert(blk != NULL);
 
 	//estimate interference
-	if(blk->origRequestingCpuID != req->adaptiveMHASenderID && blk->origRequestingCpuID != -1){
+	if(blk->origRequestingCpuID != req->adaptiveMHASenderID && blk->origRequestingCpuID != -1 && !isShadow){
 		assert(req->adaptiveMHASenderID != -1);
 		cache->addCapacityInterference(blk->origRequestingCpuID, req->adaptiveMHASenderID);
 	}

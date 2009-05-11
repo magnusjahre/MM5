@@ -277,10 +277,12 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	//shadow tag access
 	bool shadowHit = false;
 	if(!shadowTags.empty()){
+
 		// access tags to update LRU stack
 		assert(isShared);
 		assert(req->adaptiveMHASenderID != -1);
 		assert(req->cmd == Writeback || req->cmd == Read);
+
 		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
 		if(shadowBlk != NULL){
 			shadowHit = true;
@@ -566,7 +568,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 				virtualWriteback->cmd = VirtualPrivateWriteback;
 				virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
 				virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
-
 				mi->viritualPrivateWriteAccess(virtualWriteback);
 			}
 		}
@@ -577,6 +578,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		assert(req->xc || !doData());
 		shadowBlk->xc = req->xc;
 		shadowBlk->status = BlkValid;
+		shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
 		assert(!shadowBlk->isModified());
 	}
 
@@ -648,6 +650,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 					// actions are handled in the check
 				}
 				else {
+
 					if(!isShared){
 						setSenderID(writebacks.front());
 					}
