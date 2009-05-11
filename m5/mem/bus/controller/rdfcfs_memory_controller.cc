@@ -191,9 +191,17 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         req->entryReadCnt = readQueue.size();
         req->entryWriteCnt = writeQueue.size();
 
-        assert(waitingReads.size() == 1 && waitingWrites.size() == 1);
+        assert(waitingReads.size() == 1 && waitingWrites.size() == 2);
         waitingReads[0] = readQueue.size();
-        waitingWrites[0] = writeQueue.size();
+
+        for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
+        	if((*queueIterator)->adaptiveMHASenderID != -1 ){
+        		waitingWrites[0]++;
+        	}
+        	else{
+        		waitingWrites[1]++;
+        	}
+        }
     }
 
 #ifdef DO_OCCUPANCY_TRACE
