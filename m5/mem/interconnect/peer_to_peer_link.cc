@@ -33,6 +33,8 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
 
     detailedSimStartTick = _detailedSimStart;
 
+    nextLegalArbTime = 0;
+
     assert(_adaptiveMHA == NULL);
     assert(_transDelay > 0);
 }
