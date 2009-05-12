@@ -11,7 +11,7 @@
 
 //#define DO_ESTIMATION_TRACE
 
-#define DO_OCCUPANCY_TRACE
+//#define DO_OCCUPANCY_TRACE
 
 using namespace std;
 
