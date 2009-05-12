@@ -60,6 +60,29 @@ ControllerInterference::regStats(){
 		.desc("average number of requests a request has to wait for");
 
 	avgQueueLengthEstimate = sumPrivateQueueLenghts / numRequests;
+
+	prematurelyDroppedRequests
+		.init(contIntCpuCount)
+		.name(name() + ".prematurely_dropped_requests")
+		.desc("number of requests that were dropped before their latency could be collected");
+
+	prematurelyDroppedRatio
+		.name(name() + ".prematurely_dropped_ratio")
+		.desc("number of dropped requests that got bogus measurement data per recieved request");
+
+	prematurelyDroppedRatio = prematurelyDroppedRequests / numRequests;
+
+	droppedRequests
+		.init(contIntCpuCount)
+		.name(name() + ".dropped_requests")
+		.desc("number of requests that were dropped because of limited buffering");
+
+	droppedRatio
+		.name(name() + ".dropped_ratio")
+		.desc("number of dropped requests per recieved request");
+
+	droppedRatio = droppedRequests / numRequests;
+
 }
 
 void

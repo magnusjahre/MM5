@@ -58,7 +58,9 @@ def createMemBus(bankcnt):
         root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
         for i in range(channels):
             if "READY-FIRST-LIMIT-ALL-CPUS" in env:
-                root.controllerInterference[i].rf_limit_all_cpus = env["READY-FIRST-LIMIT-ALL-CPUS"]
+                root.controllerInterference[i].rf_limit_all_cpus = int(env["READY-FIRST-LIMIT-ALL-CPUS"])
+            if "CONTROLLER-INTERFERENCE-BUFFER-SIZE" in env:
+                root.controllerInterference[i].buffer_size = int(env["CONTROLLER-INTERFERENCE-BUFFER-SIZE"])
     else:
         assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" 
         root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]

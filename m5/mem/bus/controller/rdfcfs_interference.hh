@@ -19,6 +19,12 @@ private:
 
 	int rfLimitAllCPUs;
 
+	int bufferSize;
+	bool infiniteBuffer;
+
+	std::vector<int> lastQueueDelay;
+	std::vector<int> lastServiceDelay;
+
 	struct PrivateLatencyBufferEntry{
 		PrivateLatencyBufferEntry* headAtEntry;
 		PrivateLatencyBufferEntry* previous;
@@ -58,7 +64,8 @@ public:
 						   TimingMemoryController* _ctlr,
 						   int _rflimitAllCPUs,
 						   bool _doOOOInsert,
-						   int _cpu_count);
+						   int _cpu_count,
+						   int _buffer_size);
 
 	void initialize(int cpu_count);
 
@@ -73,6 +80,8 @@ public:
 	void insertPrivateVirtualRequest(MemReqPtr& req);
 
 private:
+
+	void removeOldestRequest(MemReqPtr& req);
 
 	void insertRequestOutOfOrder(MemReqPtr& req, PrivateLatencyBufferEntry* newEntry);
 	Tick getEstimatedArrivalTime(MemReqPtr& req);

@@ -47,6 +47,11 @@ protected:
 	Stats::Vector<> numRequests;
 	Stats::Formula avgQueueLengthEstimate;
 
+	Stats::Vector<> prematurelyDroppedRequests;
+	Stats::Vector<> droppedRequests;
+
+	Stats::Formula prematurelyDroppedRatio;
+	Stats::Formula droppedRatio;
 
 	TimingMemoryController* memoryController;
 	int contIntCpuCount;

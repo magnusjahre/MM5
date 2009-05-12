@@ -15,13 +15,23 @@ RDFCFSControllerInterference::RDFCFSControllerInterference(const string& _name,
 											   TimingMemoryController* _ctlr,
 											   int _rflimitAllCPUs,
 											   bool _doOOOInsert,
-											   int _cpu_count)
+											   int _cpu_count,
+											   int _buffer_size)
 : ControllerInterference(_name, _cpu_count, _ctlr){
 
 	privStorageInited = false;
 	initialized = false;
 
 	doOutOfOrderInsert = _doOOOInsert;
+
+	if(_buffer_size == -1){
+		infiniteBuffer = true;
+		bufferSize = -1;
+	}
+	else{
+		infiniteBuffer = false;
+		bufferSize = _buffer_size;
+	}
 
     rfLimitAllCPUs = _rflimitAllCPUs;
     if(rfLimitAllCPUs < 1){
@@ -40,6 +50,9 @@ RDFCFSControllerInterference::initialize(int cpu_count){
     privateLatencyBuffer.resize(cpu_count, vector<PrivateLatencyBufferEntry*>());
 
     currentPrivateSeqNum.resize(cpu_count,0);
+
+    lastQueueDelay.resize(cpu_count, 0);
+    lastServiceDelay.resize(cpu_count, 0);
 
 #ifdef DO_ESTIMATION_TRACE
 
@@ -79,6 +92,7 @@ void
 RDFCFSControllerInterference::insertRequest(MemReqPtr& req){
 
 	assert(req->interferenceMissAt == 0);
+	numRequests[req->adaptiveMHASenderID]++;
 
 	if(!privStorageInited){
 		privStorageInited = true;
@@ -92,6 +106,11 @@ RDFCFSControllerInterference::insertRequest(MemReqPtr& req){
 	assert(req->adaptiveMHASenderID != -1);
 
 	PrivateLatencyBufferEntry* newEntry = new PrivateLatencyBufferEntry(req);
+
+	if(!infiniteBuffer && privateLatencyBuffer[req->adaptiveMHASenderID].size() >= bufferSize){
+		assert(privateLatencyBuffer[req->adaptiveMHASenderID].size() == bufferSize);
+		removeOldestRequest(req);
+	}
 
 	if(doOutOfOrderInsert){
 		insertRequestOutOfOrder(req, newEntry);
@@ -114,6 +133,72 @@ RDFCFSControllerInterference::insertRequest(MemReqPtr& req){
 		}
 	}
 
+}
+
+void
+RDFCFSControllerInterference::removeOldestRequest(MemReqPtr& req){
+
+	assert(privateLatencyBuffer[req->adaptiveMHASenderID].size() > 2);
+
+	droppedRequests[req->adaptiveMHASenderID]++;
+
+	PrivateLatencyBufferEntry* oldest = privateLatencyBuffer[req->adaptiveMHASenderID][0];
+	PrivateLatencyBufferEntry* newOldest = privateLatencyBuffer[req->adaptiveMHASenderID][1];
+
+	DPRINTF(MemoryControllerInterference, "Removing oldest element %d (%d) due to lack of buffer space, new oldest is %d (%d)\n",
+			oldest->req->paddr,
+			oldest,
+			newOldest->req->paddr,
+			newOldest);
+
+	vector<PrivateLatencyBufferEntry*>::iterator entryIt = privateLatencyBuffer[req->adaptiveMHASenderID].begin();
+	for( ; entryIt != privateLatencyBuffer[req->adaptiveMHASenderID].end(); entryIt++){
+		PrivateLatencyBufferEntry* curEntry = *entryIt;
+		if(curEntry->headAtEntry == oldest){
+			curEntry->headAtEntry = newOldest;
+			DPRINTF(MemoryControllerInterference, "Element %d has deleted element %d as headAtEntry, updating pointer to %d\n",
+					curEntry->req->paddr,
+					oldest->req->paddr,
+					newOldest->req->paddr);
+		}
+	}
+
+	if(oldest->next != NULL){
+		oldest->next->previous = oldest->previous;
+		DPRINTF(MemoryControllerInterference, "Removing oldest element %d, the previous pointer of %d is now %d\n",
+				oldest->req->paddr,
+				oldest->next->req->paddr,
+				(oldest->previous == NULL ? 0 : oldest->previous->req->paddr));
+	}
+	if(oldest->previous != NULL){
+		oldest->previous->next = oldest->next;
+		DPRINTF(MemoryControllerInterference, "Removing oldest element %d, the next pointer of %d is now %d\n",
+				oldest->req->paddr,
+				oldest->previous->req->paddr,
+				(oldest->next == NULL ? 0 : oldest->next->req->paddr));
+	}
+
+	if(oldest == headPointers[req->adaptiveMHASenderID]){
+		headPointers[req->adaptiveMHASenderID] = newOldest;
+		DPRINTF(MemoryControllerInterference, "Oldest element %d is the current head, new head is %d \n",
+				oldest->req->paddr,
+				newOldest->req->paddr);
+	}
+
+
+	if(oldest == tailPointers[req->adaptiveMHASenderID]){
+		tailPointers[req->adaptiveMHASenderID] = oldest->previous;
+
+		DPRINTF(MemoryControllerInterference, "Oldest element %d is the current tail, new tail is %d \n",
+				oldest->req->paddr,
+				(oldest->previous == NULL) ? 0 : oldest->previous->req->paddr);
+	}
+
+	privateLatencyBuffer[req->adaptiveMHASenderID].erase(privateLatencyBuffer[req->adaptiveMHASenderID].begin());
+	oldest->next = NULL;
+	oldest->previous = NULL;
+	oldest->headAtEntry = NULL;
+	delete oldest;
 }
 
 void
@@ -209,6 +294,30 @@ RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
             assert(privateLatencyBuffer[i][j]->req);
             assert(privateLatencyBuffer[i][j]->req->paddr != MemReq::inval_addr);
         }
+    }
+
+    if(!infiniteBuffer){
+    	bool found = false;
+		for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+			if(privateLatencyBuffer[fromCPU][i]->req->paddr == req->paddr){
+				found = true;
+			}
+		}
+
+		if(!found){
+			req->busAloneServiceEstimate = lastServiceDelay[req->adaptiveMHASenderID];
+			req->busAloneWriteQueueEstimate = 0;
+			req->busAloneReadQueueEstimate = lastQueueDelay[req->adaptiveMHASenderID];
+			prematurelyDroppedRequests[req->adaptiveMHASenderID]++;
+
+			DPRINTF(MemoryControllerInterference, "Request %d from CPU %d has been dropped from the queue, returning estimated service time %d and queue latency %d\n",
+					req->paddr,
+					fromCPU,
+					req->busAloneServiceEstimate,
+					req->busAloneReadQueueEstimate);
+
+			return;
+		}
     }
 
     // 1. Service requests ready-first within RF-limit until the current request is serviced
@@ -313,6 +422,9 @@ RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
 
     req->busAloneWriteQueueEstimate = 0;
     req->busAloneReadQueueEstimate = queueLatency;
+
+    lastQueueDelay[req->adaptiveMHASenderID] = queueLatency;
+    lastServiceDelay[req->adaptiveMHASenderID] = req->busAloneServiceEstimate;
 
     DPRINTF(MemoryControllerInterference, "History traversal finished, estimated %d cycles of queue latency\n", queueLatency);
 
@@ -571,7 +683,7 @@ RDFCFSControllerInterference::schedulePrivateRequest(int fromCPU){
             headPos = i;
         }
     }
-    assert(headPos != -1);
+    if(headPos == -1);
 
     int limit = headPos + readyFirstLimits[fromCPU] < privateLatencyBuffer[fromCPU].size() ?
                 headPos + readyFirstLimits[fromCPU] :
@@ -646,17 +758,18 @@ RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* e
 
     updateHeadPointer(entry, headPos, fromCPU);
 
-    DPRINTF(MemoryControllerInterference, "Request %d (%d) beforepointer %d (%d), behindpointer %d (%d)\n",
+    DPRINTF(MemoryControllerInterference, "Request %d (%d) beforepointer %d (%d), behindpointer %d (%d), head at entry %d\n",
 	    entry,
 	    entry->req->paddr,
 	    entry->next,
 	    (entry->next == NULL ? 0 : entry->next->req->paddr),
 	    entry->previous,
-	    (entry->previous == NULL ? 0 : entry->previous->req->paddr) );
+	    (entry->previous == NULL ? 0 : entry->previous->req->paddr),
+	    entry->headAtEntry->req->paddr);
 
-    if(entry->headAtEntry != entry){
-        assert( !(entry->previous == NULL && entry->next == NULL) );
-    }
+//    if(entry->headAtEntry != entry){
+//        assert( !(entry->previous == NULL && entry->next == NULL) );
+//    }
 
 }
 
@@ -713,13 +826,15 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
     Param<int> rf_limit_all_cpus;
     Param<bool> do_ooo_insert;
     Param<int> cpu_count;
+    Param<int> buffer_size;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 	INIT_PARAM_DFLT(memory_controller, "Associated memory controller", NULL),
     INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5),
     INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false),
-    INIT_PARAM_DFLT(cpu_count, "number of cpus",-1)
+    INIT_PARAM_DFLT(cpu_count, "number of cpus",-1),
+    INIT_PARAM_DFLT(buffer_size, "buffer size per cpu", -1)
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
 CREATE_SIM_OBJECT(RDFCFSControllerInterference)
@@ -728,7 +843,8 @@ CREATE_SIM_OBJECT(RDFCFSControllerInterference)
 									  memory_controller,
 									  rf_limit_all_cpus,
 									  do_ooo_insert,
-									  cpu_count);
+									  cpu_count,
+									  buffer_size);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSControllerInterference", RDFCFSControllerInterference)
