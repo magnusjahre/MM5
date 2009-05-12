@@ -552,34 +552,42 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	}
 
 	//shadow replacement
-	if(!shadowTags.empty()){
+	if(!shadowTags.empty() && cpuCount > 1){
 		assert(req->adaptiveMHASenderID != -1);
 
-		LRU::BlkList shadow_compress_list;
-		MemReqList shadow_writebacks;
-		LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
-		assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
+		LRUBlk* currentBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, hitLatency);
 
-		if(shadowBlk->isModified()){
-			shadowTagWritebacks[req->adaptiveMHASenderID]++;
+		if(currentBlk == NULL){
+			assert(req->interferenceMissAt == 0);
+			LRU::BlkList shadow_compress_list;
+			MemReqList shadow_writebacks;
+			LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
+			assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
 
-			if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
-				MemReqPtr virtualWriteback = new MemReq();
-				virtualWriteback->cmd = VirtualPrivateWriteback;
-				virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
-				virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
-				mi->viritualPrivateWriteAccess(virtualWriteback);
+			if(shadowBlk->isModified()){
+				shadowTagWritebacks[req->adaptiveMHASenderID]++;
+
+				if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
+					MemReqPtr virtualWriteback = new MemReq();
+					virtualWriteback->cmd = VirtualPrivateWriteback;
+					virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
+					virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
+					mi->viritualPrivateWriteAccess(virtualWriteback);
+				}
 			}
-		}
 
-		// set block values to the values of the new occupant
-		shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
-		shadowBlk->asid = req->asid;
-		assert(req->xc || !doData());
-		shadowBlk->xc = req->xc;
-		shadowBlk->status = BlkValid;
-		shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
-		assert(!shadowBlk->isModified());
+			// set block values to the values of the new occupant
+			shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
+			shadowBlk->asid = req->asid;
+			assert(req->xc || !doData());
+			shadowBlk->xc = req->xc;
+			shadowBlk->status = BlkValid;
+			shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
+			assert(!shadowBlk->isModified());
+		}
+		else{
+			assert(req->interferenceMissAt != 0);
+		}
 	}
 
 	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
