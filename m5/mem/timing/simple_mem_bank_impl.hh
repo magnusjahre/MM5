@@ -138,7 +138,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 
     accessesPerBank[bank]++;
 
-    DPRINTF(DRAM, "Calculating latency for req %x, cmd %s, page %x, bank %d\n",
+    DPRINTF(DRAM, "Calculating latency for req %d, cmd %s, page %d, bank %d\n",
             req->paddr,
             req->cmd,
             page,
@@ -456,16 +456,17 @@ template <class Compression>
 bool
 SimpleMemBank<Compression>::isReady(MemReqPtr &req)
 {
-  int bank = (req->paddr >> pagesize) % num_banks;
-  Addr page = (req->paddr >> pagesize);
+	int bank = (req->paddr >> pagesize) % num_banks;
+	Addr page = (req->paddr >> pagesize);
 
-  if (Bankstate[bank] == DDR2Idle) {
-    return false;
-  }
-  if (page == openpage[bank]) {
-    if (readyTime[bank] < curTick) {
-      return true;
-    }
-  }
-  return false;
+	if (Bankstate[bank] == DDR2Idle) {
+		return false;
+	}
+
+	if (page == openpage[bank]) {
+		if (readyTime[bank] <= curTick) {
+			return true;
+		}
+	}
+	return false;
 }
