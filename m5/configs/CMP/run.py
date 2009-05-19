@@ -61,6 +61,12 @@ def createMemBus(bankcnt):
                 root.controllerInterference[i].rf_limit_all_cpus = int(env["READY-FIRST-LIMIT-ALL-CPUS"])
             if "CONTROLLER-INTERFERENCE-BUFFER-SIZE" in env:
                 root.controllerInterference[i].buffer_size = int(env["CONTROLLER-INTERFERENCE-BUFFER-SIZE"])
+            if "USE-AVERAGE-ALONE-LATENCIES" in env:
+                assert env["USE-AVERAGE-ALONE-LATENCIES"] == "F" or env["USE-AVERAGE-ALONE-LATENCIES"] == "T"
+                if env["USE-AVERAGE-ALONE-LATENCIES"] == "T":
+                    root.controllerInterference[i].use_average_lats = True
+                else:
+                    root.controllerInterference[i].use_average_lats = False
     else:
         assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" 
         root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]

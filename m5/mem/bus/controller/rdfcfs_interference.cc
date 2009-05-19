@@ -12,17 +12,19 @@
 using namespace std;
 
 RDFCFSControllerInterference::RDFCFSControllerInterference(const string& _name,
-											   TimingMemoryController* _ctlr,
-											   int _rflimitAllCPUs,
-											   bool _doOOOInsert,
-											   int _cpu_count,
-											   int _buffer_size)
+							   TimingMemoryController* _ctlr,
+							   int _rflimitAllCPUs,
+							   bool _doOOOInsert,
+							   int _cpu_count,
+							   int _buffer_size,
+							   bool _use_avg_lats)
 : ControllerInterference(_name, _cpu_count, _ctlr){
 
 	privStorageInited = false;
 	initialized = false;
 
 	doOutOfOrderInsert = _doOOOInsert;
+	useAverageLatencies = _use_avg_lats;
 
 	if(_buffer_size == -1){
 		infiniteBuffer = true;
@@ -709,43 +711,19 @@ RDFCFSControllerInterference::schedulePrivateRequest(int fromCPU){
 
 void
 RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* entry, int fromCPU, int headPos){
-    estimatePageResult(entry->req);
 
     assert(!entry->scheduled);
     entry->scheduled = true;
 
     entry->req->busDelay = 0;
     Tick privateLatencyEstimate = 0;
-    if(entry->req->privateResultEstimate == DRAM_RESULT_HIT){
-    	estimatedNumberOfHits[fromCPU]++;
-    	if(entry->req->cmd == Read) privateLatencyEstimate = 40;
-    	else privateLatencyEstimate = 30;
-    }
-    else if(entry->req->privateResultEstimate == DRAM_RESULT_CONFLICT){
-    	estimatedNumberOfConflicts[fromCPU]++;
-        if(entry->req->cmd == Read) privateLatencyEstimate = 218;
-        else privateLatencyEstimate = 186;
-    }
-    else{
-    	assert(entry->req->privateResultEstimate == DRAM_RESULT_MISS);
-    	estimatedNumberOfMisses[fromCPU]++;
-        if(entry->req->cmd == Read) privateLatencyEstimate = 120;
-        else privateLatencyEstimate = 110;
-    }
+    
 
-    assert(entry->req->cmd == Read || entry->req->cmd == Writeback || entry->req->cmd == VirtualPrivateWriteback);
-    if(entry->req->cmd == Read){
-    	entry->req->memCtrlPrivateSeqNum = currentPrivateSeqNum[entry->req->adaptiveMHASenderID];
-    	currentPrivateSeqNum[entry->req->adaptiveMHASenderID]++;
-    }
-
-    DPRINTF(MemoryControllerInterference, "Estimated service latency for addr %d is %d\n", entry->req->paddr, privateLatencyEstimate);
-
-    entry->req->busAloneServiceEstimate += privateLatencyEstimate;
+    // 1. Update tail pointer and previous pointer (needed for latency estimation)
 
     if(tailPointers[fromCPU] != NULL){
-        tailPointers[fromCPU]->next = entry;
-        entry->previous = tailPointers[fromCPU];
+      tailPointers[fromCPU]->next = entry;
+      entry->previous = tailPointers[fromCPU];
     }
     DPRINTF(MemoryControllerInterference,
             "Updating tail pointer, previous was %d, changing to %d, new tail addr is %d, new tail is scheduled behind %d, old tail scheduled before %d\n",
@@ -756,6 +734,78 @@ RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* e
                     tailPointers[fromCPU]->next->req->paddr)));
     tailPointers[fromCPU] = entry;
 
+    
+    // 2. Estimate latency
+    estimatePageResult(entry->req);
+
+    if(entry->req->privateResultEstimate == DRAM_RESULT_HIT){
+      estimatedNumberOfHits[fromCPU]++;
+      privateLatencyEstimate = 40;
+    }
+    else if(entry->req->privateResultEstimate == DRAM_RESULT_CONFLICT){
+      estimatedNumberOfConflicts[fromCPU]++;
+      if(useAverageLatencies){
+	if(entry->req->cmd == Read) privateLatencyEstimate = 218;
+	else privateLatencyEstimate = 186;
+      }
+      else{
+	     
+	bool previousIsWrite = false;
+	if(entry->previous != NULL){
+	  assert(entry->previous->req->cmd == Read 
+		 || entry->previous->req->cmd == Writeback  
+		 || entry->previous->req->cmd == VirtualPrivateWriteback);
+
+	  if(entry->previous->req->cmd == Writeback 
+	     || entry->previous->req->cmd == VirtualPrivateWriteback){
+	    previousIsWrite = true;
+	  }
+	}
+
+	int thisBank = memoryController->getMemoryBankID(entry->req->paddr);
+      
+	bool previousIsForSameBank = false;
+	if(entry->previous != NULL){
+	  int previousBank = memoryController->getMemoryBankID(entry->previous->req->paddr);
+	  if(thisBank == previousBank) previousIsForSameBank = true;
+	}
+
+	if(entry->req->cmd == Read){
+	  if(previousIsWrite) privateLatencyEstimate = 260;
+	  else{
+	    if(previousIsForSameBank)privateLatencyEstimate = 200;
+	    else privateLatencyEstimate = 170;
+	  }
+	}
+	else{
+	  if(previousIsWrite) privateLatencyEstimate = 250;
+	  else{
+	    if(previousIsForSameBank) privateLatencyEstimate = 190;
+	    else privateLatencyEstimate = 160;
+	  }
+	}
+      }
+
+    }
+    else{
+      assert(entry->req->privateResultEstimate == DRAM_RESULT_MISS);
+      estimatedNumberOfMisses[fromCPU]++;
+      if(entry->req->cmd == Read) privateLatencyEstimate = 120;
+      else privateLatencyEstimate = 110;
+    }
+    
+    assert(entry->req->cmd == Read || entry->req->cmd == Writeback || entry->req->cmd == VirtualPrivateWriteback);
+    if(entry->req->cmd == Read){
+    	entry->req->memCtrlPrivateSeqNum = currentPrivateSeqNum[entry->req->adaptiveMHASenderID];
+    	currentPrivateSeqNum[entry->req->adaptiveMHASenderID]++;
+    }
+
+    DPRINTF(MemoryControllerInterference, "Estimated service latency for addr %d is %d\n", entry->req->paddr, privateLatencyEstimate);
+
+    entry->req->busAloneServiceEstimate += privateLatencyEstimate;
+
+
+    // 3. Update head pointer
     updateHeadPointer(entry, headPos, fromCPU);
 
     DPRINTF(MemoryControllerInterference, "Request %d (%d) beforepointer %d (%d), behindpointer %d (%d), head at entry %d\n",
@@ -766,10 +816,6 @@ RDFCFSControllerInterference::executePrivateRequest(PrivateLatencyBufferEntry* e
 	    entry->previous,
 	    (entry->previous == NULL ? 0 : entry->previous->req->paddr),
 	    entry->headAtEntry->req->paddr);
-
-//    if(entry->headAtEntry != entry){
-//        assert( !(entry->previous == NULL && entry->next == NULL) );
-//    }
 
 }
 
@@ -827,6 +873,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
     Param<bool> do_ooo_insert;
     Param<int> cpu_count;
     Param<int> buffer_size;
+    Param<bool> use_average_lats;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
@@ -834,17 +881,20 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
     INIT_PARAM_DFLT(rf_limit_all_cpus, "Private latency estimation ready first limit", 5),
     INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false),
     INIT_PARAM_DFLT(cpu_count, "number of cpus",-1),
-    INIT_PARAM_DFLT(buffer_size, "buffer size per cpu", -1)
+  INIT_PARAM_DFLT(buffer_size, "buffer size per cpu", -1),
+  INIT_PARAM_DFLT(use_average_lats, "if true, the average latencies are used", false)
+
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
 CREATE_SIM_OBJECT(RDFCFSControllerInterference)
 {
     return new RDFCFSControllerInterference(getInstanceName(),
-									  memory_controller,
-									  rf_limit_all_cpus,
-									  do_ooo_insert,
-									  cpu_count,
-									  buffer_size);
+					    memory_controller,
+					    rf_limit_all_cpus,
+					    do_ooo_insert,
+					    cpu_count,
+					    buffer_size,
+					    use_average_lats);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSControllerInterference", RDFCFSControllerInterference)

@@ -10,8 +10,10 @@ private:
 
 	bool privStorageInited;
 	bool doOutOfOrderInsert;
+  bool useAverageLatencies;
 
 	bool initialized;
+
 
 	std::vector<RequestTrace> privateExecutionOrderTraces;
 	std::vector<RequestTrace> privateArrivalOrderEstimationTraces;
@@ -61,11 +63,12 @@ private:
 
 public:
 	RDFCFSControllerInterference(const std::string& _name,
-						   TimingMemoryController* _ctlr,
-						   int _rflimitAllCPUs,
-						   bool _doOOOInsert,
-						   int _cpu_count,
-						   int _buffer_size);
+				     TimingMemoryController* _ctlr,
+				     int _rflimitAllCPUs,
+				     bool _doOOOInsert,
+				     int _cpu_count,
+				     int _buffer_size,
+				     bool _use_avg_lats);
 
 	void initialize(int cpu_count);
 
