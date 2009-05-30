@@ -11,6 +11,7 @@ private:
 	bool privStorageInited;
 	bool doOutOfOrderInsert;
 	bool useAverageLatencies;
+	bool usePureHeadPointerQueueModel;
 
 	bool initialized;
 
@@ -68,7 +69,8 @@ public:
 				     bool _doOOOInsert,
 				     int _cpu_count,
 				     int _buffer_size,
-				     bool _use_avg_lats);
+				     bool _use_avg_lats,
+				     bool _pure_head_ptr_model);
 
 	void initialize(int cpu_count);
 

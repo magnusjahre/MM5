@@ -17,7 +17,8 @@ RDFCFSControllerInterference::RDFCFSControllerInterference(const string& _name,
 							   bool _doOOOInsert,
 							   int _cpu_count,
 							   int _buffer_size,
-							   bool _use_avg_lats)
+							   bool _use_avg_lats,
+							   bool _pure_head_ptr_model)
 : ControllerInterference(_name, _cpu_count, _ctlr){
 
 	privStorageInited = false;
@@ -25,6 +26,7 @@ RDFCFSControllerInterference::RDFCFSControllerInterference(const string& _name,
 
 	doOutOfOrderInsert = _doOOOInsert;
 	useAverageLatencies = _use_avg_lats;
+	usePureHeadPointerQueueModel = _pure_head_ptr_model;
 
 	if(_buffer_size == -1){
 		infiniteBuffer = true;
@@ -370,79 +372,109 @@ RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
     // 2. compute queue delay by traversing history
     DPRINTF(MemoryControllerInterference, "--- Step 2, traverse history\n");
 
-    // 2.1 find the oldest scheduled request that was in the queue when the current request arrived
-    PrivateLatencyBufferEntry* headPtr = curLBE->headAtEntry;
-    int headIndex = -1;
-    int curIndex = -1;
-    int oldestPosition = -1;
-    int oldestArrivalID = -1;
-
-    bool searching = false;
-    for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
-        if(privateLatencyBuffer[fromCPU][i] == headPtr){
-            DPRINTF(MemoryControllerInterference, "Found head addr %d at buffer index %d\n",
-                    headPtr->req->paddr,
-                    i);
-            headIndex = i;
-            searching = true;
-        }
-
-        if(searching && privateLatencyBuffer[fromCPU][i]->scheduled){
-            int tmpPosition = 0;
-            PrivateLatencyBufferEntry* searchPtr = tailPointers[fromCPU];
-            while(searchPtr != privateLatencyBuffer[fromCPU][i]){
-                assert(searchPtr->scheduled);
-                tmpPosition++;
-                searchPtr = searchPtr->previous;
-                assert(searchPtr != NULL);
-            }
-
-            if(tmpPosition > oldestPosition){
-                oldestPosition = tmpPosition;
-                oldestArrivalID = i;
-
-                DPRINTF(MemoryControllerInterference, "Updating oldest position to %d and oldest id to %d, oldest element between head %d and current element %d is now %d\n",
-                        oldestPosition,
-                        oldestArrivalID,
-                        headPtr->req->paddr,
-                        curLBE->req->paddr,
-                        privateLatencyBuffer[fromCPU][i]->req->paddr);
-            }
-        }
-
-        if(privateLatencyBuffer[fromCPU][i] == curLBE){
-            curIndex = i;
-            searching = false;
-            DPRINTF(MemoryControllerInterference, "Current entry found at position %d, search finished\n", i);
-        }
-    }
-
-    assert(oldestPosition >= 0);
-    assert(oldestArrivalID >= 0);
-
-    DPRINTF(MemoryControllerInterference, "Search finished, oldest position is %d and oldest id is %d\n",
-            oldestPosition,
-            oldestArrivalID);
-
-    assert(headIndex != -1);
-    assert(curIndex != -1);
-    assert(curIndex >= headIndex);
-
-    // 2.2 Compute the queue latency
     Tick queueLatency = 0;
-    PrivateLatencyBufferEntry* latSearchPtr = privateLatencyBuffer[fromCPU][oldestArrivalID];
-    while(latSearchPtr != curLBE){
-        assert(latSearchPtr->scheduled);
-        assert(latSearchPtr->req);
 
-        DPRINTF(MemoryControllerInterference, "Retrieving latency %d from addr %d, next buffer entry addr is %d\n",
-                latSearchPtr->req->busAloneServiceEstimate,
-                latSearchPtr->req->paddr,
-                latSearchPtr->next);
+    if(usePureHeadPointerQueueModel){
+    	PrivateLatencyBufferEntry* headPtr = curLBE->headAtEntry;
+    	PrivateLatencyBufferEntry* queueSearchPtr = headPtr;
 
-        queueLatency += latSearchPtr->req->busAloneServiceEstimate;
-        latSearchPtr = latSearchPtr->next;
-        assert(latSearchPtr != NULL);
+
+    	if(!queueSearchPtr->scheduled){
+    		DPRINTF(MemoryControllerInterference, "Head for addr %d has not been executed (head is %d), setting queue latency to 0\n",
+    				curLBE->req->paddr,
+    				headPtr->req->paddr);
+    	}
+    	else{
+    		while(queueSearchPtr != NULL){
+    			if(queueSearchPtr == curLBE) break;
+    			assert(queueSearchPtr->scheduled);
+    			queueLatency += queueSearchPtr->req->busAloneServiceEstimate;
+    			queueSearchPtr = queueSearchPtr->next;
+    		}
+
+    		if(queueSearchPtr == NULL){
+    			DPRINTF(MemoryControllerInterference, "Request for addr %d was executed before its head %d, setting queue latency to 0\n",
+    					curLBE->req->paddr,
+    					headPtr->req->paddr);
+    			queueLatency = 0;
+    		}
+    	}
+    }
+    else{
+
+    	// 2.1 find the oldest scheduled request that was in the queue when the current request arrived
+    	PrivateLatencyBufferEntry* headPtr = curLBE->headAtEntry;
+    	int headIndex = -1;
+    	int curIndex = -1;
+    	int oldestPosition = -1;
+    	int oldestArrivalID = -1;
+
+    	bool searching = false;
+    	for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
+    		if(privateLatencyBuffer[fromCPU][i] == headPtr){
+    			DPRINTF(MemoryControllerInterference, "Found head addr %d at buffer index %d\n",
+    					headPtr->req->paddr,
+    					i);
+    			headIndex = i;
+    			searching = true;
+    		}
+
+    		if(searching && privateLatencyBuffer[fromCPU][i]->scheduled){
+    			int tmpPosition = 0;
+    			PrivateLatencyBufferEntry* searchPtr = tailPointers[fromCPU];
+    			while(searchPtr != privateLatencyBuffer[fromCPU][i]){
+    				assert(searchPtr->scheduled);
+    				tmpPosition++;
+    				searchPtr = searchPtr->previous;
+    				assert(searchPtr != NULL);
+    			}
+
+    			if(tmpPosition > oldestPosition){
+    				oldestPosition = tmpPosition;
+    				oldestArrivalID = i;
+
+    				DPRINTF(MemoryControllerInterference, "Updating oldest position to %d and oldest id to %d, oldest element between head %d and current element %d is now %d\n",
+    						oldestPosition,
+    						oldestArrivalID,
+    						headPtr->req->paddr,
+    						curLBE->req->paddr,
+    						privateLatencyBuffer[fromCPU][i]->req->paddr);
+    			}
+    		}
+
+    		if(privateLatencyBuffer[fromCPU][i] == curLBE){
+    			curIndex = i;
+    			searching = false;
+    			DPRINTF(MemoryControllerInterference, "Current entry found at position %d, search finished\n", i);
+    		}
+    	}
+
+    	assert(oldestPosition >= 0);
+    	assert(oldestArrivalID >= 0);
+
+    	DPRINTF(MemoryControllerInterference, "Search finished, oldest position is %d and oldest id is %d\n",
+    			oldestPosition,
+    			oldestArrivalID);
+
+    	assert(headIndex != -1);
+    	assert(curIndex != -1);
+    	assert(curIndex >= headIndex);
+
+    	// 2.2 Compute the queue latency
+    	PrivateLatencyBufferEntry* latSearchPtr = privateLatencyBuffer[fromCPU][oldestArrivalID];
+    	while(latSearchPtr != curLBE){
+    		assert(latSearchPtr->scheduled);
+    		assert(latSearchPtr->req);
+
+    		DPRINTF(MemoryControllerInterference, "Retrieving latency %d from addr %d, next buffer entry addr is %d\n",
+    				latSearchPtr->req->busAloneServiceEstimate,
+    				latSearchPtr->req->paddr,
+    				latSearchPtr->next);
+
+    		queueLatency += latSearchPtr->req->busAloneServiceEstimate;
+    		latSearchPtr = latSearchPtr->next;
+    		assert(latSearchPtr != NULL);
+    	}
     }
 
     req->busAloneWriteQueueEstimate = 0;
@@ -843,6 +875,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
     Param<int> cpu_count;
     Param<int> buffer_size;
     Param<bool> use_average_lats;
+    Param<bool> pure_head_pointer_model;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
@@ -851,7 +884,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
     INIT_PARAM_DFLT(do_ooo_insert, "If true, a reordering step is applied to the recieved requests (experimental)", false),
     INIT_PARAM_DFLT(cpu_count, "number of cpus",-1),
 	INIT_PARAM_DFLT(buffer_size, "buffer size per cpu", -1),
-	INIT_PARAM_DFLT(use_average_lats, "if true, the average latencies are used", false)
+	INIT_PARAM_DFLT(use_average_lats, "if true, the average latencies are used", false),
+	INIT_PARAM_DFLT(pure_head_pointer_model, "if true, the queue is traversed from the headptr to the current item", true)
 
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSControllerInterference)
 
@@ -863,7 +897,8 @@ CREATE_SIM_OBJECT(RDFCFSControllerInterference)
 					    do_ooo_insert,
 					    cpu_count,
 					    buffer_size,
-					    use_average_lats);
+					    use_average_lats,
+					    pure_head_pointer_model);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSControllerInterference", RDFCFSControllerInterference)

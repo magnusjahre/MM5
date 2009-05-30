@@ -9,3 +9,4 @@ class RDFCFSControllerInterference(ControllerInterference):
     cpu_count = Param.Int("Number of cpus")
     buffer_size = Param.Int("Buffer size per CPU")
     use_average_lats = Param.Bool("if true, the average latencies are used")
+    pure_head_pointer_model = Param.Bool("if true, the queue is traversed from the headptr to the current item")

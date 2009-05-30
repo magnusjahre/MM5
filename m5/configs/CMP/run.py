@@ -67,6 +67,12 @@ def createMemBus(bankcnt):
                     root.controllerInterference[i].use_average_lats = True
                 else:
                     root.controllerInterference[i].use_average_lats = False
+            if "USE-PURE-HEAD-POINTER-MODEL" in env:
+                assert env["USE-PURE-HEAD-POINTER-MODEL"] == "T" or env["USE-PURE-HEAD-POINTER-MODEL"] == "F"
+                if env["USE-PURE-HEAD-POINTER-MODEL"] == "T":
+                    root.controllerInterference[i].pure_head_pointer_model = True
+                else:
+                    root.controllerInterference[i].pure_head_pointer_model = False
     else:
         assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" 
         root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
