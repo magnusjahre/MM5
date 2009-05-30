@@ -10,10 +10,9 @@ private:
 
 	bool privStorageInited;
 	bool doOutOfOrderInsert;
-  bool useAverageLatencies;
+	bool useAverageLatencies;
 
 	bool initialized;
-
 
 	std::vector<RequestTrace> privateExecutionOrderTraces;
 	std::vector<RequestTrace> privateArrivalOrderEstimationTraces;
@@ -58,6 +57,7 @@ private:
 
 	std::vector<PrivateLatencyBufferEntry*> headPointers;
 	std::vector<PrivateLatencyBufferEntry*> tailPointers;
+	std::vector<PrivateLatencyBufferEntry*> oldestEntryPointer;
 	std::vector<int> readyFirstLimits;
 	std::vector<std::vector<PrivateLatencyBufferEntry*> > privateLatencyBuffer;
 
@@ -94,7 +94,9 @@ private:
 	void updateHeadPointer(PrivateLatencyBufferEntry* entry, int headPos, int fromCPU);
 	int getArrivalIndex(PrivateLatencyBufferEntry* entry, int fromCPU);
 	int getQueuePosition(PrivateLatencyBufferEntry* entry, int fromCPU);
-	void deleteBufferRange(int toIndex, int fromCPU);
+
+	void freeUsedEntries(int fromCPU);
+//	void deleteBufferRange(int toIndex, int fromCPU);
 
 
 
