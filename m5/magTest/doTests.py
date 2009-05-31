@@ -46,13 +46,16 @@ def getCommandline(cpu, benchmark, conf):
   args.append("-ESTATSFILE=test_output.txt")
 
   args.append("-EMEMORY-SYSTEM="+str(c[0]))
-  args.append("-EMEMORY-BUS-CHANNELS="+str(c[1])) 
+  args.append("-EMEMORY-BUS-CHANNELS="+str(c[1]))
+
   args.append("-EMEMORY-BUS-SCHEDULER=RDFCFS")
-  args.append("-EWRITEBACK-OWNER-POLICY=shadow-tags")
   args.append("-EMEMORY-BUS-PAGE-POLICY=OpenPage")
-  args.append("-ECONTROLLER-INERFERENCE-BUFFER-SIZE=16")
+  args.append("-EMEMORY-BUS-PRIORITY-SCHEME=FCFS")
+  args.append("-EREADY-FIRST-LIMIT-ALL-CPUS=64")
+  args.append("-EWRITEBACK-OWNER-POLICY=shadow-tags")
+  args.append("-ECONTROLLER-INERFERENCE-BUFFER-SIZE=64")
   args.append("-EUSE-PURE-HEAD-POINTER-MODEL=T")
- 
+
   args.append(configFile)
 
   cmd = ""
