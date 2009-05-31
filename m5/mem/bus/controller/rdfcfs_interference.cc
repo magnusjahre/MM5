@@ -326,7 +326,7 @@ RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
     if(!infiniteBuffer){
     	bool found = false;
 		for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
-			if(privateLatencyBuffer[fromCPU][i]->req->paddr == req->paddr){
+			if(privateLatencyBuffer[fromCPU][i]->req == req){
 				found = true;
 			}
 		}
@@ -594,7 +594,6 @@ RDFCFSControllerInterference::freeUsedEntries(int fromCPU){
 		assert(headPointers[fromCPU] != currentEntry);
 		assert(tailPointers[fromCPU] != currentEntry);
 
-
 		PrivateLatencyBufferEntry* next = currentEntry->next;
 		assert(next != NULL);
 		currentEntry->next->previous = NULL;
@@ -671,6 +670,7 @@ RDFCFSControllerInterference::PrivateLatencyBufferEntry*
 RDFCFSControllerInterference::schedulePrivateRequest(int fromCPU){
 
     int headPos = -1;
+    assert(headPointers[fromCPU] != NULL);
     for(int i=0;i<privateLatencyBuffer[fromCPU].size();i++){
         if(privateLatencyBuffer[fromCPU][i] == headPointers[fromCPU]){
             assert(headPos == -1);
