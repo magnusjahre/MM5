@@ -47,6 +47,11 @@ def getCommandline(cpu, benchmark, conf):
 
   args.append("-EMEMORY-SYSTEM="+str(c[0]))
   args.append("-EMEMORY-BUS-CHANNELS="+str(c[1])) 
+  args.append("-EMEMORY-BUS-SCHEDULER=RDFCFS")
+  args.append("-EWRITEBACK-OWNER-POLICY=shadow-tags")
+  args.append("-EMEMORY-BUS-PAGE-POLICY=OpenPage")
+  args.append("-ECONTROLLER-INERFERENCE-BUFFER-SIZE=16")
+  args.append("-EUSE-PURE-HEAD-POINTER-MODEL=T")
  
   args.append(configFile)
 
