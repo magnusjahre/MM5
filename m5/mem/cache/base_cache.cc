@@ -336,6 +336,13 @@ BaseCache::regStats()
         .flags(total)
         ;
 
+    numExtraResponses
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_responses")
+        .desc("number of responses to extra misses measured with shadow tags")
+        .flags(total)
+        ;
+
     numExtraMisses
         .init(cpuCount)
         .name(name() + ".cpu_extra_misses")

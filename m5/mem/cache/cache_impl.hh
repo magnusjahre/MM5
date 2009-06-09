@@ -454,6 +454,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 		if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning && curTick >= detailedSimulationStartTick){
 			req->interferenceMissAt = curTick + hitLatency;
+			numExtraMisses[req->adaptiveMHASenderID]++;
 		}
 
 		req->finishedInCacheAt = curTick + hitLatency;
@@ -596,7 +597,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
 		req->cacheCapacityInterference += extraDelay;
 		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-		numExtraMisses[req->adaptiveMHASenderID]++;
+		numExtraResponses[req->adaptiveMHASenderID]++;
 
 		assert(interferenceManager != NULL);
 		interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
