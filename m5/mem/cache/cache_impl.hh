@@ -384,6 +384,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		accessesPerCPU[cacheCpuID]++;
 	}
 
+	if(isShared && req->cmd == Read){
+		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+	}
+
 	if (blk) {
 
 		if(isDirectoryAndL2Cache()){
@@ -601,6 +605,10 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 		assert(interferenceManager != NULL);
 		interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
+	}
+
+	if(isShared && req->cmd == Read){
+		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 	}
 
 	MemReqPtr copy_request;
