@@ -31,7 +31,7 @@ echo "Running workload $wl..."
 
 cd runtmp
 
-../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=$controller -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > shared-trace.txt 2> /dev/null
+../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=$controller -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EWRITEBACK-OWNER-POLICY=shadow-tags -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > shared-trace.txt 2> /dev/null
 cp test_output.txt ../stats_$wl.txt
 cp cpuSwitchInsts.txt ../$(echo $wl)_cpuSwitchInsts.txt
 cp CPU*InterferenceTrace.txt ../
@@ -47,7 +47,7 @@ do
     
     echo "Running benchmark $i until it has committed $insts instructions..."
 
-    ../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=$i -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=$controller -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$COUNTER -EMEMORY-ADDRESS-PARTS=$np -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > /dev/null 2> /dev/null
+    ../../build/ALPHA_SE/m5.opt -ENP=1 -EBENCHMARK=$i -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMINSTS=$insts -EMEMORY-BUS-SCHEDULER=$controller -EPROGRESS=0 -EFASTFORWARDTICKS=$2 -EMEMORY-ADDRESS-OFFSET=$COUNTER -EMEMORY-ADDRESS-PARTS=$np -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EWRITEBACK-OWNER-POLICY=shadow-tags -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > /dev/null 2> /dev/null
     cp test_output.txt ../stats_$i.txt
     cp cpuSwitchInsts.txt ../$(echo $i)_cpuSwitchInsts.txt
     cp CPU0InterferenceTrace.txt ../$(echo $i)_priv_interferencetrace.txt
