@@ -92,6 +92,8 @@ class BaseCache(BaseMem):
     use_static_partitioning_for_warmup = Param.Bool("if true, static partitioning is used in the warm up phase")
     static_partitioning_div_factor = Param.Int("factor to divide cache space during fw by when there is 1 cpu core")
 
+    shadow_tag_leader_sets = Param.Int("number of leader sets to use in shadow tags (0 is full-map")
+
     # Directory protocol parameters
     dirProtocolName = Param.DirectoryProtocol('none', "name of coherence protocol")
     dirProtocolDoTrace = Param.Bool("turns on tracing of coherence protocol actions")

@@ -108,6 +108,15 @@ Cache(const std::string &_name, HierParams *hier_params,
             shadowTags[i]->setCache(this, false);
         }
 
+        numLeaderSets = params.shadowTagLeaderSets;
+        numLeaderSets = numLeaderSets / params.bankCount;
+        if(numLeaderSets == 0) numLeaderSets = tags->getNumSets(); // 0 means full-map
+
+		if(tags->getNumSets() % numLeaderSets  != 0){
+			fatal("The the total number for sets must be divisible by the number of leader sets");
+		}
+		assert(numLeaderSets <= tags->getNumSets() && numLeaderSets >= 0);
+
         if(params.useMTPPartitioning){
             repartEvent = new CacheRepartitioningEvent(this);
             repartEvent->schedule(params.uniformPartitioningStart);
@@ -118,9 +127,11 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
     else{
         repartEvent = NULL;
+        numLeaderSets = -1;
     }
 #else
     repartEvent = NULL;
+    numLeaderSets = -1;
 #endif
 
     if(params.useMTPPartitioning)
@@ -276,6 +287,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	//shadow tag access
 	bool shadowHit = false;
+	bool shadowLeaderSet = false;
 	if(!shadowTags.empty()){
 
 		// access tags to update LRU stack
@@ -284,6 +296,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		assert(req->cmd == Writeback || req->cmd == Read);
 
 		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
+		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
+		shadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
+
 		if(shadowBlk != NULL){
 			shadowHit = true;
 			if(req->cmd == Writeback){
@@ -456,7 +471,12 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	}
 	else{
 
-		if(cpuCount > 1 && isShared && shadowHit && !useUniformPartitioning && curTick >= detailedSimulationStartTick){
+		if(cpuCount > 1
+				&& isShared
+				&& shadowHit
+				&& !useUniformPartitioning
+				&& curTick >= detailedSimulationStartTick
+				&& shadowLeaderSet){
 			req->interferenceMissAt = curTick + hitLatency;
 			numExtraMisses[req->adaptiveMHASenderID]++;
 		}
@@ -557,10 +577,15 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	}
 
 	//shadow replacement
+
+	bool isShadowLeaderSet = false;;
 	if(!shadowTags.empty() && cpuCount > 1){
 		assert(req->adaptiveMHASenderID != -1);
 
 		LRUBlk* currentBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, hitLatency);
+
+		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
+		isShadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
 
 		if(currentBlk == NULL){
 			assert(req->interferenceMissAt == 0);
@@ -569,7 +594,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
 			assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
 
-			if(shadowBlk->isModified()){
+			if(shadowBlk->isModified() && isShadowLeaderSet){
 				shadowTagWritebacks[req->adaptiveMHASenderID]++;
 
 				if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
@@ -673,22 +698,24 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 					}
 					else{
 
-						switch(writebackOwnerPolicy){
-						case BaseCache::WB_POLICY_OWNER:
-							assert(blk->prevOrigRequestingCpuID != -1);
-							writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
-							break;
-						case BaseCache::WB_POLICY_REPLACER:
-							writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
-							break;
-						default:
-							writebacks.front()->adaptiveMHASenderID = -1;
-							break;
-						}
+						if(isShadowLeaderSet){
+							switch(writebackOwnerPolicy){
+							case BaseCache::WB_POLICY_OWNER:
+								assert(blk->prevOrigRequestingCpuID != -1);
+								writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
+								break;
+							case BaseCache::WB_POLICY_REPLACER:
+								writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
+								break;
+							default:
+								writebacks.front()->adaptiveMHASenderID = -1;
+								break;
+							}
 
-						writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
-						writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
-						writebacks.front()->memCtrlWbGenBy = req->paddr;
+							writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
+							writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
+							writebacks.front()->memCtrlWbGenBy = req->paddr;
+						}
 					}
 
 

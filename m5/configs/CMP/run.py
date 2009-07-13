@@ -116,6 +116,10 @@ def initSharedCache(bankcnt):
     if "WRITEBACK-OWNER-POLICY" in env:
         for bank in root.SharedCache:
             bank.writeback_owner_policy = env["WRITEBACK-OWNER-POLICY"]
+            
+    if "SHADOW-TAG-LEADER-SETS" in env:
+        for bank in root.SharedCache:
+            bank.shadow_tag_leader_sets = int(env["SHADOW-TAG-LEADER-SETS"])
    
 def setUpSharedCache(bankcnt, detailedStartTick):
     

@@ -592,3 +592,16 @@ BaseCache::setSenderID(MemReqPtr& req){
         req->interferenceAccurateSenderID = cacheCpuID;
     }
 }
+
+bool
+BaseCache::isLeaderSet(int set, int numSets){
+
+	assert(numLeaderSets != -1);
+	if(numLeaderSets == numSets) return true;
+
+	int setsInConstituency = numSets / numLeaderSets;
+	int constituencyNumber = set / setsInConstituency;
+	int leaderSet = constituencyNumber * setsInConstituency + constituencyNumber;
+
+	return leaderSet == set;
+}

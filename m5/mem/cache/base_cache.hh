@@ -141,6 +141,8 @@ class BaseCache : public BaseMem {
     bool simulateContention;
     Tick nextFreeCache;
 
+    int numLeaderSets;
+
     struct cacheOccupancy{
         Tick startTick;
         Tick endTick;
@@ -542,6 +544,8 @@ class BaseCache : public BaseMem {
     bool isDirectoryAndL1DataCache(){
         return !isReadOnly && !isShared && useDirectory;
     }
+
+    bool isLeaderSet(int set, int numSets);
 
     void checkIfCacheAlive();
 
