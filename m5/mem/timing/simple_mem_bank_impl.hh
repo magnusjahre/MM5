@@ -51,7 +51,7 @@
 #include "mem/timing/simple_mem_bank.hh"
 #include "sim/builder.hh"
 
-#define DO_HIT_TRACE
+//#define DO_HIT_TRACE
 
 using namespace std;
 
@@ -308,7 +308,11 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         number_of_non_overlap_activate++;
     }
 
-    bool isConfict = updateLatencyDistribution(isHit, latency, bank, req);
+#ifdef DO_HIT_TRACE
+    bool isConfict =
+#endif
+    	updateLatencyDistribution(isHit, latency, bank, req);
+
     bankInConflict[bank] = false;
 
 #ifdef DO_HIT_TRACE
