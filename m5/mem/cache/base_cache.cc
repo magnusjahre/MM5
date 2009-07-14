@@ -601,7 +601,7 @@ BaseCache::isLeaderSet(int set, int numSets){
 
 	int setsInConstituency = numSets / numLeaderSets;
 	int constituencyNumber = set / setsInConstituency;
-	int leaderSet = constituencyNumber * setsInConstituency + constituencyNumber;
+	int leaderSet = constituencyNumber * setsInConstituency + (constituencyNumber % setsInConstituency);
 
 	return leaderSet == set;
 }
