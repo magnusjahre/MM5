@@ -142,6 +142,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->shadowCtrlID = r->shadowCtrlID;
     req->givenToShadow = r->givenToShadow;
     req->interferenceMissAt = r->interferenceMissAt;
+    req->isShadowMiss = r->isShadowMiss;
     req->finishedInCacheAt = r->finishedInCacheAt;
     req->cacheCapacityInterference = r->cacheCapacityInterference;
     req->memBusBlockedWaitCycles = r->memBusBlockedWaitCycles;
@@ -233,6 +234,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->shadowCtrlID = from->shadowCtrlID;
     to->givenToShadow = from->givenToShadow;
     to->interferenceMissAt = from->interferenceMissAt;
+    to->isShadowMiss = from->isShadowMiss;
     to->finishedInCacheAt = from->finishedInCacheAt;
     to->cacheCapacityInterference = from->cacheCapacityInterference;
     to->memBusBlockedWaitCycles = from->memBusBlockedWaitCycles;

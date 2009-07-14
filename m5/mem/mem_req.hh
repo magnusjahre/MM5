@@ -229,6 +229,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool givenToShadow;
 
     Tick interferenceMissAt;
+    bool isShadowMiss;
     Tick finishedInCacheAt;
     Tick cacheCapacityInterference;
 
@@ -317,6 +318,7 @@ class MemReq : public FastAlloc, public RefCounted
     shadowCtrlID(-1),
     givenToShadow(false),
     interferenceMissAt(0),
+    isShadowMiss(false),
     finishedInCacheAt(0),
     cacheCapacityInterference(0),
     memBusBlockedWaitCycles(0),
@@ -391,6 +393,7 @@ class MemReq : public FastAlloc, public RefCounted
         shadowCtrlID = r.shadowCtrlID;
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;
+	isShadowMiss = r.isShadowMiss;
         finishedInCacheAt = r.finishedInCacheAt;
         cacheCapacityInterference = r.cacheCapacityInterference;
         memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;

@@ -94,6 +94,7 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 		req->adaptiveMHASenderID = target->adaptiveMHASenderID;
 		req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
 		req->interferenceMissAt = target->interferenceMissAt;
+		req->isShadowMiss = target->isShadowMiss;
 
 		req->finishedInCacheAt = target->finishedInCacheAt;
 
@@ -139,6 +140,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->adaptiveMHASenderID = target->adaptiveMHASenderID;
     req->interferenceAccurateSenderID = target->interferenceAccurateSenderID;
     req->interferenceMissAt = target->interferenceMissAt;
+    req->isShadowMiss = target->isShadowMiss;
     req->finishedInCacheAt = target->finishedInCacheAt;
 
     req->memCtrlGeneratingReadSeqNum = target->memCtrlGeneratingReadSeqNum;

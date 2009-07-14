@@ -308,6 +308,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		else{
 			shadowHit = false;
 		}
+		req->isShadowMiss = !shadowHit;
 	}
 
 	// update hit statistics
@@ -577,24 +578,24 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	}
 
 	//shadow replacement
-
-	bool isShadowLeaderSet = false;;
 	if(!shadowTags.empty() && cpuCount > 1){
 		assert(req->adaptiveMHASenderID != -1);
 
 		LRUBlk* currentBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, hitLatency);
 
 		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-		isShadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
+		bool isShadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
 
 		if(currentBlk == NULL){
-			assert(req->interferenceMissAt == 0);
+     		        assert(req->isShadowMiss);
+     		        if(isShadowLeaderSet) assert(req->interferenceMissAt == 0);
 			LRU::BlkList shadow_compress_list;
 			MemReqList shadow_writebacks;
 			LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
 			assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
 
 			if(shadowBlk->isModified() && isShadowLeaderSet){
+          			assert(isShadowLeaderSet);
 				shadowTagWritebacks[req->adaptiveMHASenderID]++;
 
 				if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
@@ -616,7 +617,10 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			assert(!shadowBlk->isModified());
 		}
 		else{
-			assert(req->interferenceMissAt != 0);
+		  assert(!req->isShadowMiss);      
+		  if(isShadowLeaderSet){
+		    assert(req->interferenceMissAt > 0);
+		  }
 		}
 	}
 
@@ -698,7 +702,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 					}
 					else{
 
-						if(isShadowLeaderSet){
+
 							switch(writebackOwnerPolicy){
 							case BaseCache::WB_POLICY_OWNER:
 								assert(blk->prevOrigRequestingCpuID != -1);
@@ -715,7 +719,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 							writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
 							writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
 							writebacks.front()->memCtrlWbGenBy = req->paddr;
-						}
+
 					}
 
 
