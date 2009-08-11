@@ -633,9 +633,9 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		}
 		else{
 		  assert(!req->isShadowMiss);
-		  if(isShadowLeaderSet){
-		    assert(req->interferenceMissAt > 0);
-		  }
+		  //		  if(isShadowLeaderSet){
+		  //  assert(req->interferenceMissAt > 0);
+		  //}
 		}
 	}
 
