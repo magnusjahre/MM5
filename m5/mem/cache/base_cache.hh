@@ -283,6 +283,11 @@ class BaseCache : public BaseMem {
     Stats::Vector<> numExtraMisses;
     Stats::Vector<> privateMissSharedHit;
 
+    Stats::Vector<> estimatedShadowAccesses;
+    Stats::Vector<> estimatedShadowMisses;
+    Stats::Formula estimatedShadowMissRate;
+    Stats::Formula estimatedShadowInterferenceMisses;
+
     Stats::Scalar<> recvMissResponses;
 
     Stats::Vector<> shadowTagWritebacks;

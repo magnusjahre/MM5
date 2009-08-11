@@ -295,9 +295,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		assert(req->adaptiveMHASenderID != -1);
 		assert(req->cmd == Writeback || req->cmd == Read);
 
+		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
 		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-		shadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
+		shadowLeaderSet = isLeaderSet(shadowSet, numberOfSets);
 
 		if(shadowBlk != NULL){
 			shadowHit = true;
@@ -309,6 +310,14 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 			shadowHit = false;
 		}
 		req->isShadowMiss = !shadowHit;
+
+		if(shadowLeaderSet){
+			int setsInConstituency = numberOfSets / numLeaderSets;
+			if(shadowBlk == NULL){
+				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
+			}
+			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+		}
 	}
 
 	// update hit statistics
@@ -472,14 +481,20 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	}
 	else{
 
-		if(cpuCount > 1
-				&& isShared
-				&& shadowHit
-				&& !useUniformPartitioning
-				&& curTick >= detailedSimulationStartTick
-				&& shadowLeaderSet){
-			req->interferenceMissAt = curTick + hitLatency;
-			numExtraMisses[req->adaptiveMHASenderID]++;
+
+		if(isShared
+	       && cpuCount > 1
+	 	   && !useUniformPartitioning
+		   && curTick >= detailedSimulationStartTick){
+			if(numLeaderSets == shadowTags[req->adaptiveMHASenderID]->getNumSets()){
+				if(shadowHit){
+					req->interferenceMissAt = curTick + hitLatency;
+					numExtraMisses[req->adaptiveMHASenderID]++;
+				}
+			}
+			else{
+				// TODO: add probabilistic interference estimation model
+			}
 		}
 
 		req->finishedInCacheAt = curTick + hitLatency;
@@ -617,7 +632,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			assert(!shadowBlk->isModified());
 		}
 		else{
-		  assert(!req->isShadowMiss);      
+		  assert(!req->isShadowMiss);
 		  if(isShadowLeaderSet){
 		    assert(req->interferenceMissAt > 0);
 		  }

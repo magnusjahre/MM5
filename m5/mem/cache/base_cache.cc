@@ -368,6 +368,34 @@ BaseCache::regStats()
 		.desc("the number of writebacks detected in the shadowtags")
 		.flags(total)
 		;
+
+    estimatedShadowAccesses
+        .init(cpuCount)
+        .name(name() + ".estimated_shadow_accesses")
+        .desc("number of shadow accesses from sampled shadow tags")
+        .flags(total)
+        ;
+
+    estimatedShadowMisses
+		.init(cpuCount)
+		.name(name() + ".estimated_shadow_misses")
+		.desc("number of shadow misses from sampled shadow tags")
+		.flags(total)
+		;
+
+    estimatedShadowMissRate
+		.name(name() + ".estimated_shadow_miss_rate")
+		.desc("miss rate estimate from sampled shadow tags")
+		;
+
+    estimatedShadowMissRate = estimatedShadowMisses / estimatedShadowAccesses;
+
+    estimatedShadowInterferenceMisses
+		.name(name() + ".estimated_shadow_interference_misses")
+		.desc("interference miss estimate from sampled shadow tags")
+		;
+
+    estimatedShadowInterferenceMisses = missesPerCPU - estimatedShadowMisses;
 }
 
 void
