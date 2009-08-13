@@ -108,14 +108,7 @@ Cache(const std::string &_name, HierParams *hier_params,
             shadowTags[i]->setCache(this, false);
         }
 
-        numLeaderSets = params.shadowTagLeaderSets;
-        numLeaderSets = numLeaderSets / params.bankCount;
-        if(numLeaderSets == 0) numLeaderSets = tags->getNumSets(); // 0 means full-map
-
-		if(tags->getNumSets() % numLeaderSets  != 0){
-			fatal("The the total number for sets must be divisible by the number of leader sets");
-		}
-		assert(numLeaderSets <= tags->getNumSets() && numLeaderSets >= 0);
+        cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this);
 
         if(params.useMTPPartitioning){
             repartEvent = new CacheRepartitioningEvent(this);
@@ -127,11 +120,9 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
     else{
         repartEvent = NULL;
-        numLeaderSets = -1;
     }
 #else
     repartEvent = NULL;
-    numLeaderSets = -1;
 #endif
 
     if(params.useMTPPartitioning)
@@ -244,6 +235,7 @@ Cache<TagStore,Buffering,Coherence>::~Cache(){
    }
 
    delete mtp;
+   delete cacheInterference;
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -285,40 +277,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 	}
 
-	//shadow tag access
-	bool shadowHit = false;
-	bool shadowLeaderSet = false;
-	if(!shadowTags.empty()){
 
-		// access tags to update LRU stack
-		assert(isShared);
-		assert(req->adaptiveMHASenderID != -1);
-		assert(req->cmd == Writeback || req->cmd == Read);
-
-		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
-		LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, lat);
-		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-		shadowLeaderSet = isLeaderSet(shadowSet, numberOfSets);
-
-		if(shadowBlk != NULL){
-			shadowHit = true;
-			if(req->cmd == Writeback){
-				shadowBlk->status |= BlkDirty;
-			}
-		}
-		else{
-			shadowHit = false;
-		}
-		req->isShadowMiss = !shadowHit;
-
-		if(shadowLeaderSet){
-			int setsInConstituency = numberOfSets / numLeaderSets;
-			if(shadowBlk == NULL){
-				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
-			}
-			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
-		}
-	}
 
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
@@ -413,6 +372,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 	}
 
+	//shadow tag access
+	bool isShadowTagHit = cacheInterference->access(req, blk == NULL);
+
 	if (blk) {
 
 		if(isDirectoryAndL2Cache()){
@@ -426,11 +388,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 			if(directoryProtocol->doL1DirectoryAccess(req, blk)){
 				return MA_CACHE_MISS;
 			}
-		}
-
-		if(isShared && !shadowHit){
-			assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
-			privateMissSharedHit[req->adaptiveMHASenderID]++;
 		}
 
 		// Hit
@@ -474,7 +431,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	if(simulateContention && curTick >= detailedSimulationStartTick){
 		Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
 
-		if(shadowHit) fatal("shadow handling not implemented with contention modeling");
+		if(isShadowTagHit) fatal("shadow handling not implemented with contention modeling");
 
 		req->finishedInCacheAt = issueAt;
 		missQueue->handleMiss(req, size, issueAt);
@@ -486,14 +443,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	       && cpuCount > 1
 	 	   && !useUniformPartitioning
 		   && curTick >= detailedSimulationStartTick){
-			if(numLeaderSets == shadowTags[req->adaptiveMHASenderID]->getNumSets()){
-				if(shadowHit){
-					req->interferenceMissAt = curTick + hitLatency;
-					numExtraMisses[req->adaptiveMHASenderID]++;
-				}
-			}
-			else{
-				// TODO: add probabilistic interference estimation model
+			if(isShadowTagHit){
+				req->interferenceMissAt = curTick + hitLatency;
+				numExtraMisses[req->adaptiveMHASenderID]++;
 			}
 		}
 
@@ -593,63 +545,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	}
 
 	//shadow replacement
-	if(!shadowTags.empty() && cpuCount > 1){
-		assert(req->adaptiveMHASenderID != -1);
-
-		LRUBlk* currentBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, hitLatency);
-
-		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-		bool isShadowLeaderSet = isLeaderSet(shadowSet, shadowTags[req->adaptiveMHASenderID]->getNumSets());
-
-		if(currentBlk == NULL){
-     		        assert(req->isShadowMiss);
-     		        if(isShadowLeaderSet) assert(req->interferenceMissAt == 0);
-			LRU::BlkList shadow_compress_list;
-			MemReqList shadow_writebacks;
-			LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
-			assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
-
-			if(shadowBlk->isModified() && isShadowLeaderSet){
-          			assert(isShadowLeaderSet);
-				shadowTagWritebacks[req->adaptiveMHASenderID]++;
-
-				if(writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
-					MemReqPtr virtualWriteback = new MemReq();
-					virtualWriteback->cmd = VirtualPrivateWriteback;
-					virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
-					virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
-					mi->viritualPrivateWriteAccess(virtualWriteback);
-				}
-			}
-
-			// set block values to the values of the new occupant
-			shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
-			shadowBlk->asid = req->asid;
-			assert(req->xc || !doData());
-			shadowBlk->xc = req->xc;
-			shadowBlk->status = BlkValid;
-			shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
-			assert(!shadowBlk->isModified());
-		}
-		else{
-		  assert(!req->isShadowMiss);
-		  //		  if(isShadowLeaderSet){
-		  //  assert(req->interferenceMissAt > 0);
-		  //}
-		}
-	}
-
-	if(req->interferenceMissAt > 0 && isShared && !useUniformPartitioning){
-		assert(req->adaptiveMHASenderID != -1);
-		assert(req->cmd == Read);
-		int extraDelay = (curTick + hitLatency) - req->interferenceMissAt;
-		req->cacheCapacityInterference += extraDelay;
-		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-		numExtraResponses[req->adaptiveMHASenderID]++;
-
-		assert(interferenceManager != NULL);
-		interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
-	}
+	cacheInterference->handleResponse(req);
 
 	if(isShared && req->cmd == Read){
 		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);

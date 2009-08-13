@@ -48,6 +48,7 @@
 
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/interference_manager.hh"
+#include "cache_interference.hh"
 
 #include "mem/cache/coherence/directory.hh"
 #include "mem/cache/cache_blk.hh"
@@ -58,6 +59,7 @@ class Bus;
 class Crossbar;
 class CacheAliveCheckEvent;
 class CacheProfileEvent;
+class CacheInterference;
 
 /**
  * Reasons for Caches to be Blocked.
@@ -141,7 +143,7 @@ class BaseCache : public BaseMem {
     bool simulateContention;
     Tick nextFreeCache;
 
-    int numLeaderSets;
+    CacheInterference* cacheInterference;
 
     struct cacheOccupancy{
         Tick startTick;
@@ -281,7 +283,6 @@ class BaseCache : public BaseMem {
     Stats::Vector<> extraMissLatency;
     Stats::Vector<> numExtraResponses;
     Stats::Vector<> numExtraMisses;
-    Stats::Vector<> privateMissSharedHit;
 
     Stats::Vector<> estimatedShadowAccesses;
     Stats::Vector<> estimatedShadowMisses;
@@ -550,11 +551,13 @@ class BaseCache : public BaseMem {
         return !isReadOnly && !isShared && useDirectory;
     }
 
-    bool isLeaderSet(int set, int numSets);
-
     void checkIfCacheAlive();
 
     void setSenderID(MemReqPtr& req);
+
+    void issueVirtualPrivateWriteback(MemReqPtr& virtualWriteback){
+    	mi->viritualPrivateWriteAccess(virtualWriteback);
+    }
 
     std::vector<std::vector<int> > retrieveBWInterferenceStats();
     void resetBWInterferenceStats();

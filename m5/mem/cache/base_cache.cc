@@ -350,13 +350,6 @@ BaseCache::regStats()
         .flags(total)
         ;
 
-    privateMissSharedHit
-        .init(cpuCount)
-        .name(name() + ".private_miss_shared_hit")
-        .desc("number of misses which are hits in the shared cache but misses in the shadow tags")
-        .flags(total)
-        ;
-
     recvMissResponses
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")
@@ -621,15 +614,4 @@ BaseCache::setSenderID(MemReqPtr& req){
     }
 }
 
-bool
-BaseCache::isLeaderSet(int set, int numSets){
 
-	assert(numLeaderSets != -1);
-	if(numLeaderSets == numSets) return true;
-
-	int setsInConstituency = numSets / numLeaderSets;
-	int constituencyNumber = set / setsInConstituency;
-	int leaderSet = constituencyNumber * setsInConstituency + (constituencyNumber % setsInConstituency);
-
-	return leaderSet == set;
-}
