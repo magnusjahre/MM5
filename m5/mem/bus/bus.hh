@@ -73,6 +73,7 @@ class MemoryControllerEvent;
 template <class BusType> class BusInterface;
 class AdaptiveMHA;
 class TimingMemoryController;
+class InterferenceManager;
 
 using namespace std;
 

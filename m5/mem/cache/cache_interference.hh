@@ -27,6 +27,17 @@ private:
 
 	std::vector<LRU*> shadowTags;
 
+	std::vector<bool> doInterferenceInsertion;
+
+	std::vector<double> interferenceMissProbabilities;
+	std::vector<double> interferenceWritebackProbabilities;
+
+	std::vector<int> samplePrivateMisses;
+	std::vector<int> sampleSharedMisses;
+
+	std::vector<Tick> sumSharedMissLatency;
+	std::vector<int> numSharedMisses;
+
     bool isLeaderSet(int set);
 
 public:
@@ -39,12 +50,21 @@ public:
 		return numLeaderSets;
 	}
 
-	bool access(MemReqPtr& req, bool isCacheMiss);
+	void access(MemReqPtr& req, bool isCacheMiss);
 
 	void handleResponse(MemReqPtr& req);
 
 	std::vector<int> getMissEstimates();
 
+	void computeInterferenceProbabilities(int cpuID);
+
+	void initiateInterferenceInsertions(int cpuID){
+		doInterferenceInsertion[cpuID] = true;
+	}
+
+	bool interferenceInsertionsInitiated(int cpuID){
+		return doInterferenceInsertion[cpuID];
+	}
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

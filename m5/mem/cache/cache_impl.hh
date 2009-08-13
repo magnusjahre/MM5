@@ -76,6 +76,11 @@ Cache(const std::string &_name, HierParams *hier_params,
       doCopy(params.doCopy), blockOnCopy(params.blockOnCopy)
 {
 
+    // needs these for the memory addresing bug workaround
+    cpuCount = params.cpu_count;
+    assert(cpuCount > 0);
+    isMultiprogWorkload = params.multiprog_workload;
+
     idIsSet = false;
     cacheCpuID = params.cpu_id;
     memoryAddressOffset = params.memoryAddressOffset;
@@ -120,9 +125,11 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
     else{
         repartEvent = NULL;
+        cacheInterference = NULL;
     }
 #else
     repartEvent = NULL;
+    cacheInterference = NULL;
 #endif
 
     if(params.useMTPPartitioning)
@@ -173,10 +180,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     	}
     }
 
-    // needs these for the memory addresing bug workaround
-    cpuCount = params.cpu_count;
-    assert(cpuCount > 0);
-    isMultiprogWorkload = params.multiprog_workload;
+
 
     directoryProtocol = NULL;
     if(params.directoryCoherence != NULL){
@@ -277,8 +281,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 	}
 
-
-
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
 	if(isShared){
@@ -373,7 +375,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	}
 
 	//shadow tag access
-	bool isShadowTagHit = cacheInterference->access(req, blk == NULL);
+	if(cacheInterference != NULL) cacheInterference->access(req, blk == NULL);
 
 	if (blk) {
 
@@ -430,25 +432,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	if(simulateContention && curTick >= detailedSimulationStartTick){
 		Tick issueAt = updateAndStoreInterference(req, curTick + hitLatency);
-
-		if(isShadowTagHit) fatal("shadow handling not implemented with contention modeling");
-
 		req->finishedInCacheAt = issueAt;
 		missQueue->handleMiss(req, size, issueAt);
 	}
 	else{
-
-
-		if(isShared
-	       && cpuCount > 1
-	 	   && !useUniformPartitioning
-		   && curTick >= detailedSimulationStartTick){
-			if(isShadowTagHit){
-				req->interferenceMissAt = curTick + hitLatency;
-				numExtraMisses[req->adaptiveMHASenderID]++;
-			}
-		}
-
 		req->finishedInCacheAt = curTick + hitLatency;
 		missQueue->handleMiss(req, size, curTick + hitLatency);
 	}
@@ -545,7 +532,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	}
 
 	//shadow replacement
-	cacheInterference->handleResponse(req);
+	if(cacheInterference != NULL) cacheInterference->handleResponse(req);
 
 	if(isShared && req->cmd == Read){
 		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);

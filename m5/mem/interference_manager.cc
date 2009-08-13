@@ -191,12 +191,21 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	requests[req->adaptiveMHASenderID]++;
 
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
+
 		vector<double> avgLats = traceLatency(req->adaptiveMHASenderID);
 		traceInterference(req->adaptiveMHASenderID, avgLats);
 	}
 
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
 		resetInterferenceMeasurements(req->adaptiveMHASenderID);
+
+		for(int i=0;i<cacheInterferenceObjs.size(); i++){
+			cacheInterferenceObjs[i]->computeInterferenceProbabilities(req->adaptiveMHASenderID);
+			if(!cacheInterferenceObjs[i]->interferenceInsertionsInitiated(req->adaptiveMHASenderID)){
+				cacheInterferenceObjs[i]->initiateInterferenceInsertions(req->adaptiveMHASenderID);
+			}
+		}
+
 	}
 }
 
@@ -251,12 +260,18 @@ InterferenceManager::traceLatency(int fromCPU){
 
 void
 InterferenceManager::resetInterferenceMeasurements(int fromCPU){
+
 	totalRequestCount[fromCPU] = 0;
 	runningLatencySum[fromCPU] = 0;
 
 	for(int i=0;i<NUM_LAT_TYPES;i++) latencySum[fromCPU][i] = 0;
 
 	for(int i=0;i<NUM_LAT_TYPES;i++) interferenceSum[fromCPU][i] = 0;
+}
+
+void
+InterferenceManager::registerCacheInterferenceObj(CacheInterference* ci){
+	cacheInterferenceObjs.push_back(ci);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -269,8 +284,8 @@ END_DECLARE_SIM_OBJECT_PARAMS(InterferenceManager)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(InterferenceManager)
 	INIT_PARAM_DFLT(cpu_count, "Number of CPUs", -1),
-	INIT_PARAM_DFLT(sample_size, "Number of requests", 50),
-	INIT_PARAM_DFLT(reset_interval, "Number of requests after which the measurements are reset", -1)
+	INIT_PARAM_DFLT(sample_size, "Number of requests", 100),
+	INIT_PARAM_DFLT(reset_interval, "Number of requests after which the measurements are reset", 100)
 END_INIT_SIM_OBJECT_PARAMS(InterferenceManager)
 
 CREATE_SIM_OBJECT(InterferenceManager)

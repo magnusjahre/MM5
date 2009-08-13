@@ -7,6 +7,9 @@
 #include "mem_req.hh"
 #include "base/statistics.hh"
 #include "requesttrace.hh"
+#include "mem/cache/cache_interference.hh"
+
+class CacheInterference;
 
 #include <vector>
 
@@ -31,6 +34,8 @@ private:
 
 	std::vector<RequestTrace> estimateTraces;
 	std::vector<RequestTrace> latencyTraces;
+
+	std::vector<CacheInterference* > cacheInterferenceObjs;
 
 	void traceInterference(int fromCPU, std::vector<double> avgLats);
 
@@ -88,6 +93,8 @@ public:
 	void incrementLatencyRequestCount(LatencyType t, MemReqPtr& req);
 
 	void incrementTotalReqCount(MemReqPtr& req, int roundTripLatency);
+
+	void registerCacheInterferenceObj(CacheInterference* ci);
 };
 
 #endif
