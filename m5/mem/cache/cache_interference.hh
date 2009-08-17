@@ -18,27 +18,72 @@ class BaseCache;
 
 class CacheInterference{
 
+public:
+	class MissCounter;
+
+	class InterferenceMissProbability{
+	public:
+		double readInterferenceProbability;
+		double writeInterferenceProbability;
+
+		InterferenceMissProbability(bool _doInterferenceProb);
+
+		void update(MissCounter privateEstimate, MissCounter sharedEstimate);
+
+		double get(MemCmd req);
+
+	private:
+		bool doInterferenceProb;
+		double computeProbability(double occurrences, double total);
+
+	};
+
+	class MissCounter{
+	public:
+		int reads;
+		int writes;
+
+		MissCounter(int _reads, int _writes)
+		: reads(_reads), writes(_writes) {}
+
+		void increment(MemReqPtr& req, int amount = 1);
+
+		void reset();
+	};
+
 private:
 
 	int numLeaderSets;
 	int totalSetNumber;
 	int numBanks;
 	BaseCache* cache;
+	int setsInConstituency;
 
 	std::vector<LRU*> shadowTags;
 
 	std::vector<bool> doInterferenceInsertion;
 
-	std::vector<double> interferenceMissProbabilities;
-	std::vector<double> interferenceWritebackProbabilities;
+	std::vector<InterferenceMissProbability> interferenceMissProbabilities;
 
-	std::vector<int> samplePrivateMisses;
-	std::vector<int> sampleSharedMisses;
+	std::vector<InterferenceMissProbability> privateWritebackProbability;
 
-	std::vector<Tick> sumSharedMissLatency;
-	std::vector<int> numSharedMisses;
+	std::vector<MissCounter> samplePrivateMisses;
+	std::vector<MissCounter> sampleSharedMisses;
+
+	std::vector<MissCounter> sampleSharedResponses;
+	std::vector<MissCounter> samplePrivateWritebacks;
 
     bool isLeaderSet(int set);
+
+    void issuePrivateWriteback(int cpuID, Addr addr);
+
+    void tagAsInterferenceMiss(MemReqPtr& req);
+
+    bool addAsInterference(double probability);
+
+    LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID);
+
+    LRUBlk* findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID);
 
 public:
 
@@ -52,9 +97,7 @@ public:
 
 	void access(MemReqPtr& req, bool isCacheMiss);
 
-	void handleResponse(MemReqPtr& req);
-
-	std::vector<int> getMissEstimates();
+	void handleResponse(MemReqPtr& req, MemReqList writebacks);
 
 	void computeInterferenceProbabilities(int cpuID);
 

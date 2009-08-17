@@ -375,7 +375,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	}
 
 	//shadow tag access
-	if(cacheInterference != NULL) cacheInterference->access(req, blk == NULL);
+	if(cacheInterference != NULL){
+		cacheInterference->access(req, !blk);
+	}
 
 	if (blk) {
 
@@ -531,9 +533,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		}
 	}
 
-	//shadow replacement
-	if(cacheInterference != NULL) cacheInterference->handleResponse(req);
-
 	if(isShared && req->cmd == Read){
 		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 	}
@@ -585,6 +584,11 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 				doNotHandleResponse = directoryProtocol->handleDirectoryFill(req, blk, writebacks, tags);
 			}
 
+			//shadow replacement
+			if(cacheInterference != NULL){
+				cacheInterference->handleResponse(req, writebacks);
+			}
+
 			while (!writebacks.empty()) {
 
 				if (writebacks.front()->cmd == Copy) {
@@ -628,6 +632,9 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 			if(doNotHandleResponse) return;
 		}
+		else{
+			if(cacheInterference != NULL) fatal("A response may not be represented in the shadow tags! (1)");
+		}
 
 		if (copy_request) {
 			// The mshr is handled in handleCopy
@@ -636,6 +643,9 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			assert(req->mshr != NULL);
 			missQueue->handleResponse(req, curTick + hitLatency);
 		}
+	}
+	else{
+		if(cacheInterference != NULL) fatal("A response may not be represented in the shadow tags! (2)");
 	}
 
 }

@@ -17,8 +17,6 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	shadowTags = _shadowTags;
 	cache = _cache;
 
-	doInterferenceInsertion.resize(cache->cpuCount, false);
-
     numLeaderSets = _numLeaderSets / numBanks; //params.bankCount;
     if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
 
@@ -27,16 +25,21 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	}
 	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
 
-	samplePrivateMisses.resize(cache->cpuCount,0);
-	sampleSharedMisses.resize(cache->cpuCount, 0);
+	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
 
-	interferenceMissProbabilities.resize(cache->cpuCount, 0.0);
-	interferenceWritebackProbabilities.resize(cache->cpuCount, 0.0);
+	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0,0));
+	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0,0));
 
-	sumSharedMissLatency.resize(cache->cpuCount,0);
-	numSharedMisses.resize(cache->cpuCount, 0);
+	interferenceMissProbabilities.resize(cache->cpuCount, InterferenceMissProbability(true));
+
+	samplePrivateWritebacks.resize(cache->cpuCount, MissCounter(0,0));
+	sampleSharedResponses.resize(cache->cpuCount, MissCounter(0,0));
+
+	privateWritebackProbability.resize(cache->cpuCount, InterferenceMissProbability(false));
 
 	cache->interferenceManager->registerCacheInterferenceObj(this);
+
+	setsInConstituency = totalSetNumber / numLeaderSets;
 
 	srand(240000);
 }
@@ -47,70 +50,96 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 	assert(cache->isShared);
 	assert(!shadowTags.empty());
 
-	bool shadowHit = false;
-	bool shadowLeaderSet = false;
+	if(cache->cpuCount > 1){
 
-	// access tags to update LRU stack
-	assert(cache->isShared);
-	assert(req->adaptiveMHASenderID != -1);
-	assert(req->cmd == Writeback || req->cmd == Read);
+		bool shadowHit = false;
+		bool shadowLeaderSet = false;
 
-	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
-	LRUBlk* shadowBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, cache->getHitLatency());
-	int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-	shadowLeaderSet = isLeaderSet(shadowSet);
+		// access tags to update LRU stack
+		assert(cache->isShared);
+		assert(req->adaptiveMHASenderID != -1);
+		assert(req->cmd == Writeback || req->cmd == Read);
 
-	if(shadowBlk != NULL){
-		shadowHit = true;
-		if(req->cmd == Writeback){
-			shadowBlk->status |= BlkDirty;
+		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
+		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID);
+		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
+		shadowLeaderSet = isLeaderSet(shadowSet);
+
+		if(shadowBlk != NULL){
+			shadowHit = true;
+			if(req->cmd == Writeback){
+				shadowBlk->status |= BlkDirty;
+			}
 		}
-	}
-	else{
-		shadowHit = false;
-	}
-	req->isShadowMiss = !shadowHit;
-
-	if(shadowLeaderSet){
-		int setsInConstituency = numberOfSets / numLeaderSets;
-		if(shadowBlk == NULL){
-			if(curTick >= cache->detailedSimulationStartTick) samplePrivateMisses[req->adaptiveMHASenderID]++;
-			cache->estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
-
+		else{
+			shadowHit = false;
 		}
-		cache->estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
-	}
+		req->isShadowMiss = !shadowHit;
 
-	if(curTick >= cache->detailedSimulationStartTick){
-		if(isCacheMiss) sampleSharedMisses[req->adaptiveMHASenderID]++;
-	}
+		if(shadowLeaderSet){
+			if(shadowBlk == NULL){
+				if(curTick >= cache->detailedSimulationStartTick){
+					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+				}
+				cache->estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 
-	if(cache->cpuCount > 1
- 	   && !cache->useUniformPartitioning
-	   && curTick >= cache->detailedSimulationStartTick
-	   && doInterferenceInsertion[req->adaptiveMHASenderID]){
+			}
+			cache->estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+		}
 
-		double randNum = rand() / (double) RAND_MAX;
-		if(randNum < interferenceMissProbabilities[req->adaptiveMHASenderID]){
-			req->interferenceMissAt = curTick + cache->getHitLatency();
-			cache->numExtraMisses[req->adaptiveMHASenderID]++;
+		if(curTick >= cache->detailedSimulationStartTick){
+
+			if(isCacheMiss){
+				sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
+			}
+		}
+
+		if(!cache->useUniformPartitioning
+		   && curTick >= cache->detailedSimulationStartTick
+		   && doInterferenceInsertion[req->adaptiveMHASenderID]){
+
+			if(numberOfSets == numLeaderSets){
+				if(shadowHit && isCacheMiss){
+					tagAsInterferenceMiss(req);
+				}
+			}
+			else{
+				if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd))){
+					tagAsInterferenceMiss(req);
+				}
+			}
 		}
 	}
 }
 
+bool
+CacheInterference::addAsInterference(double probability){
+
+	double randNum = rand() / (double) RAND_MAX;
+
+	if(randNum < probability){
+		return true;
+	}
+	return false;
+}
+
 void
-CacheInterference::handleResponse(MemReqPtr& req){
+CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 	assert(cache->isShared);
 	assert(!shadowTags.empty());
 	assert(req->adaptiveMHASenderID != -1);
+	assert(req->cmd == Read);
 
 	if(cache->cpuCount > 1){
 
-		LRUBlk* currentBlk = shadowTags[req->adaptiveMHASenderID]->findBlock(req, cache->getHitLatency());
+		if(curTick >= cache->detailedSimulationStartTick && !writebacks.empty()){
+			sampleSharedResponses[req->adaptiveMHASenderID].increment(req, writebacks.size());
+		}
 
-//		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-//		bool isShadowLeaderSet = isLeaderSet(shadowSet);
+		LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
+		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
+		bool isShadowLeaderSet = isLeaderSet(shadowSet);
 
 		if(currentBlk == NULL){
 			assert(req->isShadowMiss);
@@ -119,18 +148,22 @@ CacheInterference::handleResponse(MemReqPtr& req){
 			LRUBlk *shadowBlk = shadowTags[req->adaptiveMHASenderID]->findReplacement(req, shadow_writebacks, shadow_compress_list);
 			assert(shadow_writebacks.empty()); // writebacks are not generated in findReplacement()
 
-//			if(shadowBlk->isModified() && isShadowLeaderSet){
-//				assert(isShadowLeaderSet);
-//				cache->shadowTagWritebacks[req->adaptiveMHASenderID]++;
-//
-//				if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
-//					MemReqPtr virtualWriteback = new MemReq();
-//					virtualWriteback->cmd = VirtualPrivateWriteback;
-//					virtualWriteback->paddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
-//					virtualWriteback->adaptiveMHASenderID = req->adaptiveMHASenderID;
-//					cache->issueVirtualPrivateWriteback(virtualWriteback);
-//				}
-//			}
+			if(shadowBlk->isModified()){
+				if(numLeaderSets == totalSetNumber){
+					cache->shadowTagWritebacks[req->adaptiveMHASenderID]++;
+
+					if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
+						issuePrivateWriteback(req->adaptiveMHASenderID,
+								shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set));
+					}
+				}
+				else if(isShadowLeaderSet){
+					if(curTick >= cache->detailedSimulationStartTick){
+						samplePrivateWritebacks[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+					}
+					cache->shadowTagWritebacks[req->adaptiveMHASenderID] += setsInConstituency;
+				}
+			}
 
 			// set block values to the values of the new occupant
 			shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
@@ -141,44 +174,65 @@ CacheInterference::handleResponse(MemReqPtr& req){
 			shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
 			assert(!shadowBlk->isModified());
 		}
-		else{
-		  assert(!req->isShadowMiss);
+
+
+		// Compute cache capacity interference penalty and inform the InterferenceManager
+		if(req->interferenceMissAt > 0 && !cache->useUniformPartitioning){
+
+			int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
+			req->cacheCapacityInterference += extraDelay;
+			cache->extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
+			cache->numExtraResponses[req->adaptiveMHASenderID]++;
+
+			assert(cache->interferenceManager != NULL);
+			cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
+		}
+
+		if(doInterferenceInsertion[req->adaptiveMHASenderID]
+		   && numLeaderSets < totalSetNumber
+		   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
+		   && !cache->useUniformPartitioning
+		   && !writebacks.empty()
+		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read))){
+
+			MemReqPtr writeback = writebacks.front();
+			issuePrivateWriteback(req->adaptiveMHASenderID, writeback->paddr);
 		}
 	}
+}
 
-	if(req->interferenceMissAt > 0 && !cache->useUniformPartitioning){
-		assert(req->adaptiveMHASenderID != -1);
-		assert(req->cmd == Read);
-		int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
-		req->cacheCapacityInterference += extraDelay;
-		cache->extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-		cache->numExtraResponses[req->adaptiveMHASenderID]++;
+void
+CacheInterference::issuePrivateWriteback(int cpuID, Addr addr){
+	MemReqPtr virtualWriteback = new MemReq();
+	virtualWriteback->cmd = VirtualPrivateWriteback;
+	virtualWriteback->paddr = addr;
+	virtualWriteback->adaptiveMHASenderID = cpuID;
+	cache->issueVirtualPrivateWriteback(virtualWriteback);
+}
 
-		assert(cache->interferenceManager != NULL);
-		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
-	}
+void
+CacheInterference::tagAsInterferenceMiss(MemReqPtr& req){
+	req->interferenceMissAt = curTick + cache->getHitLatency();
+	cache->numExtraMisses[req->adaptiveMHASenderID]++;
 }
 
 void
 CacheInterference::computeInterferenceProbabilities(int cpuID){
 
-	// Compute interference miss probability
-	int estimatedInterferenceMisses = sampleSharedMisses[cpuID] - samplePrivateMisses[cpuID];
-	assert(estimatedInterferenceMisses >= 0);
+	// Update interference miss probability
+	interferenceMissProbabilities[cpuID].update(samplePrivateMisses[cpuID], sampleSharedMisses[cpuID]);
+	samplePrivateMisses[cpuID].reset();
+	sampleSharedMisses[cpuID].reset();
 
-	if(sampleSharedMisses[cpuID] == 0) interferenceMissProbabilities[cpuID] = 0.0;
-	else interferenceMissProbabilities[cpuID] = (double) ((double) estimatedInterferenceMisses / (double) sampleSharedMisses[cpuID]);
+	// Update private writeback probability
+	assert(samplePrivateWritebacks[cpuID].writes == 0);
+	assert(sampleSharedResponses[cpuID].writes == 0);
 
-	samplePrivateMisses[cpuID] = 0;
-	sampleSharedMisses[cpuID] = 0;
+	privateWritebackProbability[cpuID].update(samplePrivateWritebacks[cpuID], sampleSharedResponses[cpuID]);
+	assert(privateWritebackProbability[cpuID].writeInterferenceProbability == 0.0);
 
-	// Compute interference writeback probability
-	// TODO:
-}
-
-vector<int>
-CacheInterference::getMissEstimates(){
-	return vector<int>();
+	samplePrivateWritebacks[cpuID].reset();
+	sampleSharedResponses[cpuID].reset();
 }
 
 bool
@@ -192,4 +246,84 @@ CacheInterference::isLeaderSet(int set){
 	int leaderSet = constituencyNumber * setsInConstituency + (constituencyNumber % setsInConstituency);
 
 	return leaderSet == set;
+}
+
+LRUBlk*
+CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID){
+	int hitLat = cache->getHitLatency();
+	return shadowTags[cpuID]->findBlock(req, hitLat);
+}
+
+LRUBlk*
+CacheInterference::findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID){
+	return shadowTags[cpuID]->findBlock(req->paddr, req->asid);
+}
+
+CacheInterference::InterferenceMissProbability::InterferenceMissProbability(bool _doInterferenceProb){
+	readInterferenceProbability = 0.0;
+	writeInterferenceProbability = 0.0;
+
+	doInterferenceProb = _doInterferenceProb;
+}
+
+void
+CacheInterference::InterferenceMissProbability::update(MissCounter privateEstimate, MissCounter sharedMeasurement){
+
+	if(doInterferenceProb){
+		double readInterference = (double) sharedMeasurement.reads - (double) privateEstimate.reads;
+		readInterferenceProbability = computeProbability(readInterference, (double) sharedMeasurement.reads);
+	}
+	else{
+		readInterferenceProbability = computeProbability((double) privateEstimate.reads, (double) sharedMeasurement.reads);
+	}
+
+	if(doInterferenceProb){
+
+		double writeInterference = (double) sharedMeasurement.writes - (double) privateEstimate.writes;
+		writeInterferenceProbability = computeProbability(writeInterference, (double) sharedMeasurement.writes);
+	}
+	else{
+		assert(sharedMeasurement.writes == 0);
+		assert(privateEstimate.writes == 0);
+	}
+}
+
+double
+CacheInterference::InterferenceMissProbability::computeProbability(double occurrences, double total){
+	if(total == 0.0) return 0.0;
+	if(occurrences <= 0.0) return 0.0;
+	if(occurrences > total) return 1.0;
+	return occurrences / total;
+}
+
+double
+CacheInterference::InterferenceMissProbability::get(MemCmd cmd){
+	if(cmd == Read){
+		return readInterferenceProbability;
+	}
+	else if(cmd == Writeback){
+		return writeInterferenceProbability;
+	}
+
+	fatal("Unknown memory command");
+	return 0.0;
+}
+
+void
+CacheInterference::MissCounter::increment(MemReqPtr& req, int amount){
+	if(req->cmd == Read){
+		reads += amount;
+	}
+	else if(req->cmd == Writeback){
+		writes += amount;
+	}
+	else{
+		fatal("Unsupported memory command encountered");
+	}
+}
+
+void
+CacheInterference::MissCounter::reset(){
+	reads = 0;
+	writes = 0;
 }

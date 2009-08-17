@@ -201,11 +201,11 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 		for(int i=0;i<cacheInterferenceObjs.size(); i++){
 			cacheInterferenceObjs[i]->computeInterferenceProbabilities(req->adaptiveMHASenderID);
+
 			if(!cacheInterferenceObjs[i]->interferenceInsertionsInitiated(req->adaptiveMHASenderID)){
 				cacheInterferenceObjs[i]->initiateInterferenceInsertions(req->adaptiveMHASenderID);
 			}
 		}
-
 	}
 }
 
@@ -284,8 +284,8 @@ END_DECLARE_SIM_OBJECT_PARAMS(InterferenceManager)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(InterferenceManager)
 	INIT_PARAM_DFLT(cpu_count, "Number of CPUs", -1),
-	INIT_PARAM_DFLT(sample_size, "Number of requests", 100),
-	INIT_PARAM_DFLT(reset_interval, "Number of requests after which the measurements are reset", 100)
+	INIT_PARAM_DFLT(sample_size, "Number of requests", 1024),
+	INIT_PARAM_DFLT(reset_interval, "Number of requests after which the measurements are reset", 1024)
 END_INIT_SIM_OBJECT_PARAMS(InterferenceManager)
 
 CREATE_SIM_OBJECT(InterferenceManager)
