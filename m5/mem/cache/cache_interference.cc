@@ -41,6 +41,9 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 
 	setsInConstituency = totalSetNumber / numLeaderSets;
 
+	missesSinceLastInterferenceMiss.resize(cache->cpuCount, 0);
+	sharedWritebacksSinceLastPrivWriteback.resize(cache->cpuCount, 0);
+
 	srand(240000);
 }
 
@@ -104,6 +107,20 @@ CacheInterference::regStats(string name){
 		;
 
     estimatedShadowInterferenceMisses = cache->missesPerCPU - estimatedShadowMisses;
+
+    interferenceMissDistanceDistribution
+		.init(cache->cpuCount, 1, 50, 1)
+		.name(name + ".interference_miss_distance_distribution")
+        .desc("The distribution of misses between each interference miss")
+        .flags(total | pdf | cdf)
+		;
+
+    privateWritebackDistribution
+    		.init(cache->cpuCount, 1, 50, 1)
+    		.name(name + ".private_writeback_distance_distribution")
+            .desc("The distribution of the number of shared-mode writebacks between each private-mode writeback")
+            .flags(total | pdf | cdf)
+    		;
 }
 
 void
@@ -147,6 +164,19 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 			}
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+		}
+
+		if(numberOfSets == numLeaderSets){
+			if(isCacheMiss){
+
+				missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]++;
+
+				if(shadowHit){
+					interferenceMissDistanceDistribution[req->adaptiveMHASenderID].sample(missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]);
+					missesSinceLastInterferenceMiss[req->adaptiveMHASenderID] = 0;
+				}
+
+			}
 		}
 
 		if(curTick >= cache->detailedSimulationStartTick){
@@ -197,6 +227,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 		if(curTick >= cache->detailedSimulationStartTick && !writebacks.empty()){
 			sampleSharedResponses[req->adaptiveMHASenderID].increment(req, writebacks.size());
+			sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID]++;
 		}
 
 		LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
@@ -218,6 +249,9 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 						issuePrivateWriteback(req->adaptiveMHASenderID,
 								shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set));
 					}
+
+					privateWritebackDistribution[req->adaptiveMHASenderID].sample(sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID]);
+					sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID] = 0;
 				}
 				else if(isShadowLeaderSet){
 					if(curTick >= cache->detailedSimulationStartTick){

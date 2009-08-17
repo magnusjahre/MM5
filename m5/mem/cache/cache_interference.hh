@@ -63,6 +63,9 @@ protected:
 	Stats::Formula estimatedShadowMissRate;
 	Stats::Formula estimatedShadowInterferenceMisses;
 
+	Stats::VectorDistribution<> interferenceMissDistanceDistribution;
+	Stats::VectorDistribution<> privateWritebackDistribution;
+
 private:
 
 	int numLeaderSets;
@@ -84,6 +87,9 @@ private:
 
 	std::vector<MissCounter> sampleSharedResponses;
 	std::vector<MissCounter> samplePrivateWritebacks;
+
+	std::vector<int> missesSinceLastInterferenceMiss;
+	std::vector<int> sharedWritebacksSinceLastPrivWriteback;
 
     bool isLeaderSet(int set);
 
