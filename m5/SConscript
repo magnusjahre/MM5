@@ -195,6 +195,7 @@ base_sources = Split('''
 	mem/cache/cache.cc
 	mem/cache/cache_builder.cc
 	mem/cache/multiple_time_sharing_partitions.cc
+	mem/cache/cache_interference.cc
 	mem/cache/coherence/coherence_protocol.cc
 	mem/cache/coherence/directory.cc
 	mem/cache/coherence/stenstrom.cc
