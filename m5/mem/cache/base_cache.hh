@@ -280,18 +280,7 @@ class BaseCache : public BaseMem {
     Stats::Vector<> cpuInterferenceCycles;
     Stats::Vector<> cpuCapacityInterference;
 
-    Stats::Vector<> extraMissLatency;
-    Stats::Vector<> numExtraResponses;
-    Stats::Vector<> numExtraMisses;
-
-    Stats::Vector<> estimatedShadowAccesses;
-    Stats::Vector<> estimatedShadowMisses;
-    Stats::Formula estimatedShadowMissRate;
-    Stats::Formula estimatedShadowInterferenceMisses;
-
     Stats::Scalar<> recvMissResponses;
-
-    Stats::Vector<> shadowTagWritebacks;
 
     /**
      * @}

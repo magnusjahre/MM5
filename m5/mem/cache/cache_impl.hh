@@ -257,6 +257,10 @@ Cache<TagStore,Buffering,Coherence>::regStats()
         tmp << i;
         shadowTags[i]->regStats(name()+".shadowtags.cpu"+tmp.str());
     }
+
+    if(cacheInterference != NULL){
+    	cacheInterference->regStats(name()+".cacheinterference");
+    }
 }
 
 template<class TagStore, class Buffering, class Coherence>

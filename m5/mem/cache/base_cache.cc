@@ -329,66 +329,10 @@ BaseCache::regStats()
         .flags(total)
         ;
 
-    extraMissLatency
-        .init(cpuCount)
-        .name(name() + ".cpu_extra_latency")
-        .desc("extra latency due to blocks being evicted from the cache")
-        .flags(total)
-        ;
-
-    numExtraResponses
-        .init(cpuCount)
-        .name(name() + ".cpu_extra_responses")
-        .desc("number of responses to extra misses measured with shadow tags")
-        .flags(total)
-        ;
-
-    numExtraMisses
-        .init(cpuCount)
-        .name(name() + ".cpu_extra_misses")
-        .desc("number of extra misses measured with shadow tags")
-        .flags(total)
-        ;
-
     recvMissResponses
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")
         ;
-
-    shadowTagWritebacks
-		.init(cpuCount)
-		.name(name() + ".shadow_tag_writebacks")
-		.desc("the number of writebacks detected in the shadowtags")
-		.flags(total)
-		;
-
-    estimatedShadowAccesses
-        .init(cpuCount)
-        .name(name() + ".estimated_shadow_accesses")
-        .desc("number of shadow accesses from sampled shadow tags")
-        .flags(total)
-        ;
-
-    estimatedShadowMisses
-		.init(cpuCount)
-		.name(name() + ".estimated_shadow_misses")
-		.desc("number of shadow misses from sampled shadow tags")
-		.flags(total)
-		;
-
-    estimatedShadowMissRate
-		.name(name() + ".estimated_shadow_miss_rate")
-		.desc("miss rate estimate from sampled shadow tags")
-		;
-
-    estimatedShadowMissRate = estimatedShadowMisses / estimatedShadowAccesses;
-
-    estimatedShadowInterferenceMisses
-		.name(name() + ".estimated_shadow_interference_misses")
-		.desc("interference miss estimate from sampled shadow tags")
-		;
-
-    estimatedShadowInterferenceMisses = missesPerCPU - estimatedShadowMisses;
 }
 
 void

@@ -45,6 +45,68 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 }
 
 void
+CacheInterference::regStats(string name){
+
+	using namespace Stats;
+
+    extraMissLatency
+        .init(cache->cpuCount)
+        .name(name + ".cpu_extra_latency")
+        .desc("extra latency due to blocks being evicted from the cache")
+        .flags(total)
+        ;
+
+    numExtraResponses
+        .init(cache->cpuCount)
+        .name(name + ".cpu_extra_responses")
+        .desc("number of responses to extra misses measured with shadow tags")
+        .flags(total)
+        ;
+
+    numExtraMisses
+        .init(cache->cpuCount)
+        .name(name + ".cpu_extra_misses")
+        .desc("number of extra misses measured with shadow tags")
+        .flags(total)
+        ;
+
+    shadowTagWritebacks
+		.init(cache->cpuCount)
+		.name(name + ".shadow_tag_writebacks")
+		.desc("the number of writebacks detected in the shadowtags")
+		.flags(total)
+		;
+
+    estimatedShadowAccesses
+        .init(cache->cpuCount)
+        .name(name + ".estimated_shadow_accesses")
+        .desc("number of shadow accesses from sampled shadow tags")
+        .flags(total)
+        ;
+
+    estimatedShadowMisses
+		.init(cache->cpuCount)
+		.name(name + ".estimated_shadow_misses")
+		.desc("number of shadow misses from sampled shadow tags")
+		.flags(total)
+		;
+
+    estimatedShadowMissRate
+		.name(name + ".estimated_shadow_miss_rate")
+		.desc("miss rate estimate from sampled shadow tags")
+		;
+
+    estimatedShadowMissRate = estimatedShadowMisses / estimatedShadowAccesses;
+
+    estimatedShadowInterferenceMisses
+		.name(name + ".estimated_shadow_interference_misses")
+		.desc("interference miss estimate from sampled shadow tags")
+		;
+
+    estimatedShadowInterferenceMisses = cache->missesPerCPU - estimatedShadowMisses;
+}
+
+void
 CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 	assert(cache->isShared);
@@ -81,10 +143,10 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 				if(curTick >= cache->detailedSimulationStartTick){
 					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 				}
-				cache->estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
+				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 
 			}
-			cache->estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
 
 		if(curTick >= cache->detailedSimulationStartTick){
@@ -150,7 +212,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 			if(shadowBlk->isModified()){
 				if(numLeaderSets == totalSetNumber){
-					cache->shadowTagWritebacks[req->adaptiveMHASenderID]++;
+					shadowTagWritebacks[req->adaptiveMHASenderID]++;
 
 					if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
 						issuePrivateWriteback(req->adaptiveMHASenderID,
@@ -161,7 +223,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 					if(curTick >= cache->detailedSimulationStartTick){
 						samplePrivateWritebacks[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 					}
-					cache->shadowTagWritebacks[req->adaptiveMHASenderID] += setsInConstituency;
+					shadowTagWritebacks[req->adaptiveMHASenderID] += setsInConstituency;
 				}
 			}
 
@@ -181,8 +243,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 			int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
 			req->cacheCapacityInterference += extraDelay;
-			cache->extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-			cache->numExtraResponses[req->adaptiveMHASenderID]++;
+			extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
+			numExtraResponses[req->adaptiveMHASenderID]++;
 
 			assert(cache->interferenceManager != NULL);
 			cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
@@ -213,7 +275,7 @@ CacheInterference::issuePrivateWriteback(int cpuID, Addr addr){
 void
 CacheInterference::tagAsInterferenceMiss(MemReqPtr& req){
 	req->interferenceMissAt = curTick + cache->getHitLatency();
-	cache->numExtraMisses[req->adaptiveMHASenderID]++;
+	numExtraMisses[req->adaptiveMHASenderID]++;
 }
 
 void

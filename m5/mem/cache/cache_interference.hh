@@ -51,6 +51,18 @@ public:
 		void reset();
 	};
 
+protected:
+    Stats::Vector<> extraMissLatency;
+    Stats::Vector<> numExtraResponses;
+    Stats::Vector<> numExtraMisses;
+
+    Stats::Vector<> shadowTagWritebacks;
+
+	Stats::Vector<> estimatedShadowAccesses;
+	Stats::Vector<> estimatedShadowMisses;
+	Stats::Formula estimatedShadowMissRate;
+	Stats::Formula estimatedShadowInterferenceMisses;
+
 private:
 
 	int numLeaderSets;
@@ -108,6 +120,8 @@ public:
 	bool interferenceInsertionsInitiated(int cpuID){
 		return doInterferenceInsertion[cpuID];
 	}
+
+	void regStats(std::string name);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */
