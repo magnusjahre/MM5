@@ -89,11 +89,11 @@ private:
 	std::vector<MissCounter> samplePrivateWritebacks;
 
 	std::vector<int> missesSinceLastInterferenceMiss;
-	std::vector<int> sharedWritebacksSinceLastPrivWriteback;
+	std::vector<int> sharedResponsesSinceLastPrivWriteback;
 
     bool isLeaderSet(int set);
 
-    void issuePrivateWriteback(int cpuID, Addr addr);
+    void issuePrivateWriteback(int cpuID, Addr addr, int cacheSet = -1);
 
     void tagAsInterferenceMiss(MemReqPtr& req);
 

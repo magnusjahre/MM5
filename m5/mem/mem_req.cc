@@ -161,6 +161,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
     req->memCtrlGenReadInterference = r->memCtrlGenReadInterference;
     req->memCtrlWbGenBy = r->memCtrlWbGenBy;
     req->interconnectTransferDelay = r->interconnectTransferDelay;
+    req->sharedCacheSet = r->sharedCacheSet;
 
     req->latencyBreakdown = r->latencyBreakdown;
     req->interferenceBreakdown = r->interferenceBreakdown;
@@ -253,6 +254,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
     to->memCtrlGenReadInterference = from->memCtrlGenReadInterference;
     to->memCtrlWbGenBy = from->memCtrlWbGenBy;
     to->interconnectTransferDelay = from->interconnectTransferDelay;
+    to->sharedCacheSet = from->sharedCacheSet;
 
     to->latencyBreakdown = from->latencyBreakdown;
     to->interferenceBreakdown = from->interferenceBreakdown;

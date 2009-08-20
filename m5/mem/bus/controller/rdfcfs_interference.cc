@@ -319,7 +319,6 @@ RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
         for(int j=0;j<privateLatencyBuffer[i].size();j++){
             assert(privateLatencyBuffer[i][j] != NULL);
             assert(privateLatencyBuffer[i][j]->req);
-            assert(privateLatencyBuffer[i][j]->req->paddr != MemReq::inval_addr);
         }
     }
 

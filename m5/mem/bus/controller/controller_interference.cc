@@ -96,19 +96,28 @@ ControllerInterference::estimatePageResult(MemReqPtr& req){
 
     assert(req->cmd == Read || req->cmd == Writeback || req->cmd == VirtualPrivateWriteback);
 
-    checkPrivateOpenPage(req);
+    if(req->paddr == MemReq::inval_addr){
 
-    if(isPageHitOnPrivateSystem(req)){
-        req->privateResultEstimate = DRAM_RESULT_HIT;
-    }
-    else if(isPageConflictOnPrivateSystem(req)){
-        req->privateResultEstimate = DRAM_RESULT_CONFLICT;
+    	assert(req->cmd == VirtualPrivateWriteback);
+    	//TODO: add hit/miss/conflict estimation
+    	req->privateResultEstimate = DRAM_RESULT_MISS;
     }
     else{
-        req->privateResultEstimate = DRAM_RESULT_MISS;
-    }
 
-    updatePrivateOpenPage(req);
+		checkPrivateOpenPage(req);
+
+		if(isPageHitOnPrivateSystem(req)){
+			req->privateResultEstimate = DRAM_RESULT_HIT;
+		}
+		else if(isPageConflictOnPrivateSystem(req)){
+			req->privateResultEstimate = DRAM_RESULT_CONFLICT;
+		}
+		else{
+			req->privateResultEstimate = DRAM_RESULT_MISS;
+		}
+
+		updatePrivateOpenPage(req);
+    }
 }
 
 void
@@ -164,6 +173,15 @@ ControllerInterference::updatePrivateOpenPage(MemReqPtr& req){
 
 bool
 ControllerInterference::isPageHitOnPrivateSystem(MemReqPtr& req){
+
+	if(req->paddr == MemReq::inval_addr){
+		assert(req->sharedCacheSet != 0);
+		assert(req->cmd == VirtualPrivateWriteback);
+
+		// TODO: add page hit/page miss estimation
+		// recall that the memory bank selection bits are taken from the cache set
+		return false;
+	}
 
     Addr curPage = memoryController->getPage(req->paddr);
     int bank = memoryController->getMemoryBankID(req->paddr);

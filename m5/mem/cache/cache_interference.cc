@@ -7,6 +7,7 @@
 
 #include "cache_interference.hh"
 #include <cstdlib>
+#include <cmath>
 
 using namespace std;
 
@@ -42,7 +43,7 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	setsInConstituency = totalSetNumber / numLeaderSets;
 
 	missesSinceLastInterferenceMiss.resize(cache->cpuCount, 0);
-	sharedWritebacksSinceLastPrivWriteback.resize(cache->cpuCount, 0);
+	sharedResponsesSinceLastPrivWriteback.resize(cache->cpuCount, 0);
 
 	srand(240000);
 }
@@ -225,9 +226,9 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 	if(cache->cpuCount > 1){
 
-		if(curTick >= cache->detailedSimulationStartTick && !writebacks.empty()){
-			sampleSharedResponses[req->adaptiveMHASenderID].increment(req, writebacks.size());
-			sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID]++;
+		if(curTick >= cache->detailedSimulationStartTick){
+			sampleSharedResponses[req->adaptiveMHASenderID].increment(req);
+			sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]++;
 		}
 
 		LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
@@ -250,8 +251,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 								shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set));
 					}
 
-					privateWritebackDistribution[req->adaptiveMHASenderID].sample(sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID]);
-					sharedWritebacksSinceLastPrivWriteback[req->adaptiveMHASenderID] = 0;
+					privateWritebackDistribution[req->adaptiveMHASenderID].sample(sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]);
+					sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID] = 0;
 				}
 				else if(isShadowLeaderSet){
 					if(curTick >= cache->detailedSimulationStartTick){
@@ -288,21 +289,25 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		   && numLeaderSets < totalSetNumber
 		   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
 		   && !cache->useUniformPartitioning
-		   && !writebacks.empty()
 		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read))){
 
-			MemReqPtr writeback = writebacks.front();
-			issuePrivateWriteback(req->adaptiveMHASenderID, writeback->paddr);
+			int set = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr);
+			issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, set);
 		}
 	}
 }
 
 void
-CacheInterference::issuePrivateWriteback(int cpuID, Addr addr){
+CacheInterference::issuePrivateWriteback(int cpuID, Addr addr, int cacheSet){
 	MemReqPtr virtualWriteback = new MemReq();
 	virtualWriteback->cmd = VirtualPrivateWriteback;
 	virtualWriteback->paddr = addr;
 	virtualWriteback->adaptiveMHASenderID = cpuID;
+
+	if(cacheSet != -1){
+		virtualWriteback->sharedCacheSet = cacheSet;
+	}
+
 	cache->issueVirtualPrivateWriteback(virtualWriteback);
 }
 

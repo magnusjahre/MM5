@@ -258,6 +258,7 @@ class MemReq : public FastAlloc, public RefCounted
 
     int interconnectTransferDelay;
 
+    int sharedCacheSet;
 
     /**
      * Contruct and initialize a memory request.
@@ -336,7 +337,8 @@ class MemReq : public FastAlloc, public RefCounted
     memCtrlGeneratingReadSeqNum(-1),
     memCtrlGenReadInterference(0),
     memCtrlWbGenBy(inval_addr),
-    interconnectTransferDelay(0)
+    interconnectTransferDelay(0),
+    sharedCacheSet(-1)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -415,6 +417,7 @@ class MemReq : public FastAlloc, public RefCounted
         interferenceBreakdown = r.interferenceBreakdown;
         memCtrlIssuePosition = r.memCtrlIssuePosition;
         interconnectTransferDelay = r.interconnectTransferDelay;
+        sharedCacheSet = r.sharedCacheSet;
     }
 
     /**

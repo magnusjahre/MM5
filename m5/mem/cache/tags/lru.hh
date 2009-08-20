@@ -289,10 +289,10 @@ public:
      */
     Addr regenerateBlkAddr(Addr tag, unsigned set) const
     {
-        if(bankShift == -1){
-	   return ((tag << tagShift) | ((Addr)set << setShift));
-        }
-        return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
+    	if(bankShift == -1){
+    		return ((tag << tagShift) | ((Addr)set << setShift));
+    	}
+    	return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
     }
 
     /**
