@@ -157,6 +157,7 @@ SimpleCPU::SimpleCPU(Params *p)
     
     bbv_num_inst=1;
     if(interval_size != -1){
+      cout << "tracking with interval size " << interval_size << "\n";
       init_bb_tracker(outdir, outfile, interval_size);
       generateBBVs = true;
     }
@@ -792,6 +793,7 @@ SimpleCPU::tick()
 
 	// SimPoint BBV generation
 	if(generateBBVs){
+	  //cout << "tracking!, inst cnt " << numInst << "\n";
 	  if (curStaticInst->isControl()
 	      || curStaticInst->isCall() 
 	      || curStaticInst->isReturn()
