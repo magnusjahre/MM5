@@ -121,6 +121,7 @@ base_sources = Split('''
 	cpu/fast/cpu.cc
         cpu/sampler/sampler.cc
         cpu/simple/cpu.cc
+        cpu/simple/bbtracker.cc
         cpu/trace/reader/mem_trace_reader.cc
         cpu/trace/reader/ibm_reader.cc
         cpu/trace/reader/itx_reader.cc

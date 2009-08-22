@@ -114,21 +114,11 @@ Cache(const std::string &_name, HierParams *hier_params,
         }
 
         cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this);
-
-        if(params.useMTPPartitioning){
-            repartEvent = new CacheRepartitioningEvent(this);
-            repartEvent->schedule(params.uniformPartitioningStart);
-        }
-        else{
-            repartEvent = NULL;
-        }
     }
     else{
-        repartEvent = NULL;
         cacheInterference = NULL;
     }
 #else
-    repartEvent = NULL;
     cacheInterference = NULL;
 #endif
 
@@ -137,7 +127,8 @@ Cache(const std::string &_name, HierParams *hier_params,
         assert(isShared);
         assert(params.useUniformPartitioning);
         assert(!shadowTags.empty());
-        mtp = new MultipleTimeSharingParititions(this, tags->getAssoc(), params.mtpEpochSize, shadowTags);
+
+        mtp = new MultipleTimeSharingParititions(this, tags->getAssoc(), params.mtpEpochSize, shadowTags, params.detailedSimStartTick);
     }
     else mtp = NULL;
 
@@ -233,11 +224,6 @@ Cache(const std::string &_name, HierParams *hier_params,
 template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::~Cache(){
    for(int i=0;i<shadowTags.size();i++) delete shadowTags[i];
-   if(repartEvent != NULL){
-       assert(!repartEvent->scheduled());
-       delete repartEvent;
-   }
-
    delete mtp;
    delete cacheInterference;
 }

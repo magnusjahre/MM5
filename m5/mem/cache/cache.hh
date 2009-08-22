@@ -69,7 +69,6 @@ class Cache : public BaseCache
     bool idIsSet;
     std::string profileFileName;
 
-    CacheRepartitioningEvent* repartEvent;
     MultipleTimeSharingParititions* mtp;
 
   public:

@@ -63,6 +63,8 @@
 #include "sim/sim_object.hh"
 #include "sim/stats.hh"
 
+#include "bbtracker.hh"
+
 #if FULL_SYSTEM
 #include "base/remote_gdb.hh"
 #include "mem/functional/memory_control.hh"
@@ -147,6 +149,20 @@ SimpleCPU::SimpleCPU(Params *p)
     execContexts.push_back(xc);
     
     switchFileName = "cpuSwitchInsts.txt";
+
+    //SimPoints BBV collection
+    char* outdir = (char*) ".";
+    char* outfile = (char*) "bbv_outfile";
+    long interval_size = (long) p->bbv_simpoint_size;
+    
+    bbv_num_inst=1;
+    if(interval_size != -1){
+      init_bb_tracker(outdir, outfile, interval_size);
+      generateBBVs = true;
+    }
+    else{
+      generateBBVs = false;
+    }
 }
 
 SimpleCPU::~SimpleCPU()
@@ -762,6 +778,8 @@ SimpleCPU::tick()
 	numInst++;
 	numInsts++;
 
+	
+
 	// check for instruction-count-based events
 	comInstEventQueue[0]->serviceEvents(numInst);
 
@@ -769,10 +787,31 @@ SimpleCPU::tick()
 	inst = gtoh(inst);
 	curStaticInst = StaticInst<TheISA>::decode(inst);
         
-//         if(curTick >= 245000) cout << curTick << " " << name() << ": " << curStaticInst->disassemble(xc->regs.pc) << "\n";
-        
 	traceData = Trace::getInstRecord(curTick, xc, this, curStaticInst,
 					 xc->regs.pc);
+
+	// SimPoint BBV generation
+	if(generateBBVs){
+	  if (curStaticInst->isControl()
+	      || curStaticInst->isCall() 
+	      || curStaticInst->isReturn()
+	      || curStaticInst->isDirectCtrl()
+	      || curStaticInst->isIndirectCtrl()
+	      || curStaticInst->isCondCtrl()
+	      || curStaticInst->isUncondCtrl()){ 
+	    /* instruction is control flow, hence it is the end
+	       of a basic block  */
+	    bb_tracker(xc->regs.pc, bbv_num_inst);
+
+	    // initialize number of instruction in basic block
+	    bbv_num_inst = 1;         
+	  }
+	  else{
+	    /* keep track of number of instructions in basic block */
+	    bbv_num_inst++;
+	  }
+	}
+
 
 #if FULL_SYSTEM
         xc->setInst(inst);
@@ -867,6 +906,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(SimpleCPU)
     Param<int> width;
     Param<bool> function_trace;
     Param<Tick> function_trace_start;
+Param<int> simpoint_bbv_size;
 
 END_DECLARE_SIM_OBJECT_PARAMS(SimpleCPU)
 
@@ -898,7 +938,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(SimpleCPU)
     INIT_PARAM(defer_registration, "defer system registration (for sampling)"),
     INIT_PARAM(width, "cpu width"),
     INIT_PARAM(function_trace, "Enable function trace"),
-    INIT_PARAM(function_trace_start, "Cycle to start function trace")
+  INIT_PARAM(function_trace_start, "Cycle to start function trace"),
+  INIT_PARAM_DFLT(simpoint_bbv_size, "Number of instructions in each BBV point", -1)
 
 END_INIT_SIM_OBJECT_PARAMS(SimpleCPU)
 
@@ -920,6 +961,8 @@ CREATE_SIM_OBJECT(SimpleCPU)
     params->dcache_interface = (dcache) ? dcache->getInterface() : NULL;
     params->width = width;
     params->cpu_id = cpu_id;
+
+    params->bbv_simpoint_size = simpoint_bbv_size;
 
 #if FULL_SYSTEM
     params->itb = itb;

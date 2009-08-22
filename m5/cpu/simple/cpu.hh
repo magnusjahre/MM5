@@ -81,6 +81,8 @@ class SimpleCPU : public BaseCPU
 	const char *description();
     };
 
+    int bbv_num_inst;
+  bool generateBBVs;
     TickEvent tickEvent;
 
     /// Schedule tick event, regardless of its current state.
@@ -135,6 +137,8 @@ class SimpleCPU : public BaseCPU
 	MemInterface *icache_interface;
 	MemInterface *dcache_interface;
 	int width;
+      int bbv_simpoint_size;
+      
 #if FULL_SYSTEM
 	AlphaITB *itb;
 	AlphaDTB *dtb;

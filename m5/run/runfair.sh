@@ -31,11 +31,12 @@ echo "Running workload $wl..."
 
 cd runtmp
 
-../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=$controller -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EWRITEBACK-OWNER-POLICY=shadow-tags -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > shared-trace.txt 2> /dev/null
+../../build/ALPHA_SE/m5.opt -ENP=$np -EBENCHMARK=$wl -EINTERCONNECT=crossbar -EPROTOCOL=none -ESTATSFILE=test_output.txt -ESIMULATETICKS=$1 -EMEMORY-BUS-SCHEDULER=$controller -EFASTFORWARDTICKS=$2 -EMEMORY-SYSTEM=$memsys -EMEMORY-BUS-CHANNELS=1 -EMEMORY-BUS-PAGE-POLICY=OpenPage -EWRITEBACK-OWNER-POLICY=shadow-tags -EREADY-FIRST-LIMIT-ALL-CPUS=$rflimit -EDUMP-INTERFERENCE=$dumpFreq $args ../../configs/CMP/run.py > shared-trace.txt 2> shared-errtrace.txt
 cp test_output.txt ../stats_$wl.txt
 cp cpuSwitchInsts.txt ../$(echo $wl)_cpuSwitchInsts.txt
 cp CPU*InterferenceTrace.txt ../
 cp shared-trace.txt ../
+cp shared-errtrace.txt ../
 
 
 COUNTER=0

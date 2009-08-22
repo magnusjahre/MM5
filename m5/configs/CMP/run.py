@@ -112,6 +112,8 @@ def initSharedCache(bankcnt):
             bank.use_mtp_partitioning = True
             bank.use_static_partitioning = True
             bank.static_part_start_tick = uniformPartStart
+            if "MTP-EPOCH-SIZE" in env:
+                bank.mtp_epoch_size = int(env["MTP-EPOCH-SIZE"])
             
     if "WRITEBACK-OWNER-POLICY" in env:
         for bank in root.SharedCache:
@@ -299,8 +301,12 @@ if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
     
 
 # Create CPUs
+sss = -1
+if "SIMPOINT-SAMPLE-SIZE" in env:
+    sss = int(env["SIMPOINT-SAMPLE-SIZE"])
+
 BaseCPU.workload = Parent.workload
-root.simpleCPU = [ CPU(defer_registration=True,)
+root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
 root.detailedCPU = [ DetailedCPU(defer_registration=True) 
                      for i in xrange(int(env['NP'])) ]
@@ -606,7 +612,7 @@ if env['MEMORY-SYSTEM'] == "Legacy":
             bank.use_mtp_partitioning = True
             bank.use_static_partitioning = True
             bank.static_part_start_tick = uniformPartStart
-
+            
     if cacheProfileStart != -1:
         for dc in root.L1dcaches:
             dc.detailed_sim_start_tick = cacheProfileStart
