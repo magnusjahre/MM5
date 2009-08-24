@@ -101,7 +101,7 @@ class Process : public SimObject
     // Base of region for mmaps (when user doesn't specify an address).
     Addr mmap_start;
     Addr mmap_end;
-    
+
     // Base of region for nxm data
     Addr nxm_start;
     Addr nxm_end;
@@ -127,7 +127,7 @@ class Process : public SimObject
 
   private:
     // file descriptor remapping support
-    static const int MAX_FD = 100;	// max legal fd value
+    static const int MAX_FD = 100000;	// max legal fd value
     int fd_map[MAX_FD+1];
 
   public:
@@ -142,7 +142,7 @@ class Process : public SimObject
     // returns xc's cpu number (index into execContexts[])
     int registerExecContext(ExecContext *xc);
 
-    
+
     void replaceExecContext(ExecContext *xc, int xcIndex);
 
     // map simulator fd sim_fd to target fd tgt_fd
@@ -169,7 +169,7 @@ class Process : public SimObject
     {
 	return ((data_base <= addr && addr < brk_point) ||
 		(next_thread_stack_base <= addr && addr < stack_base) ||
-		(text_base <= addr && addr < (text_base + text_size)) || 
+		(text_base <= addr && addr < (text_base + text_size)) ||
                 (mmap_start <= addr && addr < mmap_end) ||
 	        (nxm_start <= addr && addr < nxm_end));
     }
