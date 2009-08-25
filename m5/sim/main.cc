@@ -95,10 +95,10 @@ dumprstStatsHandler(int sigtype)
 void
 exitNowHandler(int sigtype)
 {
-    if(sigtype == 15){ 
+    if(sigtype == 15){
         cout << "SIGTERM recieved, terminating...\n";
     }
-    
+
     async_event = true;
     async_exit = true;
 }
@@ -108,7 +108,7 @@ void
 abortHandler(int sigtype)
 {
     cerr << "Program aborted at cycle " << curTick << endl;
-    
+
 #if TRACING_ON
     // dump trace buffer, if there is one
     Trace::theLog.dump(cerr);
@@ -254,7 +254,7 @@ main(int argc, char **argv)
 	if (arg_str[0] == '-' && arg_str[1] == '-') {
 	    string str = &arg_str[2];
 	    string var, val;
-	    
+
 	    if (!split_first(str, var, val, '='))
 		panic("Could not parse configuration argument '%s'\n"
 		      "Expecting --<variable>=<value>\n", arg_str);
@@ -346,7 +346,7 @@ main(int argc, char **argv)
 
     // Initialize statistics database
     Stats::InitSimStats();
-    
+
     // Now process the configuration hierarchy and create the SimObjects.
     ConfigHierarchy configHierarchy(inifile);
     configHierarchy.build();
@@ -394,42 +394,43 @@ main(int argc, char **argv)
     warn("Entering event queue.  Starting simulation...\n");
     SimStartup();
     while (!mainEventQueue.empty()) {
-	assert(curTick <= mainEventQueue.nextTick() &&
-	       "event scheduled in the past");
 
-	// forward current cycle to the time of the first event on the
-	// queue
-	curTick = mainEventQueue.nextTick();
-        
-	mainEventQueue.serviceOne();
+    	assert(curTick <= mainEventQueue.nextTick() &&
+    			"event scheduled in the past");
 
-	if (async_event) {
-	    async_event = false;
-	    if (async_dump) {
-		async_dump = false;
+    	// forward current cycle to the time of the first event on the
+    	// queue
+    	curTick = mainEventQueue.nextTick();
 
-		using namespace Stats;
-		SetupEvent(Dump, curTick);
-	    }
+    	mainEventQueue.serviceOne();
 
-	    if (async_dumpreset) {
-		async_dumpreset = false;
+    	if (async_event) {
+    		async_event = false;
+    		if (async_dump) {
+    			async_dump = false;
 
-		using namespace Stats;
-		SetupEvent(Dump | Reset, curTick);
-	    }
+    			using namespace Stats;
+    			SetupEvent(Dump, curTick);
+    		}
 
-	    if (async_exit) {
-		async_exit = false;
-		new SimExitEvent("User requested STOP");
-	    }
+    		if (async_dumpreset) {
+    			async_dumpreset = false;
 
-	    if (async_io || async_alarm) {
-		async_io = false;
-		async_alarm = false;
-		pollQueue.service();
-	    }
-	}
+    			using namespace Stats;
+    			SetupEvent(Dump | Reset, curTick);
+    		}
+
+    		if (async_exit) {
+    			async_exit = false;
+    			new SimExitEvent("User requested STOP");
+    		}
+
+    		if (async_io || async_alarm) {
+    			async_io = false;
+    			async_alarm = false;
+    			pollQueue.service();
+    		}
+    	}
     }
 
     // This should never happen... every conceivable way for the
