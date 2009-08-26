@@ -7,6 +7,7 @@ import bw_workloads
 import deterministic_fw_wls as fair_workloads
 import single_core_fw as single_core
 import simpoints3
+import os
 from DetailedConfig import *
 
 ###############################################################################
@@ -153,6 +154,25 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         buscnt += 1
         if buscnt % banksPerBus == 0:
             curbus += 1
+
+def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
+    assert env["NP"] == 1
+        
+    # Simulation will terminate when the checkpoint is dumped
+    fwticks = FW_NOT_USED_SIZE
+    simulateCycles = SIM_TICKS_NOT_USED_SIZE_SMALL
+    
+    assert len(root.simpleCPU) == 1
+    assert "BENCHMARK" in env
+    root.simpleCPU[0].checkpoint_at_instruction = checkpointAt
+    
+    serializeBase = "cpt-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
+    if simpoint != -1:
+        Serialize.dir = serializeBase+"-sp"+str(simpoint)
+    else:
+        Serialize.dir = serializeBase
+    
+    return fwticks, simulateCycles
 
 ###############################################################################
 # Check command line options
@@ -440,39 +460,57 @@ generateCheckpoint = False
 if "GENERATE-CHECKPOINT" in env:
     generateCheckpoint = True
 
+useCheckpoint = False
+if "USE-CHECKPOINT" in env:
+    useCheckpoint = True
+
 simInsts = -1
 if "SIMINSTS" in env:
     simInsts = int(env["SIMINSTS"])
 
 if "USE-SIMPOINT" in env:
+    
+    if "FASTFORWARDTICKS" in env or "SIMULATETICKS" in env or "SIMINSTS" in env:
+        panic("simulation length parameters does not make sense with simpoints")
+    
+    simpointNum = int(env["USE-SIMPOINT"])
+    assert simpointNum < simpoints3.maxk
+    
     if generateCheckpoint:
-        # Simulation will terminate when the checkpoint is dumped
-        fwticks = FW_NOT_USED_SIZE
-        simulateCycles = SIM_TICKS_NOT_USED_SIZE_SMALL
-        
-        panic("checkpoint generation not implemented")
+        fwticks, simulateCycles = setGenerateCheckpointParams(simpoints3.simpoints[env["BENCHMARK"]][simpointNum][simpoints3.FWKEY], simpointNum)
     else:
-        
-        # TODO: load checkpoint(s)
         
         fwticks = 1
         simulateCycles = SIM_TICKS_NOT_USED_SIZE
         
-        # TODO: set instruction limit to for all CPUs  simpoints3.intervalsize 
-        
+        for cpu in root.detailedCPU:
+            cpu.min_insts_all_cpus = simpoints3.intervalsize
     
+        panic("checkpoint loading not implemented")
 else:
-    assert "FASTFORWARDTICKS" in env
-    assert ("SIMULATETICKS" in env or simInsts != -1)
+    
     if "SIMULATETICKS" in env and simInsts != -1:
         panic("Specfying both a max tick count and a max inst count does not make sense")
-    fwticks = int(env["FASTFORWARDTICKS"])
-    if simInsts == -1:
-        simulateCycles = int(env["SIMULATETICKS"])
+    
+    if generateCheckpoint:
+        assert simInsts != -1
+        fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
+    
+    elif useCheckpoint:
+        panic("Use checkpoint not implemented")
+    
     else:
-        simulateCycles = SIM_TICKS_NOT_USED_SIZE
-        for cpu in root.detailedCPU:
-            cpu.min_insts_all_cpus = simInsts 
+        assert "FASTFORWARDTICKS" in env
+        assert ("SIMULATETICKS" in env or simInsts != -1)
+        
+        fwticks = int(env["FASTFORWARDTICKS"])
+        
+        if simInsts == -1:
+            simulateCycles = int(env["SIMULATETICKS"])
+        else:
+            simulateCycles = SIM_TICKS_NOT_USED_SIZE
+            for cpu in root.detailedCPU:
+                cpu.min_insts_all_cpus = simInsts 
         
 root.sampler = Sampler()
 root.sampler.phase0_cpus = Parent.simpleCPU
@@ -484,9 +522,6 @@ uniformPartStart = fwticks
 cacheProfileStart = fwticks
 Bus.switch_at = fwticks
 BaseCache.detailed_sim_start_tick = fwticks
-
-if "GENERATE-CHECKPOINT" in env:
-    panic("Experiment time generation not implemented")
         
 
 ###############################################################################

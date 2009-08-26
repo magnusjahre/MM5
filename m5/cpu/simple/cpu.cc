@@ -80,90 +80,92 @@ using namespace std;
 
 
 SimpleCPU::TickEvent::TickEvent(SimpleCPU *c, int w)
-    : Event(&mainEventQueue, CPU_Tick_Pri), cpu(c), width(w)
+: Event(&mainEventQueue, CPU_Tick_Pri), cpu(c), width(w)
 {
 }
 
 void
 SimpleCPU::TickEvent::process()
 {
-    int count = width;
-    do {
-	cpu->tick();
-    } while (--count > 0 && cpu->status() == Running);
+	int count = width;
+	do {
+		cpu->tick();
+	} while (--count > 0 && cpu->status() == Running);
 }
 
 const char *
 SimpleCPU::TickEvent::description()
 {
-    return "SimpleCPU tick event";
+	return "SimpleCPU tick event";
 }
 
 
 SimpleCPU::CacheCompletionEvent::CacheCompletionEvent(SimpleCPU *_cpu)
-    : Event(&mainEventQueue), cpu(_cpu)
+: Event(&mainEventQueue), cpu(_cpu)
 {
 }
 
 void SimpleCPU::CacheCompletionEvent::process()
 {
-    cpu->processCacheCompletion();
+	cpu->processCacheCompletion();
 }
 
 const char *
 SimpleCPU::CacheCompletionEvent::description()
 {
-    return "SimpleCPU cache completion event";
+	return "SimpleCPU cache completion event";
 }
 
 SimpleCPU::SimpleCPU(Params *p)
-    : BaseCPU(p), tickEvent(this, p->width), xc(NULL),
-      cacheCompletionEvent(this)
+: BaseCPU(p), tickEvent(this, p->width), xc(NULL),
+cacheCompletionEvent(this)
 {
-    _status = Idle;
+	_status = Idle;
 #if FULL_SYSTEM
-    xc = new ExecContext(this, 0, p->system, p->itb, p->dtb, p->mem);
+	xc = new ExecContext(this, 0, p->system, p->itb, p->dtb, p->mem);
 
-    // initialize CPU, including PC
-    TheISA::initCPU(&xc->regs);
+	// initialize CPU, including PC
+	TheISA::initCPU(&xc->regs);
 #else
-    // HACK: thread num is now processor_id
-    xc = new ExecContext(this, /* thread_num */ 0, p->process, /* asid */ 0);
+	// HACK: thread num is now processor_id
+	xc = new ExecContext(this, /* thread_num */ 0, p->process, /* asid */ 0);
 #endif // !FULL_SYSTEM
 
-    icacheInterface = p->icache_interface;
-    dcacheInterface = p->dcache_interface;
+	icacheInterface = p->icache_interface;
+	dcacheInterface = p->dcache_interface;
 
-    memReq = new MemReq();
-    memReq->xc = xc;
-    memReq->asid = 0;
-    memReq->data = new uint8_t[64];
+	memReq = new MemReq();
+	memReq->xc = xc;
+	memReq->asid = 0;
+	memReq->data = new uint8_t[64];
 
-    numInst = 0;
-    startNumInst = 0;
-    numLoad = 0;
-    startNumLoad = 0;
-    lastIcacheStall = 0;
-    lastDcacheStall = 0;
+	numInst = 0;
+	startNumInst = 0;
+	numLoad = 0;
+	startNumLoad = 0;
+	lastIcacheStall = 0;
+	lastDcacheStall = 0;
 
-    execContexts.push_back(xc);
+	execContexts.push_back(xc);
 
-    switchFileName = "cpuSwitchInsts.txt";
+	switchFileName = "cpuSwitchInsts.txt";
 
-    //SimPoints BBV collection
-    char* outdir = (char*) ".";
-    char* outfile = (char*) "bbv_outfile";
-    long interval_size = (long) p->bbv_simpoint_size;
+	//SimPoints BBV collection
+	char* outdir = (char*) ".";
+	char* outfile = (char*) "bbv_outfile";
+	long interval_size = (long) p->bbv_simpoint_size;
 
-    bbv_num_inst=1;
-    if(interval_size != -1){
-      cout << "tracking with interval size " << interval_size << "\n";
-      init_bb_tracker(outdir, outfile, interval_size);
-      generateBBVs = true;
-    }
-    else{
-      generateBBVs = false;
-    }
+	bbv_num_inst=1;
+	if(interval_size != -1){
+		cout << "tracking with interval size " << interval_size << "\n";
+		init_bb_tracker(outdir, outfile, interval_size);
+		generateBBVs = true;
+	}
+	else{
+		generateBBVs = false;
+	}
+
+	checkpointAtInstruction = p->checkpoint_at_instruction;
 }
 
 SimpleCPU::~SimpleCPU()
@@ -174,24 +176,24 @@ void
 SimpleCPU::switchOut(Sampler *s)
 {
 
-    ofstream file(switchFileName.c_str(), ofstream::app);
-    file << name() << ": Switching out with " << numInst << " committed instructions @ " << curTick << "\n";
-    file.flush();
-    file.close();
+	ofstream file(switchFileName.c_str(), ofstream::app);
+	file << name() << ": Switching out with " << numInst << " committed instructions @ " << curTick << "\n";
+	file.flush();
+	file.close();
 
-    sampler = s;
-    if (status() == DcacheMissStall) {
-	DPRINTF(Sampler,"Outstanding dcache access, waiting for completion\n");
-	_status = DcacheMissSwitch;
-    }
-    else {
-	_status = SwitchedOut;
+	sampler = s;
+	if (status() == DcacheMissStall) {
+		DPRINTF(Sampler,"Outstanding dcache access, waiting for completion\n");
+		_status = DcacheMissSwitch;
+	}
+	else {
+		_status = SwitchedOut;
 
-	if (tickEvent.scheduled())
-	    tickEvent.squash();
+		if (tickEvent.scheduled())
+			tickEvent.squash();
 
-	sampler->signalSwitched();
-    }
+		sampler->signalSwitched();
+	}
 }
 
 
@@ -199,136 +201,136 @@ void
 SimpleCPU::takeOverFrom(BaseCPU *oldCPU)
 {
 
-    BaseCPU::takeOverFrom(oldCPU);
+	BaseCPU::takeOverFrom(oldCPU);
 
-    assert(!tickEvent.scheduled());
+	assert(!tickEvent.scheduled());
 
-    // if any of this CPU's ExecContexts are active, mark the CPU as
-    // running and schedule its tick event.
-    for (int i = 0; i < execContexts.size(); ++i) {
-	ExecContext *xc = execContexts[i];
-	if (xc->status() == ExecContext::Active && _status != Running) {
-	    _status = Running;
-	    tickEvent.schedule(curTick);
+	// if any of this CPU's ExecContexts are active, mark the CPU as
+	// running and schedule its tick event.
+	for (int i = 0; i < execContexts.size(); ++i) {
+		ExecContext *xc = execContexts[i];
+		if (xc->status() == ExecContext::Active && _status != Running) {
+			_status = Running;
+			tickEvent.schedule(curTick);
+		}
 	}
-    }
 }
 
 
 void
 SimpleCPU::activateContext(int thread_num, int delay)
 {
-    assert(thread_num == 0);
-    assert(xc);
+	assert(thread_num == 0);
+	assert(xc);
 
-    assert(_status == Idle);
-    notIdleFraction++;
-    scheduleTickEvent(delay);
-    _status = Running;
+	assert(_status == Idle);
+	notIdleFraction++;
+	scheduleTickEvent(delay);
+	_status = Running;
 }
 
 
 void
 SimpleCPU::suspendContext(int thread_num)
 {
-    assert(thread_num == 0);
-    assert(xc);
+	assert(thread_num == 0);
+	assert(xc);
 
-    assert(_status == Running);
-    notIdleFraction--;
-    unscheduleTickEvent();
-    _status = Idle;
+	assert(_status == Running);
+	notIdleFraction--;
+	unscheduleTickEvent();
+	_status = Idle;
 }
 
 
 void
 SimpleCPU::deallocateContext(int thread_num)
 {
-    // for now, these are equivalent
-    suspendContext(thread_num);
+	// for now, these are equivalent
+	suspendContext(thread_num);
 }
 
 
 void
 SimpleCPU::haltContext(int thread_num)
 {
-    // for now, these are equivalent
-    suspendContext(thread_num);
+	// for now, these are equivalent
+	suspendContext(thread_num);
 }
 
 
 void
 SimpleCPU::regStats()
 {
-    using namespace Stats;
+	using namespace Stats;
 
-    BaseCPU::regStats();
+	BaseCPU::regStats();
 
-    numInsts
+	numInsts
 	.name(name() + ".num_insts")
-        .desc("Number of instructions executed")
+	.desc("Number of instructions executed")
 	;
 
-    numMemRefs
+	numMemRefs
 	.name(name() + ".num_refs")
 	.desc("Number of memory references")
 	;
 
-    notIdleFraction
+	notIdleFraction
 	.name(name() + ".not_idle_fraction")
 	.desc("Percentage of non-idle cycles")
 	;
 
-    idleFraction
+	idleFraction
 	.name(name() + ".idle_fraction")
 	.desc("Percentage of idle cycles")
 	;
 
-    icacheStallCycles
+	icacheStallCycles
 	.name(name() + ".icache_stall_cycles")
 	.desc("ICache total stall cycles")
 	.prereq(icacheStallCycles)
 	;
 
-    dcacheStallCycles
+	dcacheStallCycles
 	.name(name() + ".dcache_stall_cycles")
-        .desc("DCache total stall cycles")
+	.desc("DCache total stall cycles")
 	.prereq(dcacheStallCycles)
 	;
 
-    idleFraction = constant(1.0) - notIdleFraction;
+	idleFraction = constant(1.0) - notIdleFraction;
 }
 
 void
 SimpleCPU::resetStats()
 {
-    startNumInst = numInst;
-    notIdleFraction = (_status != Idle);
+	startNumInst = numInst;
+	notIdleFraction = (_status != Idle);
 }
 
 void
 SimpleCPU::serialize(ostream &os)
 {
-    BaseCPU::serialize(os);
-    SERIALIZE_ENUM(_status);
-    SERIALIZE_SCALAR(inst);
-    nameOut(os, csprintf("%s.xc", name()));
-    xc->serialize(os);
-    nameOut(os, csprintf("%s.tickEvent", name()));
-    tickEvent.serialize(os);
-    nameOut(os, csprintf("%s.cacheCompletionEvent", name()));
-    cacheCompletionEvent.serialize(os);
+	BaseCPU::serialize(os);
+	SERIALIZE_ENUM(_status);
+	SERIALIZE_SCALAR(inst);
+	nameOut(os, csprintf("%s.xc", name()));
+	xc->serialize(os);
+	nameOut(os, csprintf("%s.tickEvent", name()));
+	tickEvent.serialize(os);
+	nameOut(os, csprintf("%s.cacheCompletionEvent", name()));
+	cacheCompletionEvent.serialize(os);
 }
 
 void
 SimpleCPU::unserialize(Checkpoint *cp, const string &section)
 {
-    BaseCPU::unserialize(cp, section);
-    UNSERIALIZE_ENUM(_status);
-    UNSERIALIZE_SCALAR(inst);
-    xc->unserialize(cp, csprintf("%s.xc", section));
-    tickEvent.unserialize(cp, csprintf("%s.tickEvent", section));
-    cacheCompletionEvent
+	BaseCPU::unserialize(cp, section);
+	UNSERIALIZE_ENUM(_status);
+	UNSERIALIZE_SCALAR(inst);
+	xc->unserialize(cp, csprintf("%s.xc", section));
+	tickEvent.unserialize(cp, csprintf("%s.tickEvent", section));
+	cacheCompletionEvent
 	.unserialize(cp, csprintf("%s.cacheCompletionEvent", section));
 }
 
@@ -340,82 +342,82 @@ change_thread_state(int thread_number, int activate, int priority)
 Fault
 SimpleCPU::copySrcTranslate(Addr src)
 {
-    static bool no_warn = true;
-    int blk_size = (dcacheInterface) ? dcacheInterface->getBlockSize() : 64;
-    // Only support block sizes of 64 atm.
-    assert(blk_size == 64);
-    int offset = src & (blk_size - 1);
+	static bool no_warn = true;
+	int blk_size = (dcacheInterface) ? dcacheInterface->getBlockSize() : 64;
+	// Only support block sizes of 64 atm.
+	assert(blk_size == 64);
+	int offset = src & (blk_size - 1);
 
-    // Make sure block doesn't span page
-    if (no_warn &&
-	(src & TheISA::PageMask) != ((src + blk_size) & TheISA::PageMask) &&
-	(src >> 40) != 0xfffffc) {
-	warn("Copied block source spans pages %x.", src);
-	no_warn = false;
-    }
+	// Make sure block doesn't span page
+	if (no_warn &&
+			(src & TheISA::PageMask) != ((src + blk_size) & TheISA::PageMask) &&
+			(src >> 40) != 0xfffffc) {
+		warn("Copied block source spans pages %x.", src);
+		no_warn = false;
+	}
 
-    memReq->reset(src & ~(blk_size - 1), blk_size);
+	memReq->reset(src & ~(blk_size - 1), blk_size);
 
-    // translate to physical address
-    Fault fault = xc->translateDataReadReq(memReq);
+	// translate to physical address
+	Fault fault = xc->translateDataReadReq(memReq);
 
-    assert(fault != Alignment_Fault);
+	assert(fault != Alignment_Fault);
 
-    if (fault == No_Fault) {
-	xc->copySrcAddr = src;
-	xc->copySrcPhysAddr = memReq->paddr + offset;
-    } else {
-	xc->copySrcAddr = 0;
-	xc->copySrcPhysAddr = 0;
-    }
-    return fault;
+	if (fault == No_Fault) {
+		xc->copySrcAddr = src;
+		xc->copySrcPhysAddr = memReq->paddr + offset;
+	} else {
+		xc->copySrcAddr = 0;
+		xc->copySrcPhysAddr = 0;
+	}
+	return fault;
 }
 
 Fault
 SimpleCPU::copy(Addr dest)
 {
-    static bool no_warn = true;
-    int blk_size = (dcacheInterface) ? dcacheInterface->getBlockSize() : 64;
-    // Only support block sizes of 64 atm.
-    assert(blk_size == 64);
-    uint8_t data[blk_size];
-    //assert(xc->copySrcAddr);
-    int offset = dest & (blk_size - 1);
+	static bool no_warn = true;
+	int blk_size = (dcacheInterface) ? dcacheInterface->getBlockSize() : 64;
+	// Only support block sizes of 64 atm.
+	assert(blk_size == 64);
+	uint8_t data[blk_size];
+	//assert(xc->copySrcAddr);
+	int offset = dest & (blk_size - 1);
 
-    // Make sure block doesn't span page
-    if (no_warn &&
-	(dest & TheISA::PageMask) != ((dest + blk_size) & TheISA::PageMask) &&
-	(dest >> 40) != 0xfffffc) {
-	no_warn = false;
-	warn("Copied block destination spans pages %x. ", dest);
-    }
-
-    memReq->reset(dest & ~(blk_size -1), blk_size);
-    // translate to physical address
-    Fault fault = xc->translateDataWriteReq(memReq);
-
-    assert(fault != Alignment_Fault);
-
-    if (fault == No_Fault) {
-	Addr dest_addr = memReq->paddr + offset;
-	// Need to read straight from memory since we have more than 8 bytes.
-	memReq->paddr = xc->copySrcPhysAddr;
-	xc->mem->read(memReq, data);
-	memReq->paddr = dest_addr;
-	xc->mem->write(memReq, data);
-	if (dcacheInterface) {
-
-	    memReq->cmd = Copy;
-	    memReq->completionEvent = NULL;
-            memReq->expectCompletionEvent = false;
-	    memReq->paddr = xc->copySrcPhysAddr;
-	    memReq->dest = dest_addr;
-	    memReq->size = 64;
-	    memReq->time = curTick;
-	    dcacheInterface->access(memReq);
+	// Make sure block doesn't span page
+	if (no_warn &&
+			(dest & TheISA::PageMask) != ((dest + blk_size) & TheISA::PageMask) &&
+			(dest >> 40) != 0xfffffc) {
+		no_warn = false;
+		warn("Copied block destination spans pages %x. ", dest);
 	}
-    }
-    return fault;
+
+	memReq->reset(dest & ~(blk_size -1), blk_size);
+	// translate to physical address
+	Fault fault = xc->translateDataWriteReq(memReq);
+
+	assert(fault != Alignment_Fault);
+
+	if (fault == No_Fault) {
+		Addr dest_addr = memReq->paddr + offset;
+		// Need to read straight from memory since we have more than 8 bytes.
+		memReq->paddr = xc->copySrcPhysAddr;
+		xc->mem->read(memReq, data);
+		memReq->paddr = dest_addr;
+		xc->mem->write(memReq, data);
+		if (dcacheInterface) {
+
+			memReq->cmd = Copy;
+			memReq->completionEvent = NULL;
+			memReq->expectCompletionEvent = false;
+			memReq->paddr = xc->copySrcPhysAddr;
+			memReq->dest = dest_addr;
+			memReq->size = 64;
+			memReq->time = curTick;
+			dcacheInterface->access(memReq);
+		}
+	}
+	return fault;
 }
 
 // precise architected memory state accessor macros
@@ -424,53 +426,53 @@ Fault
 SimpleCPU::read(Addr addr, T &data, unsigned flags)
 {
 
-    if (status() == DcacheMissStall || status() == DcacheMissSwitch) {
-	Fault fault = xc->read(memReq,data);
+	if (status() == DcacheMissStall || status() == DcacheMissSwitch) {
+		Fault fault = xc->read(memReq,data);
 
-	if (traceData) {
-	    traceData->setAddr(addr);
+		if (traceData) {
+			traceData->setAddr(addr);
+		}
+		return fault;
 	}
+
+	memReq->reset(addr, sizeof(T), flags);
+
+	// translate to physical address
+	Fault fault = xc->translateDataReadReq(memReq);
+
+	// if we have a cache, do cache access too
+	if (fault == No_Fault && dcacheInterface) {
+		memReq->cmd = Read;
+		memReq->completionEvent = NULL;
+		memReq->expectCompletionEvent = false;
+		memReq->time = curTick;
+		MemAccessResult result = dcacheInterface->access(memReq);
+
+		// Ugly hack to get an event scheduled *only* if the access is
+		// a miss.  We really should add first-class support for this
+		// at some point.
+		if (result != MA_HIT && dcacheInterface->doEvents()) {
+			memReq->completionEvent = &cacheCompletionEvent;
+			memReq->expectCompletionEvent = true;
+			lastDcacheStall = curTick;
+			unscheduleTickEvent();
+
+			_status = DcacheMissStall;
+		} else {
+			// do functional access
+			fault = xc->read(memReq, data);
+
+		}
+	} else if(fault == No_Fault) {
+		// do functional access
+		fault = xc->read(memReq, data);
+
+	}
+
+	if (!dcacheInterface && (memReq->flags & UNCACHEABLE))
+		recordEvent("Uncached Read");
+
 	return fault;
-    }
-
-    memReq->reset(addr, sizeof(T), flags);
-
-    // translate to physical address
-    Fault fault = xc->translateDataReadReq(memReq);
-
-    // if we have a cache, do cache access too
-    if (fault == No_Fault && dcacheInterface) {
-	memReq->cmd = Read;
-	memReq->completionEvent = NULL;
-        memReq->expectCompletionEvent = false;
-	memReq->time = curTick;
-	MemAccessResult result = dcacheInterface->access(memReq);
-
-	// Ugly hack to get an event scheduled *only* if the access is
-	// a miss.  We really should add first-class support for this
-	// at some point.
-	if (result != MA_HIT && dcacheInterface->doEvents()) {
-	    memReq->completionEvent = &cacheCompletionEvent;
-            memReq->expectCompletionEvent = true;
-	    lastDcacheStall = curTick;
-	    unscheduleTickEvent();
-
-	    _status = DcacheMissStall;
-	} else {
-	    // do functional access
-	    fault = xc->read(memReq, data);
-
-	}
-    } else if(fault == No_Fault) {
-	// do functional access
-	fault = xc->read(memReq, data);
-
-    }
-
-    if (!dcacheInterface && (memReq->flags & UNCACHEABLE))
-	recordEvent("Uncached Read");
-
-    return fault;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -497,14 +499,14 @@ template<>
 Fault
 SimpleCPU::read(Addr addr, double &data, unsigned flags)
 {
-    return read(addr, *(uint64_t*)&data, flags);
+	return read(addr, *(uint64_t*)&data, flags);
 }
 
 template<>
 Fault
 SimpleCPU::read(Addr addr, float &data, unsigned flags)
 {
-    return read(addr, *(uint32_t*)&data, flags);
+	return read(addr, *(uint32_t*)&data, flags);
 }
 
 
@@ -512,7 +514,7 @@ template<>
 Fault
 SimpleCPU::read(Addr addr, int32_t &data, unsigned flags)
 {
-    return read(addr, (uint32_t&)data, flags);
+	return read(addr, (uint32_t&)data, flags);
 }
 
 
@@ -521,42 +523,42 @@ Fault
 SimpleCPU::write(T data, Addr addr, unsigned flags, uint64_t *res)
 {
 
-    memReq->reset(addr, sizeof(T), flags);
+	memReq->reset(addr, sizeof(T), flags);
 
-    // translate to physical address
-    Fault fault = xc->translateDataWriteReq(memReq);
+	// translate to physical address
+	Fault fault = xc->translateDataWriteReq(memReq);
 
-    // do functional access
-    if (fault == No_Fault)
-	fault = xc->write(memReq, data);
+	// do functional access
+	if (fault == No_Fault)
+		fault = xc->write(memReq, data);
 
-    if (fault == No_Fault && dcacheInterface) {
-	memReq->cmd = Write;
-	memcpy(memReq->data,(uint8_t *)&data,memReq->size);
-	memReq->completionEvent = NULL;
-        memReq->expectCompletionEvent = false;
-	memReq->time = curTick;
-	MemAccessResult result = dcacheInterface->access(memReq);
+	if (fault == No_Fault && dcacheInterface) {
+		memReq->cmd = Write;
+		memcpy(memReq->data,(uint8_t *)&data,memReq->size);
+		memReq->completionEvent = NULL;
+		memReq->expectCompletionEvent = false;
+		memReq->time = curTick;
+		MemAccessResult result = dcacheInterface->access(memReq);
 
-	// Ugly hack to get an event scheduled *only* if the access is
-	// a miss.  We really should add first-class support for this
-	// at some point.
-	if (result != MA_HIT && dcacheInterface->doEvents()) {
-	    memReq->completionEvent = &cacheCompletionEvent;
-            memReq->expectCompletionEvent = true;
-	    lastDcacheStall = curTick;
-	    unscheduleTickEvent();
-	    _status = DcacheMissStall;
+		// Ugly hack to get an event scheduled *only* if the access is
+		// a miss.  We really should add first-class support for this
+		// at some point.
+		if (result != MA_HIT && dcacheInterface->doEvents()) {
+			memReq->completionEvent = &cacheCompletionEvent;
+			memReq->expectCompletionEvent = true;
+			lastDcacheStall = curTick;
+			unscheduleTickEvent();
+			_status = DcacheMissStall;
+		}
 	}
-    }
 
-    if (res && (fault == No_Fault))
-	*res = memReq->result;
+	if (res && (fault == No_Fault))
+		*res = memReq->result;
 
-    if (!dcacheInterface && (memReq->flags & UNCACHEABLE))
-	recordEvent("Uncached Write");
+	if (!dcacheInterface && (memReq->flags & UNCACHEABLE))
+		recordEvent("Uncached Write");
 
-    return fault;
+	return fault;
 }
 
 
@@ -583,14 +585,14 @@ template<>
 Fault
 SimpleCPU::write(double data, Addr addr, unsigned flags, uint64_t *res)
 {
-    return write(*(uint64_t*)&data, addr, flags, res);
+	return write(*(uint64_t*)&data, addr, flags, res);
 }
 
 template<>
 Fault
 SimpleCPU::write(float data, Addr addr, unsigned flags, uint64_t *res)
 {
-    return write(*(uint32_t*)&data, addr, flags, res);
+	return write(*(uint32_t*)&data, addr, flags, res);
 }
 
 
@@ -598,7 +600,7 @@ template<>
 Fault
 SimpleCPU::write(int32_t data, Addr addr, unsigned flags, uint64_t *res)
 {
-    return write((uint32_t)data, addr, flags, res);
+	return write((uint32_t)data, addr, flags, res);
 }
 
 
@@ -606,59 +608,59 @@ SimpleCPU::write(int32_t data, Addr addr, unsigned flags, uint64_t *res)
 Addr
 SimpleCPU::dbg_vtophys(Addr addr)
 {
-    return vtophys(xc, addr);
+	return vtophys(xc, addr);
 }
 #endif // FULL_SYSTEM
 
 void
 SimpleCPU::processCacheCompletion()
 {
-    switch (status()) {
-      case IcacheMissStall:
-	icacheStallCycles += curTick - lastIcacheStall;
-	_status = IcacheMissComplete;
-	scheduleTickEvent(1);
-	break;
-      case DcacheMissStall:
-	if (memReq->cmd.isRead()) {
-	    curStaticInst->execute(this,traceData);
-            if (traceData)
-                traceData->finalize();
-	}
+	switch (status()) {
+	case IcacheMissStall:
+		icacheStallCycles += curTick - lastIcacheStall;
+		_status = IcacheMissComplete;
+		scheduleTickEvent(1);
+		break;
+	case DcacheMissStall:
+		if (memReq->cmd.isRead()) {
+			curStaticInst->execute(this,traceData);
+			if (traceData)
+				traceData->finalize();
+		}
 
-	dcacheStallCycles += curTick - lastDcacheStall;
-	_status = Running;
-	scheduleTickEvent(1);
-	break;
-      case DcacheMissSwitch:
-	if (memReq->cmd.isRead()) {
-	    curStaticInst->execute(this,traceData);
-            if (traceData)
-                traceData->finalize();
+		dcacheStallCycles += curTick - lastDcacheStall;
+		_status = Running;
+		scheduleTickEvent(1);
+		break;
+	case DcacheMissSwitch:
+		if (memReq->cmd.isRead()) {
+			curStaticInst->execute(this,traceData);
+			if (traceData)
+				traceData->finalize();
+		}
+		_status = SwitchedOut;
+		sampler->signalSwitched();
+	case SwitchedOut:
+		// If this CPU has been switched out due to sampling/warm-up,
+		// ignore any further status changes (e.g., due to cache
+		// misses outstanding at the time of the switch).
+		return;
+	default:
+		panic("SimpleCPU::processCacheCompletion: bad state");
+		break;
 	}
-	_status = SwitchedOut;
-	sampler->signalSwitched();
-      case SwitchedOut:
-	// If this CPU has been switched out due to sampling/warm-up,
-	// ignore any further status changes (e.g., due to cache
-	// misses outstanding at the time of the switch).
-	return;
-      default:
-	panic("SimpleCPU::processCacheCompletion: bad state");
-	break;
-    }
 }
 
 #if FULL_SYSTEM
 void
 SimpleCPU::post_interrupt(int int_num, int index)
 {
-    BaseCPU::post_interrupt(int_num, index);
+	BaseCPU::post_interrupt(int_num, index);
 
-    if (xc->status() == ExecContext::Suspended) {
+	if (xc->status() == ExecContext::Suspended) {
 		DPRINTF(IPI,"Suspended Processor awoke\n");
-	xc->activate();
-    }
+		xc->activate();
+	}
 }
 #endif // FULL_SYSTEM
 
@@ -666,221 +668,222 @@ SimpleCPU::post_interrupt(int int_num, int index)
 void
 SimpleCPU::tick()
 {
-    numCycles++;
+	numCycles++;
 
-    traceData = NULL;
+	traceData = NULL;
 
-    Fault fault = No_Fault;
+	Fault fault = No_Fault;
 
 #if FULL_SYSTEM
-    if (checkInterrupts && check_interrupts() && !xc->inPalMode() &&
-	status() != IcacheMissComplete) {
-	int ipl = 0;
-	int summary = 0;
-	checkInterrupts = false;
-	IntReg *ipr = xc->regs.ipr;
+	if (checkInterrupts && check_interrupts() && !xc->inPalMode() &&
+			status() != IcacheMissComplete) {
+		int ipl = 0;
+		int summary = 0;
+		checkInterrupts = false;
+		IntReg *ipr = xc->regs.ipr;
 
-	if (xc->regs.ipr[TheISA::IPR_SIRR]) {
-	    for (int i = TheISA::INTLEVEL_SOFTWARE_MIN;
-		 i < TheISA::INTLEVEL_SOFTWARE_MAX; i++) {
-		if (ipr[TheISA::IPR_SIRR] & (ULL(1) << i)) {
-		    // See table 4-19 of 21164 hardware reference
-		    ipl = (i - TheISA::INTLEVEL_SOFTWARE_MIN) + 1;
-		    summary |= (ULL(1) << i);
+		if (xc->regs.ipr[TheISA::IPR_SIRR]) {
+			for (int i = TheISA::INTLEVEL_SOFTWARE_MIN;
+			i < TheISA::INTLEVEL_SOFTWARE_MAX; i++) {
+				if (ipr[TheISA::IPR_SIRR] & (ULL(1) << i)) {
+					// See table 4-19 of 21164 hardware reference
+					ipl = (i - TheISA::INTLEVEL_SOFTWARE_MIN) + 1;
+					summary |= (ULL(1) << i);
+				}
+			}
 		}
-	    }
+
+		uint64_t interrupts = xc->cpu->intr_status();
+		for (int i = TheISA::INTLEVEL_EXTERNAL_MIN;
+		i < TheISA::INTLEVEL_EXTERNAL_MAX; i++) {
+			if (interrupts & (ULL(1) << i)) {
+				// See table 4-19 of 21164 hardware reference
+				ipl = i;
+				summary |= (ULL(1) << i);
+			}
+		}
+
+		if (ipr[TheISA::IPR_ASTRR])
+			panic("asynchronous traps not implemented\n");
+
+		if (ipl && ipl > xc->regs.ipr[TheISA::IPR_IPLR]) {
+			ipr[TheISA::IPR_ISR] = summary;
+			ipr[TheISA::IPR_INTID] = ipl;
+			xc->ev5_trap(Interrupt_Fault);
+
+			DPRINTF(Flow, "Interrupt! IPLR=%d ipl=%d summary=%x\n",
+					ipr[TheISA::IPR_IPLR], ipl, summary);
+		}
 	}
-
-	uint64_t interrupts = xc->cpu->intr_status();
-	for (int i = TheISA::INTLEVEL_EXTERNAL_MIN;
-	    i < TheISA::INTLEVEL_EXTERNAL_MAX; i++) {
-	    if (interrupts & (ULL(1) << i)) {
-		// See table 4-19 of 21164 hardware reference
-		ipl = i;
-		summary |= (ULL(1) << i);
-	    }
-	}
-
-	if (ipr[TheISA::IPR_ASTRR])
-	    panic("asynchronous traps not implemented\n");
-
-	if (ipl && ipl > xc->regs.ipr[TheISA::IPR_IPLR]) {
-	    ipr[TheISA::IPR_ISR] = summary;
-	    ipr[TheISA::IPR_INTID] = ipl;
-	    xc->ev5_trap(Interrupt_Fault);
-
-	    DPRINTF(Flow, "Interrupt! IPLR=%d ipl=%d summary=%x\n",
-		    ipr[TheISA::IPR_IPLR], ipl, summary);
-	}
-    }
 #endif
 
-    // maintain $r0 semantics
-    xc->regs.intRegFile[ZeroReg] = 0;
+	// maintain $r0 semantics
+	xc->regs.intRegFile[ZeroReg] = 0;
 #ifdef TARGET_ALPHA
-    xc->regs.floatRegFile.d[ZeroReg] = 0.0;
+	xc->regs.floatRegFile.d[ZeroReg] = 0.0;
 #endif // TARGET_ALPHA
 
-    if (status() == IcacheMissComplete) {
-	// We've already fetched an instruction and were stalled on an
-	// I-cache miss.  No need to fetch it again.
+	if (status() == IcacheMissComplete) {
+		// We've already fetched an instruction and were stalled on an
+		// I-cache miss.  No need to fetch it again.
 
-	// Set status to running; tick event will get rescheduled if
-	// necessary at end of tick() function.
-	_status = Running;
-    }
-    else {
-	// Try to fetch an instruction
+		// Set status to running; tick event will get rescheduled if
+		// necessary at end of tick() function.
+		_status = Running;
+	}
+	else {
+		// Try to fetch an instruction
 
-	// set up memory request for instruction fetch
+		// set up memory request for instruction fetch
 #if FULL_SYSTEM
 #define IFETCH_FLAGS(pc)	((pc) & 1) ? PHYSICAL : 0
 #else
 #define IFETCH_FLAGS(pc)	0
 #endif
 
-	memReq->cmd = Read;
-	memReq->reset(xc->regs.pc & ~3, sizeof(uint32_t),
-		     IFETCH_FLAGS(xc->regs.pc));
+		memReq->cmd = Read;
+		memReq->reset(xc->regs.pc & ~3, sizeof(uint32_t),
+				IFETCH_FLAGS(xc->regs.pc));
 
-	fault = xc->translateInstReq(memReq);
+		fault = xc->translateInstReq(memReq);
 
-	if (fault == No_Fault)
-	    fault = xc->mem->read(memReq, inst);
+		if (fault == No_Fault)
+			fault = xc->mem->read(memReq, inst);
 
-	if (icacheInterface && fault == No_Fault) {
-	    memReq->completionEvent = NULL;
-            memReq->expectCompletionEvent = false;
+		if (icacheInterface && fault == No_Fault) {
+			memReq->completionEvent = NULL;
+			memReq->expectCompletionEvent = false;
 
-	    memReq->time = curTick;
+			memReq->time = curTick;
 
-	    MemAccessResult result = icacheInterface->access(memReq);
+			MemAccessResult result = icacheInterface->access(memReq);
 
-	    // Ugly hack to get an event scheduled *only* if the access is
-	    // a miss.  We really should add first-class support for this
-	    // at some point.
-	    if (result != MA_HIT && icacheInterface->doEvents()) {
+			// Ugly hack to get an event scheduled *only* if the access is
+			// a miss.  We really should add first-class support for this
+			// at some point.
+			if (result != MA_HIT && icacheInterface->doEvents()) {
 
-		memReq->completionEvent = &cacheCompletionEvent;
-                memReq->expectCompletionEvent = true;
-		lastIcacheStall = curTick;
-		unscheduleTickEvent();
-		_status = IcacheMissStall;
-		return;
-	    }
+				memReq->completionEvent = &cacheCompletionEvent;
+				memReq->expectCompletionEvent = true;
+				lastIcacheStall = curTick;
+				unscheduleTickEvent();
+				_status = IcacheMissStall;
+				return;
+			}
+		}
 	}
-    }
 
-    // If we've got a valid instruction (i.e., no fault on instruction
-    // fetch), then execute it.
-    if (fault == No_Fault) {
+	// If we've got a valid instruction (i.e., no fault on instruction
+	// fetch), then execute it.
+	if (fault == No_Fault) {
 
-	// keep an instruction count
-	numInst++;
-	numInsts++;
-
+		// keep an instruction count
+		numInst++;
+		numInsts++;
 
 
-	// check for instruction-count-based events
-	comInstEventQueue[0]->serviceEvents(numInst);
 
-	// decode the instruction
-	inst = gtoh(inst);
-	curStaticInst = StaticInst<TheISA>::decode(inst);
+		// check for instruction-count-based events
+		comInstEventQueue[0]->serviceEvents(numInst);
 
-	traceData = Trace::getInstRecord(curTick, xc, this, curStaticInst,
-					 xc->regs.pc);
+		// decode the instruction
+		inst = gtoh(inst);
+		curStaticInst = StaticInst<TheISA>::decode(inst);
 
-	// SimPoint BBV generation
-	if(generateBBVs){
-	  //cout << "tracking!, inst cnt " << numInst << "\n";
-	  if (curStaticInst->isControl()
-	      || curStaticInst->isCall()
-	      || curStaticInst->isReturn()
-	      || curStaticInst->isDirectCtrl()
-	      || curStaticInst->isIndirectCtrl()
-	      || curStaticInst->isCondCtrl()
-	      || curStaticInst->isUncondCtrl()){
-	    /* instruction is control flow, hence it is the end
+		traceData = Trace::getInstRecord(curTick, xc, this, curStaticInst,
+				xc->regs.pc);
+
+		// SimPoint BBV generation
+		if(generateBBVs){
+			//cout << "tracking!, inst cnt " << numInst << "\n";
+			if (curStaticInst->isControl()
+					|| curStaticInst->isCall()
+					|| curStaticInst->isReturn()
+					|| curStaticInst->isDirectCtrl()
+					|| curStaticInst->isIndirectCtrl()
+					|| curStaticInst->isCondCtrl()
+					|| curStaticInst->isUncondCtrl()){
+				/* instruction is control flow, hence it is the end
 	       of a basic block  */
-	    bb_tracker(xc->regs.pc, bbv_num_inst);
+				bb_tracker(xc->regs.pc, bbv_num_inst);
 
-	    // initialize number of instruction in basic block
-	    bbv_num_inst = 1;
-	  }
-	  else{
-	    /* keep track of number of instructions in basic block */
-	    bbv_num_inst++;
-	  }
-	}
+				// initialize number of instruction in basic block
+				bbv_num_inst = 1;
+			}
+			else{
+				/* keep track of number of instructions in basic block */
+				bbv_num_inst++;
+			}
+		}
 
 
 #if FULL_SYSTEM
-        xc->setInst(inst);
+		xc->setInst(inst);
 #endif // FULL_SYSTEM
 
-	xc->func_exe_inst++;
+		xc->func_exe_inst++;
 
-	fault = curStaticInst->execute(this, traceData);
+		fault = curStaticInst->execute(this, traceData);
 
 #if FULL_SYSTEM
-	if (xc->fnbin)
-	    xc->execute(curStaticInst.get());
+		if (xc->fnbin)
+			xc->execute(curStaticInst.get());
 #endif
 
-	if (curStaticInst->isMemRef()) {
-	    numMemRefs++;
-	}
+		if (curStaticInst->isMemRef()) {
+			numMemRefs++;
+		}
 
-	if (curStaticInst->isLoad()) {
-	    ++numLoad;
-	    comLoadEventQueue[0]->serviceEvents(numLoad);
-	}
+		if (curStaticInst->isLoad()) {
+			++numLoad;
+			comLoadEventQueue[0]->serviceEvents(numLoad);
+		}
 
-        // If we have a dcache miss, then we can't finialize the instruction
-        // trace yet because we want to populate it with the data later
-	if (traceData &&
-                !(status() == DcacheMissStall && memReq->cmd.isRead())) {
-	    traceData->finalize();
-        }
+		// If we have a dcache miss, then we can't finialize the instruction
+		// trace yet because we want to populate it with the data later
+		if (traceData &&
+				!(status() == DcacheMissStall && memReq->cmd.isRead())) {
+			traceData->finalize();
+		}
 
-	traceFunctions(xc->regs.pc);
+		traceFunctions(xc->regs.pc);
 
-    }	// if (fault == No_Fault)
+	}	// if (fault == No_Fault)
 
-    if (fault != No_Fault) {
+	if (fault != No_Fault) {
 #if FULL_SYSTEM
-	xc->ev5_trap(fault);
+		xc->ev5_trap(fault);
 #else // !FULL_SYSTEM
-	fatal("fault (%d) detected @ PC 0x%08p", fault, xc->regs.pc);
+		fatal("fault (%d) detected @ PC 0x%08p", fault, xc->regs.pc);
 #endif // FULL_SYSTEM
-    }
-    else {
-	// go to the next instruction
-	xc->regs.pc = xc->regs.npc;
-	xc->regs.npc += sizeof(MachInst);
-    }
+	}
+	else {
+		// go to the next instruction
+		xc->regs.pc = xc->regs.npc;
+		xc->regs.npc += sizeof(MachInst);
+	}
 
 #if FULL_SYSTEM
-    Addr oldpc;
-    do {
-	oldpc = xc->regs.pc;
-	system->pcEventQueue.service(xc);
-    } while (oldpc != xc->regs.pc);
+	Addr oldpc;
+	do {
+		oldpc = xc->regs.pc;
+		system->pcEventQueue.service(xc);
+	} while (oldpc != xc->regs.pc);
 #endif
 
-    assert(status() == Running ||
-	   status() == Idle ||
-	   status() == DcacheMissStall);
-//
-//    if(numInst >= 10000){
-//    	cout << curTick << ": 1000 instructions committed, dumping checkpoint\n";
-//
-//    	fatal("stop here for now");
-//    }
+	assert(status() == Running ||
+			status() == Idle ||
+			status() == DcacheMissStall);
 
-    if (status() == Running && !tickEvent.scheduled())
-	tickEvent.schedule(curTick + cycles(1));
+	if(checkpointAtInstruction != 0){
+		if(numInst == checkpointAtInstruction){
+			Checkpoint::setup(curTick);
+			new SimExitEvent("Reached checkpoint instruction");
+		}
+	}
+
+	if (status() == Running && !tickEvent.scheduled())
+		tickEvent.schedule(curTick + cycles(1));
 }
 
 
@@ -890,101 +893,100 @@ SimpleCPU::tick()
 //
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(SimpleCPU)
 
-    Param<Counter> max_insts_any_thread;
-    Param<Counter> max_insts_all_threads;
-    Param<Counter> max_loads_any_thread;
-    Param<Counter> max_loads_all_threads;
+Param<Counter> max_insts_any_thread;
+Param<Counter> max_insts_all_threads;
+Param<Counter> max_loads_any_thread;
+Param<Counter> max_loads_all_threads;
 
 #if FULL_SYSTEM
-    SimObjectParam<AlphaITB *> itb;
-    SimObjectParam<AlphaDTB *> dtb;
-    SimObjectParam<FunctionalMemory *> mem;
-    SimObjectParam<System *> system;
+SimObjectParam<AlphaITB *> itb;
+SimObjectParam<AlphaDTB *> dtb;
+SimObjectParam<FunctionalMemory *> mem;
+SimObjectParam<System *> system;
 #else
-    SimObjectParam<Process *> workload;
+SimObjectParam<Process *> workload;
 #endif // FULL_SYSTEM
 
-    Param<int> cpu_id; // Magnus
+Param<int> cpu_id; // Magnus
 
-    Param<int> clock;
-    SimObjectParam<BaseMem *> icache;
-    SimObjectParam<BaseMem *> dcache;
+Param<int> clock;
+SimObjectParam<BaseMem *> icache;
+SimObjectParam<BaseMem *> dcache;
 
-    Param<bool> defer_registration;
-    Param<int> width;
-    Param<bool> function_trace;
-    Param<Tick> function_trace_start;
+Param<bool> defer_registration;
+Param<int> width;
+Param<bool> function_trace;
+Param<Tick> function_trace_start;
 Param<int> simpoint_bbv_size;
+Param<Counter> checkpoint_at_instruction;
 
 END_DECLARE_SIM_OBJECT_PARAMS(SimpleCPU)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(SimpleCPU)
 
-    INIT_PARAM(max_insts_any_thread,
-	       "terminate when any thread reaches this inst count"),
-    INIT_PARAM(max_insts_all_threads,
-	       "terminate when all threads have reached this inst count"),
-    INIT_PARAM(max_loads_any_thread,
-	       "terminate when any thread reaches this load count"),
-    INIT_PARAM(max_loads_all_threads,
-	       "terminate when all threads have reached this load count"),
+INIT_PARAM(max_insts_any_thread,"terminate when any thread reaches this inst count"),
+INIT_PARAM(max_insts_all_threads,"terminate when all threads have reached this inst count"),
+INIT_PARAM(max_loads_any_thread,"terminate when any thread reaches this load count"),
+INIT_PARAM(max_loads_all_threads,"terminate when all threads have reached this load count"),
 
 #if FULL_SYSTEM
-    INIT_PARAM(itb, "Instruction TLB"),
-    INIT_PARAM(dtb, "Data TLB"),
-    INIT_PARAM(mem, "memory"),
-    INIT_PARAM(system, "system object"),
+INIT_PARAM(itb, "Instruction TLB"),
+INIT_PARAM(dtb, "Data TLB"),
+INIT_PARAM(mem, "memory"),
+INIT_PARAM(system, "system object"),
 #else
-    INIT_PARAM(workload, "processes to run"),
+INIT_PARAM(workload, "processes to run"),
 #endif // FULL_SYSTEM
 
-    INIT_PARAM(cpu_id, "processor ID"), // Magnus
+INIT_PARAM(cpu_id, "processor ID"), // Magnus
 
-    INIT_PARAM(clock, "clock speed"),
-    INIT_PARAM(icache, "L1 instruction cache object"),
-    INIT_PARAM(dcache, "L1 data cache object"),
-    INIT_PARAM(defer_registration, "defer system registration (for sampling)"),
-    INIT_PARAM(width, "cpu width"),
-    INIT_PARAM(function_trace, "Enable function trace"),
-  INIT_PARAM(function_trace_start, "Cycle to start function trace"),
-  INIT_PARAM_DFLT(simpoint_bbv_size, "Number of instructions in each BBV point", -1)
+INIT_PARAM(clock, "clock speed"),
+INIT_PARAM(icache, "L1 instruction cache object"),
+INIT_PARAM(dcache, "L1 data cache object"),
+INIT_PARAM(defer_registration, "defer system registration (for sampling)"),
+INIT_PARAM(width, "cpu width"),
+INIT_PARAM(function_trace, "Enable function trace"),
+INIT_PARAM(function_trace_start, "Cycle to start function trace"),
+INIT_PARAM_DFLT(simpoint_bbv_size, "Number of instructions in each BBV point", -1),
+INIT_PARAM_DFLT(checkpoint_at_instruction, "Dump checkpoint and quit after n instructions", 0)
 
 END_INIT_SIM_OBJECT_PARAMS(SimpleCPU)
 
 
 CREATE_SIM_OBJECT(SimpleCPU)
 {
-    SimpleCPU::Params *params = new SimpleCPU::Params();
-    params->name = getInstanceName();
-    params->numberOfThreads = 1;
-    params->max_insts_any_thread = max_insts_any_thread;
-    params->max_insts_all_threads = max_insts_all_threads;
-    params->max_loads_any_thread = max_loads_any_thread;
-    params->max_loads_all_threads = max_loads_all_threads;
-    params->deferRegistration = defer_registration;
-    params->clock = clock;
-    params->functionTrace = function_trace;
-    params->functionTraceStart = function_trace_start;
-    params->icache_interface = (icache) ? icache->getInterface() : NULL;
-    params->dcache_interface = (dcache) ? dcache->getInterface() : NULL;
-    params->width = width;
-    params->cpu_id = cpu_id;
+	SimpleCPU::Params *params = new SimpleCPU::Params();
+	params->name = getInstanceName();
+	params->numberOfThreads = 1;
+	params->max_insts_any_thread = max_insts_any_thread;
+	params->max_insts_all_threads = max_insts_all_threads;
+	params->max_loads_any_thread = max_loads_any_thread;
+	params->max_loads_all_threads = max_loads_all_threads;
+	params->deferRegistration = defer_registration;
+	params->clock = clock;
+	params->functionTrace = function_trace;
+	params->functionTraceStart = function_trace_start;
+	params->icache_interface = (icache) ? icache->getInterface() : NULL;
+	params->dcache_interface = (dcache) ? dcache->getInterface() : NULL;
+	params->width = width;
+	params->cpu_id = cpu_id;
 
-    params->bbv_simpoint_size = simpoint_bbv_size;
+	params->bbv_simpoint_size = simpoint_bbv_size;
+	params->checkpoint_at_instruction = checkpoint_at_instruction;
 
 #if FULL_SYSTEM
-    params->itb = itb;
-    params->dtb = dtb;
-    params->mem = mem;
-    params->system = system;
-    //params->cpu_id = cpu_id;
+params->itb = itb;
+params->dtb = dtb;
+params->mem = mem;
+params->system = system;
+//params->cpu_id = cpu_id;
 #else
-    params->process = workload;
+params->process = workload;
 #endif
 
-    SimpleCPU *cpu = new SimpleCPU(params);
-    return cpu;
-}
+SimpleCPU *cpu = new SimpleCPU(params);
+return cpu;
+								}
 
 REGISTER_SIM_OBJECT("SimpleCPU", SimpleCPU)
 
