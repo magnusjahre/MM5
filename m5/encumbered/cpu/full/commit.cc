@@ -45,6 +45,8 @@
 #include "sim/sim_events.hh"
 #include "sim/stats.hh"
 
+#include "sim/stat_control.hh"
+
 using namespace std;
 
 /*======================================================================*/
@@ -128,7 +130,7 @@ FullCPU::commit()
 //         cout << "rob dump fin\n";
 	panic("We stopped committing instructions!!!");
     }
-    
+
     if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
         string tracename = name() + "BlockedTrace.txt";
         ofstream tracefile(tracename.c_str(), ofstream::app);
@@ -137,7 +139,7 @@ FullCPU::commit()
         tracefile.close();
         noCommitCycles = 0;
     }
-    
+
     //
     //  Determine which threads we don't need to worry about
     //
@@ -374,10 +376,10 @@ FullCPU::commit()
             commit_total_mem_stall_time++;
             noCommitCycles++;
             tmpBlockedCycles++;
-            
+
             //HACK: the hit latency should be retrived from the L1 cache
             if(tmpBlockedCycles > 3) l1MissStallCycles++;
-            
+
 	    floss_state.commit_mem_result[0] = MemAccessResult(detail);
 	    break;
 	  case COMMIT_CAUSE_NOT_SET:
@@ -397,7 +399,7 @@ FullCPU::commit()
 
 	return;
     }
-    
+
     //
     //
     //
@@ -447,7 +449,7 @@ FullCPU::commit()
 
     // entering main commit loop, reset tmp blocked cycle counter
     tmpBlockedCycles = 0;
-    
+
     //
     //  Main commit loop
     //
@@ -725,16 +727,16 @@ FullCPU::commit_one_inst(ROBStation *rs)
 	assert(inst->phys_eff_addr != MemReq::inval_addr);
 
 	if (inst->isCopy()) {
-	    storebuffer->addCopy(thread, inst->asid, 
-				 dcacheInterface->getBlockSize(), inst->xc, 
+	    storebuffer->addCopy(thread, inst->asid,
+				 dcacheInterface->getBlockSize(), inst->xc,
 				 inst->eff_addr, inst->phys_eff_addr,
-				 inst->copySrcEffAddr, 
+				 inst->copySrcEffAddr,
 				 inst->copySrcPhysEffAddr,
 				 inst->mem_req_flags,
 				 inst->PC, rs->seq,
 				 inst->fetch_seq, rs->queue_num);
 	} else {
-	    storebuffer->add(thread, inst->asid, inst->store_size, 
+	    storebuffer->add(thread, inst->asid, inst->store_size,
 			     inst->store_data,
 			     inst->xc,
 			     inst->eff_addr, inst->phys_eff_addr,
@@ -748,7 +750,7 @@ FullCPU::commit_one_inst(ROBStation *rs)
 	//  check for bogus store size
 	assert(inst->store_size <= 64);
     }
-    
+
     if (rs->inst->isWriteBarrier()) {
 	storebuffer->addWriteBarrier(thread);
     }
@@ -846,48 +848,59 @@ FullCPU::commit_one_inst(ROBStation *rs)
 void
 FullCPU::update_com_inst_stats(DynInst *inst)
 {
-    unsigned thread = inst->thread_number;
+	unsigned thread = inst->thread_number;
 
-    //
-    //  Pick off the software prefetches
-    //
+	//
+	//  Pick off the software prefetches
+	//
 #ifdef TARGET_ALPHA
-    if (inst->isDataPrefetch()) {
-	stat_com_swp[thread]++;
-    } else {
-	com_inst[thread]++;
-        // profiling only supports one thread per core
-        assert(thread == 0);
-        commitedInstructionSample++;
-	stat_com_inst[thread]++;
-    }
+	if (inst->isDataPrefetch()) {
+		stat_com_swp[thread]++;
+	} else {
+		com_inst[thread]++;
+		// profiling only supports one thread per core
+		assert(thread == 0);
+		commitedInstructionSample++;
+		stat_com_inst[thread]++;
+	}
 #else
-    fatal("IPC profiling for non-alpha not implemented");
-    com_inst[thread]++;
-    stat_com_inst[thread]++;
+	fatal("IPC profiling for non-alpha not implemented");
+	com_inst[thread]++;
+	stat_com_inst[thread]++;
 #endif
 
-    //
-    //  Control Instructions
-    //
-    if (inst->isControl())
-	stat_com_branches[thread]++;
+	//
+	//  Control Instructions
+	//
+	if (inst->isControl())
+		stat_com_branches[thread]++;
 
-    //
-    //  Memory references
-    //
-    if (inst->isMemRef()) {
-	stat_com_refs[thread]++;
+	//
+	//  Memory references
+	//
+	if (inst->isMemRef()) {
+		stat_com_refs[thread]++;
 
-	if (inst->isLoad()) {
-	    com_loads[thread]++;
-	    stat_com_loads[thread]++;
+		if (inst->isLoad()) {
+			com_loads[thread]++;
+			stat_com_loads[thread]++;
+		}
 	}
-    }
 
-    if (inst->isMemBarrier()) {
-	stat_com_membars[thread]++;
-    }
+	if (inst->isMemBarrier()) {
+		stat_com_membars[thread]++;
+	}
+
+	if(stat_com_inst[thread].value() == minInstructionsAllCPUs){
+		canExit = true;
+
+		if(issueExitEvent()){
+			new SimExitEvent("all CPUs have reached their instruction limit");
+		}
+		else{
+			Stats::SetupEvent(Stats::Dump, curTick);
+		}
+	}
 }
 
 // register commit-stage statistics
@@ -935,13 +948,13 @@ FullCPU::commitRegStats()
 	.precision(4)
 	.flags(total)
 	;
-    
+
     // Magnus
     commit_total_mem_stall_time
         .name(name() + ".COM:total_ticks_stalled_for_memory")
         .desc("Number of ticks the processor was stalled due to memory")
         ;
-    
+
     commit_cycles_empty_ROB
             .name(name() + ".COM:commit_cycles_empty_ROB")
             .desc("Number of ticks the processor could not commit instructions because the ROB was empty")

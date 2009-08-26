@@ -136,10 +136,10 @@ StatsParamContext::checkParams()
     using namespace Stats;
 
     if (!((string)stat_print_file).empty()) {
-	text.open(*simout.find(stat_print_file));
-	text.descriptions = stat_print_desc;
-	text.compat = stat_print_compat;
-	OutputList.push_back(&text);
+    	text.open(*simout.find(stat_print_file));
+    	text.descriptions = stat_print_desc;
+    	text.compat = stat_print_compat;
+    	OutputList.push_back(&text);
     }
 
 #if USE_MYSQL
@@ -147,7 +147,7 @@ StatsParamContext::checkParams()
 	string user = stat_mysql_user;
 	if (user.empty())
 	    user = username();
-		
+
 	MySqlDB.connect(stat_mysql_host,
 			user,
 			stat_mysql_password,

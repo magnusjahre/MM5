@@ -80,7 +80,6 @@ Bus::Bus(const string &_name,
          TimingMemoryController* _fwController,
          TimingMemoryController* _memoryController,
          bool _infiniteBW,
-         Tick _final_sim_tick,
          InterferenceManager* intman)
     : BaseHier(_name, hier_params)
 {
@@ -143,8 +142,6 @@ Bus::Bus(const string &_name,
     int wl = _memoryController->getWriteQueueLength()+1;
     queueDelaySum.resize(cpu_count, vector<vector<Tick> >(rl, vector<Tick>(wl, 0)));
     queueDelayRequests.resize(cpu_count, vector<vector<int> >(rl, vector<int>(wl, 0)));
-    MemoryBusDumpEvent* dumpEvent = new MemoryBusDumpEvent(this);
-    dumpEvent->schedule(_final_sim_tick);
 
     if(_adaptiveMHA != NULL) _adaptiveMHA->registerBus(this);
 
@@ -736,52 +733,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     }
 }
 
-void
-Bus::dumpQueueDelayStats(){
-    ofstream qfile("MemoryBusQueueTime.txt");
-
-    int WIDTH = 10;
-
-    for(int i=0;i<cpu_count;i++){
-        qfile << "CPU" << i << " queue trace\n\n";
-
-        qfile << setw(WIDTH) << "";
-        for(int k=0;k<=memoryController->getWriteQueueLength();k++){
-            qfile << setw(WIDTH) << k;
-        }
-        qfile << "\n";
-
-        for(int j=0;j<=memoryController->getReadQueueLength();j++){
-            qfile << setw(WIDTH) << j << ": ";
-            for(int k=0;k<=memoryController->getWriteQueueLength();k++){
-                qfile << setw(WIDTH) << queueDelaySum[i][j][k] << " ";
-            }
-            qfile << "\n";
-        }
-        qfile << "\n";
-
-        qfile << "CPU" << i << " request trace\n\n";
-
-        qfile << setw(WIDTH) << "";
-        for(int k=0;k<=memoryController->getWriteQueueLength();k++){
-            qfile << setw(WIDTH) << k;
-        }
-        qfile << "\n";
-
-        for(int j=0;j<=memoryController->getReadQueueLength();j++){
-            qfile << setw(WIDTH-1) <<  j << ": ";
-            for(int k=0;k<=memoryController->getWriteQueueLength();k++){
-                qfile << setw(WIDTH-1) << queueDelayRequests[i][j][k] << " ";
-            }
-            qfile << "\n";
-        }
-        qfile << "\n";
-    }
-
-    qfile.flush();
-    qfile.close();
-}
-
 int
 Bus::registerInterface(BusInterface<Bus> *bi, bool master)
 {
@@ -1253,7 +1204,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<TimingMemoryController *> fast_forward_controller;
     SimObjectParam<TimingMemoryController *> memory_controller;
     Param<bool> infinite_bw;
-    Param<Tick> final_sim_tick;
     SimObjectParam<InterferenceManager* > interference_manager;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
@@ -1273,7 +1223,6 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
     INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false),
-    INIT_PARAM(final_sim_tick, "The tick simulation ends"),
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
@@ -1292,7 +1241,6 @@ CREATE_SIM_OBJECT(Bus)
                    fast_forward_controller,
                    memory_controller,
                    infinite_bw,
-                   final_sim_tick,
                    interference_manager);
 }
 

@@ -65,12 +65,14 @@ BaseCPU::BaseCPU(Params *p)
 #endif
 {
     DPRINTF(FullCPU, "BaseCPU: Creating object, mem address %#x.\n", this);
-    
+
     // add self to global list of CPUs
     cpuList.push_back(this);
 
     DPRINTF(FullCPU, "BaseCPU: CPU added to cpuList, mem address %#x.\n",
             this);
+
+    minInstructionsAllCPUs = p->min_insts_all_cpus;
 
     if (number_of_threads > maxThreadsPerCPU)
 	maxThreadsPerCPU = number_of_threads;
@@ -99,7 +101,7 @@ BaseCPU::BaseCPU(Params *p)
 	        "all threads reached the max instruction count",
 		p->max_insts_all_threads, *counter);
     }
-    
+
     // allocate per-thread load-based event queues
     comLoadEventQueue = new EventQueue *[number_of_threads];
     for (int i = 0; i < number_of_threads; ++i)
@@ -139,15 +141,17 @@ BaseCPU::BaseCPU(Params *p)
 	if (p->functionTraceStart == 0) {
 	    functionTracingEnabled = true;
 	} else {
-	    Event *e = 
+	    Event *e =
 		new EventWrapper<BaseCPU, &BaseCPU::enableFunctionTrace>(this,
 									 true);
 	    e->schedule(p->functionTraceStart);
 	}
     }
-    
+
     CPUParamsCpuID = p->cpu_id;
     commitedInstructionSample = 0;
+    canExit = false;
+    useInExitDesicion = false;
 }
 
 
@@ -217,7 +221,7 @@ BaseCPU::switchOut(Sampler *sampler)
 void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
-    
+
     assert(execContexts.size() == oldCPU->execContexts.size());
 
     for (int i = 0; i < execContexts.size(); ++i) {

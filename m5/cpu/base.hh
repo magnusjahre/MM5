@@ -83,12 +83,15 @@ class BaseCPU : public SimObject
 
     //HACK by Magnus
     std::vector<ExecContext *> execContexts;
-    
+
     int CPUParamsCpuID;
-    
+    bool canExit;
+
   protected:
     // execContexts was here
     int commitedInstructionSample;
+    Counter minInstructionsAllCPUs;
+    bool useInExitDesicion;
 
   public:
 
@@ -107,23 +110,24 @@ class BaseCPU : public SimObject
     virtual void haltContext(int thread_num) {}
 
   public:
-    struct Params
-    {
-	std::string name;
-	int numberOfThreads;
-	bool deferRegistration;
-	Counter max_insts_any_thread;
-	Counter max_insts_all_threads;
-	Counter max_loads_any_thread;
-	Counter max_loads_all_threads;
-	Tick clock;
-	bool functionTrace;
-	Tick functionTraceStart;
-        int cpu_id; // Magnus
+	  struct Params
+	  {
+		  std::string name;
+		  int numberOfThreads;
+		  bool deferRegistration;
+		  Counter max_insts_any_thread;
+		  Counter max_insts_all_threads;
+		  Counter max_loads_any_thread;
+		  Counter max_loads_all_threads;
+		  Tick clock;
+		  bool functionTrace;
+		  Tick functionTraceStart;
+		  int cpu_id; // Magnus
+		  Counter min_insts_all_cpus;
 #if FULL_SYSTEM
-	System *system;
+		  System *system;
 #endif
-    };
+	  };
 
     const Params *params;
 
@@ -135,7 +139,7 @@ class BaseCPU : public SimObject
 
     void registerExecContexts();
 
-    /// Prepare for another CPU to take over execution.  When it is 
+    /// Prepare for another CPU to take over execution.  When it is
     /// is ready (drained pipe) it signals the sampler.
     virtual void switchOut(Sampler *);
 
@@ -155,7 +159,7 @@ class BaseCPU : public SimObject
      * a particular thread.
      */
     EventQueue **comInstEventQueue;
-    
+
     /**
      * Vector of per-thread load-based event queues.  Used for
      * scheduling events based on number of loads committed by
@@ -171,7 +175,7 @@ class BaseCPU : public SimObject
      * @param os The stream to serialize to.
      */
     virtual void serialize(std::ostream &os);
-    
+
     /**
      * Reconstruct the state of this object from a checkpoint.
      * @param cp The checkpoint use.
@@ -188,16 +192,16 @@ class BaseCPU : public SimObject
     virtual BranchPred *getBranchPred() { return NULL; };
 
     virtual Counter totalInstructions() const { return 0; }
-    
+
     double getCommittedInstructionSample(int sampleSize){
         return (double) ((double)commitedInstructionSample / (double) sampleSize);
     }
-    
+
     void resetCommittedInstructionSample(){
         commitedInstructionSample = 0;
     }
-    
-    
+
+
 
     // Function tracing
   private:
@@ -220,17 +224,26 @@ class BaseCPU : public SimObject
     static std::vector<BaseCPU *> cpuList;   //!< Static global cpu list
 
   public:
-    static int numSimulatedCPUs() { return cpuList.size(); }
-    static Counter numSimulatedInstructions()
-    {
-	Counter total = 0;
+	  static int numSimulatedCPUs() { return cpuList.size(); }
+	  static Counter numSimulatedInstructions()
+	  {
+		  Counter total = 0;
 
-	int size = cpuList.size();
-	for (int i = 0; i < size; ++i)
-	    total += cpuList[i]->totalInstructions();
+		  int size = cpuList.size();
+		  for (int i = 0; i < size; ++i)
+			  total += cpuList[i]->totalInstructions();
 
-	return total;
-    }
+		  return total;
+	  }
+
+	  static bool issueExitEvent(){
+		for(int i=0;i<cpuList.size();i++){
+			if(cpuList[i]->useInExitDesicion && !cpuList[i]->canExit){
+				return false;
+			}
+		}
+		return true;
+	  }
 
   public:
     // Number of CPU cycles simulated

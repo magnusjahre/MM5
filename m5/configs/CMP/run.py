@@ -6,6 +6,7 @@ import hog_workloads
 import bw_workloads
 import deterministic_fw_wls as fair_workloads
 import single_core_fw as single_core
+import simpoints3
 from DetailedConfig import *
 
 ###############################################################################
@@ -16,6 +17,10 @@ L2_BANK_COUNT = 4
 all_protocols = ['none', 'msi', 'mesi', 'mosi', 'moesi', 'stenstrom']
 snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
+
+FW_NOT_USED_SIZE = 100*10**12
+SIM_TICKS_NOT_USED_SIZE = 20*10**9
+SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
 
 ###############################################################################
 # Convenience Methods
@@ -169,17 +174,7 @@ if env['PROTOCOL'] not in all_protocols:
 
 if 'BENCHMARK' not in env:
     panic("The BENCHMARK environment variable must be set!\ne.g. \
-    -EBENCHMARK=Cholesky\n")
-
-if not "ISEXPERIMENT" in env:
-    if 'FASTFORWARDTICKS' not in env:
-        panic("The FASTFORWARDTICKS environment variable must be set!\n\
-        e.g. -EFASTFORWARDTICKS=10000\n")
-
-if 'SIMULATETICKS' not in env and 'SIMINSTS' not in env \
-and 'ISEXPERIMENT' not in env:
-    panic("One of the SIMULATETICKS/SIMINSTS/ISEXPERIMENT environment \
-variables must be set!\ne.g. -ESIMULATETICKS=10000\n")
+    -EBENCHMARK=fair01\n")
 
 if 'INTERCONNECT' not in env:
     if env['MEMORY-SYSTEM'] == 'Legacy': 
@@ -278,7 +273,7 @@ if 'MEMORY-SYSTEM' not in env:
     panic("Specify which -EMEMORY-SYSTEM to use (Legacy, CrossbarBased or RingBased)")
     
 ###############################################################################
-# Root, CPUs and L1 caches
+# Root
 ###############################################################################
 
 HierParams.cpu_count = int(env['NP'])
@@ -287,10 +282,71 @@ root = DetailedStandAlone()
 if progressInterval > 0:
     root.progress_interval = progressInterval
 
-# create the adaptiveMHA
-# might only be used for tracing memory bus usage
+###############################################################################
+# Adaptive MHA
+###############################################################################
+
 root.adaptiveMHA = AdaptiveMHA()
 root.adaptiveMHA.cpuCount = int(env["NP"])
+
+if 'AMHA-PERIOD' in env:
+    root.adaptiveMHA.sampleFrequency = int(env['AMHA-PERIOD'])
+else:
+    root.adaptiveMHA.sampleFrequency = 500000
+
+if useAdaptiveMHA:
+    root.adaptiveMHA.lowThreshold = float(env["ADAPTIVE-MHA-LOW-THRESHOLD"])
+    root.adaptiveMHA.highThreshold = float(env["ADAPTIVE-MHA-HIGH-THRESHOLD"])
+    root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
+    root.adaptiveMHA.onlyTraceBus = False
+    root.adaptiveMHA.useFairMHA = False
+
+    if "ADAPTIVE-MHA-LIMIT" in env:
+        root.adaptiveMHA.tpUtilizationLimit = float(env["ADAPTIVE-MHA-LIMIT"])
+    
+elif useFairAdaptiveMHA:
+    root.adaptiveMHA.lowThreshold = 0.0 # not used
+    root.adaptiveMHA.highThreshold = 1.0 # not used
+    if "ADAPTIVE-REPEATS" in env:
+        root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
+    else:
+        root.adaptiveMHA.neededRepeats = 0
+    root.adaptiveMHA.onlyTraceBus = False
+    root.adaptiveMHA.useFairMHA = True
+    
+    root.adaptiveMHA.resetCounter = int(env["FAIR-RESET-COUNTER"])
+    
+    if "FAIR-REDUCTION-THRESHOLD" in env:
+        root.adaptiveMHA.reductionThreshold = float(env["FAIR-REDUCTION-THRESHOLD"])
+    else:
+        root.adaptiveMHA.reductionThreshold = 0.0
+        
+    if "FAIR-MIN-IP-ALLOWED"in env:
+        root.adaptiveMHA.minInterferencePointAllowed = float(env["FAIR-MIN-IP-ALLOWED"])
+    else:
+        root.adaptiveMHA.minInterferencePointAllowed = 0.0
+else:
+    root.adaptiveMHA.lowThreshold = 0.0 # not used
+    root.adaptiveMHA.highThreshold = 1.0 # not used
+    root.adaptiveMHA.neededRepeats = 1 # not used
+    root.adaptiveMHA.onlyTraceBus = True
+    root.adaptiveMHA.useFairMHA = False
+
+if "STATICASYMMETRICMHA" in env:
+    tmpSAMList = env["STATICASYMMETRICMHA"].split(',')
+    for i in range(env["NP"]):
+        tmpSAMList[i] = int(tmpSAMList[i])
+    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
+else:
+    tmpSAMList = []
+    for i in range(env["NP"]):
+        tmpSAMList.append(-1)
+    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
+
+
+###############################################################################
+#  Interference Manager
+###############################################################################
 
 root.interferenceManager = InterferenceManager()
 root.interferenceManager.cpu_count = int(env["NP"])
@@ -300,7 +356,10 @@ if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
     root.interferenceManager.sample_size = int(env["INTERFERENCE-MANAGER-SAMPLE-SIZE"])
     
 
-# Create CPUs
+###############################################################################
+#  CPUs and L1 caches
+###############################################################################
+
 sss = -1
 if "SIMPOINT-SAMPLE-SIZE" in env:
     sss = int(env["SIMPOINT-SAMPLE-SIZE"])
@@ -308,21 +367,11 @@ if "SIMPOINT-SAMPLE-SIZE" in env:
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
-root.detailedCPU = [ DetailedCPU(defer_registration=True) 
-                     for i in xrange(int(env['NP'])) ]
+root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA) for i in xrange(int(env['NP'])) ]
 
-# Create L1 caches
-if env['MEMORY-SYSTEM'] == "Legacy" or env['MEMORY-SYSTEM'] == "CrossbarBased":
-    if env['INTERCONNECT'] == 'bus':
-        root.L1dcaches = [ DL1(out_bus=Parent.interconnect) 
-                        for i in xrange(int(env['NP'])) ]
-        root.L1icaches = [ IL1(out_bus=Parent.interconnect) 
-                        for i in xrange(int(env['NP'])) ]
-    else:
-        root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect)
-                        for i in xrange(int(env['NP'])) ]
-        root.L1icaches = [ IL1(out_interconnect=Parent.interconnect)
-                        for i in xrange(int(env['NP'])) ]
+if env['MEMORY-SYSTEM'] == "CrossbarBased":
+    root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
+    root.L1icaches = [ IL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
                         
     for l1 in root.L1dcaches:
         l1.adaptive_mha = root.adaptiveMHA
@@ -382,182 +431,63 @@ if l1mshrsInst != -1:
         l1.mshrs = l1mshrsInst
         l1.tgts_per_mshr = l1imshrTargets
 
-if 'AMHA-PERIOD' in env:
-    root.adaptiveMHA.sampleFrequency = int(env['AMHA-PERIOD'])
-else:
-    root.adaptiveMHA.sampleFrequency = 500000
 
-if 'DUMP-INTERFERENCE' in env:
-    root.adaptiveMHA.numReqsBetweenIDumps = int(env['DUMP-INTERFERENCE'])
-    
-for cpu in root.detailedCPU:
-    cpu.adaptiveMHA = root.adaptiveMHA
+###############################################################################
+# Checkpoints and Simulation Time
+###############################################################################
 
-if useAdaptiveMHA:
-    root.adaptiveMHA.lowThreshold = float(env["ADAPTIVE-MHA-LOW-THRESHOLD"])
-    root.adaptiveMHA.highThreshold = float(env["ADAPTIVE-MHA-HIGH-THRESHOLD"])
-    root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
-    root.adaptiveMHA.onlyTraceBus = False
-    root.adaptiveMHA.useFairMHA = False
+generateCheckpoint = False
+if "GENERATE-CHECKPOINT" in env:
+    generateCheckpoint = True
 
-    if "ADAPTIVE-MHA-LIMIT" in env:
-        root.adaptiveMHA.tpUtilizationLimit = float(env["ADAPTIVE-MHA-LIMIT"])
-    
-elif useFairAdaptiveMHA:
-    root.adaptiveMHA.lowThreshold = 0.0 # not used
-    root.adaptiveMHA.highThreshold = 1.0 # not used
-    if "ADAPTIVE-REPEATS" in env:
-        root.adaptiveMHA.neededRepeats = int(env["ADAPTIVE-REPEATS"])
-    else:
-        root.adaptiveMHA.neededRepeats = 0
-    root.adaptiveMHA.onlyTraceBus = False
-    root.adaptiveMHA.useFairMHA = True
-    
-    root.adaptiveMHA.resetCounter = int(env["FAIR-RESET-COUNTER"])
-    
-    if "FAIR-REDUCTION-THRESHOLD" in env:
-        root.adaptiveMHA.reductionThreshold = float(env["FAIR-REDUCTION-THRESHOLD"])
-    else:
-        root.adaptiveMHA.reductionThreshold = 0.0
+simInsts = -1
+if "SIMINSTS" in env:
+    simInsts = int(env["SIMINSTS"])
+
+if "USE-SIMPOINT" in env:
+    if generateCheckpoint:
+        # Simulation will terminate when the checkpoint is dumped
+        fwticks = FW_NOT_USED_SIZE
+        simulateCycles = SIM_TICKS_NOT_USED_SIZE_SMALL
         
-    if "FAIR-MIN-IP-ALLOWED"in env:
-        root.adaptiveMHA.minInterferencePointAllowed = float(env["FAIR-MIN-IP-ALLOWED"])
+        panic("checkpoint generation not implemented")
     else:
-        root.adaptiveMHA.minInterferencePointAllowed = 0.0
-else:
-    root.adaptiveMHA.lowThreshold = 0.0 # not used
-    root.adaptiveMHA.highThreshold = 1.0 # not used
-    root.adaptiveMHA.neededRepeats = 1 # not used
-    root.adaptiveMHA.onlyTraceBus = True
-    root.adaptiveMHA.useFairMHA = False
-
-if "STATICASYMMETRICMHA" in env:
-    tmpSAMList = env["STATICASYMMETRICMHA"].split(',')
-    for i in range(env["NP"]):
-        tmpSAMList[i] = int(tmpSAMList[i])
-    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
-else:
-    tmpSAMList = []
-    for i in range(env["NP"]):
-        tmpSAMList.append(-1)
-    root.adaptiveMHA.staticAsymmetricMHA = tmpSAMList
-
-
-###############################################################################
-# Fast-forwarding
-###############################################################################
-
-uniformPartStart = -1
-cacheProfileStart = -1
-simulationEnds = -1
-
-if env['BENCHMARK'] in single_core.configuration:
-    assert int(env['NP']) == 1
+        
+        # TODO: load checkpoint(s)
+        
+        fwticks = 1
+        simulateCycles = SIM_TICKS_NOT_USED_SIZE
+        
+        # TODO: set instruction limit to for all CPUs  simpoints3.intervalsize 
+        
     
-    fwticks = 0
-    if 'ISEXPERIMENT' in env:
-        fwticks = single_core.configuration[env['BENCHMARK']][1]
+else:
+    assert "FASTFORWARDTICKS" in env
+    assert ("SIMULATETICKS" in env or simInsts != -1)
+    if "SIMULATETICKS" in env and simInsts != -1:
+        panic("Specfying both a max tick count and a max inst count does not make sense")
+    fwticks = int(env["FASTFORWARDTICKS"])
+    if simInsts == -1:
+        simulateCycles = int(env["SIMULATETICKS"])
     else:
-        fwticks = int(env['FASTFORWARDTICKS'])
-    fwticks = fwticks
-    
-    warmup = 0
-    if 'SIMULATETICKS' in env:
-        assert 'SIMINTS' not in env
-        simulateCycles = int(env['SIMULATETICKS'])
-        if 'ISEXPERIMENT' in env:
-            simulateCycles = int(env['SIMULATETICKS'] + warmup)
-            Statistics.dump_reset = True
-            Statistics.dump_cycle = fwticks + warmup
-        else:
-            warmup = 0
-            
-    else:
-        assert 'SIMULATETICKS' not in env
-        simulateCycles = 1000000000 # max cycles, hopefully not necessary
+        simulateCycles = SIM_TICKS_NOT_USED_SIZE
         for cpu in root.detailedCPU:
-            cpu.max_insts_any_thread = int(env['SIMINSTS'])
-    
-    root.sampler = Sampler()
-    root.sampler.phase0_cpus = Parent.simpleCPU
-    root.sampler.phase1_cpus = Parent.detailedCPU
-    root.sampler.periods = [fwticks, simulateCycles]
-    
-    root.adaptiveMHA.startTick = fwticks + warmup
-    uniformPartStart = fwticks + warmup
-    cacheProfileStart = fwticks + warmup
-    simulationEnds = fwticks + simulateCycles
-    Bus.switch_at = fwticks + warmup
+            cpu.min_insts_all_cpus = simInsts 
+        
+root.sampler = Sampler()
+root.sampler.phase0_cpus = Parent.simpleCPU
+root.sampler.phase1_cpus = Parent.detailedCPU
+root.sampler.periods = [fwticks, simulateCycles]
 
-    
-elif not (env['BENCHMARK'].isdigit() 
-    or env['BENCHMARK'].startswith("hog") 
-    or env['BENCHMARK'].startswith("bw")
-    or env['BENCHMARK'].startswith("fair")):
-    # Simulator test workloads
-    root.sampler = Sampler()
-    root.sampler.phase0_cpus = Parent.simpleCPU
-    root.sampler.phase1_cpus = Parent.detailedCPU
-    root.sampler.periods = [int(env['FASTFORWARDTICKS']),
-                            int(env['SIMULATETICKS'])] 
-    root.adaptiveMHA.startTick = int(env['FASTFORWARDTICKS'])
-    uniformPartStart = int(env['FASTFORWARDTICKS'])
-    cacheProfileStart = int(env['FASTFORWARDTICKS'])
-    simulationEnds = int(env['FASTFORWARDTICKS']) + int(env['SIMULATETICKS'])
-    root.setCPU(root.simpleCPU)
-else:
-    # Multi-programmed workload
-    root.samplers = [ Sampler() for i in xrange(int(env['NP'])) ]
+root.adaptiveMHA.startTick = fwticks
+uniformPartStart = fwticks
+cacheProfileStart = fwticks
+Bus.switch_at = fwticks
+BaseCache.detailed_sim_start_tick = fwticks
 
-    if 'ISEXPERIMENT' in env:
-        if env['BENCHMARK'].startswith("hog"):
-            tmpBM = env['BENCHMARK'].replace("hog","")
-            fwCycles = hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][1]
-            fwCycles.append(1000000000) # the bw hog is fastforwarded 1 billion clock cycles
-        elif env['BENCHMARK'].startswith("bw"):
-            tmpBM = env['BENCHMARK'].replace("bw","")
-            fwCycles = bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][1]
-        elif env['BENCHMARK'].startswith("fair"):
-            tmpBM = env['BENCHMARK'].replace("fair","")
-            fwCycles = fair_workloads.workloads[int(env['NP'])][int(tmpBM)][1]
-        else:
-            fwCycles = \
-                workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
-    else:
-        fwCycles = [int(env['FASTFORWARDTICKS']) 
-                    for i in xrange(int(env['NP']))]
-    
-    simulateStart = max(fwCycles)
-    if 'ISEXPERIMENT' in env:
-        # warm up removed as it will influence alone and shared configs differently
-        warmup = 0
-        simulateCycles = int(env['SIMULATETICKS']) + warmup
-        Statistics.dump_reset = True
-        Statistics.dump_cycle = simulateStart + warmup
-    else:
-        warmup = 0
-        simulateCycles = int(env['SIMULATETICKS'])
-    
-    root.adaptiveMHA.startTick = simulateStart + warmup
-    uniformPartStart = simulateStart + warmup
-    cacheProfileStart = simulateStart + warmup
-    simulationEnds = simulateStart + simulateCycles
-    Bus.switch_at = simulateStart + warmup
-
-    for i in xrange(int(env['NP'])):
-        root.samplers[i].phase0_cpus = [Parent.simpleCPU[i]]
-        root.samplers[i].phase1_cpus = [Parent.detailedCPU[i]]
-        root.samplers[i].periods = [fwCycles[i], simulateCycles 
-                                    + (simulateStart - fwCycles[i])]
-
-    root.setCPU(root.simpleCPU)
-
-if cacheProfileStart != -1:
-    BaseCache.detailed_sim_start_tick = cacheProfileStart
-
-if simulationEnds != -1:
-    Bus.final_sim_tick = simulationEnds
-    BaseCache.detailed_sim_end_tick = simulationEnds
+if "GENERATE-CHECKPOINT" in env:
+    panic("Experiment time generation not implemented")
+        
 
 ###############################################################################
 # Interconnect, L2 caches and Memory Bus
@@ -565,105 +495,8 @@ if simulationEnds != -1:
 
 BaseCache.multiprog_workload = True
 
-if env['BENCHMARK'].isdigit() and 'ISEXPERIMENT' in env:
-    if 'PROFILEIC' in env:
-        print >>sys.stderr, "warning: Production workload, ignoring user supplied profile start"
-    fwCycles = workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][1]
-    icProfileStart = max(fwCycles)
-
 if env['MEMORY-SYSTEM'] == "Legacy":
-
-    # All runs use modulo based L2 bank selection
-    moduloAddr = True
-
-    Interconnect.cpu_count = int(env['NP'])
-    root.setInterconnect(env['INTERCONNECT'],
-                         L2_BANK_COUNT,
-                         icProfileStart,
-                         moduloAddr,
-                         useFairAdaptiveMHA,
-                         fairCrossbar,
-                         cacheProfileStart)
-
-    root.setL2Banks()
-    if env['PROTOCOL'] in directory_protocols:
-        for bank in root.l2:
-            bank.dirProtocolName = env['PROTOCOL']
-            bank.dirProtocolDoTrace = coherenceTrace
-        
-            if coherenceTraceStart != 0:
-                bank.dirProtocolTraceStart = coherenceTraceStart
-
-    if l2mshrs != -1:
-        for bank in root.l2:
-            bank.mshrs = l2mshrs
-            bank.tgts_per_mshr = l2mshrTargets
-        
-    for l2 in root.l2:
-        l2.adaptive_mha = root.adaptiveMHA
-
-    if env["CACHE-PARTITIONING"] == "StaticUniform":
-        for bank in root.l2:
-            bank.use_static_partitioning = True
-            bank.static_part_start_tick = uniformPartStart
-        
-    if env["CACHE-PARTITIONING"] == "MTP":
-        for bank in root.l2:
-            bank.use_mtp_partitioning = True
-            bank.use_static_partitioning = True
-            bank.static_part_start_tick = uniformPartStart
-            
-    if cacheProfileStart != -1:
-        for dc in root.L1dcaches:
-            dc.detailed_sim_start_tick = cacheProfileStart
-        for ic in root.L1dcaches:
-            ic.detailed_sim_start_tick = cacheProfileStart
-        for bank in root.l2:
-            bank.detailed_sim_start_tick = cacheProfileStart
-
-    if simulationEnds != -1:
-        for bank in root.l2:
-            bank.detailed_sim_end_tick = simulationEnds
-        
-    root.adaptiveMHA.printInterference = True
-    root.adaptiveMHA.finalSimTick = simulationEnds
-
-        
-    if L2BankSize != -1:
-        for bank in root.l2:
-            bank.size = str(L2BankSize)+"kB"
-
-    for bank in root.l2:
-    #if int(env["NP"]) > 1:
-        bank.use_static_partitioning_for_warmup = True
-        bank.static_part_start_tick = uniformPartStart
-    #else:
-        #bank.use_static_partitioning_for_warmup = False
-
-    # set up memory bus and memory controller
-    root.toMemBus = ConventionalMemBus()
-    root.toMemBus.adaptive_mha = root.adaptiveMHA
-
-    if "INFINITE-MEM-BW" in env:
-        root.toMemBus.infinite_bw = True
-
-    #root.toMemBus.fast_forward_controller = FastForwardMemoryController()
-        
-    if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
-        root.toMemBus.memory_controller = ReadyFirstMemoryController()
-        if "MEMORY-BUS-PAGE-POLICY" in env:
-            root.toMemBus.memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
-        if "MEMORY-BUS-PRIORITY-SCHEME" in env:
-            root.toMemBus.memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
-    elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
-        root.toMemBus.memory_controller = InOrderMemoryController()
-    elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
-        root.toMemBus.memory_controller = FairNFQMemoryController()
-    elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
-        root.toMemBus.memory_controller = ThroughputNFQMemoryController()
-    else:
-        # default is RDFCFS
-        root.toMemBus.memory_controller = ReadyFirstMemoryController()
+    panic("Legacy memory system no longer supported")
 
 elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 
@@ -717,180 +550,17 @@ else:
 # Workloads
 ###############################################################################
 
-# Storage for multiprogrammed workloads
 prog = []
 
-###############################################################################
-# SPLASH-2 
-###############################################################################
-
-if env['BENCHMARK'] == 'Cholesky':
-    root.workload = Splash2.Cholesky()
-elif env['BENCHMARK'] == 'FFT':
-    root.workload = Splash2.FFT()
-elif env['BENCHMARK'] == 'LUContig':
-    root.workload = Splash2.LU_contig()
-elif env['BENCHMARK'] == 'LUNoncontig':
-    root.workload = Splash2.LU_noncontig()
-elif env['BENCHMARK'] == 'Radix':
-    root.workload = Splash2.Radix()
-elif env['BENCHMARK'] == 'Barnes':
-    root.workload = Splash2.Barnes()
-elif env['BENCHMARK'] == 'FMM':
-    root.workload = Splash2.FMM()
-elif env['BENCHMARK'] == 'OceanContig':
-    root.workload = Splash2.Ocean_contig()
-elif env['BENCHMARK'] == 'OceanNoncontig':
-    root.workload = Splash2.Ocean_noncontig()
-elif env['BENCHMARK'] == 'Raytrace':
-    root.workload = Splash2.Raytrace()
-elif env['BENCHMARK'] == 'WaterNSquared':
-    root.workload = Splash2.Water_nsquared()
-elif env['BENCHMARK'] == 'WaterSpatial':
-    root.workload = Splash2.Water_spatial()
-
-###############################################################################
-# SPEC 2000
-###############################################################################
-
-elif env['BENCHMARK'] == 'gzip':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.GzipSource())
-elif env['BENCHMARK'] == 'vpr':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.VprPlace())
-elif env['BENCHMARK'] == 'gcc':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Gcc166())
-elif env['BENCHMARK'] == 'mcf':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Mcf())
-elif env['BENCHMARK'] == 'crafty':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Crafty())
-elif env['BENCHMARK'] == 'parser':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Parser())
-elif env['BENCHMARK'] == 'eon':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Eon1())
-elif env['BENCHMARK'] == 'perlbmk':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Perlbmk1())
-elif env['BENCHMARK'] == 'gap':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Gap())
-elif env['BENCHMARK'] == 'vortex1':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Vortex1())
-elif env['BENCHMARK'] == 'bzip':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Bzip2Source())
-elif env['BENCHMARK'] == 'twolf':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Twolf())
-elif env['BENCHMARK'] == 'wupwise':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Wupwise())
-elif env['BENCHMARK'] == 'swim':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Swim())
-elif env['BENCHMARK'] == 'mgrid':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Mgrid())
-elif env['BENCHMARK'] == 'applu':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Applu())
-elif env['BENCHMARK'] == 'mesa':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Mesa())
-elif env['BENCHMARK'] == 'galgel':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Galgel())
-elif env['BENCHMARK'] == 'art':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Art1())
-elif env['BENCHMARK'] == 'equake':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Equake())
-elif env['BENCHMARK'] == 'facerec':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Facerec())
-elif env['BENCHMARK'] == 'ammp':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Ammp())
-elif env['BENCHMARK'] == 'lucas':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Lucas())
-elif env['BENCHMARK'] == 'fma3d':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Fma3d())
-elif env['BENCHMARK'] == 'sixtrack':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Sixtrack())
-elif env['BENCHMARK'] == 'apsi':
-    for i in range(int(env['NP'])):
-        prog.append(Spec2000.Apsi())
-
-###############################################################################
-# Multi-programmed workloads
-###############################################################################
-
-elif env['BENCHMARK'].isdigit():
-    prog = Spec2000.createWorkload(
-               workloads.workloads[int(env['NP'])][int(env['BENCHMARK'])][0])
-
-###############################################################################
-# Multi-programmed bw intensive workloads
-###############################################################################
-
-elif env['BENCHMARK'].startswith("bw"):
-    tmpBM = env['BENCHMARK'].replace("bw","")
-    prog = Spec2000.createWorkload(
-               bw_workloads.bw_workloads[int(env['NP'])][int(tmpBM)][0])
-
-###############################################################################
-# Multi-programmed fairness workloads
-###############################################################################
-
-elif env['BENCHMARK'].startswith("fair"):
+if env['BENCHMARK'].startswith("fair"):
     tmpBM = env['BENCHMARK'].replace("fair","")
     prog = Spec2000.createWorkload(
                fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
-
-###############################################################################
-# Multi-programmed workloads with memory hog
-###############################################################################
-
-elif env['BENCHMARK'].startswith("hog"):
-    tmpBM = env['BENCHMARK'].replace("hog","")
-    prog = Spec2000.createWorkload(
-               hog_workloads.hog_workloads[int(env['NP'])][int(tmpBM)][0])
-    prog.append(TestPrograms.ThrashCache())
-
-
-###############################################################################
-# Single core workloads
-###############################################################################
-
 elif env['BENCHMARK'] in single_core.configuration:
     prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
-
-###############################################################################
-# Testprograms
-###############################################################################
-
-elif env['BENCHMARK'] == 'hello':
-    root.workload = TestPrograms.HelloWorld()
-elif env['BENCHMARK'] == 'thrashCache':
-    root.workload = TestPrograms.ThrashCache()
-elif env['BENCHMARK'] == 'thrashCacheAll':
-    for i in range(int(env['NP'])):
-        prog.append(TestPrograms.ThrashCache())
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")
 
-# Create multi-programmed workloads
 if prog != []:
     for i in range(int(env['NP'])):
         root.simpleCPU[i].workload = prog[i]

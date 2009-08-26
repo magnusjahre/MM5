@@ -212,7 +212,6 @@ class Bus : public BaseHier
         TimingMemoryController* _fwController,
         TimingMemoryController* _memoryController,
         bool _infiniteBW,
-        Tick _final_sim_tick,
         InterferenceManager* intman);
 
     /** Frees locally allocated memory. */
@@ -354,8 +353,6 @@ class Bus : public BaseHier
     void resetHitToMissInterferenceStats();
     void addInterference(int victimID, int interfererID, interference_type iType);
     void addInterferenceCycles(int victimID, Tick delay, interference_type iType);
-
-    void dumpQueueDelayStats();
 
     void viritualPrivateWriteAccess(MemReqPtr& req);
 
@@ -653,28 +650,6 @@ class MemoryControllerSwitchEvent : public Event
     virtual const char *description(){
         return "Memory Controller Switch Event";
     }
-};
-
-class MemoryBusDumpEvent : public Event
-{
-    private:
-        Bus* bus;
-
-    public:
-
-        MemoryBusDumpEvent(Bus *_bus)
-            : Event(&mainEventQueue), bus(_bus)
-        {
-        }
-
-        void process(){
-            bus->dumpQueueDelayStats();
-            delete this;
-        }
-
-        virtual const char *description(){
-            return "Memory Bus Dump Event";
-        }
 };
 
 #endif // __BUS_HH__

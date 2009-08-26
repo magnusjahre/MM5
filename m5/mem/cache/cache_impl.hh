@@ -214,11 +214,8 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     localName = _name;
 
-    if(isShared){
-        CacheDumpStatsEvent* dumpEvent = new CacheDumpStatsEvent(this);
-        assert(params.detailedSimEndTick > 0);
-        dumpEvent->schedule(params.detailedSimEndTick);
-    }
+    // TODO: if cache hit stats are needed, impl exit callback
+    // callback should call dumpHitStats()
 }
 
 template<class TagStore, class Buffering, class Coherence>

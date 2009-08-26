@@ -182,15 +182,11 @@ StatEvent::description()
 void
 StatEvent::process()
 {
-    //HACK: disable dump of stats (generates duplicate results with warm up method)
-//     if (flags & Stats::Dump)
-// 	DumpNow();
-	
-    if (flags & Stats::Reset)
-	reset();
+	if (flags & Stats::Dump) DumpNow();
 
-    if (repeat)
-	schedule(curTick + repeat);
+    if (flags & Stats::Reset) reset();
+
+    if (repeat) schedule(curTick + repeat);
 }
 
 list<Output *> OutputList;
@@ -198,15 +194,15 @@ list<Output *> OutputList;
 void
 DumpNow()
 {
-    list<Output *>::iterator i = OutputList.begin();
-    list<Output *>::iterator end = OutputList.end();
-    for (; i != end; ++i) {
-	Output *output = *i;
-	if (!output->valid())
-	    continue;
+	list<Output *>::iterator i = OutputList.begin();
+	list<Output *>::iterator end = OutputList.end();
+	for (; i != end; ++i) {
+		Output *output = *i;
+		if (!output->valid())
+			continue;
 
-	output->output();
-    }
+		output->output();
+	}
 }
 
 void

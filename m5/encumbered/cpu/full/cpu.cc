@@ -373,7 +373,7 @@ FullCPU::FullCPU(Params *p,
 		 int _pc_sample_interval,
 		 PipeTrace *_ptrace,
                  AdaptiveMHA* _amha)
-    : BaseCPU(p), 
+    : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
       storebuffer_size(_storebuffer_size),
@@ -652,20 +652,22 @@ FullCPU::FullCPU(Params *p,
 	    new MakeCallback<FullCPU, &FullCPU::dumpPCSampleProfile>(this);
 	registerExitCallback(cb);
     }
-    
+
     if(_amha != NULL){
         _amha->registerFullCPU(p->cpu_id, this);
     }
-    
+
     noCommitCycles = 0;
     string tracename = name() + "BlockedTrace.txt";
     ofstream tracefile(tracename.c_str());
     tracefile << "Tick;Blocked Fraction\n";
     tracefile.flush();
     tracefile.close();
-    
+
     tmpBlockedCycles = 0;
     l1MissStallCycles = 0;
+
+    useInExitDesicion = true;
 }
 
 
@@ -707,7 +709,7 @@ FullCPU::~FullCPU()
 void
 FullCPU::takeOverFrom(BaseCPU *oldCPU)
 {
-    
+
     BaseCPU::takeOverFrom(oldCPU);
 
 #if FULL_SYSTEM
@@ -720,16 +722,16 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
     doCheckpointInsts = false;
     doQuiesce = false;
 #endif
-    
+
     assert(!tickEvent.scheduled());
     assert(oldCPU->execContexts.size() == execContexts.size());
-    
+
     // Magnus: This comment is wrong
     // Set all status's to active, schedule the
     // CPU's tick event.
     tickEvent.schedule(curTick);
     for (int i = 0; i < execContexts.size(); ++i) {
-        
+
         // Fix by Magnus
         // The processor state should remain the same when the processor is switched
         if(execContexts[i]->status() == ExecContext::Suspended){
@@ -749,12 +751,12 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
         }
     }
 }
-    
-    
+
+
 // post-unserialization initialization callback
 void
 FullCPU::startup()
-{   
+{
     // schedule initial sampling event here since curTick could get
     // warped by unserialization.  event was created (if needed) in
     // FullCPU contructor.
@@ -1082,7 +1084,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<int> num_threads;
     Param<int> clock;
     Param<int> cpu_id;
-    
+
 #if FULL_SYSTEM
     SimObjectParam<AlphaITB *> itb;
     SimObjectParam<AlphaDTB *> dtb;
@@ -1160,8 +1162,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<int> width;
 
     Param<bool> defer_registration;
-    
+
     SimObjectParam<AdaptiveMHA *>  adaptiveMHA;
+    Param<Counter> min_insts_all_cpus;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1197,7 +1200,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
     INIT_PARAM(clock, "clock speed"),
     INIT_PARAM(cpu_id, "processor ID"),
-    
+
 #if FULL_SYSTEM
     INIT_PARAM(itb, "Instruction TLB"),
     INIT_PARAM(dtb, "Data TLB"),
@@ -1303,8 +1306,10 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
     INIT_PARAM_DFLT(defer_registration, "defer registration with system "
 		    "(for sampling)", false),
-            
-    INIT_PARAM_DFLT(adaptiveMHA, "adaptive mha pointer", 0)
+
+    INIT_PARAM_DFLT(adaptiveMHA, "adaptive mha pointer", 0),
+
+    INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0)
 
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1337,6 +1342,7 @@ CREATE_SIM_OBJECT(FullCPU)
     params->functionTrace = function_trace;
     params->functionTraceStart = function_trace_start;
     params->cpu_id = cpu_id;
+    params->min_insts_all_cpus = min_insts_all_cpus;
 #if FULL_SYSTEM
     params->system = system;
 //     params->cpu_id = cpu_id;

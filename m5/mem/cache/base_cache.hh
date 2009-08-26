@@ -650,27 +650,4 @@ class CacheRepartitioningEvent: public Event
         }
 };
 
-class CacheDumpStatsEvent: public Event
-{
-
-    public:
-
-        BaseCache* cache;
-
-        CacheDumpStatsEvent(BaseCache* _cache)
-    : Event(&mainEventQueue), cache(_cache)
-        {
-        }
-
-        void process(){
-            cache->dumpHitStats();
-            delete this;
-        }
-
-        virtual const char *description(){
-            return "Cache Dump Hit Stats Event";
-        }
-};
-
-
 #endif //__BASE_CACHE_HH__

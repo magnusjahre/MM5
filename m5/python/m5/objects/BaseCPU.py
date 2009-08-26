@@ -24,6 +24,8 @@ class BaseCPU(SimObject):
         "terminate when all threads have reached this load count")
     max_loads_any_thread = Param.Counter(0,
         "terminate when any thread reaches this load count")
+    
+    min_insts_all_cpus = Param.Counter("Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.")
 
     defer_registration = Param.Bool(False,
         "defer registration with system (for sampling)")
