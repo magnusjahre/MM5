@@ -73,7 +73,11 @@ objParamIn(Checkpoint *cp, const std::string &section,
 // the ostream, and unserialize() has parameters 'cp' and 'section'.
 #define SERIALIZE_SCALAR(scalar)	paramOut(os, #scalar, scalar)
 
+#define SERIALIZE_SCALAR_NAME(name, scalar)	paramOut(os, name, scalar)
+
 #define UNSERIALIZE_SCALAR(scalar)	paramIn(cp, section, #scalar, scalar)
+
+#define UNSERIALIZE_SCALAR_NAME(name, scalar)	paramIn(cp, section, name, scalar)
 
 // ENUMs are like SCALARs, but we cast them to ints on the way out
 #define SERIALIZE_ENUM(scalar)		paramOut(os, #scalar, (int)scalar)
@@ -88,8 +92,14 @@ objParamIn(Checkpoint *cp, const std::string &section,
 #define SERIALIZE_ARRAY(member, size)	\
 	arrayParamOut(os, #member, member, size)
 
+#define SERIALIZE_ARRAY_NAME(name, member, size) \
+	arrayParamOut(os, name, member, size)
+
 #define UNSERIALIZE_ARRAY(member, size)	\
 	arrayParamIn(cp, section, #member, member, size)
+
+#define UNSERIALIZE_ARRAY_NAME(name, member, size)	\
+	arrayParamIn(cp, section, name, member, size)
 
 #define SERIALIZE_OBJPTR(objptr)	paramOut(os, #objptr, (objptr)->name())
 

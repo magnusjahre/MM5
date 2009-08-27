@@ -165,18 +165,22 @@ class Process : public SimObject
     // is this a valid address? (used to filter data fetches)
     // note that we just assume stack size <= 16MB
     // this may be alpha-specific
-    bool validDataAddr(Addr addr)
-    {
-	return ((data_base <= addr && addr < brk_point) ||
-		(next_thread_stack_base <= addr && addr < stack_base) ||
-		(text_base <= addr && addr < (text_base + text_size)) ||
-                (mmap_start <= addr && addr < mmap_end) ||
-	        (nxm_start <= addr && addr < nxm_end));
+    bool validDataAddr(Addr addr){
+
+    	return ((data_base <= addr && addr < brk_point) ||
+    			(next_thread_stack_base <= addr && addr < stack_base) ||
+    			(text_base <= addr && addr < (text_base + text_size)) ||
+    			(mmap_start <= addr && addr < mmap_end) ||
+    			(nxm_start <= addr && addr < nxm_end));
     }
 
     virtual void syscall(ExecContext *xc) = 0;
 
     virtual FunctionalMemory *getMemory() { return memory; }
+
+    virtual void serialize(std::ostream &os);
+
+    virtual void unserialize(Checkpoint *cp, const std::string &section);
 };
 
 //

@@ -110,45 +110,45 @@ arrayParamOut(ostream &os, const std::string &name,
 template <class T>
 void
 arrayParamIn(Checkpoint *cp, const std::string &section,
-	     const std::string &name, T *param, int size)
+		const std::string &name, T *param, int size)
 {
-    std::string str;
-    if (!cp->find(section, name, str)) {
-	fatal("Can't unserialize '%s:%s'\n", section, name);
-    }
-
-    // code below stolen from VectorParam<T>::parse().
-    // it would be nice to unify these somehow...
-
-    vector<string> tokens;
-
-    tokenize(tokens, str, ' ');
-
-    // Need this if we were doing a vector
-    // value.resize(tokens.size());
-
-    if (tokens.size() != size) {
-	fatal("Array size mismatch on %s:%s'\n", section, name);
-    }
-
-    for (int i = 0; i < tokens.size(); i++) {
-	// need to parse into local variable to handle vector<bool>,
-	// for which operator[] returns a special reference class
-	// that's not the same as 'bool&', (since it's a packed
-	// vector)
-	T scalar_value;
-	if (!parseParam(tokens[i], scalar_value)) {
-	    string err("could not parse \"");
-
-	    err += str;
-	    err += "\"";
-
-	    fatal(err);
+	std::string str;
+	if (!cp->find(section, name, str)) {
+		fatal("Can't unserialize '%s:%s'\n", section, name);
 	}
 
-	// assign parsed value to vector
-	param[i] = scalar_value;
-    }
+	// code below stolen from VectorParam<T>::parse().
+	// it would be nice to unify these somehow...
+
+	vector<string> tokens;
+
+	tokenize(tokens, str, ' ');
+
+	// Need this if we were doing a vector
+	// value.resize(tokens.size());
+
+	if (tokens.size() != size) {
+		fatal("Array size mismatch on %s:%s'\n", section, name);
+	}
+
+	for (int i = 0; i < tokens.size(); i++) {
+		// need to parse into local variable to handle vector<bool>,
+		// for which operator[] returns a special reference class
+		// that's not the same as 'bool&', (since it's a packed
+		// vector)
+		T scalar_value;
+		if (!parseParam(tokens[i], scalar_value)) {
+			string err("could not parse \"");
+
+			err += str;
+			err += "\"";
+
+			fatal(err);
+		}
+
+		// assign parsed value to vector
+		param[i] = scalar_value;
+	}
 }
 
 
@@ -223,10 +223,13 @@ Globals::serialize(ostream &os)
 void
 Globals::unserialize(Checkpoint *cp)
 {
-    const string &section = name();
-    UNSERIALIZE_SCALAR(curTick);
 
-    mainEventQueue.unserialize(cp, "MainEventQueue");
+	// Magnus: don't restore globals since they will differ between cores due to SimPoints
+//	const string &section = name();
+//
+//	UNSERIALIZE_SCALAR(curTick);
+//
+//	mainEventQueue.unserialize(cp, "MainEventQueue");
 }
 
 void

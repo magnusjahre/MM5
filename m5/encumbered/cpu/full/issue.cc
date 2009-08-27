@@ -339,7 +339,7 @@ FullCPU::lsq_refresh()
     }
 }
 
-// 
+//
 
 /* Try to issue the LSQ portion of a load.  Returns flag indicating
  * whether instruction was actually issued.  If load is issued,
@@ -351,147 +351,147 @@ FullCPU::lsq_refresh()
 bool
 FullCPU::issue_load(BaseIQ::iterator lsq, int *latency)
 {
-    int load_lat;
-    bool addr_is_valid;
-    DynInst *inst;
-    int thread_number;
-    bool issued;
+	int load_lat;
+	bool addr_is_valid;
+	DynInst *inst;
+	int thread_number;
+	bool issued;
 
-    inst = lsq->inst;
-    thread_number = lsq->thread_number();
-    addr_is_valid = inst->xc->validDataAddr(inst->eff_addr) &&
+	inst = lsq->inst;
+	thread_number = lsq->thread_number();
+	addr_is_valid = inst->xc->validDataAddr(inst->eff_addr) &&
 	inst->fault == No_Fault;
 
 #if FULL_SYSTEM
-    if (inst->xc->misspeculating() &&
-	inst->xc->memctrl->badaddr(inst->phys_eff_addr))
-	addr_is_valid = false;
+	if (inst->xc->misspeculating() &&
+			inst->xc->memctrl->badaddr(inst->phys_eff_addr))
+		addr_is_valid = false;
 #endif
 
-    /* reset lsq->mem_result value */
-    lsq->mem_result = MA_HIT;
+	/* reset lsq->mem_result value */
+	lsq->mem_result = MA_HIT;
 
-    /* Assume it's issued for now. If neccessary, unset later */
-    issued = true;
+	/* Assume it's issued for now. If neccessary, unset later */
+	issued = true;
 
-    /* for loads, determine cache access latency:
-     * first scan LSQ to see if a store forward is
-     * possible, if not, access the data cache */
-    load_lat = 0;
+	/* for loads, determine cache access latency:
+	 * first scan LSQ to see if a store forward is
+	 * possible, if not, access the data cache */
+	load_lat = 0;
 
-    for (BaseIQ::iterator earlier_lsq = lsq.prev();
-	 earlier_lsq.notnull(); earlier_lsq = earlier_lsq.prev()) {
+	for (BaseIQ::iterator earlier_lsq = lsq.prev();
+	earlier_lsq.notnull(); earlier_lsq = earlier_lsq.prev()) {
 
-	/* FIXME: not dealing with partials! */
-	if (earlier_lsq->inst->isStore() &&
-	    earlier_lsq->inst->eff_addr == inst->eff_addr &&
-	    earlier_lsq->inst->asid == inst->asid) {
-	    /* hit in the LSQ */
-	    lsq_forw_loads[thread_number]++;
-	    load_lat = cycles(1);
-	    break;
+		/* FIXME: not dealing with partials! */
+		if (earlier_lsq->inst->isStore() &&
+				earlier_lsq->inst->eff_addr == inst->eff_addr &&
+				earlier_lsq->inst->asid == inst->asid) {
+			/* hit in the LSQ */
+			lsq_forw_loads[thread_number]++;
+			load_lat = cycles(1);
+			break;
+		}
 	}
-    }
 
-    /* was the value store forward from the LSQ? */
-    if (!load_lat) {
-	if (!inst->spec_mode && !addr_is_valid)
-	    sim_invalid_addrs++;
+	/* was the value store forward from the LSQ? */
+	if (!load_lat) {
+		if (!inst->spec_mode && !addr_is_valid)
+			sim_invalid_addrs++;
 
-	/* no! go to the data cache if addr is valid */
-	if (addr_is_valid) {
+		/* no! go to the data cache if addr is valid */
+		if (addr_is_valid) {
 
 #if DUMP_LOADS
-	    if (!inst->spec_mode) {
-		cerr << "T" << inst->thread_number << " : Load from 0x" << hex
-		     << inst->eff_addr << " issued" << endl;
-	    }
+			if (!inst->spec_mode) {
+				cerr << "T" << inst->thread_number << " : Load from 0x" << hex
+				<< inst->eff_addr << " issued" << endl;
+			}
 #endif
 
-	    //
-	    //  Prepare memory request...
-	    //
-	    MemReqPtr req = new MemReq();
-	    req->thread_num = thread_number;
-	    req->asid = inst->asid;
-	    req->cmd = Read;
-	    req->vaddr = inst->eff_addr;
-	    req->paddr = inst->phys_eff_addr;
-	    req->flags = inst->mem_req_flags;
-	    req->size = 1;
-	    req->time = curTick;
-	    req->data = new uint8_t[1];
-	    req->xc = inst->xc;
-	    req->pc = inst->PC;
+			//
+			//  Prepare memory request...
+			//
+			MemReqPtr req = new MemReq();
+			req->thread_num = thread_number;
+			req->asid = inst->asid;
+			req->cmd = Read;
+			req->vaddr = inst->eff_addr;
+			req->paddr = inst->phys_eff_addr;
+			req->flags = inst->mem_req_flags;
+			req->size = 1;
+			req->time = curTick;
+			req->data = new uint8_t[1];
+			req->xc = inst->xc;
+			req->pc = inst->PC;
 
-	    WritebackEvent *wb_event
-		= new WritebackEvent(this, lsq->rob_entry, req);
+			WritebackEvent *wb_event
+			= new WritebackEvent(this, lsq->rob_entry, req);
 
-	    req->completionEvent = wb_event;
-            req->expectCompletionEvent = true;
+			req->completionEvent = wb_event;
+			req->expectCompletionEvent = true;
 
-	    // so we can invalidate on a squash
-	    lsq->rob_entry->wb_event = wb_event;
+			// so we can invalidate on a squash
+			lsq->rob_entry->wb_event = wb_event;
 
-	    BaseIQ::CacheMissEvent *cm_event
-		= IQ[0]->new_cm_event(lsq->rob_entry);
+			BaseIQ::CacheMissEvent *cm_event
+			= IQ[0]->new_cm_event(lsq->rob_entry);
 
-	    lsq->rob_entry->cache_event_ptr = cm_event;
+			lsq->rob_entry->cache_event_ptr = cm_event;
 
 #if REMOVE_WP_LOADS
-	    //
-	    //  Treat spec-mode loads as if they are hits...
-	    //   --> don't actually send them to the cache!
-	    //
-	    if (inst->spec_mode) {
-		lsq->mem_result = MA_HIT;
-		wb_event->schedule(curTick + cycles(3));
-		if (cm_event != 0)
-		    cm_event->schedule(curTick + cycles(3));
-	    } else {
+			//
+			//  Treat spec-mode loads as if they are hits...
+			//   --> don't actually send them to the cache!
+			//
+			if (inst->spec_mode) {
+				lsq->mem_result = MA_HIT;
+				wb_event->schedule(curTick + cycles(3));
+				if (cm_event != 0)
+					cm_event->schedule(curTick + cycles(3));
+			} else {
 #endif
-	    lsq->mem_result = dcacheInterface->access(req);
+				lsq->mem_result = dcacheInterface->access(req);
 
 #if REMOVE_WP_LOADS
-	    }
+			}
 #endif
 
-	    //
-	    //  We schedule this event ourselves... not required to be
-	    //  part of the cache...
-	    //
-            if (cm_event != NULL) {
-                cm_event->annotate(lsq->mem_result);
-                Tick latency = dcacheInterface->getHitLatency();
-                assert(latency >= clock);
-                cm_event->schedule(curTick + latency);
-            }
+			//
+			//  We schedule this event ourselves... not required to be
+			//  part of the cache...
+			//
+			if (cm_event != NULL) {
+				cm_event->annotate(lsq->mem_result);
+				Tick latency = dcacheInterface->getHitLatency();
+				assert(latency >= clock);
+				cm_event->schedule(curTick + latency);
+			}
 
-	    // negative load latency prevents issue()
-	    // from scheduling a writeback event... this
-	    // will come from the memory system
-	    // instead.
-	    load_lat = -1;
-	} else {
-            load_lat = *latency;
-            if (inst->xc->misspeculating()) {
-                // invalid addr is misspeculation, just use op latency
-                inv_addr_loads[thread_number]++;
-            } else if (inst->fault == No_Fault) {
-                // invalid addr is a bad address, panic
-                panic("invalid addr 0x%x accessed and not misspeculating", 
-		      inst->eff_addr);
-            }
+			// negative load latency prevents issue()
+			// from scheduling a writeback event... this
+			// will come from the memory system
+			// instead.
+			load_lat = -1;
+		} else {
+			load_lat = *latency;
+			if (inst->xc->misspeculating()) {
+				// invalid addr is misspeculation, just use op latency
+				inv_addr_loads[thread_number]++;
+			} else if (inst->fault == No_Fault) {
+				// invalid addr is a bad address, panic
+				panic("invalid addr 0x%x accessed and not misspeculating",
+						inst->eff_addr);
+			}
+		}
 	}
-    }
 
-    *latency = load_lat;  // return a latency value back to lsq_issue()
-    lsq->rob_entry->mem_result = lsq->mem_result;
+	*latency = load_lat;  // return a latency value back to lsq_issue()
+	lsq->rob_entry->mem_result = lsq->mem_result;
 
-    return issued;
+	return issued;
 }
 
-// 
+//
 
 /* Try to issue the LSQ portion of a prefetch instruction.  Currently,
  * this always succeeds, as we just throw away the prefetch if it
@@ -597,7 +597,7 @@ FullCPU::sb_issue(StoreBuffer::iterator i, unsigned pool_num)
 		req->paddr = i->phys_addr;
 		Event *completion_event =
 		    new SimCompleteStoreEvent(storebuffer, i, req);
-		
+
 		req->completionEvent = completion_event;
                 req->expectCompletionEvent = true;
 	    }
@@ -629,7 +629,7 @@ FullCPU::sb_issue(StoreBuffer::iterator i, unsigned pool_num)
     return i->issued;
 }
 
-// 
+//
 
 //
 //  Issue an instruction from the IQ
@@ -746,7 +746,7 @@ FullCPU::iq_issue(BaseIQ::iterator i, unsigned fu_pool_num)
 
 
 
-// 
+//
 
 bool
 FullCPU::lsq_issue(BaseIQ::iterator i, unsigned fu_pool_num)
@@ -933,7 +933,7 @@ FullCPU::lsq_issue(BaseIQ::iterator i, unsigned fu_pool_num)
     return issued;
 }
 
-// 
+//
 
 
 //
@@ -987,7 +987,7 @@ FullCPU::find_idep_to_blame(BaseIQ::iterator inst, int thread)
 }
 
 
-// 
+//
 
 class IQList
 {
@@ -1348,7 +1348,7 @@ FullCPU::issue()
 			//  get the next index...
 			//  false return indicates none available
 #ifndef NDEBUG
-			bool avail = 
+			bool avail =
 #endif
 			    done_list.next(current_iq);
 			assert(avail);
@@ -1396,7 +1396,7 @@ FullCPU::issue()
 		    //  get the next index...
 		    //  false return indicates none available
 #ifndef NDEBUG
-		    bool avail = 
+		    bool avail =
 #endif
 			done_list.next(current_iq);
 		    assert(avail);
@@ -1657,7 +1657,7 @@ FullCPU::issue()
 
 		//  Remove current element, and return pointer to next
 		sb_rq_iterator = storebuffer->issue(sb_rq_iterator);
-		
+
 		// Mark a copy storebuffer as complete, since we don't
 		// need a response currently
 		if (sb_it->isCopy) {
@@ -1916,7 +1916,7 @@ FullCPU::issue()
 #endif
 }
 
-// 
+//
 
 
 

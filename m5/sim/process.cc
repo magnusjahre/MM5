@@ -224,7 +224,53 @@ Process::sim_fd(int tgt_fd)
     return fd_map[tgt_fd];
 }
 
+void
+Process::serialize(std::ostream &os){
+	SERIALIZE_SCALAR(text_base);
+	SERIALIZE_SCALAR(text_size);
 
+	SERIALIZE_SCALAR(data_base);
+	SERIALIZE_SCALAR(data_size);
+
+	SERIALIZE_SCALAR(brk_point);
+
+	SERIALIZE_SCALAR(stack_base);
+	SERIALIZE_SCALAR(stack_size);
+	SERIALIZE_SCALAR(stack_min);
+
+	SERIALIZE_SCALAR(next_thread_stack_base);
+
+	SERIALIZE_SCALAR(mmap_start);
+	SERIALIZE_SCALAR(mmap_end);
+
+	SERIALIZE_SCALAR(nxm_start);
+	SERIALIZE_SCALAR(nxm_end);
+}
+
+void
+Process::unserialize(Checkpoint *cp, const std::string &section){
+	UNSERIALIZE_SCALAR(text_base);
+	UNSERIALIZE_SCALAR(text_size);
+
+	UNSERIALIZE_SCALAR(data_base);
+	UNSERIALIZE_SCALAR(data_size);
+
+	UNSERIALIZE_SCALAR(brk_point);
+
+	UNSERIALIZE_SCALAR(stack_base);
+	UNSERIALIZE_SCALAR(stack_size);
+	UNSERIALIZE_SCALAR(stack_min);
+
+	UNSERIALIZE_SCALAR(next_thread_stack_base);
+
+	UNSERIALIZE_SCALAR(mmap_start);
+	UNSERIALIZE_SCALAR(mmap_end);
+
+	UNSERIALIZE_SCALAR(nxm_start);
+	UNSERIALIZE_SCALAR(nxm_end);
+
+	memory->unserialize(cp, section+".MainMem");
+}
 
 //
 // need to declare these here since there is no concrete Process type

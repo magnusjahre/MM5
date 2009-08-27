@@ -205,7 +205,7 @@ void
 ConfigHierarchy::Node::createSimObject()
 {
     DPRINTFR(Config, "create SimObject: %s\n", getPath());
-    
+
     //cout << "create SimObject: " << getPath() << "\n";
 
     // make this safe to call more than once by skipping if object
@@ -267,34 +267,34 @@ void
 ConfigHierarchy::Node::unserialize(Checkpoint *parentCkpt,
 				   const std::string &section)
 {
-    Checkpoint *cp = parentCkpt; // use parent's checkpoint by default
-    string cpSection = section;  // and parent-provided section name
+	Checkpoint *cp = parentCkpt; // use parent's checkpoint by default
+	string cpSection = section;  // and parent-provided section name
 
-    string checkpointName;
+	string checkpointName;
 
-    if (find("checkpoint", checkpointName) && checkpointName != "") {
-	DPRINTFR(Config, "Loading checkpoint dir '%s'\n",
-		 checkpointName);
-	cp = new Checkpoint(checkpointName, section, this);
-	Serializable::unserializeGlobals(cp);
-	cpSection = "";
-    }
+	if (find("checkpoint", checkpointName) && checkpointName != "") {
+		DPRINTFR(Config, "Loading checkpoint dir '%s'\n",
+				checkpointName);
+		cp = new Checkpoint(checkpointName, section, this);
+		Serializable::unserializeGlobals(cp);
+		cpSection = "";
+	}
 
-    if (simObject && cp) {
-	DPRINTFR(Config, "Unserializing '%s' from section '%s'\n",
-		 simObject->name(), cpSection);
-	if(cp->sectionExists(cpSection))
-	    simObject->unserialize(cp, cpSection);
-	else
-	    warn("Not unserializing '%s': no section found in checkpoint.\n",
-		 cpSection);
-    }
+	if (simObject && cp) {
+		DPRINTFR(Config, "Unserializing '%s' from section '%s'\n",
+				simObject->name(), cpSection);
+		if(cp->sectionExists(cpSection))
+			simObject->unserialize(cp, cpSection);
+		else
+			warn("Not unserializing '%s': no section found in checkpoint.\n",
+					cpSection);
+	}
 
-    for (int i = 0; i < children.size(); i++) {
-	string childSection = cpSection;
-	if (childSection != "")
-	    childSection += ".";
-	childSection += children[i]->nodeName;
-	children[i]->unserialize(cp, childSection);
-    }
+	for (int i = 0; i < children.size(); i++) {
+		string childSection = cpSection;
+		if (childSection != "")
+			childSection += ".";
+		childSection += children[i]->nodeName;
+		children[i]->unserialize(cp, childSection);
+	}
 }

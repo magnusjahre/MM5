@@ -3,21 +3,21 @@
  *
  * This file is a part of the SimpleScalar tool suite written by
  * Todd M. Austin as a part of the Multiscalar Research Project.
- *  
+ *
  * The tool suite is currently maintained by Doug Burger and Todd M. Austin.
- * 
+ *
  * Copyright (C) 1994, 1995, 1996, 1997, 1998 by Todd M. Austin
  *
  * This source file is distributed "as is" in the hope that it will be
  * useful.  The tool set comes with no warranty, and no author or
  * distributor accepts any responsibility for the consequences of its
- * use. 
- * 
+ * use.
+ *
  * Everyone is granted permission to copy, modify and redistribute
  * this tool set under the following conditions:
- * 
- *    This source code is distributed for non-commercial use only. 
- *    Please contact the maintainer for restrictions applying to 
+ *
+ *    This source code is distributed for non-commercial use only.
+ *    Please contact the maintainer for restrictions applying to
  *    commercial use.
  *
  *    Permission is granted to anyone to make or distribute copies
@@ -97,178 +97,177 @@ using namespace std;
 
 // create a flat memory space and initialize memory system
 MainMemory::MainMemory(const string &n)
-    : FunctionalMemory(n), takeStats(false)
+: FunctionalMemory(n), takeStats(false)
 {
-    for (int i = 0; i < MEM_PTAB_SIZE; ++i)
-	ptab[i] = NULL;
+	for (int i = 0; i < MEM_PTAB_SIZE; ++i)
+		ptab[i] = NULL;
 
-    break_address = 0;
-    break_thread = 1;
-    break_size = 4;
+	break_address = 0;
+	break_thread = 1;
+	break_size = 4;
 }
 
 MainMemory::~MainMemory()
 {
-    for (int i = 0; i < MEM_PTAB_SIZE; i++) {
-	if (ptab[i]) {
-	    free(ptab[i]->page);
-	    free(ptab[i]);
+	for (int i = 0; i < MEM_PTAB_SIZE; i++) {
+		if (ptab[i]) {
+			free(ptab[i]->page);
+			free(ptab[i]);
+		}
 	}
-    }
 }
 
 void
 MainMemory::startup()
 {
-    takeStats = true;
+	takeStats = true;
 }
 
 // translate address to host page
 uint8_t *
 MainMemory::translate(Addr addr)
 {
-    entry *pte, *prev;
+	entry *pte, *prev;
 
-    if (takeStats) {
-	// got here via a first level miss in the page tables
-	ptab_misses++;
-	ptab_accesses++;
-    }
-
-    // locate accessed PTE
-    for (prev = NULL, pte = ptab[ptab_set(addr)];
-	 pte != NULL; prev = pte, pte = pte->next) {
-	if (pte->tag == ptab_tag(addr)) {
-	    // move this PTE to head of the bucket list
-	    if (prev) {
-		prev->next = pte->next;
-		pte->next = ptab[ptab_set(addr)];
-		ptab[ptab_set(addr)] = pte;
-	    }
-	    return pte->page;
+	if (takeStats) {
+		// got here via a first level miss in the page tables
+		ptab_misses++;
+		ptab_accesses++;
 	}
-    }
 
-    // no translation found, return NULL
-    return NULL;
+	// locate accessed PTE
+	for (prev = NULL, pte = ptab[ptab_set(addr)]; pte != NULL; prev = pte, pte = pte->next) {
+		if (pte->tag == ptab_tag(addr)) {
+			// move this PTE to head of the bucket list
+			if (prev) {
+				prev->next = pte->next;
+				pte->next = ptab[ptab_set(addr)];
+				ptab[ptab_set(addr)] = pte;
+			}
+			return pte->page;
+		}
+	}
+
+	// no translation found, return NULL
+	return NULL;
 }
 
 // allocate a memory page
 uint8_t *
 MainMemory::newpage(Addr addr)
 {
-    uint8_t *page;
-    entry *pte;
+	uint8_t *page;
+	entry *pte;
 
-    // see misc.c for details on the getcore() function
-    page = new uint8_t[VMPageSize];
-    if (!page)
-	fatal("MainMemory::newpage: out of virtual memory");
+	// see misc.c for details on the getcore() function
+	page = new uint8_t[VMPageSize];
+	if (!page)
+		fatal("MainMemory::newpage: out of virtual memory");
 
-    ::memset(page, 0, VMPageSize);
+	::memset(page, 0, VMPageSize);
 
-    // generate a new PTE
-    pte = new entry;
-    if (!pte)
-	fatal("MainMemory::newpage: out of virtual memory (2)");
+	// generate a new PTE
+	pte = new entry;
+	if (!pte)
+		fatal("MainMemory::newpage: out of virtual memory (2)");
 
-    pte->tag = ptab_tag(addr);
-    pte->page = page;
+	pte->tag = ptab_tag(addr);
+	pte->page = page;
 
-    // insert PTE into inverted hash table
-    pte->next = ptab[ptab_set(addr)];
-    ptab[ptab_set(addr)] = pte;
+	// insert PTE into inverted hash table
+	pte->next = ptab[ptab_set(addr)];
+	ptab[ptab_set(addr)] = pte;
 
-    if (takeStats) {
-	// one more page allocated
-	page_count++;
-    }
+	if (takeStats) {
+		// one more page allocated
+		page_count++;
+	}
 
-    return page;
+	return page;
 }
 
 // locate host page for virtual address ADDR, returns NULL if unallocated
 uint8_t *
 MainMemory::page(Addr addr)
 {
-    // first attempt to hit in first entry, otherwise call xlation fn
-    if (ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr))
-    {
-	if (takeStats) {
-	    // hit - return the page address on host
-	    ptab_accesses++;
+	// first attempt to hit in first entry, otherwise call xlation fn
+	if (ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr))
+	{
+		if (takeStats) {
+			// hit - return the page address on host
+			ptab_accesses++;
+		}
+		return ptab[ptab_set(addr)]->page;
 	}
-	return ptab[ptab_set(addr)]->page;
-    }
-    else
-    {
-	// first level miss - call the translation helper function
-	return translate(addr);
-    }
+	else
+	{
+		// first level miss - call the translation helper function
+		return translate(addr);
+	}
 }
 
 void
 MainMemory::prot_read(Addr addr, uint8_t *p, int size)
 {
-    int count = min((Addr)size,
-		    ((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
+	int count = min((Addr)size,
+			((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
 
-    page_read(addr, p, count);
-    addr += count;
-    p += count;
-    size -= count;
+	page_read(addr, p, count);
+	addr += count;
+	p += count;
+	size -= count;
 
-    while (size >= VMPageSize) {
-	page_read(addr, p, VMPageSize);
-	addr += VMPageSize;
-	p += VMPageSize;
-	size -= VMPageSize;
-    }
+	while (size >= VMPageSize) {
+		page_read(addr, p, VMPageSize);
+		addr += VMPageSize;
+		p += VMPageSize;
+		size -= VMPageSize;
+	}
 
-    if (size > 0)
-	page_read(addr, p, size);
+	if (size > 0)
+		page_read(addr, p, size);
 }
 
 void
 MainMemory::prot_write(Addr addr, const uint8_t *p, int size)
 {
-    int count = min((Addr)size,
-		    ((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
+	int count = min((Addr)size,
+			((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
 
-    page_write(addr, p, count);
-    addr += count;
-    p += count;
-    size -= count;
+	page_write(addr, p, count);
+	addr += count;
+	p += count;
+	size -= count;
 
-    while (size >= VMPageSize) {
-	page_write(addr, p, VMPageSize);
-	addr += VMPageSize;
-	p += VMPageSize;
-	size -= VMPageSize;
-    }
+	while (size >= VMPageSize) {
+		page_write(addr, p, VMPageSize);
+		addr += VMPageSize;
+		p += VMPageSize;
+		size -= VMPageSize;
+	}
 
-    if (size > 0)
-	page_write(addr, p, size);
+	if (size > 0)
+		page_write(addr, p, size);
 }
 
 void
 MainMemory::prot_memset(Addr addr, uint8_t val, int size)
 {
-    int count = min((Addr)size,
-		    ((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
+	int count = min((Addr)size,
+			((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
 
-    page_set(addr, val, count);
-    addr += count;
-    size -= count;
+	page_set(addr, val, count);
+	addr += count;
+	size -= count;
 
-    while (size >= VMPageSize) {
-	page_set(addr, val, VMPageSize);
-	addr += VMPageSize;
-	size -= VMPageSize;
-    }
+	while (size >= VMPageSize) {
+		page_set(addr, val, VMPageSize);
+		addr += VMPageSize;
+		size -= VMPageSize;
+	}
 
-    if (size > 0)
-	page_set(addr, val, size);
+	if (size > 0)
+		page_set(addr, val, size);
 }
 
 // generic memory access function, it's safe because alignments and
@@ -279,50 +278,50 @@ MainMemory::prot_memset(Addr addr, uint8_t val, int size)
 Fault
 MainMemory::page_check(Addr addr, int size) const
 {
-    if (size < sizeof(uint64_t)) {
-	if (!IsPowerOf2(size)) {
-	    panic("Invalid request size!\n");
-	    return Machine_Check_Fault;
+	if (size < sizeof(uint64_t)) {
+		if (!IsPowerOf2(size)) {
+			panic("Invalid request size!\n");
+			return Machine_Check_Fault;
+		}
+
+		if ((size - 1) & addr)
+			return Alignment_Fault;
+	}
+	else {
+		if ((addr & (VMPageSize - 1)) + size > VMPageSize) {
+			panic("Invalid request size!\n");
+			return Machine_Check_Fault;
+		}
+
+		if ((sizeof(uint64_t) - 1) & addr)
+			return Alignment_Fault;
 	}
 
-	if ((size - 1) & addr)
-	    return Alignment_Fault;
-    }
-    else {
-	if ((addr & (VMPageSize - 1)) + size > VMPageSize) {
-	    panic("Invalid request size!\n");
-	    return Machine_Check_Fault;
-	}
-
-	if ((sizeof(uint64_t) - 1) & addr)
-	    return Alignment_Fault;
-    }
-
-    return No_Fault;
+	return No_Fault;
 }
 
 Fault
 MainMemory::read(MemReqPtr &req, uint8_t *p)
 {
-    mem_block_test(req->paddr);
-    Fault fault = page_check(req->paddr, req->size);
+	mem_block_test(req->paddr);
+	Fault fault = page_check(req->paddr, req->size);
 
-    if (fault == No_Fault)
-	page_read(req->paddr, p, req->size);
+	if (fault == No_Fault)
+		page_read(req->paddr, p, req->size);
 
-    return fault;
+	return fault;
 }
 
 Fault
 MainMemory::write(MemReqPtr &req, const uint8_t *p)
 {
-    mem_block_test(req->paddr);
-    Fault fault = page_check(req->paddr, req->size);
+	mem_block_test(req->paddr);
+	Fault fault = page_check(req->paddr, req->size);
 
-    if (fault == No_Fault)
-	page_write(req->paddr, p, req->size);
+	if (fault == No_Fault)
+		page_write(req->paddr, p, req->size);
 
-    return fault;
+	return fault;
 }
 
 
@@ -331,27 +330,27 @@ MainMemory::write(MemReqPtr &req, const uint8_t *p)
 void
 MainMemory::trackLoadLocked(MemReqPtr &req)
 {
-    // set execution context's lock_addr and lock_flag.  Note that
-    // this is done in virtual_access.hh in full-system
-    // mode... eventually we should settle on a common spot for this
-    // to happen.
-    req->xc->regs.miscRegs.lock_addr = req->paddr;
-    req->xc->regs.miscRegs.lock_flag = true;
+	// set execution context's lock_addr and lock_flag.  Note that
+	// this is done in virtual_access.hh in full-system
+	// mode... eventually we should settle on a common spot for this
+	// to happen.
+	req->xc->regs.miscRegs.lock_addr = req->paddr;
+	req->xc->regs.miscRegs.lock_flag = true;
 
-    // first we check if we already have a locked addr for this
-    // xc.  Since each xc only gets one, we just update the
-    // existing record with the new address.
-    list<LockedAddr>::iterator i;
+	// first we check if we already have a locked addr for this
+	// xc.  Since each xc only gets one, we just update the
+	// existing record with the new address.
+	list<LockedAddr>::iterator i;
 
-    for (i = lockedAddrList.begin(); i != lockedAddrList.end(); ++i) {
-	if (i->matchesContext(req->xc)) {
-	    i->setAddr(req->paddr);
-	    return;
+	for (i = lockedAddrList.begin(); i != lockedAddrList.end(); ++i) {
+		if (i->matchesContext(req->xc)) {
+			i->setAddr(req->paddr);
+			return;
+		}
 	}
-    }
 
-    // no record for this xc: need to allocate a new one
-    lockedAddrList.push_front(LockedAddr(req->paddr, req->xc));
+	// no record for this xc: need to allocate a new one
+	lockedAddrList.push_front(LockedAddr(req->paddr, req->xc));
 }
 
 
@@ -362,87 +361,87 @@ MainMemory::trackLoadLocked(MemReqPtr &req)
 bool
 MainMemory::checkLockedAddrList(MemReqPtr &req)
 {
-    // Initialize return value.  Non-conditional stores always
-    // succeed.  Assume conditional stores will fail until proven
-    // otherwise.
-    bool success = !(req->flags & LOCKED);
+	// Initialize return value.  Non-conditional stores always
+	// succeed.  Assume conditional stores will fail until proven
+	// otherwise.
+	bool success = !(req->flags & LOCKED);
 
-    // Iterate over list.
-    list<LockedAddr>::iterator i = lockedAddrList.begin();
+	// Iterate over list.
+	list<LockedAddr>::iterator i = lockedAddrList.begin();
 
-    while (i != lockedAddrList.end()) {
+	while (i != lockedAddrList.end()) {
 
-	if (i->matchesAddr(req->paddr)) {
-	    // we have a matching address
+		if (i->matchesAddr(req->paddr)) {
+			// we have a matching address
 
-	    if ((req->flags & LOCKED) && i->matchesContext(req->xc)) {
-		// it's a store conditional, and as far as the memory
-		// system can tell, the requesting context's lock is
-		// still valid.  We still need to check the context's
-		// lock flag, since this can get cleared by non-memory
-		// events such as interrupts.  If it's still set, we
-		// declare the store conditional successful.
+			if ((req->flags & LOCKED) && i->matchesContext(req->xc)) {
+				// it's a store conditional, and as far as the memory
+				// system can tell, the requesting context's lock is
+				// still valid.  We still need to check the context's
+				// lock flag, since this can get cleared by non-memory
+				// events such as interrupts.  If it's still set, we
+				// declare the store conditional successful.
 
-		req->result = success = req->xc->regs.miscRegs.lock_flag;
+				req->result = success = req->xc->regs.miscRegs.lock_flag;
 
-		// Check for an execution context that has had lots of
-		// SC failures (with no intervening successes), and
-		// print a deadlock warning to the user.
-		if (success) {
-		    // success! clear the counter
-		    req->xc->storeCondFailures = 0;
+				// Check for an execution context that has had lots of
+				// SC failures (with no intervening successes), and
+				// print a deadlock warning to the user.
+				if (success) {
+					// success! clear the counter
+					req->xc->storeCondFailures = 0;
+				}
+				else {
+					if (++req->xc->storeCondFailures % 1000000 == 0) {
+						// unfortunately the xc has no back
+						// pointer to its CPU, so we just print out
+						// the xc pointer value to distinguish
+						// different contexts
+						cerr << "Warning: " << req->xc->storeCondFailures
+						<< " consecutive store conditional failures "
+						<< "on execution context " << req->xc
+						<< endl;
+					}
+				}
+			}
+
+			// The execution context's copy of the lock address should
+			// not be changed without the memory system finding out
+			// about it (via a load_locked),
+			ExecContext *lockingContext = i->getContext();
+
+			assert(i->matchesAddr(lockingContext->regs.miscRegs.lock_addr));
+
+			// Clear the lock flag.
+			lockingContext->regs.miscRegs.lock_flag = false;
+
+			// Get rid of our record of this lock and advance to next
+			i = lockedAddrList.erase(i);
 		}
 		else {
-		    if (++req->xc->storeCondFailures % 1000000 == 0) {
-			// unfortunately the xc has no back
-			// pointer to its CPU, so we just print out
-			// the xc pointer value to distinguish
-			// different contexts
-			cerr << "Warning: " << req->xc->storeCondFailures
-			     << " consecutive store conditional failures "
-			     << "on execution context " << req->xc
-			     << endl;
-		    }
+			// no match: advance to next record
+			++i;
 		}
-	    }
-
-	    // The execution context's copy of the lock address should
-	    // not be changed without the memory system finding out
-	    // about it (via a load_locked),
-	    ExecContext *lockingContext = i->getContext();
-
-	    assert(i->matchesAddr(lockingContext->regs.miscRegs.lock_addr));
-
-	    // Clear the lock flag.
-	    lockingContext->regs.miscRegs.lock_flag = false;
-
-	    // Get rid of our record of this lock and advance to next
-	    i = lockedAddrList.erase(i);
 	}
-	else {
-	    // no match: advance to next record
-	    ++i;
-	}
-    }
 
-    return success;
+	return success;
 }
 
 void MainMemory::regStats()
 {
-    using namespace Stats;
+	using namespace Stats;
 
-    page_count
+	page_count
 	.name(name() + ".page_count")
 	.desc("total number of pages allocated")
 	;
 
-    ptab_misses
+	ptab_misses
 	.name(name() + ".ptab_misses")
 	.desc("total first level page table misses")
 	;
 
-    ptab_accesses
+	ptab_accesses
 	.name(name() + ".ptab_accesses")
 	.desc("total page table accessess")
 	;
@@ -450,37 +449,138 @@ void MainMemory::regStats()
 
 void MainMemory::regFormulas()
 {
-    using namespace Stats;
+	using namespace Stats;
 
-    page_mem
+	page_mem
 	.name(name() + ".page_mem")
 	.desc("total size of memory pages allocated")
 	;
-    page_mem = page_count * VMPageSize / 1024;
+	page_mem = page_count * VMPageSize / 1024;
 
-    ptab_miss_rate
+	ptab_miss_rate
 	.name(name() + ".ptab_miss_rate")
 	.desc("first level page table miss rate")
 	.precision(4)
 	;
-    ptab_miss_rate = ptab_misses / ptab_accesses;
+	ptab_miss_rate = ptab_misses / ptab_accesses;
+}
+
+void
+MainMemory::serialize(std::ostream &os){
+
+	SERIALIZE_SCALAR(break_address);
+	SERIALIZE_SCALAR(break_thread);
+	SERIALIZE_SCALAR(break_size);
+
+	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+		if(ptab[i] != NULL){
+
+			int linkedListCnt = 0;
+			entry* pte = ptab[i];
+			while(pte != NULL){
+
+				assert(pte->page != NULL);
+				string tagName = generateID("tag", i, linkedListCnt);
+				SERIALIZE_SCALAR_NAME(tagName, pte->tag);
+
+				string pageName = generateID("page", i, linkedListCnt);
+				SERIALIZE_ARRAY_NAME(pageName, pte->page, VMPageSize);
+
+				pte = pte->next;
+				linkedListCnt++;
+			}
+		}
+	}
+}
+
+std::string
+MainMemory::generateID(const char* prefix, int index, int linkedListNum){
+	stringstream tmp;
+	tmp << prefix << "-" << index << "-" << linkedListNum;
+	return tmp.str();
+}
+
+void
+MainMemory::unserialize(Checkpoint *cp, const std::string &section){
+	UNSERIALIZE_SCALAR(break_address);
+	UNSERIALIZE_SCALAR(break_thread);
+	UNSERIALIZE_SCALAR(break_size);
+
+	// remove any previously allocated pages
+	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+		if(ptab[i] != NULL){
+
+			entry* pte = ptab[i];
+			while(pte != NULL){
+				entry* delPTE = pte;
+				pte = delPTE->next;
+				delete delPTE;
+			}
+
+			ptab[i] = NULL;
+		}
+	}
+
+	// fill workload memory from checkpoint
+	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+		assert(ptab[i] == NULL);
+
+ 		int linkedListCnt = 0;
+		string tagName = generateID("tag", i, linkedListCnt);
+		string dataName = generateID("page", i, linkedListCnt);
+
+		std::vector<entry*> tmpLinkedList;
+
+		string tmpTag;
+		while(cp->find(section, tagName, tmpTag)){
+			linkedListCnt++;
+
+			Addr tag = NULL;
+			uint8_t* page = new uint8_t[VMPageSize];
+			if (!page) fatal("MainMemory::newpage: out of virtual memory");
+			::memset(page, 0, VMPageSize);
+
+			UNSERIALIZE_SCALAR_NAME(tagName, tag);
+			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
+			assert(page != NULL);
+
+			entry* newEntry = new entry;
+			newEntry->tag = tag;
+			newEntry->page = page;
+			newEntry->next = NULL; // temporary initialization
+
+			tmpLinkedList.push_back(newEntry);
+
+			tagName = generateID("tag", i, linkedListCnt);
+			dataName = generateID("page", i, linkedListCnt);
+		}
+
+		if(!tmpLinkedList.empty()){
+
+			// populate next pointers and insert into hash table
+			for(int j=tmpLinkedList.size()-2; j>=0; j--){
+				tmpLinkedList[j]->next = tmpLinkedList[j+1];
+			}
+			ptab[i] = tmpLinkedList[0];
+		}
+	}
 }
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MainMemory)
 
-    Param<bool> do_data;
+Param<bool> do_data;
 
 END_DECLARE_SIM_OBJECT_PARAMS(MainMemory)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MainMemory)
 
-    INIT_PARAM_DFLT(do_data, "dummy param", false)
+INIT_PARAM_DFLT(do_data, "dummy param", false)
 
 END_INIT_SIM_OBJECT_PARAMS(MainMemory)
 
 CREATE_SIM_OBJECT(MainMemory)
 {
-    return new MainMemory(getInstanceName());
+	return new MainMemory(getInstanceName());
 }
 
 REGISTER_SIM_OBJECT("MainMemory", MainMemory)

@@ -132,23 +132,26 @@ Event::serialize(std::ostream &os)
 void
 Event::unserialize(Checkpoint *cp, const string &section)
 {
-    if (scheduled())
-	deschedule();
+	if (scheduled()) deschedule();
 
-    UNSERIALIZE_SCALAR(_when);
-    UNSERIALIZE_SCALAR(_priority);
+	UNSERIALIZE_SCALAR(_when);
+	UNSERIALIZE_SCALAR(_priority);
 
-    // need to see if original event was in a scheduled, unsquashed
-    // state, but don't want to restore those flags in the current
-    // object itself (since they aren't immediately true)
-    UNSERIALIZE_ENUM(_flags);
-    bool wasScheduled = (_flags & Scheduled) && !(_flags & Squashed);
-    _flags &= ~(Squashed | Scheduled);
+	// need to see if original event was in a scheduled, unsquashed
+	// state, but don't want to restore those flags in the current
+	// object itself (since they aren't immediately true)
+	UNSERIALIZE_ENUM(_flags);
+	bool wasScheduled = (_flags & Scheduled) && !(_flags & Squashed);
+	_flags &= ~(Squashed | Scheduled);
 
-    if (wasScheduled) {
-	DPRINTF(Config, "rescheduling at %d\n", _when);
-	schedule(_when);
-    }
+	if (wasScheduled) {
+		// Magnus: cannot start this event at its prevoiusly selected cycle
+		warn("Event was scheduled in checkpoint but is scheduled at curTick");
+		schedule(curTick);
+
+//		DPRINTF(Config, "rescheduling at %d\n", _when);
+//		schedule(_when);
+	}
 }
 
 void

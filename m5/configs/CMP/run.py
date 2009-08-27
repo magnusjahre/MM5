@@ -155,6 +155,12 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         if buscnt % banksPerBus == 0:
             curbus += 1
 
+def getCheckpointDirectory(simpoint = -1):
+    serializeBase = "cpt-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
+    if simpoint != -1:
+        return serializeBase+"-sp"+str(simpoint)
+    return serializeBase
+
 def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
     assert env["NP"] == 1
         
@@ -166,11 +172,7 @@ def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
     assert "BENCHMARK" in env
     root.simpleCPU[0].checkpoint_at_instruction = checkpointAt
     
-    serializeBase = "cpt-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
-    if simpoint != -1:
-        Serialize.dir = serializeBase+"-sp"+str(simpoint)
-    else:
-        Serialize.dir = serializeBase
+    Serialize.dir = getCheckpointDirectory(simpoint)
     
     return fwticks, simulateCycles
 
@@ -460,9 +462,9 @@ generateCheckpoint = False
 if "GENERATE-CHECKPOINT" in env:
     generateCheckpoint = True
 
-useCheckpoint = False
+useCheckpointPath = ""
 if "USE-CHECKPOINT" in env:
-    useCheckpoint = True
+    useCheckpointPath = env["USE-CHECKPOINT"]
 
 simInsts = -1
 if "SIMINSTS" in env:
@@ -496,15 +498,22 @@ else:
         assert simInsts != -1
         fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
     
-    elif useCheckpoint:
-        panic("Use checkpoint not implemented")
-    
     else:
-        assert "FASTFORWARDTICKS" in env
+        if useCheckpointPath != "":
+        
+#            fwticks = 1
+            fwticks = 1000000
+            if int(env["NP"]) == 1:
+                cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
+                root.checkpoint = cptdir
+            else:
+                panic("merging of checkpoints not implemented")
+    
+        else:
+            assert "FASTFORWARDTICKS" in env
+            fwticks = int(env["FASTFORWARDTICKS"])
+        
         assert ("SIMULATETICKS" in env or simInsts != -1)
-        
-        fwticks = int(env["FASTFORWARDTICKS"])
-        
         if simInsts == -1:
             simulateCycles = int(env["SIMULATETICKS"])
         else:
@@ -593,11 +602,14 @@ if env['BENCHMARK'].startswith("fair"):
                fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
 elif env['BENCHMARK'] in single_core.configuration:
     prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
+elif env['BENCHMARK'] == "hello":
+    prog = [TestPrograms.HelloWorld() for i in range(int(env["NP"]))]
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")
 
 if prog != []:
     for i in range(int(env['NP'])):
+        
         root.simpleCPU[i].workload = prog[i]
         root.detailedCPU[i].workload = prog[i]
 
