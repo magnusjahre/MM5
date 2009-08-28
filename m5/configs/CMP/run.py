@@ -501,8 +501,7 @@ else:
     else:
         if useCheckpointPath != "":
         
-#            fwticks = 1
-            fwticks = 1000000
+            fwticks = 1
             if int(env["NP"]) == 1:
                 cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
                 root.checkpoint = cptdir

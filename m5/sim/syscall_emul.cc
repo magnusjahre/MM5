@@ -120,7 +120,9 @@ obreakFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 SyscallReturn
 closeFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
-    int fd = p->sim_fd(xc->getSyscallArg(0));
+	int tgt_fd = xc->getSyscallArg(0);
+	int fd = p->sim_fd(tgt_fd);
+    p->close_fd(tgt_fd);
     return close(fd);
 }
 
@@ -134,8 +136,7 @@ readFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 
     int bytes_read = read(fd, bufArg.bufferPtr(), nbytes);
 
-    if (bytes_read != -1)
-	bufArg.copyOut(xc->mem);
+    if (bytes_read != -1) bufArg.copyOut(xc->mem);
 
     return bytes_read;
 }

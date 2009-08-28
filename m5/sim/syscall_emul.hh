@@ -326,8 +326,7 @@ ioctlFunc(SyscallDesc *desc, int callnum, Process *process,
 /// Target open() handler.
 template <class OS>
 SyscallReturn
-openFunc(SyscallDesc *desc, int callnum, Process *process,
-	 ExecContext *xc)
+openFunc(SyscallDesc *desc, int callnum, Process *process, ExecContext *xc)
 {
 	std::string path;
 
@@ -363,24 +362,28 @@ openFunc(SyscallDesc *desc, int callnum, Process *process,
 	DPRINTF(SyscallVerbose, "opening file %s\n", path.c_str());
 
 	// open the file
-	int fd = -1;
-	if(path.find("fort.11") != std::string::npos){
+//	int fd = -1;
+//	if(path.find("fort.11") != std::string::npos){
+//
+//		// HACK: This file needs to be on a local filesystem for performance
+//		assert((hostFlags & O_RDWR) != 0);
+//		assert((hostFlags & O_CREAT) != 0);
+//		hostFlags |= O_TRUNC;
+//
+//		std::stringstream name;
+//		name << "/tmp/fort.11." << getpid() << "." << time(NULL) << ".tmp";
+//
+//		fd = open(name.str().c_str() , hostFlags, mode);
+//	}
+//	else{
+//		fd = open(path.c_str(), hostFlags, mode);
+//	}
 
-		// HACK: This file needs to be on a local filesystem for performance
-		assert((hostFlags & O_RDWR) != 0);
-		assert((hostFlags & O_CREAT) != 0);
-		hostFlags |= O_TRUNC;
+	int fd = open(path.c_str(), hostFlags, mode);
 
-		std::stringstream name;
-		name << "/tmp/fort.11." << getpid() << "." << time(NULL) << ".tmp";
+	Process::FileParameters params = Process::FileParameters(path, hostFlags, mode);
 
-		fd = open(name.str().c_str() , hostFlags, mode);
-	}
-	else{
-		fd = open(path.c_str(), hostFlags, mode);
-	}
-
-	return (fd == -1) ? -errno : process->open_fd(fd);
+	return (fd == -1) ? -errno : process->open_fd(fd, params);
 }
 
 

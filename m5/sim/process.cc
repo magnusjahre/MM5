@@ -89,7 +89,7 @@ Process::Process(const string &nm,
 
     // mark remaining fds as free
     for (int i = 3; i <= MAX_FD; ++i) {
-	fd_map[i] = -1;
+    	fd_map[i] = -1;
     }
 
     mmap_start = mmap_end = 0;
@@ -194,23 +194,29 @@ Process::dup_fd(int sim_fd, int tgt_fd)
 
 // generate new target fd for sim_fd
 int
-Process::open_fd(int sim_fd)
+Process::open_fd(int sim_fd, FileParameters params)
 {
     int free_fd;
 
     // in case open() returns an error, don't allocate a new fd
-    if (sim_fd == -1)
-	return -1;
+    if (sim_fd == -1) return -1;
 
     // find first free target fd
     for (free_fd = 0; fd_map[free_fd] >= 0; ++free_fd) {
-	if (free_fd == MAX_FD)
-	    panic("Process::open_fd: out of file descriptors!");
+    	if (free_fd == MAX_FD) panic("Process::open_fd: out of file descriptors!");
     }
 
     fd_map[free_fd] = sim_fd;
 
+    assert(tgtFDFileParams.find(free_fd) == tgtFDFileParams.end());
+    tgtFDFileParams[free_fd] = params;
     return free_fd;
+}
+
+void
+Process::close_fd(int tgt_fd){
+	tgtFDFileParams.erase(tgt_fd);
+	assert(tgtFDFileParams.find(tgt_fd) == tgtFDFileParams.end());
 }
 
 
@@ -224,8 +230,17 @@ Process::sim_fd(int tgt_fd)
     return fd_map[tgt_fd];
 }
 
+std::string
+Process::generateFileStateName(const char* prefix, int tgt_fd){
+	stringstream tmp;
+	tmp << prefix << "_" << tgt_fd;
+	return tmp.str();
+}
+
 void
 Process::serialize(std::ostream &os){
+
+	// serialize members
 	SERIALIZE_SCALAR(text_base);
 	SERIALIZE_SCALAR(text_size);
 
@@ -245,10 +260,29 @@ Process::serialize(std::ostream &os){
 
 	SERIALIZE_SCALAR(nxm_start);
 	SERIALIZE_SCALAR(nxm_end);
+
+	// serialize open file state
+	map<int, FileParameters>::iterator it = tgtFDFileParams.begin();
+	for( ; it != tgtFDFileParams.end(); it++){
+
+		int tgtFD = it->first;
+		int thisSimFD = sim_fd(it->first);
+		off_t pos = lseek(thisSimFD, 0, SEEK_CUR);
+		FileParameters params = it->second;
+
+		SERIALIZE_SCALAR_NAME(generateFileStateName("pos", tgtFD), pos);
+		SERIALIZE_SCALAR_NAME(generateFileStateName("path", tgtFD), params.path);
+		SERIALIZE_SCALAR_NAME(generateFileStateName("host_flags", tgtFD), params.hostFlags);
+		SERIALIZE_SCALAR_NAME(generateFileStateName("mode", tgtFD), params.mode);
+	}
+
+	//NOTE: unserialization of MainMem is done automatically from SimObject
 }
 
 void
 Process::unserialize(Checkpoint *cp, const std::string &section){
+
+	// unserialize members
 	UNSERIALIZE_SCALAR(text_base);
 	UNSERIALIZE_SCALAR(text_size);
 
@@ -269,7 +303,38 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(nxm_start);
 	UNSERIALIZE_SCALAR(nxm_end);
 
+	// unserialize process memory
 	memory->unserialize(cp, section+".MainMem");
+
+	assert(fd_map[STDIN_FILENO] != -1);
+	assert(fd_map[STDOUT_FILENO] != -1);
+	assert(fd_map[STDERR_FILENO] != -1);
+
+	// unserialize open files
+	for(int i=3;i<MAX_FD+1;i++){
+		string pathName = generateFileStateName("path", i);
+		string path;
+
+		assert(fd_map[i] == -1);
+		if(cp->find(section, pathName, path)){
+
+			int pos = 0;
+			int hostFlags = 0;
+			int mode = 0;
+
+			UNSERIALIZE_SCALAR_NAME(generateFileStateName("pos",i), pos);
+			UNSERIALIZE_SCALAR_NAME(generateFileStateName("host_flags",i), hostFlags);
+			UNSERIALIZE_SCALAR_NAME(generateFileStateName("mode",i), mode);
+
+			int sim_fd = open(path.c_str(), hostFlags, mode);
+			assert(sim_fd > 0);
+
+			int newPos = lseek(sim_fd, pos, SEEK_SET);
+			assert(newPos == pos);
+
+			fd_map[i] = sim_fd;
+		}
+	}
 }
 
 //

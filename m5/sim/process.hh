@@ -111,6 +111,20 @@ class Process : public SimObject
 
     Stats::Scalar<> num_syscalls;	// number of syscalls executed
 
+    class FileParameters{
+    public:
+
+    	std::string path;
+    	int hostFlags;
+    	int mode;
+
+    	FileParameters()
+    	: hostFlags(0), mode(0) {}
+
+    	FileParameters(std::string _path, int _hostFlags, int _mode)
+    	: path(_path), hostFlags(_hostFlags), mode(_mode) {}
+
+    };
 
   protected:
     // constructor
@@ -129,6 +143,10 @@ class Process : public SimObject
     // file descriptor remapping support
     static const int MAX_FD = 100000;	// max legal fd value
     int fd_map[MAX_FD+1];
+
+    std::map<int, FileParameters> tgtFDFileParams;
+
+    std::string generateFileStateName(const char* prefix, int tgt_fd);
 
   public:
     // static helper functions to generate file descriptors for constructor
@@ -149,7 +167,9 @@ class Process : public SimObject
     void dup_fd(int sim_fd, int tgt_fd);
 
     // generate new target fd for sim_fd
-    int open_fd(int sim_fd);
+    int open_fd(int sim_fd, FileParameters params);
+
+    void close_fd(int tgt_fd);
 
     // look up simulator fd for given target fd
     int sim_fd(int tgt_fd);
