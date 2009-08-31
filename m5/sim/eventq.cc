@@ -141,17 +141,17 @@ Event::unserialize(Checkpoint *cp, const string &section)
 	// state, but don't want to restore those flags in the current
 	// object itself (since they aren't immediately true)
 	UNSERIALIZE_ENUM(_flags);
-	bool wasScheduled = (_flags & Scheduled) && !(_flags & Squashed);
-	_flags &= ~(Squashed | Scheduled);
+//	bool wasScheduled = (_flags & Scheduled) && !(_flags & Squashed);
+//	_flags &= ~(Squashed | Scheduled);
 
-	if (wasScheduled) {
-		// Magnus: cannot start this event at its prevoiusly selected cycle
-		warn("Event was scheduled in checkpoint but is scheduled at curTick");
-		schedule(curTick);
-
+//	if (wasScheduled) {
 //		DPRINTF(Config, "rescheduling at %d\n", _when);
 //		schedule(_when);
-	}
+//	}
+
+	// HACK: make sure all checkpointed events are serviced at the current tick
+	// This is needed to carry out all outstanding work before we enter detailed simulation
+	schedule(curTick);
 }
 
 void

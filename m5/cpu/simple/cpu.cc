@@ -157,7 +157,6 @@ cacheCompletionEvent(this)
 
 	bbv_num_inst=1;
 	if(interval_size != -1){
-		cout << "tracking with interval size " << interval_size << "\n";
 		init_bb_tracker(outdir, outfile, interval_size);
 		generateBBVs = true;
 	}
@@ -175,7 +174,6 @@ SimpleCPU::~SimpleCPU()
 void
 SimpleCPU::switchOut(Sampler *s)
 {
-
 	ofstream file(switchFileName.c_str(), ofstream::app);
 	file << name() << ": Switching out with " << numInst << " committed instructions @ " << curTick << "\n";
 	file.flush();
@@ -200,7 +198,6 @@ SimpleCPU::switchOut(Sampler *s)
 void
 SimpleCPU::takeOverFrom(BaseCPU *oldCPU)
 {
-
 	BaseCPU::takeOverFrom(oldCPU);
 
 	assert(!tickEvent.scheduled());
@@ -328,10 +325,10 @@ SimpleCPU::unserialize(Checkpoint *cp, const string &section)
 	BaseCPU::unserialize(cp, section);
 	UNSERIALIZE_ENUM(_status);
 	UNSERIALIZE_SCALAR(inst);
+
 	xc->unserialize(cp, csprintf("%s.xc", section));
 	tickEvent.unserialize(cp, csprintf("%s.tickEvent", section));
-	cacheCompletionEvent
-	.unserialize(cp, csprintf("%s.cacheCompletionEvent", section));
+	cacheCompletionEvent.unserialize(cp, csprintf("%s.cacheCompletionEvent", section));
 }
 
 void
@@ -781,8 +778,6 @@ SimpleCPU::tick()
 		numInst++;
 		numInsts++;
 
-
-
 		// check for instruction-count-based events
 		comInstEventQueue[0]->serviceEvents(numInst);
 
@@ -795,7 +790,7 @@ SimpleCPU::tick()
 
 		// SimPoint BBV generation
 		if(generateBBVs){
-			//cout << "tracking!, inst cnt " << numInst << "\n";
+
 			if (curStaticInst->isControl()
 					|| curStaticInst->isCall()
 					|| curStaticInst->isReturn()
@@ -803,8 +798,8 @@ SimpleCPU::tick()
 					|| curStaticInst->isIndirectCtrl()
 					|| curStaticInst->isCondCtrl()
 					|| curStaticInst->isUncondCtrl()){
-				/* instruction is control flow, hence it is the end
-	       of a basic block  */
+
+				/* instruction is control flow, hence it is the end of a basic block  */
 				bb_tracker(xc->regs.pc, bbv_num_inst);
 
 				// initialize number of instruction in basic block
