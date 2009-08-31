@@ -329,6 +329,11 @@ SimpleCPU::unserialize(Checkpoint *cp, const string &section)
 	xc->unserialize(cp, csprintf("%s.xc", section));
 	tickEvent.unserialize(cp, csprintf("%s.tickEvent", section));
 	cacheCompletionEvent.unserialize(cp, csprintf("%s.cacheCompletionEvent", section));
+
+	if(!tickEvent.scheduled() && !cacheCompletionEvent.scheduled()){
+		cacheCompletionEvent.schedule(curTick);
+	}
+
 }
 
 void

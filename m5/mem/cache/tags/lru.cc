@@ -59,38 +59,38 @@ CacheSet::findBlk(int asid, Addr tag) const
 LRUBlk*
 CacheSet::findBlk(int asid, Addr tag, int* hitIndex)
 {
-    for (int i = 0; i < assoc; ++i) {
-        if (blks[i]->tag == tag && blks[i]->isValid()) {
-            *hitIndex = i;
-            return blks[i];
-        }
-    }
-    return 0;
+	for (int i = 0; i < assoc; ++i) {
+		if (blks[i]->tag == tag && blks[i]->isValid()) {
+			*hitIndex = i;
+			return blks[i];
+		}
+	}
+	return 0;
 }
 
 
 void
 CacheSet::moveToHead(LRUBlk *blk)
 {
-    // nothing to do if blk is already head
-    if (blks[0] == blk)
-	return;
+	// nothing to do if blk is already head
+	if (blks[0] == blk)
+		return;
 
-    // write 'next' block into blks[i], moving up from MRU toward LRU
-    // until we overwrite the block we moved to head.
+	// write 'next' block into blks[i], moving up from MRU toward LRU
+	// until we overwrite the block we moved to head.
 
-    // start by setting up to write 'blk' into blks[0]
-    int i = 0;
-    LRUBlk *next = blk;
+	// start by setting up to write 'blk' into blks[0]
+	int i = 0;
+	LRUBlk *next = blk;
 
-    do {
-	assert(i < assoc);
-	// swap blks[i] and next
-	LRUBlk *tmp = blks[i];
-	blks[i] = next;
-	next = tmp;
-	++i;
-    } while (next != blk);
+	do {
+		assert(i < assoc);
+		// swap blks[i] and next
+		LRUBlk *tmp = blks[i];
+		blks[i] = next;
+		next = tmp;
+		++i;
+	} while (next != blk);
 }
 
 /* New address layout with banked caches (Magnus):
@@ -99,122 +99,122 @@ CacheSet::moveToHead(LRUBlk *blk)
 |----------------------------------------------------------------------|
 | Tag         | Set index        | Bank | Block offset | Byte offset   |
 |----------------------------------------------------------------------|
-*/
+ */
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
 LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor) :
-    numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
-{
+	numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
+	{
 
-    // the provided addresses are byte addresses, so the provided block address can be used directly
+	// the provided addresses are byte addresses, so the provided block address can be used directly
 
-    // Check parameters
-    if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
-	fatal("Block size must be at least 4 and a power of 2");
-    }
-    if (numSets <= 0 || ((numSets & (numSets - 1)) != 0)) {
-	fatal("# of sets must be non-zero and a power of 2");
-    }
-    if (assoc <= 0) {
-	fatal("associativity must be greater than zero");
-    }
-    if (hitLatency <= 0) {
-	fatal("access latency must be greater than zero");
-    }
-
-    LRUBlk  *blk;
-    int i, j, blkIndex;
-
-    blkMask = (blkSize) - 1;
-
-    if(numBanks != -1){
-        setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
-        bankShift = FloorLog2(blkSize);
-    }
-    else{
-        setShift = FloorLog2(blkSize);
-        bankShift = -1;
-    }
-    setMask = numSets - 1;
-    tagShift = setShift + FloorLog2(numSets);
-    warmedUp = false;
-    /** @todo Make warmup percentage a parameter. */
-    warmupBound = numSets * assoc;
-
-    sets = new CacheSet[numSets];
-    blks = new LRUBlk[numSets * assoc];
-    // allocate data storage in one big chunk
-    dataBlks = new uint8_t[numSets*assoc*blkSize];
-
-    blkIndex = 0;	// index into blks array
-    for (i = 0; i < numSets; ++i) {
-	sets[i].assoc = assoc;
-
-	sets[i].blks = new LRUBlk*[assoc];
-
-	// link in the data blocks
-	for (j = 0; j < assoc; ++j) {
-	    // locate next cache block
-	    blk = &blks[blkIndex];
-	    blk->data = &dataBlks[blkSize*blkIndex];
-	    ++blkIndex;
-
-	    // invalidate new cache block
-	    blk->status = 0;
-
-	    //EGH Fix Me : do we need to initialize blk?
-
-	    // Setting the tag to j is just to prevent long chains in the hash
-	    // table; won't matter because the block is invalid
-	    blk->tag = j;
-	    blk->whenReady = 0;
-	    blk->asid = -1;
-	    blk->isTouched = false;
-	    blk->size = blkSize;
-	    sets[i].blks[j]=blk;
-	    blk->set = i;
+	// Check parameters
+	if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
+		fatal("Block size must be at least 4 and a power of 2");
 	}
-    }
+	if (numSets <= 0 || ((numSets & (numSets - 1)) != 0)) {
+		fatal("# of sets must be non-zero and a power of 2");
+	}
+	if (assoc <= 0) {
+		fatal("associativity must be greater than zero");
+	}
+	if (hitLatency <= 0) {
+		fatal("access latency must be greater than zero");
+	}
 
-    if(isShadow){
-        perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
-    }
+	LRUBlk  *blk;
+	int i, j, blkIndex;
+
+	blkMask = (blkSize) - 1;
+
+	if(numBanks != -1){
+		setShift = FloorLog2(blkSize) + FloorLog2(numBanks);
+		bankShift = FloorLog2(blkSize);
+	}
+	else{
+		setShift = FloorLog2(blkSize);
+		bankShift = -1;
+	}
+	setMask = numSets - 1;
+	tagShift = setShift + FloorLog2(numSets);
+	warmedUp = false;
+	/** @todo Make warmup percentage a parameter. */
+	warmupBound = numSets * assoc;
+
+	sets = new CacheSet[numSets];
+	blks = new LRUBlk[numSets * assoc];
+	// allocate data storage in one big chunk
+	dataBlks = new uint8_t[numSets*assoc*blkSize];
+
+	blkIndex = 0;	// index into blks array
+	for (i = 0; i < numSets; ++i) {
+		sets[i].assoc = assoc;
+
+		sets[i].blks = new LRUBlk*[assoc];
+
+		// link in the data blocks
+		for (j = 0; j < assoc; ++j) {
+			// locate next cache block
+			blk = &blks[blkIndex];
+			blk->data = &dataBlks[blkSize*blkIndex];
+			++blkIndex;
+
+			// invalidate new cache block
+			blk->status = 0;
+
+			//EGH Fix Me : do we need to initialize blk?
+
+			// Setting the tag to j is just to prevent long chains in the hash
+			// table; won't matter because the block is invalid
+			blk->tag = j;
+			blk->whenReady = 0;
+			blk->asid = -1;
+			blk->isTouched = false;
+			blk->size = blkSize;
+			sets[i].blks[j]=blk;
+			blk->set = i;
+		}
+	}
+
+	if(isShadow){
+		perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
+	}
 
 
-    accesses = 0;
-    useMTPPartitioning = false;
-}
+	accesses = 0;
+	useMTPPartitioning = false;
+	}
 
 LRU::~LRU()
 {
-    delete [] dataBlks;
-    delete [] blks;
-    delete [] sets;
+	delete [] dataBlks;
+	delete [] blks;
+	delete [] sets;
 }
 
 void
 LRU::initializeCounters(int cpuCount){
-    if(!isShadow && numBanks > 0){ // only L2, real tags
-        perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
+	if(!isShadow && numBanks > 0){ // only L2, real tags
+		perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
 
-        if(cpuCount == 1 && divFactor < 1 && cache->useStaticPartInWarmup){
-            fatal("A division factor must be given for single CPU static partitioning");
-        }
-    }
+		if(cpuCount == 1 && divFactor < 1 && cache->useStaticPartInWarmup){
+			fatal("A division factor must be given for single CPU static partitioning");
+		}
+	}
 }
 
 // probe cache for presence of given block.
 bool
 LRU::probe(int asid, Addr addr) const
 {
-    //  return(findBlock(Read, addr, asid) != 0);
-    Addr tag = extractTag(addr);
-    unsigned myset = extractSet(addr);
+	//  return(findBlock(Read, addr, asid) != 0);
+	Addr tag = extractTag(addr);
+	unsigned myset = extractSet(addr);
 
-    LRUBlk *blk = sets[myset].findBlk(asid, tag);
+	LRUBlk *blk = sets[myset].findBlk(asid, tag);
 
-    return (blk != NULL);	// true if in cache
+	return (blk != NULL);	// true if in cache
 }
 
 LRUBlk*
@@ -299,63 +299,63 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 void
 LRU::updateSetHitStats(MemReqPtr& req){
 
-    assert(!isShadow); // only real tags
-    assert(numBanks > 0); // only L2 cache
-    if(curTick < cache->detailedSimulationStartTick) return;
+	assert(!isShadow); // only real tags
+	assert(numBanks > 0); // only L2 cache
+	if(curTick < cache->detailedSimulationStartTick) return;
 
-    int hitIndex = -1;
-    Addr tag = extractTag(req->paddr);
-    unsigned set = extractSet(req->paddr);
-    LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
-    if(tmpBlk == NULL) return; // cache miss, no hit statistics :-)
+	int hitIndex = -1;
+	Addr tag = extractTag(req->paddr);
+	unsigned set = extractSet(req->paddr);
+	LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
+	if(tmpBlk == NULL) return; // cache miss, no hit statistics :-)
 
-    // A few sanity checks :-)
-    assert(tmpBlk != NULL);
-    assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
-    assert(tmpBlk->origRequestingCpuID < cache->cpuCount);
-    assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
-    assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
-    assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
+	// A few sanity checks :-)
+	assert(tmpBlk != NULL);
+	assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
+	assert(tmpBlk->origRequestingCpuID < cache->cpuCount);
+	assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
+	assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
+	assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
 
-    perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
+	perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
 }
 
 void
 LRU::dumpHitStats(){
-    stringstream name;
-    name << cache->name() << "HitStats.txt";
-    ofstream outfile(name.str().c_str());
+	stringstream name;
+	name << cache->name() << "HitStats.txt";
+	ofstream outfile(name.str().c_str());
 
-    outfile << "Dumping hit statistics for " << cache->name() << " at tick " << curTick << "\n\n";
+	outfile << "Dumping hit statistics for " << cache->name() << " at tick " << curTick << "\n\n";
 
-    for(int i=0;i<perCPUperSetHitCounters.size();i++){
-        outfile << "CPU " << i << " hit statistics\n";
-        for(int j=0;j<perCPUperSetHitCounters[0].size();j++){
-            outfile << "Set " << setw(4) << right << j << setw(5) << left << ":";
-            for(int k=0;k<perCPUperSetHitCounters[0][0].size();k++){
-                outfile << setw(10) << left << perCPUperSetHitCounters[i][j][k];
-            }
-            outfile << "\n";
-        }
-        outfile << "\n";
-    }
+	for(int i=0;i<perCPUperSetHitCounters.size();i++){
+		outfile << "CPU " << i << " hit statistics\n";
+		for(int j=0;j<perCPUperSetHitCounters[0].size();j++){
+			outfile << "Set " << setw(4) << right << j << setw(5) << left << ":";
+			for(int k=0;k<perCPUperSetHitCounters[0][0].size();k++){
+				outfile << setw(10) << left << perCPUperSetHitCounters[i][j][k];
+			}
+			outfile << "\n";
+		}
+		outfile << "\n";
+	}
 
-    outfile.flush();
-    outfile.close();
+	outfile.flush();
+	outfile.close();
 }
 
 LRUBlk*
 LRU::findBlock(Addr addr, int asid) const
 {
-    Addr tag = extractTag(addr);
-    unsigned set = extractSet(addr);
-    LRUBlk *blk = sets[set].findBlk(asid, tag);
-    return blk;
+	Addr tag = extractTag(addr);
+	unsigned set = extractSet(addr);
+	LRUBlk *blk = sets[set].findBlk(asid, tag);
+	return blk;
 }
 
 LRUBlk*
 LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
-		     BlkList &compress_blocks)
+		BlkList &compress_blocks)
 {
 	unsigned set = extractSet(req->paddr);
 
@@ -463,251 +463,279 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 void
 LRU::invalidateBlk(int asid, Addr addr)
 {
-    LRUBlk *blk = findBlock(addr, asid);
-    if (blk) {
-	blk->status = 0;
-	blk->isTouched = false;
-	tagsInUse--;
-    }
+	LRUBlk *blk = findBlock(addr, asid);
+	if (blk) {
+		blk->status = 0;
+		blk->isTouched = false;
+		tagsInUse--;
+	}
 }
 
 void
 LRU::doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks)
 {
-    assert(source == blkAlign(source));
-    assert(dest == blkAlign(dest));
-    LRUBlk *source_blk = findBlock(source, asid);
-    assert(source_blk);
-    LRUBlk *dest_blk = findBlock(dest, asid);
-    if (dest_blk == NULL) {
-	// Need to do a replacement
-	MemReqPtr req = new MemReq();
-	req->paddr = dest;
-	BlkList dummy_list;
-	dest_blk = findReplacement(req, writebacks, dummy_list);
-	if (dest_blk->isValid() && dest_blk->isModified()) {
-	    // Need to writeback data.
-	    req = buildWritebackReq(regenerateBlkAddr(dest_blk->tag,
-						      dest_blk->set),
-				    dest_blk->asid,
-				    dest_blk->xc,
-				    blkSize,
-				    (cache->doData())?dest_blk->data:0,
-				    dest_blk->size);
-	    writebacks.push_back(req);
+	assert(source == blkAlign(source));
+	assert(dest == blkAlign(dest));
+	LRUBlk *source_blk = findBlock(source, asid);
+	assert(source_blk);
+	LRUBlk *dest_blk = findBlock(dest, asid);
+	if (dest_blk == NULL) {
+		// Need to do a replacement
+		MemReqPtr req = new MemReq();
+		req->paddr = dest;
+		BlkList dummy_list;
+		dest_blk = findReplacement(req, writebacks, dummy_list);
+		if (dest_blk->isValid() && dest_blk->isModified()) {
+			// Need to writeback data.
+			req = buildWritebackReq(regenerateBlkAddr(dest_blk->tag,
+					dest_blk->set),
+					dest_blk->asid,
+					dest_blk->xc,
+					blkSize,
+					(cache->doData())?dest_blk->data:0,
+							dest_blk->size);
+			writebacks.push_back(req);
+		}
+		dest_blk->tag = extractTag(dest);
+		dest_blk->asid = asid;
+		/**
+		 * @todo Do we need to pass in the execution context, or can we
+		 * assume its the same?
+		 */
+		assert(source_blk->xc);
+		dest_blk->xc = source_blk->xc;
 	}
-	dest_blk->tag = extractTag(dest);
-	dest_blk->asid = asid;
 	/**
-	 * @todo Do we need to pass in the execution context, or can we
-	 * assume its the same?
+	 * @todo Can't assume the status once we have coherence on copies.
 	 */
-	assert(source_blk->xc);
-	dest_blk->xc = source_blk->xc;
-    }
-    /**
-     * @todo Can't assume the status once we have coherence on copies.
-     */
 
-    // Set this block as readable, writeable, and dirty.
-    dest_blk->status = 7;
-    if (cache->doData()) {
-	memcpy(dest_blk->data, source_blk->data, blkSize);
-    }
+	// Set this block as readable, writeable, and dirty.
+	dest_blk->status = 7;
+	if (cache->doData()) {
+		memcpy(dest_blk->data, source_blk->data, blkSize);
+	}
 }
 
 void
 LRU::cleanupRefs()
 {
-    for (int i = 0; i < numSets*assoc; ++i) {
-	if (blks[i].isValid()) {
-	    totalRefs += blks[i].refCount;
-	    ++sampledRefs;
+	for (int i = 0; i < numSets*assoc; ++i) {
+		if (blks[i].isValid()) {
+			totalRefs += blks[i].refCount;
+			++sampledRefs;
+		}
 	}
-    }
 }
 
 
 std::vector<int>
 LRU::perCoreOccupancy(){
-    vector<int> ret(cache->cpuCount, 0);
-    int notTouched = 0;
+	vector<int> ret(cache->cpuCount, 0);
+	int notTouched = 0;
 
-    for(int i=0;i<numSets;i++){
-        for(int j=0;j<assoc;j++){
-            LRUBlk* blk = sets[i].blks[j];
-            assert(blk->origRequestingCpuID < cache->cpuCount);
-            if(blk->origRequestingCpuID != -1
-               && blk->isTouched){
-                ret[blk->origRequestingCpuID]++;
-            }
-            else{
-                notTouched++;
-            }
-        }
-    }
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<assoc;j++){
+			LRUBlk* blk = sets[i].blks[j];
+			assert(blk->origRequestingCpuID < cache->cpuCount);
+			if(blk->origRequestingCpuID != -1
+					&& blk->isTouched){
+				ret[blk->origRequestingCpuID]++;
+			}
+			else{
+				notTouched++;
+			}
+		}
+	}
 
-    ret.push_back(notTouched);
-    ret.push_back(numSets * assoc);
+	ret.push_back(notTouched);
+	ret.push_back(numSets * assoc);
 
-    int sum = 0;
-    for(int i=0;i<cache->cpuCount+1;i++) sum += ret[i];
-    assert(sum == numSets * assoc);
+	int sum = 0;
+	for(int i=0;i<cache->cpuCount+1;i++) sum += ret[i];
+	assert(sum == numSets * assoc);
 
-    return ret;
+	return ret;
 }
 
 void
 LRU::handleSwitchEvent(){
-    assert(cache->useUniformPartitioning);
-    assert(!isShadow);
+	assert(cache->useUniformPartitioning);
+	assert(!isShadow);
 
-    for(int i=0;i<numSets;i++){
-        for(int j=0;j<cache->cpuCount;j++){
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<cache->cpuCount;j++){
 
-            int cnt = 0;
-            for(int k=0;k<assoc;k++){
-                LRUBlk* blk = sets[i].blks[k];
-                if(blk->origRequestingCpuID == j) cnt++;
-            }
+			int cnt = 0;
+			for(int k=0;k<assoc;k++){
+				LRUBlk* blk = sets[i].blks[k];
+				if(blk->origRequestingCpuID == j) cnt++;
+			}
 
-            int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-            assert(maxBlks >= 1);
+			int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+			assert(maxBlks >= 1);
 
-            if(cnt > maxBlks){
-                int invalidated = 0;
-                int removeCnt = cnt - maxBlks;
-                for(int k=assoc-1;k>=0;k--){
-                    LRUBlk* blk = sets[i].blks[k];
-                    if(blk->origRequestingCpuID == j){
-                        // invalidating the block
-                        blk->status = 0;
-                        blk->isTouched = false;
-                        blk->origRequestingCpuID = -1;
-                        tagsInUse--;
-                        invalidated++;
-                    }
-                    if(invalidated == removeCnt) break;
-                }
-            }
-        }
+			if(cnt > maxBlks){
+				int invalidated = 0;
+				int removeCnt = cnt - maxBlks;
+				for(int k=assoc-1;k>=0;k--){
+					LRUBlk* blk = sets[i].blks[k];
+					if(blk->origRequestingCpuID == j){
+						// invalidating the block
+						blk->status = 0;
+						blk->isTouched = false;
+						blk->origRequestingCpuID = -1;
+						tagsInUse--;
+						invalidated++;
+					}
+					if(invalidated == removeCnt) break;
+				}
+			}
+		}
 
-        // put all invalid blocks in LRU position
-        int invalidIndex = 0;
-        int passedCnt = 0;
-        for(int k=0;k<assoc;k++){
-            LRUBlk* blk = sets[i].blks[k];
-            if(!blk->isValid()){
-                invalidIndex = k;
-                break;
-            }
-        }
+		// put all invalid blocks in LRU position
+		int invalidIndex = 0;
+		int passedCnt = 0;
+		for(int k=0;k<assoc;k++){
+			LRUBlk* blk = sets[i].blks[k];
+			if(!blk->isValid()){
+				invalidIndex = k;
+				break;
+			}
+		}
 
-        for(int k=invalidIndex+1;k<assoc;k++){
-            LRUBlk* blk = sets[i].blks[k];
-            if(blk->isValid()){
-                // swap invalid with valid block
-                LRUBlk* tmp = sets[i].blks[invalidIndex];
-                sets[i].blks[invalidIndex] = blk;
-                sets[i].blks[k] = tmp;
-                invalidIndex = k - passedCnt;
-            }
-            else{
-                passedCnt++;
-            }
-        }
+		for(int k=invalidIndex+1;k<assoc;k++){
+			LRUBlk* blk = sets[i].blks[k];
+			if(blk->isValid()){
+				// swap invalid with valid block
+				LRUBlk* tmp = sets[i].blks[invalidIndex];
+				sets[i].blks[invalidIndex] = blk;
+				sets[i].blks[k] = tmp;
+				invalidIndex = k - passedCnt;
+			}
+			else{
+				passedCnt++;
+			}
+		}
 
-        // verify that all invalid blocks are at the most LRU positions
-        LRUBlk* prevBlk = sets[i].blks[0];
-        for(int k=1;k<assoc;k++){
+		// verify that all invalid blocks are at the most LRU positions
+		LRUBlk* prevBlk = sets[i].blks[0];
+		for(int k=1;k<assoc;k++){
 
-            LRUBlk* blk = sets[i].blks[k];
-            if(!prevBlk->isValid()) assert(!blk->isValid());
-            prevBlk = blk;
-        }
-    }
+			LRUBlk* blk = sets[i].blks[k];
+			if(!prevBlk->isValid()) assert(!blk->isValid());
+			prevBlk = blk;
+		}
+	}
 }
 
 void
 LRU::resetHitCounters(){
-    accesses = 0;
-    for(int i=0;i<numSets;i++){
-        for(int j=0;j<assoc;j++){
-            perSetHitCounters[i][j] = 0;
-        }
-    }
+	accesses = 0;
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<assoc;j++){
+			perSetHitCounters[i][j] = 0;
+		}
+	}
 }
 void
 LRU::dumpHitCounters(){
-    assert(isShadow);
-    cout << "Hit counters for cache " << cache->name() << " @ " << curTick << "\n";
-    for(int i=0;i<numSets;i++){
-        cout << "Set " << i << ":";
-        for(int j=0;j<assoc;j++){
-            cout << " (" << j << ", " << perSetHitCounters[i][j] << ")";
-        }
-        cout << "\n";
-    }
+	assert(isShadow);
+	cout << "Hit counters for cache " << cache->name() << " @ " << curTick << "\n";
+	for(int i=0;i<numSets;i++){
+		cout << "Set " << i << ":";
+		for(int j=0;j<assoc;j++){
+			cout << " (" << j << ", " << perSetHitCounters[i][j] << ")";
+		}
+		cout << "\n";
+	}
 }
 
 std::vector<double>
 LRU::getMissRates(){
 
-    assert(isShadow);
+	assert(isShadow);
 
-    vector<int> hits(assoc, 0);
-    for(int i=0;i<numSets;i++){
-        for(int j=0;j<assoc;j++){
-            hits[j] += perSetHitCounters[i][j];
-        }
-    }
+	vector<int> hits(assoc, 0);
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<assoc;j++){
+			hits[j] += perSetHitCounters[i][j];
+		}
+	}
 
-    // transform to cumulative representation
-    for(int i=1;i<hits.size();i++){
-        hits[i] = hits[i] + hits[i-1];
-    }
+	// transform to cumulative representation
+	for(int i=1;i<hits.size();i++){
+		hits[i] = hits[i] + hits[i-1];
+	}
 
-    // compute miss rates
-    vector<double> missrates(assoc, 0);
-    assert(missrates.size() == hits.size());
-    for(int i=0;i<missrates.size();i++){
-        missrates[i] = (double) (((double) accesses - (double) hits[i]) / (double) accesses);
-    }
+	// compute miss rates
+	vector<double> missrates(assoc, 0);
+	assert(missrates.size() == hits.size());
+	for(int i=0;i<missrates.size();i++){
+		missrates[i] = (double) (((double) accesses - (double) hits[i]) / (double) accesses);
+	}
 
-    return missrates;
+	return missrates;
 }
 
 double
 LRU::getTouchedRatio(){
 
-    int warmcnt = 0;
-    int totalcnt = 0;
+	int warmcnt = 0;
+	int totalcnt = 0;
 
-    for(int i=0;i<numSets;i++){
-        for(int j=0;j<assoc;j++){
-            if(sets[i].blks[j]->isTouched) warmcnt++;
-            totalcnt++;
-        }
-    }
-    assert(totalcnt == numSets*assoc);
-    return (double) ((double) warmcnt / (double) totalcnt);
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<assoc;j++){
+			if(sets[i].blks[j]->isTouched) warmcnt++;
+			totalcnt++;
+		}
+	}
+	assert(totalcnt == numSets*assoc);
+	return (double) ((double) warmcnt / (double) totalcnt);
 }
 
 void
 LRU::setMTPPartition(std::vector<int> setQuotas){
 
-    int setcnt = 0;
-    for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
+	int setcnt = 0;
+	for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
 
-    DPRINTF(MTP, "Enforcing set quotas:");
-    for(int i=0;i<setQuotas.size();i++){
-        DPRINTFR(MTP, " %d:%d", i, setQuotas[i]);
-    }
-    DPRINTFR(MTP, "\n");
+	DPRINTF(MTP, "Enforcing set quotas:");
+	for(int i=0;i<setQuotas.size();i++){
+		DPRINTFR(MTP, " %d:%d", i, setQuotas[i]);
+	}
+	DPRINTFR(MTP, "\n");
 
-    assert(setcnt == assoc);
+	assert(setcnt == assoc);
 
-    useMTPPartitioning = true;
-    assert(setQuotas.size() == cache->cpuCount);
-    currentMTPPartition = setQuotas;
+	useMTPPartitioning = true;
+	assert(setQuotas.size() == cache->cpuCount);
+	currentMTPPartition = setQuotas;
+}
+
+string
+LRU::generateIniName(string cachename, int set, int pos){
+	stringstream tmp;
+	tmp << cachename << ".blk_" << set << "_" << pos;
+	return tmp.str();
+}
+
+void
+LRU::serialize(std::ostream &os){
+
+	for(int i=0;i<numSets;i++){
+		for(int j=0;j<assoc;j++){
+			Serializable::staticNameOut(os, generateIniName(cache->name(), i, j));
+			sets[i].blks[j]->serialize(os);
+		}
+	}
+}
+
+void
+LRU::unserialize(Checkpoint *cp, const std::string &section){
+
+	for(int i=0;i<numSets;i++){
+			for(int j=0;j<assoc;j++){
+				sets[i].blks[j]->unserialize(cp, generateIniName(section, i , j));
+			}
+	}
 }

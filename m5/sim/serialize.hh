@@ -136,6 +136,8 @@ class Serializable
     static int maxCount;
     static void serializeAll();
     static void unserializeGlobals(Checkpoint *cp);
+
+    static void staticNameOut(std::ostream &os, const std::string &_name);
 };
 
 //

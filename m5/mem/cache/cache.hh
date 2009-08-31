@@ -401,6 +401,9 @@ class Cache : public BaseCache
         tags->dumpHitStats();
     }
 
+    virtual void serialize(std::ostream &os);
+    virtual void unserialize(Checkpoint *cp, const std::string &section);
+
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
     virtual void addPendingRequest(Addr address, MemReqPtr& req);

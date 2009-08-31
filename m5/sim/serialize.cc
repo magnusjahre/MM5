@@ -69,6 +69,12 @@ Serializable::nameOut(ostream &os, const string &_name)
     os << "\n[" << _name << "]\n";
 }
 
+void
+Serializable::staticNameOut(ostream &os, const string &_name)
+{
+    os << "\n[" << _name << "]\n";
+}
+
 template <class T>
 void
 paramOut(ostream &os, const std::string &name, const T &param)

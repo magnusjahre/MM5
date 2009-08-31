@@ -55,18 +55,18 @@ class BaseTags
     BaseCache *cache;
 
     int bankID;
-    
+
     /** Local copy of the parent cache name. Used for DPRINTF. */
     std::string objName;
 
-    /** 
-     * The number of tags that need to be touched to meet the warmup 
+    /**
+     * The number of tags that need to be touched to meet the warmup
      * percentage.
      */
     int warmupBound;
     /** Marked true when the cache is warmed up. */
     bool warmedUp;
- 
+
     // Statistics
     /**
      * @addtogroup CacheStatistics
@@ -80,20 +80,20 @@ class BaseTags
 
     /** The total number of references to a block before it is replaced. */
     Stats::Scalar<> totalRefs;
-    
+
     /**
-     * The number of reference counts sampled. This is different from 
+     * The number of reference counts sampled. This is different from
      * replacements because we sample all the valid blocks when the simulator
      * exits.
      */
     Stats::Scalar<> sampledRefs;
-    
+
     /**
      * Average number of references to a block before is was replaced.
      * @todo This should change to an average stat once we have them.
      */
     Stats::Formula avgRefs;
-    
+
     /** The cycle that the warmup percentage was hit. */
     Stats::Scalar<> warmupCycle;
     /**
@@ -130,39 +130,47 @@ class BaseTags
     void regStats(const std::string &name);
 
     /**
-     * Average in the reference count for valid blocks when the simulation 
+     * Average in the reference count for valid blocks when the simulation
      * exits.
      */
     virtual void cleanupRefs() {}
-    
+
     virtual std::vector<int> perCoreOccupancy() {
         std::vector<int> tmp;
-        return tmp; 
+        return tmp;
     }
-    
+
     virtual int getNumSets(){
         return 0;
     }
-    
+
     virtual int getAssoc(){
         return 0;
     }
-        
-    
+
+
     virtual void handleSwitchEvent(){
     }
-    
+
     virtual void setMTPPartition(std::vector<int> setQuotas){
     }
-    
+
     virtual void updateSetHitStats(MemReqPtr& req){
     }
-    
+
     virtual void dumpHitStats(){
     }
-    
+
     virtual void initializeCounters(int cpuCount){
-        
+
+    }
+
+    virtual void serialize(std::ostream &os){
+
+    }
+
+    virtual void unserialize(Checkpoint *cp, const std::string &section){
+
     }
 };
 
@@ -178,14 +186,14 @@ class BaseTagsSwitchEvent : public Event
 {
 
     public:
-        
+
         BaseTags* bt;
-        
+
         BaseTagsSwitchEvent(BaseTags* _bt)
             : Event(&mainEventQueue, CPU_Switch_Pri), bt(_bt)
         {
         }
-        
+
         void process(){
             bt->handleSwitchEvent();
             delete this;

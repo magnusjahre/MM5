@@ -54,7 +54,7 @@ class BasePrefetcher;
 template <class Tags, class Compression>
 class CacheTags
 {
-    
+
   public:
     /** A typedef for the block type to use. */
     typedef typename Tags::BlkType BlkType;
@@ -142,7 +142,7 @@ class CacheTags
      * @param writebacks A list to store any generated writebacks.
      */
     BlkType* doReplacement(BlkType *blk,
-                           MemReqPtr &req, 
+                           MemReqPtr &req,
                            CacheBlk::State new_state,
                            MemReqList &writebacks);
 
@@ -194,7 +194,7 @@ class CacheTags
     {
 	return ct->findBlock(addr, asid);
     }
-    
+
     /**
      * Finds the cache block for the given request.
      * @param req The request.
@@ -230,7 +230,7 @@ class CacheTags
      * @return Pointer to the cache block touched by the request. NULL if it
      * was a miss.
      */
-    BlkType* handleAccess(MemReqPtr &req, int & lat, 
+    BlkType* handleAccess(MemReqPtr &req, int & lat,
 			   MemReqList & writebacks, bool update = true);
 
     /**
@@ -251,7 +251,7 @@ class CacheTags
 
     /**
      * Populates a cache block and handles all outstanding requests for the
-     * satisfied fill request. This version takes two memory requests. One 
+     * satisfied fill request. This version takes two memory requests. One
      * contains the fill data, the other is an optional target to satisfy.
      * Used for Cache::probe.
      * @param blk The cache block if it already exists.
@@ -261,12 +261,12 @@ class CacheTags
      * @param target The memory request to perform after the fill.
      * @return Pointer to the new cache block.
      */
-    BlkType* handleFill(BlkType *blk, MemReqPtr &req, 
+    BlkType* handleFill(BlkType *blk, MemReqPtr &req,
 			CacheBlk::State new_state,
 			MemReqList & writebacks, MemReqPtr target = NULL);
 
     /**
-     * Populates a cache block and instantly handles all outstanding requests 
+     * Populates a cache block and instantly handles all outstanding requests
      * for the satisfied fill request. This version takes an MSHR pointer and
      * uses its request to fill the cache block, while repsonding to its
      * targets.
@@ -293,9 +293,9 @@ class CacheTags
      * @param new_state The new coherence state for the block.
      * @param req The request to satisfy
      */
-    void handleSnoop(BlkType *blk, CacheBlk::State new_state, 
+    void handleSnoop(BlkType *blk, CacheBlk::State new_state,
 		     MemReqPtr &req);
-    
+
     /**
      * Sets the blk to the new state.
      * @param blk The cache block being snooped.
@@ -314,7 +314,7 @@ class CacheTags
     {
 	ct->doCopy(source, dest, asid, writebacks);
     }
-    
+
     /**
      * Perform a cache block copy when at least one address is not aligned.
      * @param source The source address.
@@ -331,28 +331,37 @@ class CacheTags
      * @return The writeback request for the block.
      */
     MemReqPtr writebackBlk(BlkType *blk);
-    
+
     std::vector<int> perCoreOccupancy();
-    
+
     int getNumSets(){
         return ct->getNumSets();
     }
-    
+
     int getAssoc(){
         return ct->getAssoc();
     }
-    
+
     void setMTPPartition(std::vector<int> setQuotas){
         ct->setMTPPartition(setQuotas);
     }
-    
+
     void updateSetHitStats(MemReqPtr& req){
         ct->updateSetHitStats(req);
     }
-    
+
     void dumpHitStats(){
         ct->dumpHitStats();
     }
+
+    void serialize(std::ostream &os){
+    	ct->serialize(os);
+    }
+
+    void unserialize(Checkpoint *cp, const std::string &section){
+    	ct->unserialize(cp, section);
+    }
+
 };
 
 

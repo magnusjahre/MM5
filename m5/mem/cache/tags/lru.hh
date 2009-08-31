@@ -50,9 +50,9 @@ class BaseCache;
  * LRU cache block.
  */
 class LRUBlk : public CacheBlk {
-  public:
-    /** Has this block been touched? Used to aid calculation of warmup time. */
-    bool isTouched;
+public:
+	/** Has this block been touched? Used to aid calculation of warmup time. */
+	bool isTouched;
 };
 
 /**
@@ -60,28 +60,28 @@ class LRUBlk : public CacheBlk {
  */
 class CacheSet
 {
-  public:
-    /** The associativity of this set. */
-    int assoc;
+public:
+	/** The associativity of this set. */
+	int assoc;
 
-    /** Cache blocks in this set, maintained in LRU order 0 = MRU. */
-    LRUBlk **blks;
+	/** Cache blocks in this set, maintained in LRU order 0 = MRU. */
+	LRUBlk **blks;
 
-    /**
-     * Find a block matching the tag in this set.
-     * @param asid The address space ID.
-     * @param tag The Tag to find.
-     * @return Pointer to the block if found.
-     */
-    LRUBlk* findBlk(int asid, Addr tag) const;
+	/**
+	 * Find a block matching the tag in this set.
+	 * @param asid The address space ID.
+	 * @param tag The Tag to find.
+	 * @return Pointer to the block if found.
+	 */
+	LRUBlk* findBlk(int asid, Addr tag) const;
 
-    LRUBlk* findBlk(int asid, Addr tag, int* hitIndex);
+	LRUBlk* findBlk(int asid, Addr tag, int* hitIndex);
 
-    /**
-     * Move the given block to the head of the list.
-     * @param blk The block to move.
-     */
-    void moveToHead(LRUBlk *blk);
+	/**
+	 * Move the given block to the head of the list.
+	 * @param blk The block to move.
+	 */
+	void moveToHead(LRUBlk *blk);
 };
 
 /**
@@ -89,288 +89,293 @@ class CacheSet
  */
 class LRU : public BaseTags
 {
-  public:
-    /** Typedef the block type used in this tag store. */
-    typedef LRUBlk BlkType;
-    /** Typedef for a list of pointers to the local block class. */
-    typedef std::list<LRUBlk*> BlkList;
-  protected:
-    /** The number of sets in the cache. */
-    const int numSets;
-    /** The number of bytes in a block. */
-    const int blkSize;
-    /** The associativity of the cache. */
-    const int assoc;
-    /** The hit latency. */
-    const int hitLatency;
+public:
+	/** Typedef the block type used in this tag store. */
+	typedef LRUBlk BlkType;
+	/** Typedef for a list of pointers to the local block class. */
+	typedef std::list<LRUBlk*> BlkList;
+protected:
+	/** The number of sets in the cache. */
+	const int numSets;
+	/** The number of bytes in a block. */
+	const int blkSize;
+	/** The associativity of the cache. */
+	const int assoc;
+	/** The hit latency. */
+	const int hitLatency;
 
-    const int numBanks;
+	const int numBanks;
 
-    const bool isShadow;
+	const bool isShadow;
 
-    /** The cache sets. */
-    CacheSet *sets;
+	/** The cache sets. */
+	CacheSet *sets;
 
-    /** The cache blocks. */
-    LRUBlk *blks;
-    /** The data blocks, 1 per cache block. */
-    uint8_t *dataBlks;
+	/** The cache blocks. */
+	LRUBlk *blks;
+	/** The data blocks, 1 per cache block. */
+	uint8_t *dataBlks;
 
-    /** The amount to shift the address to get the set. */
-    int setShift;
-    /** The amount to shift the address to get the tag. */
-    int tagShift;
-    /** Mask out all bits that aren't part of the set index. */
-    unsigned setMask;
-    /** Mask out all bits that aren't part of the block offset. */
-    unsigned blkMask;
+	/** The amount to shift the address to get the set. */
+	int setShift;
+	/** The amount to shift the address to get the tag. */
+	int tagShift;
+	/** Mask out all bits that aren't part of the set index. */
+	unsigned setMask;
+	/** Mask out all bits that aren't part of the block offset. */
+	unsigned blkMask;
 
-    int bankShift;
+	int bankShift;
 
-    std::vector<std::vector<int> > perSetHitCounters;
-    int accesses;
-    std::vector<int> currentMTPPartition;
-    bool useMTPPartitioning;
+	std::vector<std::vector<int> > perSetHitCounters;
+	int accesses;
+	std::vector<int> currentMTPPartition;
+	bool useMTPPartitioning;
 
-    std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
+	std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
 
-    int divFactor;
+	int divFactor;
 
 public:
-    /**
-     * Construct and initialize this tag store.
-     * @param _numSets The number of sets in the cache.
-     * @param _blkSize The number of bytes in a block.
-     * @param _assoc The associativity of the cache.
-     * @param _hit_latency The latency in cycles for a hit.
-     */
-    LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor);
+	/**
+	 * Construct and initialize this tag store.
+	 * @param _numSets The number of sets in the cache.
+	 * @param _blkSize The number of bytes in a block.
+	 * @param _assoc The associativity of the cache.
+	 * @param _hit_latency The latency in cycles for a hit.
+	 */
+	LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor);
 
-    /**
-     * Destructor
-     */
-    virtual ~LRU();
+	/**
+	 * Destructor
+	 */
+	virtual ~LRU();
 
-    /**
-     * Return the block size.
-     * @return the block size.
-     */
-    int getBlockSize()
-    {
-	return blkSize;
-    }
+	/**
+	 * Return the block size.
+	 * @return the block size.
+	 */
+	int getBlockSize()
+	{
+		return blkSize;
+	}
 
-    /**
-     * Return the subblock size. In the case of LRU it is always the block
-     * size.
-     * @return The block size.
-     */
-    int getSubBlockSize()
-    {
-	return blkSize;
-    }
+	/**
+	 * Return the subblock size. In the case of LRU it is always the block
+	 * size.
+	 * @return The block size.
+	 */
+	int getSubBlockSize()
+	{
+		return blkSize;
+	}
 
-    int getNumSets(){
-        return numSets;
-    }
+	int getNumSets(){
+		return numSets;
+	}
 
-    int getAssoc(){
-        return assoc;
-    }
+	int getAssoc(){
+		return assoc;
+	}
 
-    /**
-     * Search for the address in the cache.
-     * @param asid The address space ID.
-     * @param addr The address to find.
-     * @return True if the address is in the cache.
-     */
-    bool probe(int asid, Addr addr) const;
+	/**
+	 * Search for the address in the cache.
+	 * @param asid The address space ID.
+	 * @param addr The address to find.
+	 * @return True if the address is in the cache.
+	 */
+	bool probe(int asid, Addr addr) const;
 
-    /**
-     * Invalidate the block containing the given address.
-     * @param asid The address space ID.
-     * @param addr The address to invalidate.
-     */
-    void invalidateBlk(int asid, Addr addr);
+	/**
+	 * Invalidate the block containing the given address.
+	 * @param asid The address space ID.
+	 * @param addr The address to invalidate.
+	 */
+	void invalidateBlk(int asid, Addr addr);
 
-    /**
-     * Finds the given address in the cache and update replacement data.
-     * Returns the access latency as a side effect.
-     * @param req The request whose block to find.
-     * @param lat The access latency.
-     * @return Pointer to the cache block if found.
-     */
-    LRUBlk* findBlock(MemReqPtr &req, int &lat);
+	/**
+	 * Finds the given address in the cache and update replacement data.
+	 * Returns the access latency as a side effect.
+	 * @param req The request whose block to find.
+	 * @param lat The access latency.
+	 * @return Pointer to the cache block if found.
+	 */
+	LRUBlk* findBlock(MemReqPtr &req, int &lat);
 
-    /**
-     * Finds the given address in the cache and update replacement data.
-     * Returns the access latency as a side effect.
-     * @param addr The address to find.
-     * @param asid The address space ID.
-     * @param lat The access latency.
-     * @return Pointer to the cache block if found.
-     */
-    LRUBlk* findBlock(Addr addr, int asid, int &lat);
+	/**
+	 * Finds the given address in the cache and update replacement data.
+	 * Returns the access latency as a side effect.
+	 * @param addr The address to find.
+	 * @param asid The address space ID.
+	 * @param lat The access latency.
+	 * @return Pointer to the cache block if found.
+	 */
+	LRUBlk* findBlock(Addr addr, int asid, int &lat);
 
-    /**
-     * Finds the given address in the cache, do not update replacement data.
-     * @param addr The address to find.
-     * @param asid The address space ID.
-     * @return Pointer to the cache block if found.
-     */
-    LRUBlk* findBlock(Addr addr, int asid) const;
+	/**
+	 * Finds the given address in the cache, do not update replacement data.
+	 * @param addr The address to find.
+	 * @param asid The address space ID.
+	 * @return Pointer to the cache block if found.
+	 */
+	LRUBlk* findBlock(Addr addr, int asid) const;
 
-    /**
-     * Find a replacement block for the address provided.
-     * @param req The request to a find a replacement candidate for.
-     * @param writebacks List for any writebacks to be performed.
-     * @param compress_blocks List of blocks to compress, for adaptive comp.
-     * @return The block to place the replacement in.
-     */
-    LRUBlk* findReplacement(MemReqPtr &req, MemReqList &writebacks,
-			    BlkList &compress_blocks);
+	/**
+	 * Find a replacement block for the address provided.
+	 * @param req The request to a find a replacement candidate for.
+	 * @param writebacks List for any writebacks to be performed.
+	 * @param compress_blocks List of blocks to compress, for adaptive comp.
+	 * @return The block to place the replacement in.
+	 */
+	LRUBlk* findReplacement(MemReqPtr &req, MemReqList &writebacks,
+			BlkList &compress_blocks);
 
-    /**
-     * Generate the tag from the given address.
-     * @param addr The address to get the tag from.
-     * @return The tag of the address.
-     */
-    Addr extractTag(Addr addr) const
-    {
-	return (addr >> tagShift);
-    }
+	/**
+	 * Generate the tag from the given address.
+	 * @param addr The address to get the tag from.
+	 * @return The tag of the address.
+	 */
+	Addr extractTag(Addr addr) const
+	{
+		return (addr >> tagShift);
+	}
 
-   /**
-     * Generate the tag from the given address.
-     * @param addr The address to get the tag from.
-     * @param blk Ignored.
-     * @return The tag of the address.
-     */
-    Addr extractTag(Addr addr, LRUBlk *blk) const
-    {
-	return (addr >> tagShift);
-    }
+	/**
+	 * Generate the tag from the given address.
+	 * @param addr The address to get the tag from.
+	 * @param blk Ignored.
+	 * @return The tag of the address.
+	 */
+	Addr extractTag(Addr addr, LRUBlk *blk) const
+	{
+		return (addr >> tagShift);
+	}
 
-    /**
-     * Calculate the set index from the address.
-     * @param addr The address to get the set from.
-     * @return The set index of the address.
-     */
-    int extractSet(Addr addr) const
-    {
-	return ((addr >> setShift) & setMask);
-    }
+	/**
+	 * Calculate the set index from the address.
+	 * @param addr The address to get the set from.
+	 * @return The set index of the address.
+	 */
+	int extractSet(Addr addr) const
+	{
+		return ((addr >> setShift) & setMask);
+	}
 
-    /**
-     * Get the block offset from an address.
-     * @param addr The address to get the offset of.
-     * @return The block offset.
-     */
-    int extractBlkOffset(Addr addr) const
-    {
-	return (addr & blkMask);
-    }
+	/**
+	 * Get the block offset from an address.
+	 * @param addr The address to get the offset of.
+	 * @return The block offset.
+	 */
+	int extractBlkOffset(Addr addr) const
+	{
+		return (addr & blkMask);
+	}
 
-    /**
-     * Align an address to the block size.
-     * @param addr the address to align.
-     * @return The block address.
-     */
-    Addr blkAlign(Addr addr) const
-    {
-	return (addr & ~(Addr)blkMask);
-    }
+	/**
+	 * Align an address to the block size.
+	 * @param addr the address to align.
+	 * @return The block address.
+	 */
+	Addr blkAlign(Addr addr) const
+	{
+		return (addr & ~(Addr)blkMask);
+	}
 
-    /**
-     * Regenerate the block address from the tag.
-     * @param tag The tag of the block.
-     * @param set The set of the block.
-     * @return The block address.
-     */
-    Addr regenerateBlkAddr(Addr tag, unsigned set) const
-    {
-    	if(bankShift == -1){
-    		return ((tag << tagShift) | ((Addr)set << setShift));
-    	}
-    	return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
-    }
+	/**
+	 * Regenerate the block address from the tag.
+	 * @param tag The tag of the block.
+	 * @param set The set of the block.
+	 * @return The block address.
+	 */
+	Addr regenerateBlkAddr(Addr tag, unsigned set) const
+	{
+		if(bankShift == -1){
+			return ((tag << tagShift) | ((Addr)set << setShift));
+		}
+		return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
+	}
 
-    /**
-     * Return the hit latency.
-     * @return the hit latency.
-     */
-    int getHitLatency() const
-    {
-	return hitLatency;
-    }
+	/**
+	 * Return the hit latency.
+	 * @return the hit latency.
+	 */
+	int getHitLatency() const
+	{
+		return hitLatency;
+	}
 
-    /**
-     * Read the data out of the internal storage of the given cache block.
-     * @param blk The cache block to read.
-     * @param data The buffer to read the data into.
-     * @return The cache block's data.
-     */
-    void readData(LRUBlk *blk, uint8_t *data)
-    {
-	memcpy(data, blk->data, blk->size);
-    }
+	/**
+	 * Read the data out of the internal storage of the given cache block.
+	 * @param blk The cache block to read.
+	 * @param data The buffer to read the data into.
+	 * @return The cache block's data.
+	 */
+	void readData(LRUBlk *blk, uint8_t *data)
+	{
+		memcpy(data, blk->data, blk->size);
+	}
 
-    /**
-     * Write data into the internal storage of the given cache block. Since in
-     * LRU does not store data differently this just needs to update the size.
-     * @param blk The cache block to write.
-     * @param data The data to write.
-     * @param size The number of bytes to write.
-     * @param writebacks A list for any writebacks to be performed. May be
-     * needed when writing to a compressed block.
-     */
-    void writeData(LRUBlk *blk, uint8_t *data, int size,
-		   MemReqList & writebacks)
-    {
-	assert(size <= blkSize);
-	blk->size = size;
-    }
+	/**
+	 * Write data into the internal storage of the given cache block. Since in
+	 * LRU does not store data differently this just needs to update the size.
+	 * @param blk The cache block to write.
+	 * @param data The data to write.
+	 * @param size The number of bytes to write.
+	 * @param writebacks A list for any writebacks to be performed. May be
+	 * needed when writing to a compressed block.
+	 */
+	void writeData(LRUBlk *blk, uint8_t *data, int size,
+			MemReqList & writebacks)
+	{
+		assert(size <= blkSize);
+		blk->size = size;
+	}
 
-    /**
-     * Perform a block aligned copy from the source address to the destination.
-     * @param source The block-aligned source address.
-     * @param dest The block-aligned destination address.
-     * @param asid The address space DI.
-     * @param writebacks List for any generated writeback requests.
-     */
-    void doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks);
+	/**
+	 * Perform a block aligned copy from the source address to the destination.
+	 * @param source The block-aligned source address.
+	 * @param dest The block-aligned destination address.
+	 * @param asid The address space DI.
+	 * @param writebacks List for any generated writeback requests.
+	 */
+	void doCopy(Addr source, Addr dest, int asid, MemReqList &writebacks);
 
-    /**
-     * No impl.
-     */
-    void fixCopy(MemReqPtr &req, MemReqList &writebacks)
-    {
-    }
+	/**
+	 * No impl.
+	 */
+	void fixCopy(MemReqPtr &req, MemReqList &writebacks)
+	{
+	}
 
-    /**
-     * Called at end of simulation to complete average block reference stats.
-     */
-    virtual void cleanupRefs();
+	/**
+	 * Called at end of simulation to complete average block reference stats.
+	 */
+	virtual void cleanupRefs();
 
-    virtual std::vector<int> perCoreOccupancy();
+	virtual std::vector<int> perCoreOccupancy();
 
-    virtual void handleSwitchEvent();
+	virtual void handleSwitchEvent();
 
-    void resetHitCounters();
+	void resetHitCounters();
 
-    void dumpHitCounters();
+	void dumpHitCounters();
 
-    std::vector<double> getMissRates();
+	std::vector<double> getMissRates();
 
-    double getTouchedRatio();
+	double getTouchedRatio();
 
-    virtual void setMTPPartition(std::vector<int> setQuotas);
+	virtual void setMTPPartition(std::vector<int> setQuotas);
 
-    virtual void updateSetHitStats(MemReqPtr& req);
+	virtual void updateSetHitStats(MemReqPtr& req);
 
-    virtual void dumpHitStats();
+	virtual void dumpHitStats();
 
-    virtual void initializeCounters(int cpuCount);
+	virtual void initializeCounters(int cpuCount);
+
+	std::string generateIniName(std::string cachename, int set, int pos);
+
+	virtual void serialize(std::ostream &os);
+	virtual void unserialize(Checkpoint *cp, const std::string &section);
 };
 
 #endif
