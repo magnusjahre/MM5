@@ -743,7 +743,11 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 	for(int i=0;i<numSets;i++){
 		for(int j=0;j<assoc;j++){
-			sets[i].blks[j]->unserialize(cp, generateIniName(section, i , j));
+			string name = generateIniName(section, i , j);
+			string val = "";
+			if(cp->find(section, name, val)){
+				sets[i].blks[j]->unserialize(cp, name);
+			}
 		}
 	}
 }
