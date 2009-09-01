@@ -722,8 +722,16 @@ LRU::generateIniName(string cachename, int set, int pos){
 void
 LRU::serialize(std::ostream &os){
 
+	assert(cache->cpuCount == 1);
+
+	int dumpSets = assoc;
+	if(cache->isShared){
+		assert(cache->useStaticPartInWarmup);
+		dumpSets = divFactor;
+	}
+
 	for(int i=0;i<numSets;i++){
-		for(int j=0;j<assoc;j++){
+		for(int j=0;j<dumpSets;j++){
 			Serializable::staticNameOut(os, generateIniName(cache->name(), i, j));
 			sets[i].blks[j]->serialize(os);
 		}
@@ -734,8 +742,8 @@ void
 LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 	for(int i=0;i<numSets;i++){
-			for(int j=0;j<assoc;j++){
-				sets[i].blks[j]->unserialize(cp, generateIniName(section, i , j));
-			}
+		for(int j=0;j<assoc;j++){
+			sets[i].blks[j]->unserialize(cp, generateIniName(section, i , j));
+		}
 	}
 }
