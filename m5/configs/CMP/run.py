@@ -156,10 +156,10 @@ def setUpSharedCache(bankcnt, detailedStartTick):
             curbus += 1
 
 def getCheckpointDirectory(simpoint = -1):
-    serializeBase = "cpt-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
+    serializeBase = "cpt-"+env["NP"]+"-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
     if simpoint != -1:
         return serializeBase+"-sp"+str(simpoint)
-    return serializeBase
+    return serializeBase+"-nosp"
 
 def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
     assert env["NP"] == 1
@@ -479,6 +479,10 @@ if "USE-SIMPOINT" in env:
     assert simpointNum < simpoints3.maxk
     
     if generateCheckpoint:
+        
+        if env["NP"] > 1:
+            fatal("CMP checkpoints are generated from individual benchmark checkpoints")
+            
         fwticks, simulateCycles = setGenerateCheckpointParams(simpoints3.simpoints[env["BENCHMARK"]][simpointNum][simpoints3.FWKEY], simpointNum)
     else:
         
@@ -502,12 +506,9 @@ else:
         if useCheckpointPath != "":
         
             fwticks = 1
-            if int(env["NP"]) == 1:
-                cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
-                root.checkpoint = cptdir
-            else:
-                panic("merging of checkpoints not implemented")
-    
+            cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
+            root.checkpoint = cptdir
+            
         else:
             assert "FASTFORWARDTICKS" in env
             fwticks = int(env["FASTFORWARDTICKS"])
