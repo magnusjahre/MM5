@@ -156,7 +156,12 @@ def setUpSharedCache(bankcnt, detailedStartTick):
             curbus += 1
 
 def getCheckpointDirectory(simpoint = -1):
-    serializeBase = "cpt-"+env["NP"]+"-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
+
+    if env["NP"] > 1:
+        npName = env["NP"]
+    else:
+        npName = env["MEMORY-ADDRESS-PARTS"]
+    serializeBase = "cpt-"+npName+"-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
     if simpoint != -1:
         return serializeBase+"-sp"+str(simpoint)
     return serializeBase+"-nosp"
