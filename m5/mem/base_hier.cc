@@ -37,6 +37,29 @@
 #include "sim/param.hh"
 #include "mem/base_hier.hh"
 
+#define MAX_MEM_ADDR ULL(0xffffffffffffffff)
+
+Addr
+BaseHier::relocateAddrForCPU(int cpuId, Addr originalAddr, int cpu_count){
+
+	assert(cpuId != -1 && cpu_count != -1);
+
+	// Add cpu-id to keep addresses aligned
+	Addr cpuAddrBase = ((MAX_MEM_ADDR / cpu_count) * cpuId) + cpuId;
+
+	Addr newAddr = cpuAddrBase + originalAddr;
+
+	/* error checking */
+	if(newAddr < cpuAddrBase){
+		fatal("A memory address was moved out of this CPU's memory space at the low end");
+	}
+	if(newAddr >= ((MAX_MEM_ADDR / cpu_count) * (cpuId+1) + cpuId)){
+		fatal("A memory address was moved out of this CPU's memory space at the high end");
+	}
+
+	return newAddr;
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 DEFINE_SIM_OBJECT_CLASS_NAME("BaseHier", BaseHier);

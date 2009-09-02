@@ -39,6 +39,7 @@
 
 #include "sim/sim_object.hh"
 #include "mem/hier_params.hh"
+#include "targetarch/isa_traits.hh"
 
 /**
  * A base hierarchy class that contains a pointer to the universal hierarchy
@@ -49,7 +50,7 @@ class BaseHier : public SimObject
   protected:
     /** Pointer to the HierParams object for this hierarchy. */
     HierParams *params;
-    
+
   public:
     /**
      * Create and initialize this object.
@@ -78,6 +79,8 @@ class BaseHier : public SimObject
     {
 	return params->doEvents;
     }
+
+    Addr relocateAddrForCPU(int cpuID, Addr originalAddr, int cpuCount);
 };
 
 #endif //__BASE_HIER_HH__

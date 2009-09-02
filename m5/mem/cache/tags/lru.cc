@@ -745,8 +745,23 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 		for(int j=0;j<assoc;j++){
 			string name = generateIniName(section, i , j);
 			string val = "";
-			if(cp->find(section, name, val)){
+
+			if(cp->find(name, "set", val)){
+
 				sets[i].blks[j]->unserialize(cp, name);
+
+				if(cache->cpuCount > 1){
+					int blockAddrCPUID = -1;
+					if(cache->isShared) blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
+					else blockAddrCPUID = cache->cacheCpuID;
+					assert(blockAddrCPUID != -1);
+
+					Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
+					Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
+
+					sets[i].blks[j]->tag = extractTag(relocatedAddr);
+					sets[i].blks[j]->set = extractSet(relocatedAddr);
+				}
 			}
 		}
 	}

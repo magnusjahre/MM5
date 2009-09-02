@@ -236,7 +236,7 @@ public:
 		SERIALIZE_SCALAR(prevOrigRequestingCpuID);
 		SERIALIZE_SCALAR(set);
 
-		//TODO: handle xc serialization
+		//TODO: should we handle xc serialization?
 	}
 
 	void unserialize(Checkpoint *cp, const std::string &section){
@@ -248,7 +248,7 @@ public:
 		UNSERIALIZE_SCALAR(prevOrigRequestingCpuID);
 		UNSERIALIZE_SCALAR(set);
 
-		//TODO: handle xc unserialization
+		//TODO: should we handle xc unserialization
 	}
 
 };

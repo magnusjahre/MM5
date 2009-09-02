@@ -38,26 +38,24 @@
 #include "mem/memory_interface.hh"
 #include "mem/trace/mem_trace_writer.hh"
 #include "sim/eventq.hh"
-        
+
 #include "cpu/base.hh"
 
 #include <cstdlib>
 
-#define MAX_MEM_ADDR ULL(0xffffffffffffffff)
-        
 // #define DO_MEMTEST
-        
+
 using namespace std;
 
 template<class Mem>
-MemoryInterface<Mem>::MemoryInterface(const string &name, HierParams *hier, 
+MemoryInterface<Mem>::MemoryInterface(const string &name, HierParams *hier,
 				      Mem *_mem, MemTraceWriter *mem_trace)
     : MemInterface(name, hier, _mem->getHitLatency(), _mem->getBlockSize()),
       mem(_mem), memTrace(mem_trace)
 {
     thisName = name;
     issuedWarning = false;
-    
+
 #ifdef DO_MEMTEST
     testEvent = new MemoryInterfaceTestEvent(this);
     testEvent->schedule(0);
@@ -91,38 +89,27 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
 		recordEvent("Uncached Write");
 	}
     }
-    
+
     req->enteredMemSysAt = curTick;
-    
+
     if(mem->isMultiprogWorkload && mem->isCache()){
-        
+
         /* move each application into its separate address space */
         int cpuId = mem->memoryAddressOffset;
         int cpu_count = mem->memoryAddressParts;
-        assert(cpuId != -1 && cpu_count != -1);
-        
-        // Add cpu-id to keep addresses aligned
-        Addr cpuAddrBase = ((MAX_MEM_ADDR / cpu_count) * cpuId) + cpuId;
-        
+
         req->oldAddr = req->paddr;
-        req->paddr = cpuAddrBase + req->paddr;
-        
-        /* error checking */
-        if(req->paddr < cpuAddrBase){
-            fatal("A memory address was moved out of this CPU's memory space at the low end");
-        }
-        if(req->paddr >= ((MAX_MEM_ADDR / cpu_count) * (cpuId+1) + cpuId)){
-            fatal("A memory address was moved out of this CPU's memory space at the high end");
-        }
+		req->paddr = relocateAddrForCPU(cpuId, req->paddr, cpu_count);
+
     }
-    
+
 #ifdef CACHE_DEBUG
     // this is more helpfull if done after translation
     if(mem->isCache()){
         mem->addPendingRequest(req->paddr, req);
     }
 #endif
-    
+
     return mem->access(req);
 }
 
@@ -130,14 +117,14 @@ template<class Mem>
 void
 MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
 {
-    
+
 #ifdef DO_MEMTEST
     if(req->isMemTestReq){
         cout << curTick << " " << name() << ": Response to addr " << hex << req->paddr << dec << " recieved at " << time << ", latency " << time - req->time << "\n";
         return;
     }
 #endif
-    
+
 #ifdef CACHE_DEBUG
     if(mem->isCache()){
         if (!req->prefetched) {
@@ -145,19 +132,14 @@ MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
       }
     }
 #endif
-    
-//     if(time - req->enteredMemSysAt > 3 && mem->cacheCpuID == 2){
-//         Tick lat = time - req->enteredMemSysAt;
-//         cout << curTick << " " << mem->name() << ": request took " << lat << ", addr " << req->paddr << ", deliver at " << time << "\n";
-//     }
-    
+
     if(mem->isMultiprogWorkload && mem->isCache()){
         //restore the old CPU private address
         req->paddr = req->oldAddr;
     }
-    
+
     assert(!req->cmd.isNoResponse());
-    
+
     if (req->completionEvent != NULL) {
 	// add data copying here?
         assert(req->expectCompletionEvent);
@@ -171,7 +153,7 @@ MemoryInterface<Mem>::respond(MemReqPtr &req, Tick time)
 template<class Mem>
 void
 MemoryInterface<Mem>::squash(int thread_number)
-    
+
 {
     if (memTrace) {
 	MemReqPtr req = new MemReq();
@@ -189,7 +171,7 @@ MemoryInterface<Mem>::handleTestEvent(Tick time){
 
     ifstream fin("../../mem/testscripts/simplemisses.test");
     assert(fin);
-    
+
     string line;
     vector<vector<string> > actions;
     while(getline(fin, line)){
@@ -203,27 +185,27 @@ MemoryInterface<Mem>::handleTestEvent(Tick time){
         tokens.push_back(line);
         actions.push_back(tokens);
     }
-    
+
     for(int i=0;i<actions.size();i++){
-        if((actions[i][0] == "*" || actions[i][0] == mem->name()) 
+        if((actions[i][0] == "*" || actions[i][0] == mem->name())
             && (mem->isInstructionCache() ? actions[i][1] == "I" : actions[i][1] == "D")){
             MemReqPtr req = new MemReq();
-            
+
             req->paddr = (Addr) atoi(actions[i][3].c_str());
             req->asid = 0;
             req->size = 64;
             req->data = new uint8_t[req->size];
             req->isMemTestReq = true;
-            
+
             if(actions[i][4] == "Write") req->cmd = Write;
             else req->cmd = Read;
-            
+
             Tick at = (Tick) atoi(actions[i][2].c_str());
             req->time = at;
             MemoryInterfaceTestActionEvent* evt = new MemoryInterfaceTestActionEvent(this, req);
             evt->schedule(at);
             testRequests.push_back(req);
-            
+
             cout << name() << ": Creating request addr " << hex << req->paddr << dec << ", cmd " << req->cmd << " @ " << at << "\n";
         }
     }

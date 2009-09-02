@@ -1534,14 +1534,12 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::serialize(std::ostream &os){
-	SERIALIZE_SCALAR(cacheCpuID);
 	tags->serialize(os);
 }
 
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::unserialize(Checkpoint *cp, const std::string &section){
-	UNSERIALIZE_SCALAR(cacheCpuID);
 	tags->unserialize(cp, section);
 }
 
