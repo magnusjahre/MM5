@@ -727,7 +727,7 @@ LRU::serialize(std::ostream &os){
 	int dumpSets = assoc;
 	if(cache->isShared){
 		assert(cache->useStaticPartInWarmup);
-		dumpSets = divFactor;
+		dumpSets = assoc / divFactor;
 	}
 
 	for(int i=0;i<numSets;i++){
