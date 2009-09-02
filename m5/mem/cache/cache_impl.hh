@@ -1541,6 +1541,9 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::unserialize(Checkpoint *cp, const std::string &section){
 	tags->unserialize(cp, section);
+	for(int i=0;i<shadowTags.size();i++){
+		shadowTags[i]->unserialize(cp, section);
+	}
 }
 
 #ifdef CACHE_DEBUG
