@@ -894,6 +894,12 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs){
 		canExit = true;
 
+		ofstream statDumpFile(statsOrderFileName.c_str(), ios::app);
+		statDumpFile << curTick << ";" << name() << ";" << CPUParamsCpuID << ";" << stat_com_inst[thread].value() << "\n";
+		statDumpFile.flush();
+		statDumpFile.close();
+
+
 		if(issueExitEvent()){
 			new SimExitEvent("all CPUs have reached their instruction limit");
 		}

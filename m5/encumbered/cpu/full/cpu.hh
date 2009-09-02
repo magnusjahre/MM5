@@ -76,6 +76,7 @@ class FullCPU : public BaseCPU
       Tick noCommitCycles;
       Tick tmpBlockedCycles;
       Tick l1MissStallCycles;
+      std::string statsOrderFileName;
 
   public:
     ////////////////////////////////////////////

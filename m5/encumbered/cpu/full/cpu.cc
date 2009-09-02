@@ -667,6 +667,12 @@ FullCPU::FullCPU(Params *p,
     tmpBlockedCycles = 0;
     l1MissStallCycles = 0;
 
+    statsOrderFileName = "statsDumpOrder.txt";
+    ofstream statDumpFile(statsOrderFileName.c_str());
+    statDumpFile << "";
+    statDumpFile.flush();
+    statDumpFile.close();
+
     useInExitDesicion = true;
 }
 
