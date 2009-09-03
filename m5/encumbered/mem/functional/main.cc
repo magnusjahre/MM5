@@ -535,7 +535,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 		while(cp->find(section, tagName, tmpTag)){
 			linkedListCnt++;
 
-			Addr tag = NULL;
+			Addr tag = 0;
 			uint8_t* page = new uint8_t[VMPageSize];
 			if (!page) fatal("MainMemory::newpage: out of virtual memory");
 			::memset(page, 0, VMPageSize);
