@@ -139,7 +139,7 @@ private:
 			MemInterface *dcache_interface;
 			int width;
 			int bbv_simpoint_size;
-			int checkpoint_at_instruction;
+			Counter checkpoint_at_instruction;
 
 #if FULL_SYSTEM
 			AlphaITB *itb;
@@ -210,9 +210,11 @@ private:
 			virtual void resetStats();
 
 			// number of simulated instructions
+		private:
 			Counter numInst;
 			Counter startNumInst;
 			Stats::Scalar<> numInsts;
+		public:
 
 			virtual Counter totalInstructions() const
 			{

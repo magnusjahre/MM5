@@ -880,6 +880,7 @@ SimpleCPU::tick()
 			Checkpoint::setup(curTick);
 			new SimExitEvent("Reached checkpoint instruction");
 		}
+		assert(numInst <= checkpointAtInstruction);
 	}
 
 	if (status() == Running && !tickEvent.scheduled())
