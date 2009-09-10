@@ -891,8 +891,9 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		stat_com_membars[thread]++;
 	}
 
-	if(stat_com_inst[thread].value() == minInstructionsAllCPUs){
+	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && !hasDumpedStats){
 		canExit = true;
+		hasDumpedStats = true;
 
 		ofstream statDumpFile(statsOrderFileName.c_str(), ios::app);
 		statDumpFile << curTick << ";" << name() << ";" << CPUParamsCpuID << ";" << stat_com_inst[thread].value() << "\n";

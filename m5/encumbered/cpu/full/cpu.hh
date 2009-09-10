@@ -78,6 +78,8 @@ class FullCPU : public BaseCPU
       Tick l1MissStallCycles;
       std::string statsOrderFileName;
 
+      bool hasDumpedStats;
+
   public:
     ////////////////////////////////////////////
     //
@@ -251,7 +253,7 @@ class FullCPU : public BaseCPU
 	    //
 	    int _pc_sample_interval,
 	    PipeTrace *pt,
-     
+
             AdaptiveMHA* _amha
 	);
 
@@ -571,7 +573,7 @@ class FullCPU : public BaseCPU
     Stats::Vector2d<> stat_floss_robfull_other;
     Stats::Vector2d<> stat_floss_qfull_other;
     Stats::Vector2d<> stat_floss_other;
-    
+
     std::vector<std::vector<double> > floss_icache;
     std::vector<std::vector<double> > floss_iqfull_deps;
     std::vector<std::vector<double> > floss_iqfull_fu;
@@ -965,7 +967,7 @@ class FullCPU : public BaseCPU
     void commit_one_inst(ROBStation *rs);
 
     unsigned oldest_inst(ROBStation ***clist, unsigned *cnum, unsigned *cx);
-    
+
     int getStalledL1MissCycles(){
         int tmp = l1MissStallCycles;
         l1MissStallCycles = 0;
