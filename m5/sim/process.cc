@@ -31,6 +31,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
+#include <libgen.h>
 
 #include <cstdio>
 #include <string>
@@ -326,8 +327,13 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 			UNSERIALIZE_SCALAR_NAME(generateFileStateName("host_flags",i), hostFlags);
 			UNSERIALIZE_SCALAR_NAME(generateFileStateName("mode",i), mode);
 
-			int sim_fd = open(path.c_str(), hostFlags, mode);
-			assert(sim_fd > 0);
+			char* base = basename((char*) path.c_str());
+			cout << "path " << path << " gave basename " << base << "\n";
+
+			int sim_fd = open(base, hostFlags, mode);
+			if(sim_fd == -1){
+				panic("Could not open file %s in unserialize", path.c_str());
+			}
 
 			int newPos = lseek(sim_fd, pos, SEEK_SET);
 			assert(newPos == pos);

@@ -8,6 +8,7 @@ import deterministic_fw_wls as fair_workloads
 import single_core_fw as single_core
 import simpoints3
 import os
+import shutil
 from DetailedConfig import *
 
 ###############################################################################
@@ -180,6 +181,9 @@ def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
     Serialize.dir = getCheckpointDirectory(simpoint)
     
     return fwticks, simulateCycles
+
+def warn(message):
+    print >> sys.stderr, "Warning: "+message
 
 ###############################################################################
 # Check command line options
@@ -477,7 +481,7 @@ if "SIMINSTS" in env:
 
 if "USE-SIMPOINT" in env:
     
-    if "FASTFORWARDTICKS" in env or "SIMULATETICKS" in env or "SIMINSTS" in env:
+    if "FASTFORWARDTICKS" in env or "SIMULATETICKS" in env:
         panic("simulation length parameters does not make sense with simpoints")
     
     simpointNum = int(env["USE-SIMPOINT"])
@@ -497,7 +501,25 @@ if "USE-SIMPOINT" in env:
         for cpu in root.detailedCPU:
             cpu.min_insts_all_cpus = simpoints3.intervalsize
     
-        panic("checkpoint loading not implemented")
+        if simInsts == -1:
+            simInsts = simpoints3.intervalsize
+        else:
+            warn("Simulate instructions set, ignoring simpoints default. Statistics will not be representable!")
+            
+        if useCheckpointPath == "":
+            panic("Checkpoint path must be provided")
+        
+        checkpointDirPath = useCheckpointPath+"/"+getCheckpointDirectory(simpointNum)
+        
+        checkpointfiles = os.listdir(checkpointDirPath)
+        for name in checkpointfiles:
+            if name != "m5.cpt":
+                print >> sys.stderr, "Copying file "+name+" to current directory"
+                shutil.copy(checkpointDirPath+"/"+name, ".")
+
+        root.checkpoint = checkpointDirPath
+        for cpu in root.detailedCPU:
+            cpu.min_insts_all_cpus = simInsts 
 else:
     
     if "SIMULATETICKS" in env and simInsts != -1:
@@ -509,7 +531,7 @@ else:
     
     else:
         if useCheckpointPath != "":
-        
+            warn("copying of files generated during simulation not implemented")
             fwticks = 1
             cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
             root.checkpoint = cptdir
