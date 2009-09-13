@@ -155,13 +155,10 @@ MainMemory::writeEntryToFile(entry* entry){
 	entry->fileStartPosition = currentFileEndPos;
 
 	assert(sizeof(char) == sizeof(uint8_t));
-	pagefile.seekp(currentFileEndPos);
 	pagefile.write((char*) pagePtr, VMPageSize);
 	pagefile.flush();
 	pagefile.close();
 	currentFileEndPos += VMPageSize;
-
-	cout << curTick << ": writing page to file at pos " << entry->fileStartPosition << ", next pos is " << currentFileEndPos << ", " << sizeof(char) << ", " << sizeof(uint8_t) << "\n";
 
 	::memset(pagePtr, 0, VMPageSize);
 
@@ -172,12 +169,10 @@ MainMemory::writeEntryToFile(entry* entry){
 
 void
 MainMemory::swapEntries(entry* curHead, entry* newHead){
-	fstream pagefile(pagefileName.c_str(), ios::binary | ios::app | ios::in | ios::out);
+	fstream pagefile(pagefileName.c_str(), ios::binary | ios::ate | ios::in | ios::out);
 	assert(pagefile.is_open());
 
 	assert(newHead->fileStartPosition != -1);
-
-	cout << curTick << ": swapping pages with file pos " << newHead->fileStartPosition << "\n";
 
 	pagefile.seekg(newHead->fileStartPosition);
 	pagefile.read(buffer, VMPageSize);
