@@ -99,7 +99,12 @@ using namespace std;
 MainMemory::MainMemory(const string &n)
 : FunctionalMemory(n), takeStats(false)
 {
-	for (int i = 0; i < MEM_PTAB_SIZE; ++i)
+	memPageTabSize = 8*1024;
+	memPageTabSizeLog2 = FloorLog2(memPageTabSize);
+
+	ptab = new entry*[memPageTabSize];
+
+	for (int i = 0; i < memPageTabSize; ++i)
 		ptab[i] = NULL;
 
 	break_address = 0;
@@ -109,12 +114,13 @@ MainMemory::MainMemory(const string &n)
 
 MainMemory::~MainMemory()
 {
-	for (int i = 0; i < MEM_PTAB_SIZE; i++) {
+	for (int i = 0; i < memPageTabSize; i++) {
 		if (ptab[i]) {
 			free(ptab[i]->page);
 			free(ptab[i]);
 		}
 	}
+	delete ptab;
 }
 
 void
@@ -472,7 +478,7 @@ MainMemory::serialize(std::ostream &os){
 	SERIALIZE_SCALAR(break_thread);
 	SERIALIZE_SCALAR(break_size);
 
-	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+	for(int i = 0; i< memPageTabSize; i++){
 		if(ptab[i] != NULL){
 
 			int linkedListCnt = 0;
@@ -507,7 +513,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(break_size);
 
 	// remove any previously allocated pages
-	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+	for(int i = 0; i< memPageTabSize; i++){
 		if(ptab[i] != NULL){
 
 			entry* pte = ptab[i];
@@ -522,7 +528,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	}
 
 	// fill workload memory from checkpoint
-	for(int i = 0; i< MEM_PTAB_SIZE; i++){
+	for(int i = 0; i< memPageTabSize; i++){
 		assert(ptab[i] == NULL);
 
  		int linkedListCnt = 0;

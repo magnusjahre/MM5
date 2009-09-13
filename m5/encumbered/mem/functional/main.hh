@@ -94,8 +94,8 @@
 #include "sim/stats.hh"
 
 // number of entries in page translation hash table (must be power-of-two)
-#define MEM_PTAB_SIZE		(32*1024)
-#define MEM_LOG_PTAB_SIZE	15
+//#define MEM_PTAB_SIZE		(32*1024)
+//#define MEM_LOG_PTAB_SIZE	15
 
 /*
  * Model of infinite virtual memory for a standalone application
@@ -109,6 +109,9 @@ private:
 	// prevent copying of a MainMemory object
 	MainMemory(const MainMemory &specmem);
 	const MainMemory &operator=(const MainMemory &specmem);
+
+	int memPageTabSize;
+	int memPageTabSizeLog2;
 
 	/*
 	 *
@@ -161,7 +164,7 @@ protected:
 		uint8_t *page;		// page pointer
 	};
 
-	entry *ptab[MEM_PTAB_SIZE];	// inverted page table
+	entry** ptab;	// inverted page table
 
 	// memory object stats
 	bool takeStats;
@@ -172,9 +175,9 @@ protected:
 	Stats::Formula page_mem;
 	Stats::Formula ptab_miss_rate;
 
-	static Addr offset(Addr addr);
-	static Addr ptab_set(Addr addr);
-	static Addr ptab_tag(Addr addr);
+	Addr offset(Addr addr);
+	Addr ptab_set(Addr addr);
+	Addr ptab_tag(Addr addr);
 
 	uint8_t *page(Addr addr);
 	uint8_t *translate(Addr addr);
@@ -255,12 +258,12 @@ MainMemory::offset(Addr addr)
 // compute page table set
 inline Addr
 MainMemory::ptab_set(Addr addr)
-{ return (addr >> LogVMPageSize) & (MEM_PTAB_SIZE - 1); }
+{ return (addr >> LogVMPageSize) & (memPageTabSize - 1); }
 
 // compute page table tag
 inline Addr
 MainMemory::ptab_tag(Addr addr)
-{ return addr >> (LogVMPageSize + MEM_LOG_PTAB_SIZE); }
+{ return addr >> (LogVMPageSize + memPageTabSizeLog2); }
 
 inline Fault
 MainMemory::page_read(Addr addr, uint8_t *data, int size)
