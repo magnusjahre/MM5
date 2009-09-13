@@ -88,6 +88,8 @@
 #ifndef __MAIN_MEMORY_HH__
 #define __MAIN_MEMORY_HH__
 
+#include <fstream>
+
 #include "mem/functional/functional.hh"
 
 #include "base/statistics.hh"
@@ -112,6 +114,11 @@ private:
 
 	int memPageTabSize;
 	int memPageTabSizeLog2;
+	std::string pagefileName;
+
+	inline bool firstIsPage(Addr addr){
+		return ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr);
+	}
 
 	/*
 	 *
@@ -162,7 +169,20 @@ protected:
 		entry *next;		// next translation in this bucket
 		Addr tag;			// virtual page number tag
 		uint8_t *page;		// page pointer
+
+		bool inMemory;
+		std::fstream::pos_type fileStartPosition;
+
+		entry(Addr _tag, uint8_t* _page)
+		: next(NULL), tag(_tag), page(_page), inMemory(false), fileStartPosition(-1){
+
+		}
 	};
+
+	char* buffer;
+	std::fstream::pos_type currentFileEndPos;
+	uint8_t* writeEntryToFile(entry* entry);
+	void swapEntries(entry* curHead, entry* newHead);
 
 	entry** ptab;	// inverted page table
 

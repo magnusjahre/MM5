@@ -100,7 +100,6 @@ MainMemory::MainMemory(const string &n, int _maxMemMB)
 : FunctionalMemory(n), takeStats(false)
 {
 
-	cout << "got max mem " << _maxMemMB << "\n";
 	if(!IsPowerOf2(_maxMemMB)){
 		fatal("Maximum memory consumption in functional memory must be a power of two");
 	}
@@ -116,6 +115,16 @@ MainMemory::MainMemory(const string &n, int _maxMemMB)
 	break_address = 0;
 	break_thread = 1;
 	break_size = 4;
+
+	buffer = new char[VMPageSize];
+	::memset(buffer, 0, VMPageSize);
+	currentFileEndPos = 0;
+
+	pagefileName = "pagefile.bin"; //TODO: add CPUID to avoid conflicts
+	ofstream pagefile(pagefileName.c_str(), ios::binary);
+	pagefile << "";
+	pagefile.flush();
+	pagefile.close();
 }
 
 MainMemory::~MainMemory()
@@ -135,6 +144,63 @@ MainMemory::startup()
 	takeStats = true;
 }
 
+uint8_t*
+MainMemory::writeEntryToFile(entry* entry){
+	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::app);
+	assert(pagefile.is_open());
+
+	uint8_t* pagePtr = entry->page;
+	entry->page = NULL;
+	entry->inMemory = false;
+	entry->fileStartPosition = currentFileEndPos;
+
+	assert(sizeof(char) == sizeof(uint8_t));
+	pagefile.seekp(currentFileEndPos);
+	pagefile.write((char*) pagePtr, VMPageSize);
+	pagefile.flush();
+	pagefile.close();
+	currentFileEndPos += VMPageSize;
+
+	cout << curTick << ": writing page to file at pos " << entry->fileStartPosition << ", next pos is " << currentFileEndPos << ", " << sizeof(char) << ", " << sizeof(uint8_t) << "\n";
+
+	::memset(pagePtr, 0, VMPageSize);
+
+	// return the reusable page
+	return pagePtr;
+
+}
+
+void
+MainMemory::swapEntries(entry* curHead, entry* newHead){
+	fstream pagefile(pagefileName.c_str(), ios::binary | ios::app | ios::in | ios::out);
+	assert(pagefile.is_open());
+
+	assert(newHead->fileStartPosition != -1);
+
+	cout << curTick << ": swapping pages with file pos " << newHead->fileStartPosition << "\n";
+
+	pagefile.seekg(newHead->fileStartPosition);
+	pagefile.read(buffer, VMPageSize);
+
+	assert(sizeof(char) == sizeof(uint8_t));
+	pagefile.seekp(newHead->fileStartPosition);
+	pagefile.write((char*) curHead->page, VMPageSize);
+	pagefile.flush();
+	pagefile.close();
+
+	newHead->page = curHead->page;
+	for(int i=0;i<VMPageSize;i++){
+		newHead->page[i] = (uint8_t) buffer[i];
+	}
+
+	curHead->inMemory = false;
+	curHead->fileStartPosition = newHead->fileStartPosition;
+	curHead->page = NULL;
+
+	newHead->inMemory = true;
+	newHead->fileStartPosition = -1;
+}
+
 // translate address to host page
 uint8_t *
 MainMemory::translate(Addr addr)
@@ -150,12 +216,18 @@ MainMemory::translate(Addr addr)
 	// locate accessed PTE
 	for (prev = NULL, pte = ptab[ptab_set(addr)]; pte != NULL; prev = pte, pte = pte->next) {
 		if (pte->tag == ptab_tag(addr)) {
+
+			assert(!pte->inMemory);
+			swapEntries(ptab[ptab_set(addr)], pte);
+			assert(pte->inMemory && pte->page != NULL);
+
 			// move this PTE to head of the bucket list
 			if (prev) {
 				prev->next = pte->next;
 				pte->next = ptab[ptab_set(addr)];
 				ptab[ptab_set(addr)] = pte;
 			}
+
 			return pte->page;
 		}
 	}
@@ -171,24 +243,32 @@ MainMemory::newpage(Addr addr)
 	uint8_t *page;
 	entry *pte;
 
-	// see misc.c for details on the getcore() function
-	page = new uint8_t[VMPageSize];
-	if (!page)
-		fatal("MainMemory::newpage: out of virtual memory");
+	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
+		page = writeEntryToFile(ptab[ptab_set(addr)]);
+		assert(page != NULL);
 
-	::memset(page, 0, VMPageSize);
+		pte = new entry(ptab_tag(addr), page);
+		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
 
-	// generate a new PTE
-	pte = new entry;
-	if (!pte)
-		fatal("MainMemory::newpage: out of virtual memory (2)");
+		assert(ptab[ptab_set(addr)]->page == NULL);
+		pte->next = ptab[ptab_set(addr)];
+		ptab[ptab_set(addr)] = pte;
+	}
+	else{
+		// see misc.c for details on the getcore() function
+		assert(ptab[ptab_set(addr)] == NULL);
 
-	pte->tag = ptab_tag(addr);
-	pte->page = page;
+		page = new uint8_t[VMPageSize];
+		if (!page) fatal("MainMemory::newpage: out of virtual memory");
 
-	// insert PTE into inverted hash table
-	pte->next = ptab[ptab_set(addr)];
-	ptab[ptab_set(addr)] = pte;
+		::memset(page, 0, VMPageSize);
+
+		// generate a new PTE
+		pte = new entry(ptab_tag(addr), page);
+		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
+
+		ptab[ptab_set(addr)] = pte;
+	}
 
 	if (takeStats) {
 		// one more page allocated
@@ -203,7 +283,7 @@ uint8_t *
 MainMemory::page(Addr addr)
 {
 	// first attempt to hit in first entry, otherwise call xlation fn
-	if (ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr))
+	if (firstIsPage(addr))
 	{
 		if (takeStats) {
 			// hit - return the page address on host
@@ -556,10 +636,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
 			assert(page != NULL);
 
-			entry* newEntry = new entry;
-			newEntry->tag = tag;
-			newEntry->page = page;
-			newEntry->next = NULL; // temporary initialization
+			entry* newEntry = new entry(tag, page);
 
 			tmpLinkedList.push_back(newEntry);
 
