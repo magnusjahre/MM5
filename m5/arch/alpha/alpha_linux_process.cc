@@ -136,7 +136,7 @@ class Linux {
 	uint32_t	__pad0;
 
 	uint64_t	tgt_st_atime;
-	uint64_t 	st_atime_nsec; 
+	uint64_t 	st_atime_nsec;
 	uint64_t	tgt_st_mtime;
 	uint64_t	st_mtime_nsec;
 	uint64_t	tgt_st_ctime;
@@ -195,7 +195,7 @@ class Linux {
 
     /// For mmap().
     static const unsigned TGT_MAP_ANONYMOUS = 0x10;
-    
+
     /// For gettimeofday().
     struct timeval {
 	int64_t tv_sec;		//!< seconds
@@ -392,7 +392,7 @@ class Linux {
 	  case 1: // F_GETFD (get close-on-exec flag)
 	  case 2: // F_SETFD (set close-on-exec flag)
 	    return 0;
-	
+
 	  case 3: // F_GETFL (get file flags)
 	  case 4: // F_SETFL (set file flags)
 	    // not sure if this is totally valid, but we'll pass it through
@@ -950,8 +950,9 @@ AlphaLinuxProcess::AlphaLinuxProcess(const std::string &name,
 				     int stdout_fd,
 				     int stderr_fd,
 				     std::vector<std::string> &argv,
-				     std::vector<std::string> &envp)
-    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp)
+				     std::vector<std::string> &envp,
+				     int _maxMemMB)
+    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp, _maxMemMB)
 {
     init_regs->intRegFile[0] = 0;
 }

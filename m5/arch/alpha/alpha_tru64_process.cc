@@ -240,10 +240,10 @@ class Tru64 {
 
     /// Interface struct for uname().
     struct utsname {
-	char sysname[_SYS_NMLN];        //!< System name. 
+	char sysname[_SYS_NMLN];        //!< System name.
 	char nodename[_SYS_NMLN];       //!< Node name.
-	char release[_SYS_NMLN];        //!< OS release.  
-	char version[_SYS_NMLN];        //!< OS version.  
+	char release[_SYS_NMLN];        //!< OS release.
+	char version[_SYS_NMLN];        //!< OS version.
 	char machine[_SYS_NMLN];        //!< Machine type.
     };
 
@@ -283,7 +283,7 @@ class Tru64 {
 
     /// For mmap().
     static const unsigned TGT_MAP_ANONYMOUS = 0x10;
-    
+
 
     //@{
     /// For getsysinfo().
@@ -583,7 +583,7 @@ class Tru64 {
 	tgt->f_files = host->f_files;
 	tgt->f_ffree = host->f_ffree;
 	memcpy(&tgt->f_fsid, &host->f_fsid, sizeof(host->f_fsid));
- 
+
 	tgt.copyOut(mem);
     }
 
@@ -601,7 +601,7 @@ class Tru64 {
 	    Tru64::copyOutStatfsBuf<Tru64::F64_statfs>(mem, addr, host);
 	}
     };
-    
+
     class PreF64 {
       public:
 	static void copyOutStatBuf(FunctionalMemory *mem, Addr addr,
@@ -616,7 +616,7 @@ class Tru64 {
 	    Tru64::copyOutStatfsBuf<Tru64::pre_F64_statfs>(mem, addr, host);
 	}
     };
-    
+
     /// Helper function to convert a host stat buffer to an old pre-F64
     /// (4.x) target stat buffer.  Also copies the target buffer out to
     /// the simulated memory space.  Used by pre_F64_stat(),
@@ -643,12 +643,12 @@ class Tru64 {
 	tgt.copyOut(mem);
     }
 
-    
+
     /// The target system's hostname.
     static const char *hostname;
 
     /// Target uname() handler.
-    static SyscallReturn 
+    static SyscallReturn
     unameFunc(SyscallDesc *desc, int callnum, Process *process,
 	      ExecContext *xc)
     {
@@ -786,7 +786,7 @@ class Tru64 {
 	  case 1: // F_GETFD (get close-on-exec flag)
 	  case 2: // F_SETFD (set close-on-exec flag)
 	    return 0;
-	
+
 	  case 3: // F_GETFL (get file flags)
 	  case 4: // F_SETFL (set file flags)
 	    // not sure if this is totally valid, but we'll pass it through
@@ -808,7 +808,7 @@ class Tru64 {
 	}
     }
 
-    
+
     /// Target getdirentries() handler.
     static SyscallReturn
     getdirentriesFunc(SyscallDesc *desc, int callnum, Process *process,
@@ -817,7 +817,7 @@ class Tru64 {
 #ifdef __CYGWIN__
         panic("getdirent not implemented on cygwin!");
 #else
-        
+
 	int fd = process->sim_fd(xc->getSyscallArg(0));
 	Addr tgt_buf = xc->getSyscallArg(1);
 	int tgt_nbytes = xc->getSyscallArg(2);
@@ -1096,7 +1096,7 @@ class Tru64 {
 	ec->regs.pc = attrp->registers.pc;
 	ec->regs.npc = attrp->registers.pc + sizeof(MachInst);
 
-        
+
 //         cout << "activating intitially\n";
 	ec->activate();
     }
@@ -1112,7 +1112,7 @@ class Tru64 {
 
 	// get attribute args
 	attrp.copyIn(xc->mem);
-        
+
 //         cout << "=== allocate tread called\n";
 
 	if (attrp->version != NXM_LIB_VERSION) {
@@ -1174,7 +1174,7 @@ class Tru64 {
 			   slot_state_size);
 
 	    slot_state.copyIn(xc->mem);
-            
+
 	    if (slot_state[thread_index] != Tru64::NXM_SLOT_AVAIL) {
 		cerr << "nxm_thread_createFunc: requested VP slot "
 		     << thread_index << " not available!" << endl;
@@ -1184,7 +1184,7 @@ class Tru64 {
 	    slot_state[thread_index] = Tru64::NXM_SLOT_BOUND;
 
 	    slot_state.copyOut(xc->mem);
-            
+
 	    // Find a free simulator execution context.
 	    for (int i = 0; i < process->numCpus(); ++i) {
 		ExecContext *xc = process->execContexts[i];
@@ -1192,7 +1192,7 @@ class Tru64 {
 		if (xc->status() == ExecContext::Unallocated) {
                     xc->hasBeenStarted = true;
 //                     cout << curTick <<": allocating thread\n";
-                    
+
                     // inactive context... grab it
 		    init_exec_context(xc, attrp, uniq_val);
 
@@ -1233,7 +1233,7 @@ class Tru64 {
         bugtrace.flush();
         bugtrace.close();
     }
-    
+
     /// Block thread.
     static SyscallReturn
     nxm_thread_blockFunc(SyscallDesc *desc, int callnum, Process *process,
@@ -1250,10 +1250,10 @@ class Tru64 {
 	   cout << xc->cpu->name() << ": nxm_thread_block " << tid << " " << secs
 	     << " " << flags << " " << action << " " << usecs << endl;
         }
-        
+
         printComBugTrace("nxm_thread_blockFunc called");
 //         fatal("nxm_thread_block does not work");
-        
+
 
 	return 0;
     }
@@ -1278,7 +1278,7 @@ class Tru64 {
                  << " " << secs << " " << usecs
                  << " " << flags << endl;
         }
-        
+
         printComBugTrace("nxm_blockFunc called");
 //         fatal("nxm_block does not work");
 
@@ -1297,7 +1297,7 @@ class Tru64 {
             cout << xc->cpu->name() << ": nxm_unblock "
                 << hex << uaddr << dec << endl;
         }
-        
+
         printComBugTrace("nxm_unblockFunc called");
 //         fatal("nxm_thread_unblock does not work");
 
@@ -1326,9 +1326,9 @@ class Tru64 {
     activate_waiting_context(Addr uaddr, Process *process,
 			     bool activate_all = false)
     {
-        
+
         int num_activated = 0;
-        
+
 //         if(uaddr == 5368991752){
 //             cout << "attempting to activate\n";
 //         }
@@ -1345,19 +1345,19 @@ class Tru64 {
 //             }
 //             cout << "\n";
 //         }
-        
+
 	while (i != end && (num_activated == 0 || activate_all)) {
-            
+
 //             if(curTick == 6014895) cout << "in loop " << i->waitChan << " == " << uaddr << "\n";
-            
+
 	    if (i->waitChan == uaddr) {
 		// found waiting process: make it active
 		ExecContext *newCtx = i->waitingContext;
-		
+
 //                 if(curTick > 6000000) cout << curTick << ": waking up suspended processor " << newCtx->cpu->params->cpu_id << " (status is " << newCtx->status() <<", wait chan  " << i->waitChan << ")\n";
-                
+
                 assert(newCtx->status() == ExecContext::Suspended);
-                
+
 		newCtx->activate();
 
 		// get rid of this record
@@ -1368,7 +1368,7 @@ class Tru64 {
 		++i;
 	    }
 	}
-        
+
 //         if(curTick >= 6000000){
 //             cout << curTick << ": Waitlist is now (2):";
 //             for(list<Process::WaitRec>::iterator a = process->waitList.begin();a != process->waitList.end(); a++){
@@ -1378,7 +1378,7 @@ class Tru64 {
 //             }
 //             cout << "\n";
 //         }
-//         
+//
 	return num_activated;
     }
 
@@ -1399,7 +1399,7 @@ class Tru64 {
 //             if(curTick > 6000000) cout << curTick << ": suspending processor (lock aquire) "<< xc->cpu->params->cpu_id <<", wait chan " << uaddr << "\n";
 	    process->waitList.push_back(Process::WaitRec(uaddr, xc));
 	    xc->suspend();
-            
+
 //             if(curTick >= 7000000){
 //                 cout << curTick << ": Waitlist is now (lock aquire):";
 //                 for(list<Process::WaitRec>::iterator a = process->waitList.begin();a != process->waitList.end(); a++){
@@ -1410,7 +1410,7 @@ class Tru64 {
 //                 cout << "\n";
 //             }
 	}
-        
+
         if(process->waitList.size() == process->numCpus()){
             fatal("All processors are waiting, we have a deadlock");
         }
@@ -1423,7 +1423,7 @@ class Tru64 {
 //         if(uaddr == 5368991752){
 //             cout << "attempting to unlock\n";
 //         }
-        
+
 	TypedBufferArg<uint64_t> lockp(uaddr);
 
 	lockp.copyIn(xc->mem);
@@ -1481,7 +1481,7 @@ class Tru64 {
 			ExecContext *xc)
     {
 	Addr uaddr = xc->getSyscallArg(0);
-        
+
 //         if(uaddr == 5368991752){
 //             cout << "unlock syscall recieved\n";
 //         }
@@ -1496,7 +1496,7 @@ class Tru64 {
     m5_cond_signalFunc(SyscallDesc *desc, int callnum, Process *process,
 		       ExecContext *xc)
     {
-	
+
         Addr cond_addr = xc->getSyscallArg(0);
 
 	// Wake up one process waiting on the condition variable.
@@ -1523,14 +1523,14 @@ class Tru64 {
     m5_cond_waitFunc(SyscallDesc *desc, int callnum, Process *process,
 		     ExecContext *xc)
     {
-        
+
 	Addr cond_addr = xc->getSyscallArg(0);
 	Addr lock_addr = xc->getSyscallArg(1);
 	TypedBufferArg<uint64_t> condp(cond_addr);
 	TypedBufferArg<uint64_t> lockp(lock_addr);
 
 //         if(curTick > 6000000) cout << curTick << ": wait is called cond addr is " << cond_addr << ", lock addr is "<< lock_addr <<"\n";
-        
+
 	// user is supposed to acquire lock before entering
 	lockp.copyIn(xc->mem);
 	assert(*lockp != 0);
@@ -1540,7 +1540,7 @@ class Tru64 {
 	process->waitList.push_back(Process::WaitRec(cond_addr, xc));
 //         if(curTick > 6000000) cout << curTick << ": suspending processor (wait, channel "<< cond_addr <<")  "<< xc->cpu->params->cpu_id <<"\n";
 	xc->suspend();
-        
+
 //         if(curTick >= 7000000){
 //             cout << curTick << ": Waitlist is now (wait func):";
 //             for(list<Process::WaitRec>::iterator a = process->waitList.begin();a != process->waitList.end(); a++){
@@ -1550,7 +1550,7 @@ class Tru64 {
 //             }
 //             cout << "\n";
 //         }
-        
+
         if(process->waitList.size() == process->numCpus()){
             // HACK HACK HACK, attempt to fix deadlock by releasing a processor that is waiting for this condition
 //             warn("The thread sheduler has deadlocked, releasing one processor");
@@ -1558,7 +1558,7 @@ class Tru64 {
             int activated = activate_waiting_context(cond_addr, process);
             if(activated == 0) fatal("We have a deadlock");
         }
-        
+
 
 	return 0;
     }
@@ -1603,7 +1603,7 @@ class Tru64 {
 	    &machSyscallDescs[-callnum] : &syscallDescs[callnum];
 
 //         cout << "syscall recieved, num is " << callnum << "\n";
-        
+
 	desc->doSyscall(callnum, process, xc);
     }
 
@@ -2039,7 +2039,7 @@ AlphaTru64Process::syscall(ExecContext *xc)
     num_syscalls++;
 
     int64_t callnum = xc->regs.intRegFile[ReturnValueReg];
-    
+
 //     cout << "callnum is " << callnum << "\n";
 
     Tru64::doSyscall(callnum, this, xc);
@@ -2052,7 +2052,8 @@ AlphaTru64Process::AlphaTru64Process(const std::string &name,
 				     int stdout_fd,
 				     int stderr_fd,
 				     std::vector<std::string> &argv,
-				     std::vector<std::string> &envp)
-    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp)
+				     std::vector<std::string> &envp,
+				     int _maxMemMB)
+    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp, _maxMemMB)
 {
 }

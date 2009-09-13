@@ -10,6 +10,7 @@ class LiveProcess(Process):
     cmd = VectorParam.String("command line (executable plus arguments)")
     env = VectorParam.String('', "environment settings")
     input = Param.String('cin', "filename for stdin")
+    maxMemMB = Param.Int("Maximum memory consumption of functional memory in MB")
 
 class EioProcess(Process):
     type = 'EioProcess'

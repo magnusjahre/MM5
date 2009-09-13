@@ -96,10 +96,16 @@
 using namespace std;
 
 // create a flat memory space and initialize memory system
-MainMemory::MainMemory(const string &n)
+MainMemory::MainMemory(const string &n, int _maxMemMB)
 : FunctionalMemory(n), takeStats(false)
 {
-	memPageTabSize = 8*1024;
+
+	cout << "got max mem " << _maxMemMB << "\n";
+	if(!IsPowerOf2(_maxMemMB)){
+		fatal("Maximum memory consumption in functional memory must be a power of two");
+	}
+
+	memPageTabSize = _maxMemMB*128; // Since VMPageSize is 8192
 	memPageTabSizeLog2 = FloorLog2(memPageTabSize);
 
 	ptab = new entry*[memPageTabSize];
@@ -586,7 +592,8 @@ END_INIT_SIM_OBJECT_PARAMS(MainMemory)
 
 CREATE_SIM_OBJECT(MainMemory)
 {
-	return new MainMemory(getInstanceName());
+	// Should not be created in this way, 23 is not a power of two and creation will fail
+	return new MainMemory(getInstanceName(), 23);
 }
 
 REGISTER_SIM_OBJECT("MainMemory", MainMemory)
