@@ -96,7 +96,7 @@
 using namespace std;
 
 // create a flat memory space and initialize memory system
-MainMemory::MainMemory(const string &n, int _maxMemMB)
+MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 : FunctionalMemory(n), takeStats(false)
 {
 
@@ -120,7 +120,9 @@ MainMemory::MainMemory(const string &n, int _maxMemMB)
 	::memset(buffer, 0, VMPageSize);
 	currentFileEndPos = 0;
 
-	pagefileName = "pagefile.bin"; //TODO: add CPUID to avoid conflicts
+	stringstream filename;
+	filename << "pagefile" << _cpuID << ".bin";
+	pagefileName = filename.str();
 	ofstream pagefile(pagefileName.c_str(), ios::binary);
 	pagefile << "";
 	pagefile.flush();
@@ -664,8 +666,8 @@ END_INIT_SIM_OBJECT_PARAMS(MainMemory)
 
 CREATE_SIM_OBJECT(MainMemory)
 {
-	// Should not be created in this way, 23 is not a power of two and creation will fail
-	return new MainMemory(getInstanceName(), 23);
+	// Should not be created in this way, 42 is not a power of two and creation will fail
+	return new MainMemory(getInstanceName(), 42, 1);
 }
 
 REGISTER_SIM_OBJECT("MainMemory", MainMemory)

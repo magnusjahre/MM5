@@ -11,6 +11,7 @@ class LiveProcess(Process):
     env = VectorParam.String('', "environment settings")
     input = Param.String('cin', "filename for stdin")
     maxMemMB = Param.Int("Maximum memory consumption of functional memory in MB")
+    cpuID = Param.Int("The ID of the CPU this process is running on")
 
 class EioProcess(Process):
     type = 'EioProcess'

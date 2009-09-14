@@ -96,7 +96,12 @@ def createWorkload(benchmarkStrings):
             returnArray.append(Apsi())
         else:
             panic("Unknown benchmark is part of workload")
-            
+    
+    idcnt = 0
+    for process in returnArray:
+        process.cpuID = idcnt
+        idcnt += 1 
+    
     return returnArray
 
 ###############################################################################

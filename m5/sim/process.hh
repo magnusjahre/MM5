@@ -132,7 +132,8 @@ class Process : public SimObject
 	    int stdin_fd, 	// initial I/O descriptors
 	    int stdout_fd,
 	    int stderr_fd,
-	    int _memSizeMB);
+	    int _memSizeMB,
+	    int _cpuID);
 
     // post initialization startup
     virtual void startup();
@@ -215,7 +216,8 @@ class LiveProcess : public Process
 		int stdin_fd, int stdout_fd, int stderr_fd,
 		std::vector<std::string> &argv,
 		std::vector<std::string> &envp,
-		int _memSizeMB);
+		int _memSizeMB,
+		int _cpuID);
 
   public:
     // this function is used to create the LiveProcess object, since
@@ -226,7 +228,8 @@ class LiveProcess : public Process
 			       std::string executable,
 			       std::vector<std::string> &argv,
 			       std::vector<std::string> &envp,
-			       int _maxMemMB);
+			       int _maxMemMB,
+			       int _cpuID);
 };
 
 

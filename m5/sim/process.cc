@@ -74,12 +74,13 @@ Process::Process(const string &nm,
 		 int stdin_fd, 	// initial I/O descriptors
 		 int stdout_fd,
 		 int stderr_fd,
-		 int _memSizeMB)
+		 int _memSizeMB,
+		 int _cpuID)
     : SimObject(nm)
 {
 
 	// allocate memory space
-	memory = new MainMemory(name() + ".MainMem", _memSizeMB);
+	memory = new MainMemory(name() + ".MainMem", _memSizeMB, _cpuID);
 
     // allocate initial register file
     init_regs = new RegFile;
@@ -378,8 +379,8 @@ copyStringArray(vector<string> &strings, Addr array_ptr, Addr data_ptr,
 LiveProcess::LiveProcess(const string &nm, ObjectFile *objFile,
 			 int stdin_fd, int stdout_fd, int stderr_fd,
 			 vector<string> &argv, vector<string> &envp,
-			 int _memSizeMB)
-    : Process(nm, stdin_fd, stdout_fd, stderr_fd, _memSizeMB)
+			 int _memSizeMB, int _cpuID)
+    : Process(nm, stdin_fd, stdout_fd, stderr_fd, _memSizeMB, _cpuID)
 {
     prog_fname = argv[0];
 
@@ -467,7 +468,7 @@ LiveProcess::create(const string &nm,
 		    int stdin_fd, int stdout_fd, int stderr_fd,
 		    string executable,
 		    vector<string> &argv, vector<string> &envp,
-		    int _maxMemMB)
+		    int _maxMemMB, int _cpuID)
 {
     LiveProcess *process = NULL;
     ObjectFile *objFile = createObjectFile(executable);
@@ -481,13 +482,13 @@ LiveProcess::create(const string &nm,
     	case ObjectFile::Tru64:
     		process = new AlphaTru64Process(nm, objFile,
     				stdin_fd, stdout_fd, stderr_fd,
-    				argv, envp, _maxMemMB);
+    				argv, envp, _maxMemMB, _cpuID);
     		break;
 
     	case ObjectFile::Linux:
     		process = new AlphaLinuxProcess(nm, objFile,
     				stdin_fd, stdout_fd, stderr_fd,
-    				argv, envp, _maxMemMB);
+    				argv, envp, _maxMemMB, _cpuID);
     		break;
 
     	default:
@@ -513,6 +514,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(LiveProcess)
     Param<string> output;
     VectorParam<string> env;
     Param<int> maxMemMB;
+    Param<int> cpuID;
 
 END_DECLARE_SIM_OBJECT_PARAMS(LiveProcess)
 
@@ -524,7 +526,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(LiveProcess)
     INIT_PARAM(input, "filename for stdin (dflt: use sim stdin)"),
     INIT_PARAM(output, "filename for stdout/stderr (dflt: use sim stdout)"),
     INIT_PARAM(env, "environment settings"),
-    INIT_PARAM_DFLT(maxMemMB, "Maximum memory consumption of functional memory in MB", 256)
+    INIT_PARAM_DFLT(maxMemMB, "Maximum memory consumption of functional memory in MB", 256),
+    INIT_PARAM(cpuID, "The ID of the CPU this process is running on")
 
 END_INIT_SIM_OBJECT_PARAMS(LiveProcess)
 
@@ -554,7 +557,7 @@ CREATE_SIM_OBJECT(LiveProcess)
     return LiveProcess::create(getInstanceName(),
 			       stdin_fd, stdout_fd, stderr_fd,
 			       (string)executable == "" ? cmd[0] : executable,
-			       cmd, env, maxMemMB);
+			       cmd, env, maxMemMB, cpuID);
 }
 
 REGISTER_SIM_OBJECT("LiveProcess", LiveProcess)

@@ -240,7 +240,7 @@ protected:
 	std::string generateID(const char* prefix, int index, int linkedListNum);
 
 public:
-	MainMemory(const std::string &n, int _maxMemMB);
+	MainMemory(const std::string &n, int _maxMemMB, int _cpuID);
 	virtual ~MainMemory();
 
 	// Read/Write arbitrary amounts of data to simulated memory space

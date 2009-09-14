@@ -625,20 +625,20 @@ prog = []
 
 if env['BENCHMARK'].startswith("fair"):
     tmpBM = env['BENCHMARK'].replace("fair","")
-    prog = Spec2000.createWorkload(
-               fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
+    prog = Spec2000.createWorkload(fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
+
 elif env['BENCHMARK'] in single_core.configuration:
     prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
+
 elif env['BENCHMARK'] == "hello":
     prog = [TestPrograms.HelloWorld() for i in range(int(env["NP"]))]
+
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")
 
-if prog != []:
-    for i in range(int(env['NP'])):
-        
-        root.simpleCPU[i].workload = prog[i]
-        root.detailedCPU[i].workload = prog[i]
+for i in range(int(env['NP'])):
+    root.simpleCPU[i].workload = prog[i]
+    root.detailedCPU[i].workload = prog[i]
 
 ###############################################################################
 # Statistics

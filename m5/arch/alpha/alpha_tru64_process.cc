@@ -2053,7 +2053,8 @@ AlphaTru64Process::AlphaTru64Process(const std::string &name,
 				     int stderr_fd,
 				     std::vector<std::string> &argv,
 				     std::vector<std::string> &envp,
-				     int _maxMemMB)
-    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp, _maxMemMB)
+				     int _maxMemMB,
+				     int _cpuID)
+    : LiveProcess(name, objFile, stdin_fd, stdout_fd, stderr_fd, argv, envp, _maxMemMB, _cpuID)
 {
 }
