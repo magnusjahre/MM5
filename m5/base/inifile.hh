@@ -54,158 +54,160 @@
 ///
 class IniFile
 {
-  protected:
+protected:
 
-    ///
-    /// A single key/value pair.
-    ///
-    class Entry
-    {
-	std::string	value;		///< The entry value.
-	mutable bool	referenced;	///< Has this entry been used?
-
-      public:
-	/// Constructor.
-	Entry(const std::string &v)
-	    : value(v), referenced(false)
+	///
+	/// A single key/value pair.
+	///
+	class Entry
 	{
-	}
+		std::string	value;		///< The entry value.
+		mutable bool	referenced;	///< Has this entry been used?
 
-	/// Has this entry been used?
-	bool isReferenced() { return referenced; }
+	public:
+		/// Constructor.
+		Entry(const std::string &v)
+		: value(v), referenced(false)
+		{
+		}
 
-	/// Fetch the value.
-	const std::string &getValue() const;
+		/// Has this entry been used?
+		bool isReferenced() { return referenced; }
 
-	/// Set the value.
-	void setValue(const std::string &v) { value = v; }
+		/// Fetch the value.
+		const std::string &getValue() const;
 
-	/// Append the given string to the value.  A space is inserted
-	/// between the existing value and the new value.  Since this
-	/// operation is typically used with values that are
-	/// space-separated lists of tokens, this keeps the tokens
-	/// separate.
-	void appendValue(const std::string &v) { value += " "; value += v; }
-    };
+		/// Set the value.
+		void setValue(const std::string &v) { value = v; }
 
-    ///
-    /// A section.
-    ///
-    class Section
-    {
-	/// EntryTable type.  Map of strings to Entry object pointers.
-	typedef m5::hash_map<std::string, Entry *> EntryTable;
+		/// Append the given string to the value.  A space is inserted
+		/// between the existing value and the new value.  Since this
+		/// operation is typically used with values that are
+		/// space-separated lists of tokens, this keeps the tokens
+		/// separate.
+		void appendValue(const std::string &v) { value += " "; value += v; }
+	};
 
-	EntryTable	table;		///< Table of entries.
-	mutable bool	referenced;	///< Has this section been used?
-
-      public:
-	/// Constructor.
-	Section()
-	    : table(), referenced(false)
+	///
+	/// A section.
+	///
+	class Section
 	{
-	}
+		/// EntryTable type.  Map of strings to Entry object pointers.
+		typedef m5::hash_map<std::string, Entry *> EntryTable;
 
-	/// Has this section been used?
-	bool isReferenced() { return referenced; }
+		EntryTable	table;		///< Table of entries.
+		mutable bool	referenced;	///< Has this section been used?
 
-	/// Add an entry to the table.  If an entry with the same name
-	/// already exists, the 'append' parameter is checked If true,
-	/// the new value will be appended to the existing entry.  If
-	/// false, the new value will replace the existing entry.
-	void addEntry(const std::string &entryName, const std::string &value,
-		      bool append);
+	public:
+		/// Constructor.
+		Section()
+		: table(), referenced(false)
+		{
+		}
 
-	/// Add an entry to the table given a string assigment.
-	/// Assignment should be of the form "param=value" or
-	/// "param+=value" (for append).  This funciton parses the
-	/// assignment statment and calls addEntry().
-	/// @retval True for success, false if parse error.
-	bool add(const std::string &assignment);
+		~Section();
 
-	/// Find the entry with the given name.
-	/// @retval Pointer to the entry object, or NULL if none.
-	Entry *findEntry(const std::string &entryName) const;
+		/// Has this section been used?
+		bool isReferenced() { return referenced; }
 
-	/// Print the unreferenced entries in this section to cerr.
-	/// Messages can be suppressed using "unref_section_ok" and
-	/// "unref_entries_ok".
-	/// @param sectionName Name of this section, for use in output message.
-	/// @retval True if any entries were printed.
-	bool printUnreferenced(const std::string &sectionName);
+		/// Add an entry to the table.  If an entry with the same name
+		/// already exists, the 'append' parameter is checked If true,
+		/// the new value will be appended to the existing entry.  If
+		/// false, the new value will replace the existing entry.
+		void addEntry(const std::string &entryName, const std::string &value,
+				bool append);
 
-	/// Print the contents of this section to cout (for debugging).
-	void dump(const std::string &sectionName);
-    };
+		/// Add an entry to the table given a string assigment.
+		/// Assignment should be of the form "param=value" or
+		/// "param+=value" (for append).  This funciton parses the
+		/// assignment statment and calls addEntry().
+		/// @retval True for success, false if parse error.
+		bool add(const std::string &assignment);
 
-    /// SectionTable type.  Map of strings to Section object pointers.
-    typedef m5::hash_map<std::string, Section *> SectionTable;
+		/// Find the entry with the given name.
+		/// @retval Pointer to the entry object, or NULL if none.
+		Entry *findEntry(const std::string &entryName) const;
 
-  protected:
-    /// Hash of section names to Section object pointers.
-    SectionTable table;
+		/// Print the unreferenced entries in this section to cerr.
+		/// Messages can be suppressed using "unref_section_ok" and
+		/// "unref_entries_ok".
+		/// @param sectionName Name of this section, for use in output message.
+		/// @retval True if any entries were printed.
+		bool printUnreferenced(const std::string &sectionName);
 
-    /// Look up section with the given name, creating a new section if
-    /// not found.
-    /// @retval Pointer to section object.
-    Section *addSection(const std::string &sectionName);
+		/// Print the contents of this section to cout (for debugging).
+		void dump(const std::string &sectionName);
+	};
 
-    /// Look up section with the given name.
-    /// @retval Pointer to section object, or NULL if not found.
-    Section *findSection(const std::string &sectionName) const;
+	/// SectionTable type.  Map of strings to Section object pointers.
+	typedef m5::hash_map<std::string, Section *> SectionTable;
 
-  public:
-    /// Constructor.
-    IniFile();
+protected:
+	/// Hash of section names to Section object pointers.
+	SectionTable table;
 
-    /// Destructor.
-    ~IniFile();
+	/// Look up section with the given name, creating a new section if
+	/// not found.
+	/// @retval Pointer to section object.
+	Section *addSection(const std::string &sectionName);
 
-    /// Load parameter settings from given istream.  This is a helper
-    /// function for load(string) and loadCPP(), which open a file
-    /// and then pass it here.
-    /// @retval True if successful, false if errors were encountered.
-    bool load(std::istream &f);
+	/// Look up section with the given name.
+	/// @retval Pointer to section object, or NULL if not found.
+	Section *findSection(const std::string &sectionName) const;
 
-    /// Load the specified file, passing it through the C preprocessor.
-    /// Parameter settings found in the file will be merged with any
-    /// already defined in this object.
-    /// @param file The path of the file to load.
-    /// @param cppFlags Vector of extra flags to pass to cpp.
-    /// @retval True if successful, false if errors were encountered.
-    bool loadCPP(const std::string &file, std::vector<char *> &cppFlags);
+public:
+	/// Constructor.
+	IniFile();
 
-    /// Load the specified file.
-    /// Parameter settings found in the file will be merged with any
-    /// already defined in this object.
-    /// @param file The path of the file to load.
-    /// @retval True if successful, false if errors were encountered.
-    bool load(const std::string &file);
+	/// Destructor.
+	~IniFile();
 
-    /// Take string of the form "<section>:<parameter>=<value>" or
-    /// "<section>:<parameter>+=<value>" and add to database.
-    /// @retval True if successful, false if parse error.
-    bool add(const std::string &s);
+	/// Load parameter settings from given istream.  This is a helper
+	/// function for load(string) and loadCPP(), which open a file
+	/// and then pass it here.
+	/// @retval True if successful, false if errors were encountered.
+	bool load(std::istream &f);
 
-    /// Find value corresponding to given section and entry names.
-    /// Value is returned by reference in 'value' param.
-    /// @retval True if found, false if not.
-    bool find(const std::string &section, const std::string &entry,
-	      std::string &value) const;
+	/// Load the specified file, passing it through the C preprocessor.
+	/// Parameter settings found in the file will be merged with any
+	/// already defined in this object.
+	/// @param file The path of the file to load.
+	/// @param cppFlags Vector of extra flags to pass to cpp.
+	/// @retval True if successful, false if errors were encountered.
+	bool loadCPP(const std::string &file, std::vector<char *> &cppFlags);
 
-    /// Determine whether the named section exists in the .ini file.
-    /// Note that the 'Section' class is (intentionally) not public,
-    /// so all clients can do is get a bool that says whether there
-    /// are any values in that section or not.
-    /// @return True if the section exists.
-    bool sectionExists(const std::string &section) const;
+	/// Load the specified file.
+	/// Parameter settings found in the file will be merged with any
+	/// already defined in this object.
+	/// @param file The path of the file to load.
+	/// @retval True if successful, false if errors were encountered.
+	bool load(const std::string &file);
 
-    /// Print unreferenced entries in object.  Iteratively calls
-    /// printUnreferend() on all the constituent sections.
-    bool printUnreferenced();
+	/// Take string of the form "<section>:<parameter>=<value>" or
+	/// "<section>:<parameter>+=<value>" and add to database.
+	/// @retval True if successful, false if parse error.
+	bool add(const std::string &s);
 
-    /// Dump contents to cout.  For debugging.
-    void dump();
+	/// Find value corresponding to given section and entry names.
+	/// Value is returned by reference in 'value' param.
+	/// @retval True if found, false if not.
+	bool find(const std::string &section, const std::string &entry,
+			std::string &value) const;
+
+	/// Determine whether the named section exists in the .ini file.
+	/// Note that the 'Section' class is (intentionally) not public,
+	/// so all clients can do is get a bool that says whether there
+	/// are any values in that section or not.
+	/// @return True if the section exists.
+	bool sectionExists(const std::string &section) const;
+
+	/// Print unreferenced entries in object.  Iteratively calls
+	/// printUnreferend() on all the constituent sections.
+	bool printUnreferenced();
+
+	/// Dump contents to cout.  For debugging.
+	void dump();
 };
 
 #endif // __INIFILE_HH__

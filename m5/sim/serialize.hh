@@ -227,6 +227,8 @@ class Checkpoint
     Checkpoint(const std::string &cpt_dir, const std::string &path,
 	       const ConfigNode *_configNode);
 
+    ~Checkpoint();
+
     const std::string cptDir;
 
     bool find(const std::string &section, const std::string &entry,

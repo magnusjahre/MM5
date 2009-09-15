@@ -48,24 +48,24 @@
 using namespace std;
 
 ConfigHierarchy::ConfigHierarchy(IniFile &f)
-    : configDB(f), root(NULL)
+: configDB(f), root(NULL)
 {
 }
 
 void
 ConfigHierarchy::build()
 {
-    root = new Node("root", NULL, this);
-    root->buildSubtree();
+	root = new Node("root", NULL, this);
+	root->buildSubtree();
 }
 
 ConfigHierarchy::Node::Node(const std::string &_name, Node *_parent,
-			    ConfigHierarchy *hierarchy)
-    : nodeName(_name), myHierarchy(hierarchy), simObject(NULL), parent(_parent)
+		ConfigHierarchy *hierarchy)
+: nodeName(_name), myHierarchy(hierarchy), simObject(NULL), parent(_parent)
 {
-    if (parent && parent->nodePath != "root")
-	nodePath = parent->nodePath + '.';
-    nodePath += nodeName;
+	if (parent && parent->nodePath != "root")
+		nodePath = parent->nodePath + '.';
+	nodePath += nodeName;
 }
 
 //
@@ -74,21 +74,21 @@ ConfigHierarchy::Node::Node(const std::string &_name, Node *_parent,
 void
 ConfigHierarchy::Node::buildSubtree()
 {
-    DPRINTF(Config, "buildSubtree: %s\n", nodePath);
+	DPRINTF(Config, "buildSubtree: %s\n", nodePath);
 
-    // get 'children=' option
-    string children_string;
-    if (!find("children", children_string)) {
-	DPRINTF(Config, "%s: no children found\n", nodePath);
-	return;
-    }
+	// get 'children=' option
+	string children_string;
+	if (!find("children", children_string)) {
+		DPRINTF(Config, "%s: no children found\n", nodePath);
+		return;
+	}
 
-    // parse & create child ConfigHierarchy::Node objects
-    parseChildren(children_string);
+	// parse & create child ConfigHierarchy::Node objects
+	parseChildren(children_string);
 
-    // recursively build subtree under each child
-    for (int i = 0; i < children.size(); i++)
-	children[i]->buildSubtree();
+	// recursively build subtree under each child
+	for (int i = 0; i < children.size(); i++)
+		children[i]->buildSubtree();
 }
 
 
@@ -101,171 +101,172 @@ ConfigHierarchy::Node::buildSubtree()
 void
 ConfigHierarchy::Node::parseChildren(const string &str)
 {
-    string s = str;
-    eat_white(s);
-    vector<string> v;
+	string s = str;
+	eat_white(s);
+	vector<string> v;
 
-    tokenize(v, s, ' ');
-    vector<string>::iterator i = v.begin(), end = v.end();
-    while (i != end) {
-	addChild(*i);
-	++i;
-    }
+	tokenize(v, s, ' ');
+	vector<string>::iterator i = v.begin(), end = v.end();
+	while (i != end) {
+		addChild(*i);
+		++i;
+	}
 }
 
 void
 ConfigHierarchy::Node::addChild(const string &childName)
 {
-    // check for duplicate names (not allowed as it makes future
-    // references to the name ambiguous)
-    if (findChild(childName))
-	panic("Duplicate name '%s' in config node '%s'\n", childName);
+	// check for duplicate names (not allowed as it makes future
+	// references to the name ambiguous)
+	if (findChild(childName))
+		panic("Duplicate name '%s' in config node '%s'\n", childName);
 
-    DPRINTF(Config, "addChild: adding child %s\n", childName);
-    children.push_back(new Node(childName, this, myHierarchy));
+	DPRINTF(Config, "addChild: adding child %s\n", childName);
+	children.push_back(new Node(childName, this, myHierarchy));
 }
 
 
 const ConfigHierarchy::Node *
 ConfigHierarchy::Node::findChild(const string &name) const
 {
-    for (int i = 0; i < children.size(); i++) {
-	const Node *n = children[i];
-	if (n->nodeName == name)
-	    return n;
-    }
+	for (int i = 0; i < children.size(); i++) {
+		const Node *n = children[i];
+		if (n->nodeName == name)
+			return n;
+	}
 
-    return NULL;
+	return NULL;
 }
 
 const ConfigHierarchy::Node *
 ConfigHierarchy::Node::resolveNode(const string &name, int level) const
 {
-    const ConfigNode *n;
+	const ConfigNode *n;
 
-    vector<string> v;
+	vector<string> v;
 
-    tokenize(v, name, '.');
+	tokenize(v, name, '.');
 
-    if ((n = findChild(v[level])) != NULL) {
+	if ((n = findChild(v[level])) != NULL) {
 
-	// have a match at current level of path
+		// have a match at current level of path
 
-	if (level == v.size() - 1){
-	    // this is the last level... we're done
-	    return n;
-	} else {
-	    // look for match at next level
-	    return n->resolveNode(name, level + 1);
+		if (level == v.size() - 1){
+			// this is the last level... we're done
+			return n;
+		} else {
+			// look for match at next level
+			return n->resolveNode(name, level + 1);
+		}
 	}
-    }
 
-    if (level == 0 && parent != NULL) {
-	// still looking for initial match: recurse up the tree if we can
-	return parent->resolveNode(name, 0);
-    }
+	if (level == 0 && parent != NULL) {
+		// still looking for initial match: recurse up the tree if we can
+		return parent->resolveNode(name, 0);
+	}
 
-    // nowhere else to look... give up
-    return NULL;
+	// nowhere else to look... give up
+	return NULL;
 }
 
 
 SimObject *
 ConfigHierarchy::Node::resolveSimObject(const string &name) const
 {
-    const ConfigNode *node = resolveNode(name);
+	const ConfigNode *node = resolveNode(name);
 
-    // check fro config node not found
-    if (node == NULL)
-	return NULL;
+	// check fro config node not found
+	if (node == NULL)
+		return NULL;
 
-    // if config node exists, but corresponding SimObject has not yet
-    // been created, force creation
-    if (node->simObject == NULL) {
-	ConfigNode *mnode = const_cast<ConfigNode *>(node);
-	mnode->createSimObject();
-    }
+	// if config node exists, but corresponding SimObject has not yet
+	// been created, force creation
+	if (node->simObject == NULL) {
+		ConfigNode *mnode = const_cast<ConfigNode *>(node);
+		mnode->createSimObject();
+	}
 
-    return node->simObject;
+	return node->simObject;
 }
 
 
 void
 ConfigHierarchy::createSimObjects()
 {
-    root->createSimObject();
+	root->createSimObject();
 
-    // do a depth-first post-order traversal, creating each hierarchy
-    // node's corresponding simulation object as we go
-    for (int i = 0; i < root->children.size(); i++)
-	root->children[i]->createSimObjects();
+	// do a depth-first post-order traversal, creating each hierarchy
+	// node's corresponding simulation object as we go
+	for (int i = 0; i < root->children.size(); i++)
+		root->children[i]->createSimObjects();
 }
 
 void
 ConfigHierarchy::Node::createSimObject()
 {
-    DPRINTFR(Config, "create SimObject: %s\n", getPath());
+	DPRINTFR(Config, "create SimObject: %s\n", getPath());
 
-    //cout << "create SimObject: " << getPath() << "\n";
+	//cout << "create SimObject: " << getPath() << "\n";
 
-    // make this safe to call more than once by skipping if object
-    // already created
-    if (simObject != NULL)
-	return;
+	// make this safe to call more than once by skipping if object
+	// already created
+	if (simObject != NULL)
+		return;
 
-    if (find("type", nodeType)) {
-	simObject = SimObjectClass::createObject(getConfigDB(),  this);
-        DPRINTFR(Config, "new SimObject: %s\n", getPath());
+	if (find("type", nodeType)) {
+		simObject = SimObjectClass::createObject(getConfigDB(),  this);
+		DPRINTFR(Config, "new SimObject: %s\n", getPath());
 
-	if (!simObject)
-	    panic("Error creating object.\n");
-    }
+		if (!simObject)
+			panic("Error creating object.\n");
+	}
 }
 
 
 void
 ConfigHierarchy::Node::createSimObjects()
 {
-    // do a depth-first post-order traversal, creating each hierarchy
-    // node's corresponding simulation object as we go
-    for (int i = 0; i < children.size(); i++)
-	children[i]->createSimObjects();
+	// do a depth-first post-order traversal, creating each hierarchy
+	// node's corresponding simulation object as we go
+	for (int i = 0; i < children.size(); i++)
+		children[i]->createSimObjects();
 
-    // now create this node's object
-    createSimObject();
+	// now create this node's object
+	createSimObject();
 }
 
 
 void
 ConfigHierarchy::dump(ostream &stream) const
 {
-    dump(stream, root, 0);
+	dump(stream, root, 0);
 }
 
 
 void
 ConfigHierarchy::dump(ostream &stream, const Node *n, int l) const
 {
-    if (!n) return;
-    for (int i = 0; i < l; i++)
-	stream << "  ";
-    ccprintf(stream, "%s\n", n->nodeName);
+	if (!n) return;
+	for (int i = 0; i < l; i++)
+		stream << "  ";
+	ccprintf(stream, "%s\n", n->nodeName);
 
-    for (int i = 0; i < n->children.size(); i++)
-	dump(stream, n->children[i], l + 1);
+	for (int i = 0; i < n->children.size(); i++)
+		dump(stream, n->children[i], l + 1);
 }
 
 void
 ConfigHierarchy::unserializeSimObjects()
 {
-    root->unserialize(NULL, "");
+	Checkpoint* cpt = root->unserialize(NULL, "");
+	delete cpt;
 }
 
 // Walks tree in a pre-order traversal and unserializes any
 // SimObjects with a checkpoint provided
-void
+Checkpoint*
 ConfigHierarchy::Node::unserialize(Checkpoint *parentCkpt,
-				   const std::string &section)
+		const std::string &section)
 {
 	Checkpoint *cp = parentCkpt; // use parent's checkpoint by default
 	string cpSection = section;  // and parent-provided section name
@@ -297,4 +298,6 @@ ConfigHierarchy::Node::unserialize(Checkpoint *parentCkpt,
 		childSection += children[i]->nodeName;
 		children[i]->unserialize(cp, childSection);
 	}
+
+	return cp;
 }

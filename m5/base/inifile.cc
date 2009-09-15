@@ -59,13 +59,13 @@ IniFile::IniFile()
 
 IniFile::~IniFile()
 {
-    SectionTable::iterator i = table.begin();
-    SectionTable::iterator end = table.end();
+	SectionTable::iterator i = table.begin();
+	SectionTable::iterator end = table.end();
 
-    while (i != end) {
-	delete (*i).second;
-	++i;
-    }
+	while (i != end) {
+		delete (*i).second;
+		++i;
+	}
 }
 
 
@@ -73,196 +73,206 @@ IniFile::~IniFile()
 bool
 IniFile::loadCPP(const string &file, vector<char *> &cppArgs)
 {
-    // Open the file just to verify that we can.  Otherwise if the
-    // file doesn't exist or has bad permissions the user will get
-    // confusing errors from cpp/g++.
-    ifstream tmpf(file.c_str());
+	// Open the file just to verify that we can.  Otherwise if the
+	// file doesn't exist or has bad permissions the user will get
+	// confusing errors from cpp/g++.
+	ifstream tmpf(file.c_str());
 
-    if (!tmpf.is_open())
-	return false;
+	if (!tmpf.is_open())
+		return false;
 
-    tmpf.close();
+	tmpf.close();
 
-    char *cfile = strncpy(new char[file.size() + 1], file.c_str(),
-			  file.size());
-    char *dir = dirname(cfile);
-    char *dir_arg = NULL;
-    if (*dir != '.') {
-	string arg = "-I";
-	arg += dir;
+	char *cfile = strncpy(new char[file.size() + 1], file.c_str(),
+			file.size());
+	char *dir = dirname(cfile);
+	char *dir_arg = NULL;
+	if (*dir != '.') {
+		string arg = "-I";
+		arg += dir;
 
-	dir_arg = new char[arg.size() + 1];
-	strncpy(dir_arg, arg.c_str(), arg.size());
-    }
+		dir_arg = new char[arg.size() + 1];
+		strncpy(dir_arg, arg.c_str(), arg.size());
+	}
 
-    delete [] cfile;
+	delete [] cfile;
 
-    char tempfile[] = "/tmp/configXXXXXX";
-    int tmp_fd = mkstemp(tempfile);
+	char tempfile[] = "/tmp/configXXXXXX";
+	int tmp_fd = mkstemp(tempfile);
 
-    int pid = fork();
+	int pid = fork();
 
-    if (pid == -1)
-	return false;
+	if (pid == -1)
+		return false;
 
-    if (pid == 0) {
-	char filename[FILENAME_MAX];
-	string::size_type i = file.copy(filename, sizeof(filename) - 1);
-	filename[i] = '\0';
+	if (pid == 0) {
+		char filename[FILENAME_MAX];
+		string::size_type i = file.copy(filename, sizeof(filename) - 1);
+		filename[i] = '\0';
 
-	int arg_count = cppArgs.size();
+		int arg_count = cppArgs.size();
 
-	char **args = new char *[arg_count + 20];
+		char **args = new char *[arg_count + 20];
 
-	int nextArg = 0;
-	args[nextArg++] = (char*) "g++";
-        args[nextArg++] = (char*) "-E";
-        args[nextArg++] = (char*) "-P";
-        args[nextArg++] = (char*) "-nostdinc";
-        args[nextArg++] = (char*) "-nostdinc++";
-        args[nextArg++] = (char*) "-x";
-        args[nextArg++] = (char*) "c++";
-        args[nextArg++] = (char*) "-undef";
+		int nextArg = 0;
+		args[nextArg++] = (char*) "g++";
+		args[nextArg++] = (char*) "-E";
+		args[nextArg++] = (char*) "-P";
+		args[nextArg++] = (char*) "-nostdinc";
+		args[nextArg++] = (char*) "-nostdinc++";
+		args[nextArg++] = (char*) "-x";
+		args[nextArg++] = (char*) "c++";
+		args[nextArg++] = (char*) "-undef";
 
-	for (int i = 0; i < arg_count; i++)
-	    args[nextArg++] = cppArgs[i];
+		for (int i = 0; i < arg_count; i++)
+			args[nextArg++] = cppArgs[i];
 
-	if (dir_arg)
-	    args[nextArg++] = dir_arg;
+		if (dir_arg)
+			args[nextArg++] = dir_arg;
 
-	args[nextArg++] = filename;
-	args[nextArg++] = NULL;
+		args[nextArg++] = filename;
+		args[nextArg++] = NULL;
 
-	close(STDOUT_FILENO);
-	if (dup2(tmp_fd, STDOUT_FILENO) == -1)
-	    exit(1);
+		close(STDOUT_FILENO);
+		if (dup2(tmp_fd, STDOUT_FILENO) == -1)
+			exit(1);
 
-	execvp("g++", args);
+		execvp("g++", args);
 
-	exit(0);
-    }
+		exit(0);
+	}
 
-    int retval;
-    waitpid(pid, &retval, 0);
+	int retval;
+	waitpid(pid, &retval, 0);
 
-    delete [] dir_arg;
+	delete [] dir_arg;
 
-    // check for normal completion of CPP
-    if (!WIFEXITED(retval) || WEXITSTATUS(retval) != 0)
-	return false;
+	// check for normal completion of CPP
+	if (!WIFEXITED(retval) || WEXITSTATUS(retval) != 0)
+		return false;
 
-    close(tmp_fd);
+	close(tmp_fd);
 
-    bool status = false;
+	bool status = false;
 
-    status = load(tempfile);
+	status = load(tempfile);
 
-    unlink(tempfile);
+	unlink(tempfile);
 
-    return status;
+	return status;
 }
 #endif
 
 bool
 IniFile::load(const string &file)
 {
-    ifstream f(file.c_str());
+	ifstream f(file.c_str());
 
-    if (!f.is_open())
-	return false;
+	if (!f.is_open())
+		return false;
 
-    return load(f);
+	return load(f);
 }
 
 
 const string &
 IniFile::Entry::getValue() const
 {
-    referenced = true;
-    return value;
+	referenced = true;
+	return value;
 }
 
 
+IniFile::Section::~Section(){
+	EntryTable::iterator i = table.begin();
+	EntryTable::iterator end = table.end();
+
+	while(i != end){
+		delete i->second;
+		i++;
+	}
+}
+
 void
 IniFile::Section::addEntry(const std::string &entryName,
-			   const std::string &value,
-			   bool append)
+		const std::string &value,
+		bool append)
 {
-    EntryTable::iterator ei = table.find(entryName);
+	EntryTable::iterator ei = table.find(entryName);
 
-    if (ei == table.end()) {
-	// new entry
-	table[entryName] = new Entry(value);
-    }
-    else if (append) {
-	// append new reult to old entry
-	ei->second->appendValue(value);
-    }
-    else {
-	// override old entry
-	ei->second->setValue(value);
-    }
+	if (ei == table.end()) {
+		// new entry
+		table[entryName] = new Entry(value);
+	}
+	else if (append) {
+		// append new reult to old entry
+		ei->second->appendValue(value);
+	}
+	else {
+		// override old entry
+		ei->second->setValue(value);
+	}
 }
 
 
 bool
 IniFile::Section::add(const std::string &assignment)
 {
-    string::size_type offset = assignment.find('=');
-    if (offset == string::npos) {
-	// no '=' found
-	cerr << "Can't parse .ini line " << assignment << endl;
-	return false;
-    }
+	string::size_type offset = assignment.find('=');
+	if (offset == string::npos) {
+		// no '=' found
+		cerr << "Can't parse .ini line " << assignment << endl;
+		return false;
+	}
 
-    // if "+=" rather than just "=" then append value
-    bool append = (assignment[offset-1] == '+');
+	// if "+=" rather than just "=" then append value
+	bool append = (assignment[offset-1] == '+');
 
-    string entryName = assignment.substr(0, append ? offset-1 : offset);
-    string value = assignment.substr(offset + 1);
+	string entryName = assignment.substr(0, append ? offset-1 : offset);
+	string value = assignment.substr(offset + 1);
 
-    eat_white(entryName);
-    eat_white(value);
+	eat_white(entryName);
+	eat_white(value);
 
-    addEntry(entryName, value, append);
-    return true;
+	addEntry(entryName, value, append);
+	return true;
 }
 
 
 IniFile::Entry *
 IniFile::Section::findEntry(const std::string &entryName) const
 {
-    referenced = true;
+	referenced = true;
 
-    EntryTable::const_iterator ei = table.find(entryName);
+	EntryTable::const_iterator ei = table.find(entryName);
 
-    return (ei == table.end()) ? NULL : ei->second;
+	return (ei == table.end()) ? NULL : ei->second;
 }
 
 
 IniFile::Section *
 IniFile::addSection(const string &sectionName)
 {
-    SectionTable::iterator i = table.find(sectionName);
+	SectionTable::iterator i = table.find(sectionName);
 
-    if (i != table.end()) {
-	return i->second;
-    }
-    else {
-	// new entry
-	Section *sec = new Section();
-	table[sectionName] = sec;
-	return sec;
-    }
+	if (i != table.end()) {
+		return i->second;
+	}
+	else {
+		// new entry
+		Section *sec = new Section();
+		table[sectionName] = sec;
+		return sec;
+	}
 }
 
 
 IniFile::Section *
 IniFile::findSection(const string &sectionName) const
 {
-    SectionTable::const_iterator i = table.find(sectionName);
+	SectionTable::const_iterator i = table.find(sectionName);
 
-    return (i == table.end()) ? NULL : i->second;
+	return (i == table.end()) ? NULL : i->second;
 }
 
 
@@ -271,167 +281,167 @@ IniFile::findSection(const string &sectionName) const
 bool
 IniFile::add(const string &str)
 {
-    // find ':'
-    string::size_type offset = str.find(':');
-    if (offset == string::npos)  // no ':' found
-	return false;
+	// find ':'
+	string::size_type offset = str.find(':');
+	if (offset == string::npos)  // no ':' found
+		return false;
 
-    string sectionName = str.substr(0, offset);
-    string rest = str.substr(offset + 1);
+	string sectionName = str.substr(0, offset);
+	string rest = str.substr(offset + 1);
 
-    eat_white(sectionName);
-    Section *s = addSection(sectionName);
+	eat_white(sectionName);
+	Section *s = addSection(sectionName);
 
-    return s->add(rest);
+	return s->add(rest);
 }
 
 bool
 IniFile::load(istream &f)
 {
-    Section *section = NULL;
+	Section *section = NULL;
 
-    while (!f.eof()) {
-	f >> ws; // Eat whitespace
-	if (f.eof()) {
-	    break;
+	while (!f.eof()) {
+		f >> ws; // Eat whitespace
+		if (f.eof()) {
+			break;
+		}
+
+		string line;
+		getline(f, line);
+		if (line.size() == 0)
+			continue;
+
+		eat_end_white(line);
+		int last = line.size() - 1;
+
+		if (line[0] == '[' && line[last] == ']') {
+			string sectionName = line.substr(1, last - 1);
+			eat_white(sectionName);
+			section = addSection(sectionName);
+			continue;
+		}
+
+		if (section == NULL)
+			continue;
+
+		if (!section->add(line))
+			return false;
 	}
 
-	string line;
-	getline(f, line);
-	if (line.size() == 0)
-	    continue;
-
-	eat_end_white(line);
-	int last = line.size() - 1;
-
-	if (line[0] == '[' && line[last] == ']') {
-	    string sectionName = line.substr(1, last - 1);
-	    eat_white(sectionName);
-	    section = addSection(sectionName);
-	    continue;
-	}
-
-	if (section == NULL)
-	    continue;
-
-	if (!section->add(line))
-	    return false;
-    }
-
-    return true;
+	return true;
 }
 
 bool
 IniFile::find(const string &sectionName, const string &entryName,
-	      string &value) const
-{
-    Section *section = findSection(sectionName);
-    if (section == NULL)
-	return false;
+		string &value) const
+		{
+	Section *section = findSection(sectionName);
+	if (section == NULL)
+		return false;
 
-    Entry *entry = section->findEntry(entryName);
-    if (entry == NULL)
-	return false;
+	Entry *entry = section->findEntry(entryName);
+	if (entry == NULL)
+		return false;
 
-    value = entry->getValue();
+	value = entry->getValue();
 
-    return true;
-}
+	return true;
+		}
 
 bool
 IniFile::sectionExists(const string &sectionName) const
 {
-    return findSection(sectionName) != NULL;
+	return findSection(sectionName) != NULL;
 }
 
 
 bool
 IniFile::Section::printUnreferenced(const string &sectionName)
 {
-    bool unref = false;
-    bool search_unref_entries = false;
-    vector<string> unref_ok_entries;
+	bool unref = false;
+	bool search_unref_entries = false;
+	vector<string> unref_ok_entries;
 
-    Entry *entry = findEntry("unref_entries_ok");
-    if (entry != NULL) {
-	tokenize(unref_ok_entries, entry->getValue(), ' ');
-	if (unref_ok_entries.size()) {
-	    search_unref_entries = true;
-	}
-    }
-
-    for (EntryTable::iterator ei = table.begin();
-	 ei != table.end(); ++ei) {
-	const string &entryName = ei->first;
-	Entry *entry = ei->second;
-
-	if (entryName == "unref_section_ok" ||
-	    entryName == "unref_entries_ok")
-	{
-	    continue;
+	Entry *entry = findEntry("unref_entries_ok");
+	if (entry != NULL) {
+		tokenize(unref_ok_entries, entry->getValue(), ' ');
+		if (unref_ok_entries.size()) {
+			search_unref_entries = true;
+		}
 	}
 
-	if (!entry->isReferenced()) {
-	    if (search_unref_entries &&
-		(std::find(unref_ok_entries.begin(), unref_ok_entries.end(),
-			   entryName) != unref_ok_entries.end()))
-	    {
-		continue;
-	    }
+	for (EntryTable::iterator ei = table.begin();
+	ei != table.end(); ++ei) {
+		const string &entryName = ei->first;
+		Entry *entry = ei->second;
 
-	    cerr << "Parameter " << sectionName << ":" << entryName
-		 << " not referenced." << endl;
-	    unref = true;
+		if (entryName == "unref_section_ok" ||
+				entryName == "unref_entries_ok")
+		{
+			continue;
+		}
+
+		if (!entry->isReferenced()) {
+			if (search_unref_entries &&
+					(std::find(unref_ok_entries.begin(), unref_ok_entries.end(),
+							entryName) != unref_ok_entries.end()))
+			{
+				continue;
+			}
+
+			cerr << "Parameter " << sectionName << ":" << entryName
+			<< " not referenced." << endl;
+			unref = true;
+		}
 	}
-    }
 
-    return unref;
+	return unref;
 }
 
 
 bool
 IniFile::printUnreferenced()
 {
-    bool unref = false;
+	bool unref = false;
 
-    for (SectionTable::iterator i = table.begin();
-	 i != table.end(); ++i) {
-	const string &sectionName = i->first;
-	Section *section = i->second;
+	for (SectionTable::iterator i = table.begin();
+	i != table.end(); ++i) {
+		const string &sectionName = i->first;
+		Section *section = i->second;
 
-	if (!section->isReferenced()) {
-	    if (section->findEntry("unref_section_ok") == NULL) {
-		cerr << "Section " << sectionName << " not referenced."
-		     << endl;
-		unref = true;
-	    }
+		if (!section->isReferenced()) {
+			if (section->findEntry("unref_section_ok") == NULL) {
+				cerr << "Section " << sectionName << " not referenced."
+				<< endl;
+				unref = true;
+			}
+		}
+		else {
+			if (section->printUnreferenced(sectionName)) {
+				unref = true;
+			}
+		}
 	}
-	else {
-	    if (section->printUnreferenced(sectionName)) {
-		unref = true;
-	    }
-	}
-    }
 
-    return unref;
+	return unref;
 }
 
 
 void
 IniFile::Section::dump(const string &sectionName)
 {
-    for (EntryTable::iterator ei = table.begin();
-	 ei != table.end(); ++ei) {
-	cout << sectionName << ": " << (*ei).first << " => "
-	     << (*ei).second->getValue() << "\n";
-    }
+	for (EntryTable::iterator ei = table.begin();
+	ei != table.end(); ++ei) {
+		cout << sectionName << ": " << (*ei).first << " => "
+		<< (*ei).second->getValue() << "\n";
+	}
 }
 
 void
 IniFile::dump()
 {
-    for (SectionTable::iterator i = table.begin();
-	 i != table.end(); ++i) {
-	i->second->dump(i->first);
-    }
+	for (SectionTable::iterator i = table.begin();
+	i != table.end(); ++i) {
+		i->second->dump(i->first);
+	}
 }

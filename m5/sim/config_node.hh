@@ -45,51 +45,51 @@ class Checkpoint;
 //
 class ConfigHierarchy::Node
 {
-  private:
-    friend class ConfigHierarchy;
+private:
+	friend class ConfigHierarchy;
 
-    std::string nodeName;
-    std::string nodePath;
-    std::string nodeType;
+	std::string nodeName;
+	std::string nodePath;
+	std::string nodeType;
 
-    // backpointer to the config hierarchy this node belongs to
-    ConfigHierarchy *myHierarchy;
+	// backpointer to the config hierarchy this node belongs to
+	ConfigHierarchy *myHierarchy;
 
-    SimObject *simObject;
+	SimObject *simObject;
 
-    Node *parent;
-    std::vector<Node *> children;
+	Node *parent;
+	std::vector<Node *> children;
 
-    IniFile &getConfigDB() { return myHierarchy->configDB; }
+	IniFile &getConfigDB() { return myHierarchy->configDB; }
 
-    void buildSubtree();
-    void parseChildren(const std::string &s);
+	void buildSubtree();
+	void parseChildren(const std::string &s);
 
-  public:
-    Node(const std::string &_name, Node *_parent, ConfigHierarchy *hierarchy);
-    ~Node();
+public:
+	Node(const std::string &_name, Node *_parent, ConfigHierarchy *hierarchy);
+	~Node();
 
-    const std::string &getName() const { return nodeName; }
-    const std::string &getPath() const { return nodePath; }
-    const std::string &getType() const { return nodeType; }
+	const std::string &getName() const { return nodeName; }
+	const std::string &getPath() const { return nodePath; }
+	const std::string &getType() const { return nodeType; }
 
-    void createSimObject();
-    void createSimObjects();
+	void createSimObject();
+	void createSimObjects();
 
-    void unserialize(Checkpoint *cp, const std::string &section);
+	Checkpoint* unserialize(Checkpoint *cp, const std::string &section);
 
-    bool find(const std::string &attr, std::string &value)
-    {
-	// look first under the full path, then under the class name
-	return getConfigDB().find(nodePath, attr, value);
-    }
+	bool find(const std::string &attr, std::string &value)
+	{
+		// look first under the full path, then under the class name
+		return getConfigDB().find(nodePath, attr, value);
+	}
 
-    const Node *findChild(const std::string &name) const;
+	const Node *findChild(const std::string &name) const;
 
-    const Node *resolveNode(const std::string &name, int level = 0) const;
-    SimObject *resolveSimObject(const std::string &name) const;
+	const Node *resolveNode(const std::string &name, int level = 0) const;
+	SimObject *resolveSimObject(const std::string &name) const;
 
-    void addChild(const std::string &name);
+	void addChild(const std::string &name);
 };
 
 

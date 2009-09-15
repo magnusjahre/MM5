@@ -457,6 +457,10 @@ Checkpoint::Checkpoint(const std::string &cpt_dir, const std::string &path,
     }
 }
 
+Checkpoint::~Checkpoint(){
+	delete db;
+}
+
 
 bool
 Checkpoint::find(const std::string &section, const std::string &entry,
