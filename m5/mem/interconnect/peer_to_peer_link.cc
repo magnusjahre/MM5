@@ -23,7 +23,7 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                          _adaptiveMHA,
                          NULL)
 {
-    initQueues(cpu_count, cpu_count);
+    initQueues(2, 2);
     queueSize = 32;
 
     arbEvent = new ADIArbitrationEvent(this);
@@ -152,6 +152,8 @@ PeerToPeerLink::retrieveAdditionalRequests(){
     int firstInterfaceID = processorIDToInterconnectIDs[attachedCPUID].front();
     int secondInterfaceID = processorIDToInterconnectIDs[attachedCPUID].back();
 
+    assert(firstInterfaceID < notRetrievedRequests.size());
+    assert(secondInterfaceID < notRetrievedRequests.size());
     while(notRetrievedRequests[firstInterfaceID] > 0 || notRetrievedRequests[secondInterfaceID] > 0){
         if(p2pRequestQueue.size() < queueSize) findNotDeliveredNextInterface(firstInterfaceID,secondInterfaceID);
         else return;

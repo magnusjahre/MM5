@@ -28,8 +28,8 @@ AddressDependentIC::AddressDependentIC(const std::string &_name,
 
 void
 AddressDependentIC::initQueues(int localBlockedSize, int expectedInterfaces){
-    blockedLocalQueues = vector<bool>(localBlockedSize, false);
-    notRetrievedRequests = vector<int>(expectedInterfaces, 0);
+    blockedLocalQueues.resize(localBlockedSize, false);
+    notRetrievedRequests.resize(expectedInterfaces, 0);
 }
 
 void
