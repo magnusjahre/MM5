@@ -136,6 +136,7 @@ StatsParamContext::checkParams()
     using namespace Stats;
 
     if (!((string)stat_print_file).empty()) {
+    	text = Stats::Text();
     	text.open(*simout.find(stat_print_file));
     	text.descriptions = stat_print_desc;
     	text.compat = stat_print_compat;
