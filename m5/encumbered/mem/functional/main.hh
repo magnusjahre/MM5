@@ -115,10 +115,14 @@ private:
 	int memPageTabSize;
 	int memPageTabSizeLog2;
 	std::string pagefileName;
+	int cpuID;
 
 	inline bool firstIsPage(Addr addr){
 		return ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr);
 	}
+
+	template <class T> void writeEntry(T* data, int size, std::ofstream& file);
+	template <class T> T* readEntry(int size, std::ifstream& file);
 
 	/*
 	 *

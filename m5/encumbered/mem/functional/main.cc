@@ -100,6 +100,8 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 : FunctionalMemory(n), takeStats(false)
 {
 
+	cpuID = _cpuID;
+
 	if(!IsPowerOf2(_maxMemMB)){
 		fatal("Maximum memory consumption in functional memory must be a power of two");
 	}
@@ -120,13 +122,13 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 	::memset(buffer, 0, VMPageSize);
 	currentFileEndPos = 0;
 
-	stringstream filename;
-	filename << "pagefile" << _cpuID << ".bin";
-	pagefileName = filename.str();
-	ofstream pagefile(pagefileName.c_str(), ios::binary);
-	pagefile << "";
-	pagefile.flush();
-	pagefile.close();
+//	stringstream filename;
+//	filename << "pagefile" << _cpuID << ".bin";
+//	pagefileName = filename.str();
+//	ofstream pagefile(pagefileName.c_str(), ios::binary);
+//	pagefile << "";
+//	pagefile.flush();
+//	pagefile.close();
 }
 
 MainMemory::~MainMemory()
@@ -598,6 +600,21 @@ void MainMemory::regFormulas()
 	ptab_miss_rate = ptab_misses / ptab_accesses;
 }
 
+template <class T>
+void
+MainMemory::writeEntry(T* data, int size, std::ofstream& file){
+	file.write((char*) data, size*sizeof(T));
+}
+
+template <class T>
+T*
+MainMemory::readEntry(int size, std::ifstream& file){
+	int readSize = size*sizeof(T);
+	assert(readSize <= VMPageSize);
+	file.read(buffer, readSize);
+	return (T*) buffer;
+}
+
 void
 MainMemory::serialize(std::ostream &os){
 
@@ -605,36 +622,70 @@ MainMemory::serialize(std::ostream &os){
 	SERIALIZE_SCALAR(break_thread);
 	SERIALIZE_SCALAR(break_size);
 
+	stringstream filenamestream;
+	filenamestream << "pages" << cpuID << ".bin";
+	string filename(filenamestream.str());
+	SERIALIZE_SCALAR(filename);
+
+	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
+
 	for(int i = 0; i< memPageTabSize; i++){
 		if(ptab[i] != NULL){
 
-			int linkedListCnt = 0;
-			entry* pte = ptab[i];
+			writeEntry<int>(&i, 1, pagefile);
+
+			entry* firstPtr = ptab[i];
+			entry* pte = firstPtr;
+
+			int listCnt = 0;
 			while(pte != NULL){
-
-
-				string tagName = generateID("tag", i, linkedListCnt);
-				SERIALIZE_SCALAR_NAME(tagName, pte->tag);
-
-				string pageName = generateID("page", i, linkedListCnt);
-
-				uint8_t* outpage = pte->page;
-				if(!pte->inMemory){
-					ifstream pagefile(pagefileName.c_str(), ios::binary);
-					assert(pte->fileStartPosition != -1);
-					pagefile.seekg(pte->fileStartPosition);
-					pagefile.read(buffer, VMPageSize);
-					outpage = (uint8_t*) buffer;
-				}
-
-				assert(outpage != NULL);
-				SERIALIZE_ARRAY_NAME(pageName, outpage, VMPageSize);
-
+				listCnt++;
 				pte = pte->next;
-				linkedListCnt++;
+			}
+
+			writeEntry<int>(&listCnt, 1, pagefile);
+
+			pte = firstPtr;
+			while(pte != NULL){
+				writeEntry<Addr>(&(pte->tag), 1, pagefile);
+				writeEntry<uint8_t>(pte->page, VMPageSize, pagefile);
+				pte = pte->next;
 			}
 		}
 	}
+
+	pagefile.close();
+
+//	for(int i = 0; i< memPageTabSize; i++){
+//		if(ptab[i] != NULL){
+//
+//			int linkedListCnt = 0;
+//			entry* pte = ptab[i];
+//			while(pte != NULL){
+//
+//
+//				string tagName = generateID("tag", i, linkedListCnt);
+//				SERIALIZE_SCALAR_NAME(tagName, pte->tag);
+//
+//				string pageName = generateID("page", i, linkedListCnt);
+//
+//				uint8_t* outpage = pte->page;
+//				if(!pte->inMemory){
+//					ifstream pagefile(pagefileName.c_str(), ios::binary);
+//					assert(pte->fileStartPosition != -1);
+//					pagefile.seekg(pte->fileStartPosition);
+//					pagefile.read(buffer, VMPageSize);
+//					outpage = (uint8_t*) buffer;
+//				}
+//
+//				assert(outpage != NULL);
+//				SERIALIZE_ARRAY_NAME(pageName, outpage, VMPageSize);
+//
+//				pte = pte->next;
+//				linkedListCnt++;
+//			}
+//		}
+//	}
 }
 
 std::string
@@ -666,65 +717,29 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 		}
 	}
 
-	// remove any state from the pagefile
-	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::trunc);
-	pagefile << "";
-	pagefile.flush();
-	pagefile.close();
-	currentFileEndPos = 0;
+	string filename;
+	UNSERIALIZE_SCALAR(filename);
 
-	uint8_t* readBuffer = new uint8_t[VMPageSize];
+	ifstream pagefile(filename.c_str(),  ios::binary);
+	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
 
-	// fill workload memory from checkpoint
-	for(int i = 0; i< memPageTabSize; i++){
-		assert(ptab[i] == NULL);
-
- 		int linkedListCnt = 0;
-		string tagName = generateID("tag", i, linkedListCnt);
-		string dataName = generateID("page", i, linkedListCnt);
-
+	while(!pagefile.eof()){
+		int index = *readEntry<int>(1, pagefile);
+		int entryCnt = *readEntry<int>(1, pagefile);
 		std::vector<entry*> tmpLinkedList;
-
-		string tmpTag;
-		while(cp->find(section, tagName, tmpTag)){
-
-			Addr tag = 0;
-			UNSERIALIZE_SCALAR_NAME(tagName, tag);
-
-			entry* newEntry = new entry(tag, NULL);
+		for(int i=0;i<entryCnt;i++){
+			Addr tag = *readEntry<Addr>(1, pagefile);
+			uint8_t* bufferedPage = readEntry<uint8_t>(VMPageSize, pagefile);
 
 			uint8_t* page = new uint8_t[VMPageSize];
-			if (!page) fatal("MainMemory::newpage: out of virtual memory");
-
+			if(!page) fatal("MainMemory::newpage: out of virtual memory");
 			::memset(page, 0, VMPageSize);
-			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
+			for(int i=0;i<VMPageSize;i++) page[i] = bufferedPage[i];
 
-			newEntry->page = page;
-
-//			if(linkedListCnt == 0){
-//
-//				uint8_t* page = new uint8_t[VMPageSize];
-//				if (!page) fatal("MainMemory::newpage: out of virtual memory");
-//
-//				::memset(page, 0, VMPageSize);
-//				arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
-//
-//				newEntry->page = page;
-//			}
-//			else{
-//
-//				arrayParamIn<uint8_t>(cp, section, dataName, readBuffer, VMPageSize);
-//				newEntry->page = readBuffer;
-//				uint8_t* clearedPage = writeEntryToFile(newEntry);
-//				assert(clearedPage == readBuffer);
-//
-//			}
+			entry* newEntry = new entry(tag, page);
+			if(!newEntry) fatal("MainMemory::newpage: out of virtual memory");
 
 			tmpLinkedList.push_back(newEntry);
-
-			linkedListCnt++;
-			tagName = generateID("tag", i, linkedListCnt);
-			dataName = generateID("page", i, linkedListCnt);
 		}
 
 		if(!tmpLinkedList.empty()){
@@ -733,11 +748,84 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			for(int j=tmpLinkedList.size()-2; j>=0; j--){
 				tmpLinkedList[j]->next = tmpLinkedList[j+1];
 			}
-			ptab[i] = tmpLinkedList[0];
+			ptab[index] = tmpLinkedList[0];
 		}
 	}
 
-	delete [] readBuffer;
+	pagefile.close();
+
+	// remove any state from the pagefile
+//	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::trunc);
+//	pagefile << "";
+//	pagefile.flush();
+//	pagefile.close();
+//	currentFileEndPos = 0;
+//
+//	uint8_t* readBuffer = new uint8_t[VMPageSize];
+//
+//	// fill workload memory from checkpoint
+//	for(int i = 0; i< memPageTabSize; i++){
+//		assert(ptab[i] == NULL);
+//
+// 		int linkedListCnt = 0;
+//		string tagName = generateID("tag", i, linkedListCnt);
+//		string dataName = generateID("page", i, linkedListCnt);
+//
+//		std::vector<entry*> tmpLinkedList;
+//
+//		string tmpTag;
+//		while(cp->find(section, tagName, tmpTag)){
+//
+//			Addr tag = 0;
+//			UNSERIALIZE_SCALAR_NAME(tagName, tag);
+//
+//			entry* newEntry = new entry(tag, NULL);
+//
+//			uint8_t* page = new uint8_t[VMPageSize];
+//			if (!page) fatal("MainMemory::newpage: out of virtual memory");
+//
+//			::memset(page, 0, VMPageSize);
+//			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
+//
+//			newEntry->page = page;
+//
+////			if(linkedListCnt == 0){
+////
+////				uint8_t* page = new uint8_t[VMPageSize];
+////				if (!page) fatal("MainMemory::newpage: out of virtual memory");
+////
+////				::memset(page, 0, VMPageSize);
+////				arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
+////
+////				newEntry->page = page;
+////			}
+////			else{
+////
+////				arrayParamIn<uint8_t>(cp, section, dataName, readBuffer, VMPageSize);
+////				newEntry->page = readBuffer;
+////				uint8_t* clearedPage = writeEntryToFile(newEntry);
+////				assert(clearedPage == readBuffer);
+////
+////			}
+//
+//			tmpLinkedList.push_back(newEntry);
+//
+//			linkedListCnt++;
+//			tagName = generateID("tag", i, linkedListCnt);
+//			dataName = generateID("page", i, linkedListCnt);
+//		}
+//
+//		if(!tmpLinkedList.empty()){
+//
+//			// populate next pointers and insert into hash table
+//			for(int j=tmpLinkedList.size()-2; j>=0; j--){
+//				tmpLinkedList[j]->next = tmpLinkedList[j+1];
+//			}
+//			ptab[i] = tmpLinkedList[0];
+//		}
+//	}
+//
+//	delete [] readBuffer;
 }
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MainMemory)
