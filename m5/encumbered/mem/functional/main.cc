@@ -214,9 +214,10 @@ MainMemory::translate(Addr addr)
 	for (prev = NULL, pte = ptab[ptab_set(addr)]; pte != NULL; prev = pte, pte = pte->next) {
 		if (pte->tag == ptab_tag(addr)) {
 
-			assert(!pte->inMemory);
-			swapEntries(ptab[ptab_set(addr)], pte);
-			assert(pte->inMemory && pte->page != NULL);
+			assert(pte->inMemory);
+//			assert(!pte->inMemory);
+//			swapEntries(ptab[ptab_set(addr)], pte);
+//			assert(pte->inMemory && pte->page != NULL);
 
 			// move this PTE to head of the bucket list
 			if (prev) {
@@ -240,32 +241,44 @@ MainMemory::newpage(Addr addr)
 	uint8_t *page;
 	entry *pte;
 
-	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
-		page = writeEntryToFile(ptab[ptab_set(addr)]);
-		assert(page != NULL);
+//	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
+//		page = writeEntryToFile(ptab[ptab_set(addr)]);
+//		assert(page != NULL);
+//
+//		pte = new entry(ptab_tag(addr), page);
+//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
+//
+//		assert(ptab[ptab_set(addr)]->page == NULL);
+//		pte->next = ptab[ptab_set(addr)];
+//		ptab[ptab_set(addr)] = pte;
+//	}
+//	else{
+//	// see misc.c for details on the getcore() function
+//		assert(ptab[ptab_set(addr)] == NULL);
+//
+//		allocations++;
+//		page = new uint8_t[VMPageSize];
+//		if (!page) fatal("MainMemory::newpage: out of virtual memory");
+//
+//		::memset(page, 0, VMPageSize);
+//
+//		// generate a new PTE
+//		pte = new entry(ptab_tag(addr), page);
+//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
+//
+//		ptab[ptab_set(addr)] = pte;
+//	}
 
-		pte = new entry(ptab_tag(addr), page);
-		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
+	page = new uint8_t[VMPageSize];
+	if (!page) fatal("MainMemory::newpage: out of virtual memory");
 
-		assert(ptab[ptab_set(addr)]->page == NULL);
-		pte->next = ptab[ptab_set(addr)];
-		ptab[ptab_set(addr)] = pte;
-	}
-	else{
-		// see misc.c for details on the getcore() function
-		assert(ptab[ptab_set(addr)] == NULL);
+	::memset(page, 0, VMPageSize);
 
-		page = new uint8_t[VMPageSize];
-		if (!page) fatal("MainMemory::newpage: out of virtual memory");
+	pte = new entry(ptab_tag(addr), page);
+	if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
 
-		::memset(page, 0, VMPageSize);
-
-		// generate a new PTE
-		pte = new entry(ptab_tag(addr), page);
-		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
-
-		ptab[ptab_set(addr)] = pte;
-	}
+	pte->next = ptab[ptab_set(addr)];
+	ptab[ptab_set(addr)] = pte;
 
 	if (takeStats) {
 		// one more page allocated
@@ -279,6 +292,8 @@ MainMemory::newpage(Addr addr)
 uint8_t *
 MainMemory::page(Addr addr)
 {
+
+	accesses++;
 	// first attempt to hit in first entry, otherwise call xlation fn
 	if (firstIsPage(addr))
 	{
@@ -291,6 +306,7 @@ MainMemory::page(Addr addr)
 	else
 	{
 		// first level miss - call the translation helper function
+		misses++;
 		return translate(addr);
 	}
 }
@@ -534,6 +550,34 @@ void MainMemory::regStats()
 	.name(name() + ".ptab_accesses")
 	.desc("total page table accessess")
 	;
+
+    accesses
+        .name(name() + ".accesses")
+        .desc("Number of page table accesses (simulator performance stat)")
+        ;
+
+    misses
+		.name(name() + ".misses")
+		.desc("Number of page table misses (simulator performance stat)")
+		;
+
+    missRate
+		.name(name() + ".miss_rate")
+		.desc("Number page table miss rate (simulator performance stat)")
+		;
+    missRate = accesses / misses;
+
+    allocations
+		.name(name() + ".page_allocations")
+		.desc("Number of memory pages allocated (simulator performance stat)")
+		;
+
+    allocationPercentage
+		.name(name() + ".page_allocation_percentage")
+		.desc("Precenttage of memory pages allocated out of the maximum count (simulator performance stat)")
+		;
+
+    allocationPercentage = allocations / memPageTabSize;
 }
 
 void MainMemory::regFormulas()
@@ -568,12 +612,23 @@ MainMemory::serialize(std::ostream &os){
 			entry* pte = ptab[i];
 			while(pte != NULL){
 
-				assert(pte->page != NULL);
+
 				string tagName = generateID("tag", i, linkedListCnt);
 				SERIALIZE_SCALAR_NAME(tagName, pte->tag);
 
 				string pageName = generateID("page", i, linkedListCnt);
-				SERIALIZE_ARRAY_NAME(pageName, pte->page, VMPageSize);
+
+				uint8_t* outpage = pte->page;
+				if(!pte->inMemory){
+					ifstream pagefile(pagefileName.c_str(), ios::binary);
+					assert(pte->fileStartPosition != -1);
+					pagefile.seekg(pte->fileStartPosition);
+					pagefile.read(buffer, VMPageSize);
+					outpage = (uint8_t*) buffer;
+				}
+
+				assert(outpage != NULL);
+				SERIALIZE_ARRAY_NAME(pageName, outpage, VMPageSize);
 
 				pte = pte->next;
 				linkedListCnt++;
@@ -602,6 +657,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			entry* pte = ptab[i];
 			while(pte != NULL){
 				entry* delPTE = pte;
+				if(delPTE->page != NULL) delete [] delPTE->page;
 				pte = delPTE->next;
 				delete delPTE;
 			}
@@ -609,6 +665,15 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			ptab[i] = NULL;
 		}
 	}
+
+	// remove any state from the pagefile
+	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::trunc);
+	pagefile << "";
+	pagefile.flush();
+	pagefile.close();
+	currentFileEndPos = 0;
+
+	uint8_t* readBuffer = new uint8_t[VMPageSize];
 
 	// fill workload memory from checkpoint
 	for(int i = 0; i< memPageTabSize; i++){
@@ -622,21 +687,42 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 
 		string tmpTag;
 		while(cp->find(section, tagName, tmpTag)){
-			linkedListCnt++;
 
 			Addr tag = 0;
+			UNSERIALIZE_SCALAR_NAME(tagName, tag);
+
+			entry* newEntry = new entry(tag, NULL);
+
 			uint8_t* page = new uint8_t[VMPageSize];
 			if (!page) fatal("MainMemory::newpage: out of virtual memory");
+
 			::memset(page, 0, VMPageSize);
-
-			UNSERIALIZE_SCALAR_NAME(tagName, tag);
 			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
-			assert(page != NULL);
 
-			entry* newEntry = new entry(tag, page);
+			newEntry->page = page;
+
+//			if(linkedListCnt == 0){
+//
+//				uint8_t* page = new uint8_t[VMPageSize];
+//				if (!page) fatal("MainMemory::newpage: out of virtual memory");
+//
+//				::memset(page, 0, VMPageSize);
+//				arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
+//
+//				newEntry->page = page;
+//			}
+//			else{
+//
+//				arrayParamIn<uint8_t>(cp, section, dataName, readBuffer, VMPageSize);
+//				newEntry->page = readBuffer;
+//				uint8_t* clearedPage = writeEntryToFile(newEntry);
+//				assert(clearedPage == readBuffer);
+//
+//			}
 
 			tmpLinkedList.push_back(newEntry);
 
+			linkedListCnt++;
 			tagName = generateID("tag", i, linkedListCnt);
 			dataName = generateID("page", i, linkedListCnt);
 		}
@@ -650,6 +736,8 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			ptab[i] = tmpLinkedList[0];
 		}
 	}
+
+	delete [] readBuffer;
 }
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MainMemory)

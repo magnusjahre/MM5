@@ -163,6 +163,7 @@ private:
 	bool checkLockedAddrList(MemReqPtr &req);
 
 protected:
+
 	// page table entry
 	struct entry
 	{
@@ -174,7 +175,7 @@ protected:
 		std::fstream::pos_type fileStartPosition;
 
 		entry(Addr _tag, uint8_t* _page)
-		: next(NULL), tag(_tag), page(_page), inMemory(false), fileStartPosition(-1){
+		: next(NULL), tag(_tag), page(_page), inMemory(true), fileStartPosition(-1){
 
 		}
 	};
@@ -194,6 +195,13 @@ protected:
 
 	Stats::Formula page_mem;
 	Stats::Formula ptab_miss_rate;
+
+	Stats::Scalar<> accesses;
+	Stats::Scalar<> misses;
+	Stats::Formula missRate;
+
+	Stats::Scalar<> allocations;
+	Stats::Formula allocationPercentage;
 
 	Addr offset(Addr addr);
 	Addr ptab_set(Addr addr);
