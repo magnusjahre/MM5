@@ -734,7 +734,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			uint8_t* page = new uint8_t[VMPageSize];
 			if(!page) fatal("MainMemory::newpage: out of virtual memory");
 			::memset(page, 0, VMPageSize);
-			for(int i=0;i<VMPageSize;i++) page[i] = bufferedPage[i];
+			for(int j=0;j<VMPageSize;j++) page[j] = bufferedPage[j];
 
 			entry* newEntry = new entry(tag, page);
 			if(!newEntry) fatal("MainMemory::newpage: out of virtual memory");
