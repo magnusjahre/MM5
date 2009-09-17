@@ -730,46 +730,108 @@ LRU::serialize(std::ostream &os){
 		dumpSets = assoc / divFactor;
 	}
 
+	stringstream filenamestream;
+	filenamestream << cache->name() << "-content.bin";
+	string filename(filenamestream.str());
+	SERIALIZE_SCALAR(filename);
+
+	ofstream contentfile(filename.c_str(), ios::binary | ios::trunc);
+
+	int expectedBlocks = numSets*dumpSets;
+	Serializable::writeEntry(&expectedBlocks, sizeof(int), contentfile);
+
 	for(int i=0;i<numSets;i++){
 		for(int j=0;j<dumpSets;j++){
-			Serializable::staticNameOut(os, generateIniName(cache->name(), i, j));
-			sets[i].blks[j]->serialize(os);
+			sets[i].blks[j]->serialize(contentfile);
 		}
 	}
+
+
+	contentfile.close();
+
+	//	for(int i=0;i<numSets;i++){
+	//		for(int j=0;j<dumpSets;j++){
+	//			Serializable::staticNameOut(os, generateIniName(cache->name(), i, j));
+	//			sets[i].blks[j]->serialize(os);
+	//		}
+	//	}
 }
 
 void
 LRU::unserialize(Checkpoint *cp, const std::string &section){
 
+	string filename;
+	UNSERIALIZE_SCALAR(filename);
+	ifstream contentfile(filename.c_str(), ios::binary);
+
+	int* fileBlocks = (int*) Serializable::readEntry(sizeof(int), contentfile);
+	int expectedBlocks = numSets*assoc;
+	if(cache->isShared && cache->cpuCount == 1){
+		expectedBlocks = numSets * (assoc / divFactor);
+	}
+
+	if(*fileBlocks != expectedBlocks){
+		fatal("Wrong number of cache blocks in file %s, got size %d, expected %d", filename, *fileBlocks, expectedBlocks);
+	}
+
 	for(int i=0;i<numSets;i++){
 		for(int j=0;j<assoc;j++){
-			string name = generateIniName(section, i , j);
-			string val = "";
+			sets[i].blks[j]->unserialize(contentfile);
 
-			if(cp->find(name, "set", val)){
+			if(cache->cpuCount > 1){
+				int blockAddrCPUID = -1;
+				if(cache->isShared){
+					blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
+					if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
+				}
+				else{
+					assert(cache->cacheCpuID != -1);
+					blockAddrCPUID = cache->cacheCpuID;
+				}
 
-				sets[i].blks[j]->unserialize(cp, name);
+				if(blockAddrCPUID != -1){
+					Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
+					Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
 
-				if(cache->cpuCount > 1){
-					int blockAddrCPUID = -1;
-					if(cache->isShared){
-						blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
-						if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
-					}
-					else{
-						assert(cache->cacheCpuID != -1);
-						blockAddrCPUID = cache->cacheCpuID;
-					}
-
-					if(blockAddrCPUID != -1){
-						Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
-						Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
-
-						sets[i].blks[j]->tag = extractTag(relocatedAddr);
-						sets[i].blks[j]->set = extractSet(relocatedAddr);
-					}
+					sets[i].blks[j]->tag = extractTag(relocatedAddr);
+					sets[i].blks[j]->set = extractSet(relocatedAddr);
 				}
 			}
+
 		}
 	}
+
+	contentfile.close();
+
+	//	for(int i=0;i<numSets;i++){
+	//		for(int j=0;j<assoc;j++){
+	//			string name = generateIniName(section, i , j);
+	//			string val = "";
+	//
+	//			if(cp->find(name, "set", val)){
+	//
+	//				sets[i].blks[j]->unserialize(cp, name);
+	//
+	//				if(cache->cpuCount > 1){
+	//					int blockAddrCPUID = -1;
+	//					if(cache->isShared){
+	//						blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
+	//						if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
+	//					}
+	//					else{
+	//						assert(cache->cacheCpuID != -1);
+	//						blockAddrCPUID = cache->cacheCpuID;
+	//					}
+	//
+	//					if(blockAddrCPUID != -1){
+	//						Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
+	//						Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
+	//
+	//						sets[i].blks[j]->tag = extractTag(relocatedAddr);
+	//						sets[i].blks[j]->set = extractSet(relocatedAddr);
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
 }

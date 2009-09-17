@@ -47,6 +47,8 @@
 class Serializable;
 class Checkpoint;
 
+#define BINARY_FILE_BUFFER_SIZE 8192
+
 template <class T>
 void paramOut(std::ostream &os, const std::string &name, const T &param);
 
@@ -65,7 +67,6 @@ void arrayParamIn(Checkpoint *cp, const std::string &section,
 void
 objParamIn(Checkpoint *cp, const std::string &section,
 	   const std::string &name, Serializable * &param);
-
 
 //
 // These macros are streamlined to use in serialize/unserialize
@@ -138,6 +139,10 @@ class Serializable
     static void unserializeGlobals(Checkpoint *cp);
 
     static void staticNameOut(std::ostream &os, const std::string &_name);
+
+    static void writeEntry(void* data, size_t size, std::ofstream& file);
+    static void* readEntry(size_t size, std::ifstream& file);
+
 };
 
 //

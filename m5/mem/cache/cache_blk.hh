@@ -228,25 +228,39 @@ public:
 		}
 	}
 
-	void serialize(std::ostream &os){
-		SERIALIZE_SCALAR(asid);
-		SERIALIZE_SCALAR(tag);
-		SERIALIZE_SCALAR(status);
-		SERIALIZE_SCALAR(origRequestingCpuID);
-		SERIALIZE_SCALAR(prevOrigRequestingCpuID);
-		SERIALIZE_SCALAR(set);
+	void serialize(std::ofstream &outfile){
+//		SERIALIZE_SCALAR(asid);
+//		SERIALIZE_SCALAR(tag);
+//		SERIALIZE_SCALAR(status);
+//		SERIALIZE_SCALAR(origRequestingCpuID);
+//		SERIALIZE_SCALAR(prevOrigRequestingCpuID);
+//		SERIALIZE_SCALAR(set);
+
+		Serializable::writeEntry(&asid, sizeof(int), outfile);
+		Serializable::writeEntry(&tag, sizeof(Addr), outfile);
+		Serializable::writeEntry(&status, sizeof(State), outfile);
+		Serializable::writeEntry(&origRequestingCpuID, sizeof(int), outfile);
+		Serializable::writeEntry(&prevOrigRequestingCpuID, sizeof(int), outfile);
+		Serializable::writeEntry(&set, sizeof(int), outfile);
 
 		//TODO: should we handle xc serialization?
 	}
 
-	void unserialize(Checkpoint *cp, const std::string &section){
+	void unserialize(std::ifstream &infile){
 
-		UNSERIALIZE_SCALAR(asid);
-		UNSERIALIZE_SCALAR(tag);
-		UNSERIALIZE_SCALAR(status);
-		UNSERIALIZE_SCALAR(origRequestingCpuID);
-		UNSERIALIZE_SCALAR(prevOrigRequestingCpuID);
-		UNSERIALIZE_SCALAR(set);
+//		UNSERIALIZE_SCALAR(asid);
+//		UNSERIALIZE_SCALAR(tag);
+//		UNSERIALIZE_SCALAR(status);
+//		UNSERIALIZE_SCALAR(origRequestingCpuID);
+//		UNSERIALIZE_SCALAR(prevOrigRequestingCpuID);
+//		UNSERIALIZE_SCALAR(set);
+
+		asid = *((int*) Serializable::readEntry(sizeof(int), infile));
+		tag = *((Addr*) Serializable::readEntry(sizeof(Addr), infile));
+		status = *((State*) Serializable::readEntry(sizeof(State), infile));
+		origRequestingCpuID = *((int*) Serializable::readEntry(sizeof(int), infile));
+		prevOrigRequestingCpuID =  *((int*) Serializable::readEntry(sizeof(int), infile));
+		set = *((int*) Serializable::readEntry(sizeof(int), infile));
 
 		//TODO: should we handle xc unserialization
 	}

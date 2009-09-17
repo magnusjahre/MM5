@@ -600,21 +600,6 @@ void MainMemory::regFormulas()
 	ptab_miss_rate = ptab_misses / ptab_accesses;
 }
 
-template <class T>
-void
-MainMemory::writeEntry(T* data, int size, std::ofstream& file){
-	file.write((char*) data, size*sizeof(T));
-}
-
-template <class T>
-T*
-MainMemory::readEntry(int size, std::ifstream& file){
-	int readSize = size*sizeof(T);
-	assert(readSize <= VMPageSize);
-	file.read(buffer, readSize);
-	return (T*) buffer;
-}
-
 void
 MainMemory::serialize(std::ostream &os){
 
@@ -632,7 +617,7 @@ MainMemory::serialize(std::ostream &os){
 	for(int i = 0; i< memPageTabSize; i++){
 		if(ptab[i] != NULL){
 
-			writeEntry<int>(&i, 1, pagefile);
+			writeEntry(&i, sizeof(int), pagefile);
 
 			entry* firstPtr = ptab[i];
 			entry* pte = firstPtr;
@@ -643,12 +628,12 @@ MainMemory::serialize(std::ostream &os){
 				pte = pte->next;
 			}
 
-			writeEntry<int>(&listCnt, 1, pagefile);
+			writeEntry(&listCnt, sizeof(int), pagefile);
 
 			pte = firstPtr;
 			while(pte != NULL){
-				writeEntry<Addr>(&(pte->tag), 1, pagefile);
-				writeEntry<uint8_t>(pte->page, VMPageSize, pagefile);
+				writeEntry(&(pte->tag), sizeof(Addr), pagefile);
+				writeEntry(pte->page, VMPageSize * sizeof(uint8_t), pagefile);
 				pte = pte->next;
 			}
 		}
@@ -724,12 +709,12 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
 
 	while(!pagefile.eof()){
-		int index = *readEntry<int>(1, pagefile);
-		int entryCnt = *readEntry<int>(1, pagefile);
+		int index = *((int*) readEntry(sizeof(int), pagefile));
+		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
 		std::vector<entry*> tmpLinkedList;
 		for(int i=0;i<entryCnt;i++){
-			Addr tag = *readEntry<Addr>(1, pagefile);
-			uint8_t* bufferedPage = readEntry<uint8_t>(VMPageSize, pagefile);
+			Addr tag = * ((Addr*) readEntry(sizeof(Addr), pagefile));
+			uint8_t* bufferedPage = (uint8_t*) readEntry(VMPageSize* sizeof(uint8_t), pagefile);
 
 			uint8_t* page = new uint8_t[VMPageSize];
 			if(!page) fatal("MainMemory::newpage: out of virtual memory");

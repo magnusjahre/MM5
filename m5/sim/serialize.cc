@@ -57,6 +57,8 @@ using namespace std;
 int Serializable::maxCount = 0;
 int Serializable::count = 0;
 
+char* serializeFileBuffer[BINARY_FILE_BUFFER_SIZE];
+
 void
 Serializable::nameOut(ostream &os)
 {
@@ -165,6 +167,19 @@ objParamIn(Checkpoint *cp, const std::string &section,
     if (!cp->findObj(section, name, param)) {
 	fatal("Can't unserialize '%s:%s'\n", section, name);
     }
+}
+
+void
+Serializable::writeEntry(void* data, size_t size, std::ofstream& file){
+	assert(size <= BINARY_FILE_BUFFER_SIZE);
+	file.write((char*) data, size);
+}
+
+void*
+Serializable::readEntry(size_t size, std::ifstream& file){
+	assert(size <= BINARY_FILE_BUFFER_SIZE);
+	file.read((char*) serializeFileBuffer, size);
+	return (void*) serializeFileBuffer;
 }
 
 
