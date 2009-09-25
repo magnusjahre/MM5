@@ -278,9 +278,12 @@ inline std::ostream &
 operator<<(std::ostream &out, const CacheBlk &blk)
 {
 	out << std::hex << std::endl;
-	out << "  Tag: " << blk.tag << std::endl;
-	out << "  Status: " <<  blk.status << std::endl;
+	out << "  Asid:           " << blk.asid << std::endl;
+	out << "  Tag:            " << blk.tag << std::endl;
+	out << "  Status:         " <<  blk.status << std::endl;
+	out << "  Set:            " <<  blk.set << std::endl;
 	out << "  Requesting CPU: " << blk.origRequestingCpuID << std::endl;
+	out << "  Prev req CPU:   " << blk.prevOrigRequestingCpuID << std::endl;
 
 	return(out << std::dec);
 }

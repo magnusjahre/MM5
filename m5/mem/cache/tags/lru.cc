@@ -746,7 +746,7 @@ LRU::serialize(std::ostream &os){
 		}
 	}
 
-
+	contentfile.flush();
 	contentfile.close();
 
 	//	for(int i=0;i<numSets;i++){
@@ -761,21 +761,25 @@ void
 LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 	string filename;
-	UNSERIALIZE_SCALAR(filename);
-	ifstream contentfile(filename.c_str(), ios::binary);
 
-	int* fileBlocks = (int*) Serializable::readEntry(sizeof(int), contentfile);
-	int expectedBlocks = numSets*assoc;
-	if(cache->isShared && cache->cpuCount == 1){
-		expectedBlocks = numSets * (assoc / divFactor);
+	UNSERIALIZE_SCALAR(filename);
+
+	ifstream contentfile(filename.c_str(), ios::binary);
+	if(!contentfile.is_open()){
+		fatal("could not open file %s", filename.c_str());
 	}
 
-	if(*fileBlocks != expectedBlocks){
-		fatal("Wrong number of cache blocks in file %s, got size %d, expected %d", filename, *fileBlocks, expectedBlocks);
+	int* fileBlocks = (int*) Serializable::readEntry(sizeof(int), contentfile);
+	int readAssoc = assoc;
+	if(cache->isShared && cache->cpuCount == 1) readAssoc = assoc / divFactor;
+
+	if(*fileBlocks != numSets*readAssoc){
+		fatal("Wrong number of cache blocks in file %s, got size %d, expected %d", filename, *fileBlocks, numSets*readAssoc);
 	}
 
 	for(int i=0;i<numSets;i++){
-		for(int j=0;j<assoc;j++){
+		for(int j=0;j<readAssoc;j++){
+			assert(contentfile.good());
 			sets[i].blks[j]->unserialize(contentfile);
 
 			if(cache->cpuCount > 1){
