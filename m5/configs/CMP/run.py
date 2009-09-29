@@ -513,7 +513,7 @@ if "USE-SIMPOINT" in env:
         
         checkpointfiles = os.listdir(checkpointDirPath)
         for name in checkpointfiles:
-            if name != "m5.cpt":
+            if name != "m5.cpt" and name != "m5.cpt.old":
                 print >> sys.stderr, "Copying file "+name+" to current directory"
                 shutil.copy(checkpointDirPath+"/"+name, ".")
 
