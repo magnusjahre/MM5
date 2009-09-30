@@ -709,6 +709,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
 
 	while(!pagefile.eof()){
+		assert(pagefile.good());
 		int index = *((int*) readEntry(sizeof(int), pagefile));
 		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
 		std::vector<entry*> tmpLinkedList;

@@ -182,6 +182,13 @@ def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
     
     return fwticks, simulateCycles
 
+def copyCheckpointFiles(directory):
+    checkpointfiles = os.listdir(directory)
+    for name in checkpointfiles:
+        if name != "m5.cpt" and name != "m5.cpt.old":
+            print >> sys.stderr, "Copying file "+name+" to current directory"
+            shutil.copy(directory+"/"+name, ".")
+
 def warn(message):
     print >> sys.stderr, "Warning: "+message
 
@@ -510,12 +517,8 @@ if "USE-SIMPOINT" in env:
             panic("Checkpoint path must be provided")
         
         checkpointDirPath = useCheckpointPath+"/"+getCheckpointDirectory(simpointNum)
+        copyCheckpointFiles(checkpointDirPath)
         
-        checkpointfiles = os.listdir(checkpointDirPath)
-        for name in checkpointfiles:
-            if name != "m5.cpt" and name != "m5.cpt.old":
-                print >> sys.stderr, "Copying file "+name+" to current directory"
-                shutil.copy(checkpointDirPath+"/"+name, ".")
 
         root.checkpoint = checkpointDirPath
         for cpu in root.detailedCPU:
@@ -531,9 +534,10 @@ else:
     
     else:
         if useCheckpointPath != "":
-            warn("copying of files generated during simulation not implemented")
+            
             fwticks = 1
             cptdir = useCheckpointPath+"/"+getCheckpointDirectory()
+            copyCheckpointFiles(cptdir)
             root.checkpoint = cptdir
             
         else:
