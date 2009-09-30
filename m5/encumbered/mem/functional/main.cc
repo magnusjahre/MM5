@@ -95,6 +95,8 @@
 
 using namespace std;
 
+#define MAX_ENTRY_COUNT 1000
+
 // create a flat memory space and initialize memory system
 MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 : FunctionalMemory(n), takeStats(false)
@@ -614,8 +616,19 @@ MainMemory::serialize(std::ostream &os){
 
 	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
 
+	int indexCnt = 0;
 	for(int i = 0; i< memPageTabSize; i++){
 		if(ptab[i] != NULL){
+			indexCnt++;
+		}
+	}
+
+	writeEntry(&indexCnt, sizeof(int), pagefile);
+
+	int writtenIndexes = 0;
+	for(int i = 0; i< memPageTabSize; i++){
+		if(ptab[i] != NULL){
+			writtenIndexes++;
 
 			writeEntry(&i, sizeof(int), pagefile);
 
@@ -638,6 +651,8 @@ MainMemory::serialize(std::ostream &os){
 			}
 		}
 	}
+
+	assert(writtenIndexes == indexCnt);
 
 	pagefile.close();
 
@@ -708,11 +723,17 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	ifstream pagefile(filename.c_str(),  ios::binary);
 	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
 
-	while(!pagefile.eof()){
+	int numIndexes = *((int*) readEntry(sizeof(int), pagefile));
+	int writtenIndexes = 0;
+
+	while(writtenIndexes < numIndexes){
 		assert(pagefile.good());
 		int index = *((int*) readEntry(sizeof(int), pagefile));
 		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
 		std::vector<entry*> tmpLinkedList;
+		if(entryCnt > MAX_ENTRY_COUNT){
+			fatal("Got %d entries for linked list index, assuming file corruption", entryCnt);
+		}
 		for(int i=0;i<entryCnt;i++){
 			Addr tag = * ((Addr*) readEntry(sizeof(Addr), pagefile));
 			uint8_t* bufferedPage = (uint8_t*) readEntry(VMPageSize* sizeof(uint8_t), pagefile);
@@ -736,6 +757,8 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 			}
 			ptab[index] = tmpLinkedList[0];
 		}
+
+		writtenIndexes += 1;
 	}
 
 	pagefile.close();
