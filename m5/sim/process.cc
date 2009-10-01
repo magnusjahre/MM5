@@ -330,10 +330,18 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 			UNSERIALIZE_SCALAR_NAME(generateFileStateName("host_flags",i), hostFlags);
 			UNSERIALIZE_SCALAR_NAME(generateFileStateName("mode",i), mode);
 
-			char* base = basename((char*) path.c_str());
-			cout << "path " << path << " gave basename " << base << "\n";
+			char* filename = NULL;
+			if(path.at(0) == '/'){
+				filename = basename((char*) path.c_str());
+				cout << "Absolute path: opening basename " << filename << "\n";
+			}
+			else{
+				filename = (char*) path.c_str();
+				cout << "Relative path: using original path " << filename << "\n";
+			}
+			assert(filename != NULL);
 
-			int sim_fd = open(base, hostFlags, mode);
+			int sim_fd = open(filename, hostFlags, mode);
 			if(sim_fd == -1){
 				panic("Could not open file %s in unserialize", path.c_str());
 			}
