@@ -182,6 +182,17 @@ Ring::setDestinationIntID(MemReqPtr& req, int fromIntID){
     }
 }
 
+
+int
+Ring::getDownhops(int cpuID, int slaveID){
+	return (cpu_count - (cpuID+1)) + (sharedCacheBankCount - (slaveID+1)) + 1;
+}
+
+int
+Ring::getUphops(int cpuID, int slaveID){
+	return cpuID + slaveID + 1;
+}
+
 vector<int>
 Ring::findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* direction){
 
@@ -191,8 +202,14 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* di
     int slaveIntID = allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : req->fromInterfaceID;
     assert(slaveIntID != -1);
     int slaveID = interconnectIDToL2IDMap[slaveIntID];
-    int uphops = req->interferenceAccurateSenderID + slaveID + 1;
-    int downhops = (cpu_count - (req->interferenceAccurateSenderID+1)) + (sharedCacheBankCount - (slaveID+1)) + 1;
+    int uphops = getUphops(req->interferenceAccurateSenderID, slaveID);
+    int downhops = getDownhops(req->interferenceAccurateSenderID, slaveID);
+
+    if(cpu_count > 1){
+    	int baselineUphops = getUphops(0, slaveID);
+    	int baselineDownhops = getDownhops(0, slaveID);
+    	req->ringBaselineHops  = (baselineUphops > baselineDownhops ? baselineDownhops: baselineUphops);
+    }
 
     if(allInterfaces[fromIntID]->isMaster()){
         path = findMasterPath(req, uphops, downhops, direction);
@@ -391,7 +408,12 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     }
 
     ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, toSlave);
-    entry.req->interconnectTransferDelay = transferDelay * entry.resourceReq.size();
+
+	entry.req->interconnectTransferDelay = transferDelay * entry.resourceReq.size();
+    if(cpu_count > 0){
+    	assert(entry.req->ringBaselineHops != -1);
+    	entry.req->ringBaselineTransLat = transferDelay * entry.req->ringBaselineHops;
+    }
     delivery->schedule(curTick + (transferDelay * entry.resourceReq.size()));
 
     totalTransferCycles += (transferDelay * entry.resourceReq.size());
@@ -554,11 +576,18 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
 void
 Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
 
-    req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += curTick - req->inserted_into_crossbar;
+
+
+	int queueDelay = (curTick - req->inserted_into_crossbar) - req->interconnectTransferDelay;
+	if(cpu_count > 1){
+		req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += queueDelay + req->ringBaselineTransLat;
+	}
+	else{
+		req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += (curTick - req->inserted_into_crossbar);
+	}
     assert(req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] >= 0);
     assert(req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] >= req->interferenceBreakdown[INTERCONNECT_TRANSFER_LAT]);
 
-    int queueDelay = (curTick - req->inserted_into_crossbar) - req->interconnectTransferDelay;
     assert(queueDelay >= 0);
 
     assert(req->adaptiveMHASenderID != -1);
@@ -568,7 +597,9 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     if(allInterfaces[toID]->isMaster()){
 
     	if(req->cmd == Read){
-    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseTransfer, req, req->interconnectTransferDelay);
+    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseTransfer,
+										    req,
+										    cpu_count == 1 ? req->interconnectTransferDelay : req->ringBaselineTransLat);
     		interferenceManager->addLatency(InterferenceManager::InterconnectResponseQueue, req, queueDelay);
     	}
 
@@ -578,7 +609,9 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     else{
 
     	if(req->cmd == Read){
-			interferenceManager->addLatency(InterferenceManager::InterconnectRequestTransfer, req, req->interconnectTransferDelay);
+			interferenceManager->addLatency(InterferenceManager::InterconnectRequestTransfer,
+											req,
+											cpu_count == 1 ? req->interconnectTransferDelay : req->ringBaselineTransLat);
 			interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, req, queueDelay);
 		}
 

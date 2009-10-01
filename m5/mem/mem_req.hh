@@ -259,6 +259,8 @@ class MemReq : public FastAlloc, public RefCounted
     int interconnectTransferDelay;
 
     int sharedCacheSet;
+    int ringBaselineHops;
+    int ringBaselineTransLat;
 
     /**
      * Contruct and initialize a memory request.
@@ -338,7 +340,9 @@ class MemReq : public FastAlloc, public RefCounted
     memCtrlGenReadInterference(0),
     memCtrlWbGenBy(inval_addr),
     interconnectTransferDelay(0),
-    sharedCacheSet(-1)
+    sharedCacheSet(-1),
+    ringBaselineHops(-1),
+    ringBaselineTransLat(0)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -395,7 +399,7 @@ class MemReq : public FastAlloc, public RefCounted
         shadowCtrlID = r.shadowCtrlID;
         givenToShadow = r.givenToShadow;
         interferenceMissAt = r.interferenceMissAt;
-	isShadowMiss = r.isShadowMiss;
+        isShadowMiss = r.isShadowMiss;
         finishedInCacheAt = r.finishedInCacheAt;
         cacheCapacityInterference = r.cacheCapacityInterference;
         memBusBlockedWaitCycles = r.memBusBlockedWaitCycles;
@@ -418,6 +422,9 @@ class MemReq : public FastAlloc, public RefCounted
         memCtrlIssuePosition = r.memCtrlIssuePosition;
         interconnectTransferDelay = r.interconnectTransferDelay;
         sharedCacheSet = r.sharedCacheSet;
+
+        ringBaselineHops = r.ringBaselineHops;
+        ringBaselineTransLat = r.ringBaselineTransLat;
     }
 
     /**

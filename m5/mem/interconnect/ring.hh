@@ -56,6 +56,10 @@ class Ring : public AddressDependentIC{
         std::vector<int> findMasterPath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
         std::vector<int> findSlavePath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
 
+        int getUphops(int cpuID, int slaveID);
+        int getDownhops(int cpuID, int slaveID);
+
+
         std::vector<int> findServiceOrder(std::vector<std::list<RingRequestEntry> >* queue);
 
         void attemptToScheduleArbEvent();
