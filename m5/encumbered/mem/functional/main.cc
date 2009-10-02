@@ -178,7 +178,7 @@ MainMemory::swapEntries(entry* curHead, entry* newHead){
 	fstream pagefile(pagefileName.c_str(), ios::binary | ios::ate | ios::in | ios::out);
 	assert(pagefile.is_open());
 
-	assert(newHead->fileStartPosition != -1);
+	assert(newHead->fileStartPosition != (fstream::pos_type) -1);
 
 	pagefile.seekg(newHead->fileStartPosition);
 	pagefile.read(buffer, VMPageSize);
