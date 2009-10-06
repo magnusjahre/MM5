@@ -605,6 +605,10 @@ void MainMemory::regFormulas()
 void
 MainMemory::serialize(std::ostream &os){
 
+#ifdef DO_SERIALIZE_VALIDATION
+	dumpPages(true);
+#endif
+
 	SERIALIZE_SCALAR(break_address);
 	SERIALIZE_SCALAR(break_thread);
 	SERIALIZE_SCALAR(break_size);
@@ -655,37 +659,6 @@ MainMemory::serialize(std::ostream &os){
 	assert(writtenIndexes == indexCnt);
 
 	pagefile.close();
-
-//	for(int i = 0; i< memPageTabSize; i++){
-//		if(ptab[i] != NULL){
-//
-//			int linkedListCnt = 0;
-//			entry* pte = ptab[i];
-//			while(pte != NULL){
-//
-//
-//				string tagName = generateID("tag", i, linkedListCnt);
-//				SERIALIZE_SCALAR_NAME(tagName, pte->tag);
-//
-//				string pageName = generateID("page", i, linkedListCnt);
-//
-//				uint8_t* outpage = pte->page;
-//				if(!pte->inMemory){
-//					ifstream pagefile(pagefileName.c_str(), ios::binary);
-//					assert(pte->fileStartPosition != -1);
-//					pagefile.seekg(pte->fileStartPosition);
-//					pagefile.read(buffer, VMPageSize);
-//					outpage = (uint8_t*) buffer;
-//				}
-//
-//				assert(outpage != NULL);
-//				SERIALIZE_ARRAY_NAME(pageName, outpage, VMPageSize);
-//
-//				pte = pte->next;
-//				linkedListCnt++;
-//			}
-//		}
-//	}
 }
 
 std::string
@@ -727,7 +700,6 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	int writtenIndexes = 0;
 
 	while(writtenIndexes < numIndexes){
-		assert(pagefile.good());
 		int index = *((int*) readEntry(sizeof(int), pagefile));
 		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
 		std::vector<entry*> tmpLinkedList;
@@ -748,6 +720,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 
 			tmpLinkedList.push_back(newEntry);
 		}
+		assert(pagefile.good());
 
 		if(!tmpLinkedList.empty()){
 
@@ -763,79 +736,53 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 
 	pagefile.close();
 
-	// remove any state from the pagefile
-//	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::trunc);
-//	pagefile << "";
-//	pagefile.flush();
-//	pagefile.close();
-//	currentFileEndPos = 0;
-//
-//	uint8_t* readBuffer = new uint8_t[VMPageSize];
-//
-//	// fill workload memory from checkpoint
-//	for(int i = 0; i< memPageTabSize; i++){
-//		assert(ptab[i] == NULL);
-//
-// 		int linkedListCnt = 0;
-//		string tagName = generateID("tag", i, linkedListCnt);
-//		string dataName = generateID("page", i, linkedListCnt);
-//
-//		std::vector<entry*> tmpLinkedList;
-//
-//		string tmpTag;
-//		while(cp->find(section, tagName, tmpTag)){
-//
-//			Addr tag = 0;
-//			UNSERIALIZE_SCALAR_NAME(tagName, tag);
-//
-//			entry* newEntry = new entry(tag, NULL);
-//
-//			uint8_t* page = new uint8_t[VMPageSize];
-//			if (!page) fatal("MainMemory::newpage: out of virtual memory");
-//
-//			::memset(page, 0, VMPageSize);
-//			arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
-//
-//			newEntry->page = page;
-//
-////			if(linkedListCnt == 0){
-////
-////				uint8_t* page = new uint8_t[VMPageSize];
-////				if (!page) fatal("MainMemory::newpage: out of virtual memory");
-////
-////				::memset(page, 0, VMPageSize);
-////				arrayParamIn<uint8_t>(cp, section, dataName, page, VMPageSize);
-////
-////				newEntry->page = page;
-////			}
-////			else{
-////
-////				arrayParamIn<uint8_t>(cp, section, dataName, readBuffer, VMPageSize);
-////				newEntry->page = readBuffer;
-////				uint8_t* clearedPage = writeEntryToFile(newEntry);
-////				assert(clearedPage == readBuffer);
-////
-////			}
-//
-//			tmpLinkedList.push_back(newEntry);
-//
-//			linkedListCnt++;
-//			tagName = generateID("tag", i, linkedListCnt);
-//			dataName = generateID("page", i, linkedListCnt);
-//		}
-//
-//		if(!tmpLinkedList.empty()){
-//
-//			// populate next pointers and insert into hash table
-//			for(int j=tmpLinkedList.size()-2; j>=0; j--){
-//				tmpLinkedList[j]->next = tmpLinkedList[j+1];
-//			}
-//			ptab[i] = tmpLinkedList[0];
-//		}
-//	}
-//
-//	delete [] readBuffer;
+#ifdef DO_SERIALIZE_VALIDATION
+	dumpPages(false);
+#endif
 }
+
+#ifdef DO_SERIALIZE_VALIDATION
+
+void
+MainMemory::dumpPages(bool onSerialize){
+
+	string filename;
+	if(onSerialize) filename = "pre-serialize-pages.txt";
+	else filename = "post-unserialize-pages.txt";
+
+	ofstream outfile(filename.c_str(), ios::out | ios::trunc);
+
+	for(int i=0;i<memPageTabSize;i++){
+		if(ptab[i] != NULL){
+			int pos = 0;
+			entry* current = ptab[i];
+			while(current != NULL){
+				dumpPage(i, pos, current, outfile);
+				current = current->next;
+			}
+		}
+	}
+	outfile << "--- end of file ---\n";
+	outfile.close();
+}
+
+void
+MainMemory::dumpPage(int index, int pos, entry* current, ofstream& outfile){
+	outfile << index << ";" << pos << ";" << current->tag << "\n";
+	assert(current->page != NULL);
+	outfile << uint8ToInt(current->page[0]);
+	for(int i=1;i<VMPageSize;i++){
+		outfile << ";" << uint8ToInt(current->page[i]);
+	}
+	outfile << "\n";
+}
+
+int
+MainMemory::uint8ToInt(uint8_t val){
+	return (int) val;
+}
+
+#endif
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MainMemory)
 

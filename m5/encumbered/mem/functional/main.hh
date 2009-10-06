@@ -95,6 +95,8 @@
 #include "base/statistics.hh"
 #include "sim/stats.hh"
 
+//#define DO_SERIALIZE_VALIDATION
+
 // number of entries in page translation hash table (must be power-of-two)
 //#define MEM_PTAB_SIZE		(32*1024)
 //#define MEM_LOG_PTAB_SIZE	15
@@ -187,6 +189,12 @@ protected:
 	void swapEntries(entry* curHead, entry* newHead);
 
 	entry** ptab;	// inverted page table
+
+#ifdef DO_SERIALIZE_VALIDATION
+	void dumpPages(bool onSerialize);
+	void dumpPage(int index, int pos, entry* page, std::ofstream& outfile);
+	int uint8ToInt(uint8_t val);
+#endif
 
 	// memory object stats
 	bool takeStats;
