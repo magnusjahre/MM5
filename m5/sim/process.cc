@@ -265,6 +265,9 @@ Process::serialize(std::ostream &os){
 	SERIALIZE_SCALAR(nxm_start);
 	SERIALIZE_SCALAR(nxm_end);
 
+	off_t stdinPos = lseek(fd_map[STDIN_FILENO], 0, SEEK_CUR);
+	SERIALIZE_SCALAR(stdinPos);
+
 	// serialize open file state
 	map<int, FileParameters>::iterator it = tgtFDFileParams.begin();
 	for( ; it != tgtFDFileParams.end(); it++){
@@ -280,7 +283,7 @@ Process::serialize(std::ostream &os){
 		SERIALIZE_SCALAR_NAME(generateFileStateName("mode", tgtFD), params.mode);
 	}
 
-	//NOTE: unserialization of MainMem is done automatically from SimObject
+	//NOTE: serialization of MainMem is done automatically from SimObject
 }
 
 void
@@ -306,6 +309,13 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 
 	UNSERIALIZE_SCALAR(nxm_start);
 	UNSERIALIZE_SCALAR(nxm_end);
+
+	off_t stdinPos = -1;
+	UNSERIALIZE_SCALAR(stdinPos);
+	if(stdinPos != -1){
+		int newPos = lseek(fd_map[STDIN_FILENO], stdinPos, SEEK_SET);
+		assert(stdinPos == newPos);
+	}
 
 	// unserialize process memory
 	memory->unserialize(cp, section+".MainMem");
@@ -542,30 +552,30 @@ END_INIT_SIM_OBJECT_PARAMS(LiveProcess)
 
 CREATE_SIM_OBJECT(LiveProcess)
 {
-    string in = input;
-    string out = output;
+	string in = input;
+	string out = output;
 
-    // initialize file descriptors to default: same as simulator
-    int stdin_fd, stdout_fd, stderr_fd;
+	// initialize file descriptors to default: same as simulator
+	int stdin_fd, stdout_fd, stderr_fd;
 
-    if (in == "stdin" || in == "cin")
-	stdin_fd = STDIN_FILENO;
-    else
-	stdin_fd = Process::openInputFile(input);
+	if (in == "stdin" || in == "cin")
+		stdin_fd = STDIN_FILENO;
+	else
+		stdin_fd = Process::openInputFile(input);
 
-    if (out == "stdout" || out == "cout")
-	stdout_fd = STDOUT_FILENO;
-    else if (out == "stderr" || out == "cerr")
-	stdout_fd = STDERR_FILENO;
-    else
-	stdout_fd = Process::openOutputFile(out);
+	if (out == "stdout" || out == "cout")
+		stdout_fd = STDOUT_FILENO;
+	else if (out == "stderr" || out == "cerr")
+		stdout_fd = STDERR_FILENO;
+	else
+		stdout_fd = Process::openOutputFile(out);
 
-    stderr_fd = (stdout_fd != STDOUT_FILENO) ? stdout_fd : STDERR_FILENO;
+	stderr_fd = (stdout_fd != STDOUT_FILENO) ? stdout_fd : STDERR_FILENO;
 
-    return LiveProcess::create(getInstanceName(),
-			       stdin_fd, stdout_fd, stderr_fd,
-			       (string)executable == "" ? cmd[0] : executable,
-			       cmd, env, maxMemMB, cpuID);
+	return LiveProcess::create(getInstanceName(),
+			stdin_fd, stdout_fd, stderr_fd,
+			(string)executable == "" ? cmd[0] : executable,
+					cmd, env, maxMemMB, cpuID);
 }
 
 REGISTER_SIM_OBJECT("LiveProcess", LiveProcess)
