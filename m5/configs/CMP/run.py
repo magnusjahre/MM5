@@ -6,7 +6,7 @@ import hog_workloads
 import bw_workloads
 import deterministic_fw_wls as fair_workloads
 import single_core_fw as single_core
-import simpoints3
+import simpoints
 import os
 import shutil
 from DetailedConfig import *
@@ -492,24 +492,24 @@ if "USE-SIMPOINT" in env:
         panic("simulation length parameters does not make sense with simpoints")
     
     simpointNum = int(env["USE-SIMPOINT"])
-    assert simpointNum < simpoints3.maxk
+    assert simpointNum < simpoints.maxk
     
     if generateCheckpoint:
         
         if env["NP"] > 1:
             fatal("CMP checkpoints are generated from individual benchmark checkpoints")
             
-        fwticks, simulateCycles = setGenerateCheckpointParams(simpoints3.simpoints[env["BENCHMARK"]][simpointNum][simpoints3.FWKEY], simpointNum)
+        fwticks, simulateCycles = setGenerateCheckpointParams(simpoints.simpoints[env["BENCHMARK"]][simpointNum][simpoints.FWKEY], simpointNum)
     else:
         
         fwticks = 1
         simulateCycles = SIM_TICKS_NOT_USED_SIZE
         
         for cpu in root.detailedCPU:
-            cpu.min_insts_all_cpus = simpoints3.intervalsize
+            cpu.min_insts_all_cpus = simpoints.intervalsize
     
         if simInsts == -1:
-            simInsts = simpoints3.intervalsize
+            simInsts = simpoints.intervalsize
         else:
             warn("Simulate instructions set, ignoring simpoints default. Statistics will not be representable!")
             
