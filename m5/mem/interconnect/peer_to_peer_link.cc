@@ -53,6 +53,12 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
         assert(slaveInterconnectID != -1);
     }
 
+    if(attachedCPUID == -1){
+    	assert(req->adaptiveMHASenderID != -1);
+    	attachedCPUID = req->adaptiveMHASenderID;
+    }
+    assert(attachedCPUID == req->adaptiveMHASenderID);
+
     if(curTick < detailedSimStartTick){
 
         if(allInterfaces[fromID]->isMaster()){
@@ -67,11 +73,6 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
 
         return;
     }
-
-    if(attachedCPUID == -1){
-        attachedCPUID = req->adaptiveMHASenderID;
-    }
-    assert(attachedCPUID == req->adaptiveMHASenderID);
 
     if(req->finishedInCacheAt < curTick){
         entryDelay += curTick - req->finishedInCacheAt;

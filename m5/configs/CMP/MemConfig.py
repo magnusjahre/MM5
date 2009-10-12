@@ -4,14 +4,20 @@ from m5 import *
 # CACHES
 ###############################################################################
 
+mshrParamName="BASEMSHRS"
+
 class BaseL1Cache(BaseCache):
     in_bus = NULL
     size = '64kB'
     assoc = 2
     block_size = 64
-    mshrs = 16
     write_buffers = 4
     tgts_per_mshr = 4
+    
+    if mshrParamName in env:
+        mshrs = int(env[mshrParamName])
+    else:
+        mshrs = 16
     
     cpu_count = int(env['NP'])
     is_shared = False
@@ -37,6 +43,7 @@ class BaseL1Cache(BaseCache):
         panic("L1 cache: unknown latency for cpu count")
 
 class IL1(BaseL1Cache):
+    mshrs = 16 # do not change instruction MSHRs
     is_read_only = True
 
 class DL1(BaseL1Cache):
@@ -91,7 +98,11 @@ class PrivateCache1M(CommonLargeCache):
     assoc = 4
     is_shared = False
     
-    mshrs = 16
+    if mshrParamName in env:
+        mshrs = int(env[mshrParamName])
+    else:
+        mshrs = 16
+    
     tgts_per_mshr = 4
     write_buffers = 16
     
@@ -122,7 +133,13 @@ class SharedCache8M(CommonLargeCache):
     latency = 16 * Parent.clock.period
     is_shared = True
     
-    mshrs = 16
+    if mshrParamName in env:
+        mshrs = int(env[mshrParamName]) 
+        if mshrs < 16:
+            mshrs = 16
+    else:
+        mshrs = 16
+    
     tgts_per_mshr = 4
     write_buffers = 16
     
@@ -136,7 +153,13 @@ class SharedCache16M(CommonLargeCache):
     latency = 12 * Parent.clock.period
     is_shared = True
     
-    mshrs = 32
+    if mshrParamName in env:
+        mshrs = int(env[mshrParamName])*2 
+        if mshrs < 32:
+            mshrs = 32
+    else:
+        mshrs = 32
+    
     tgts_per_mshr = 4
     write_buffers = 32
 
@@ -150,7 +173,13 @@ class SharedCache32M(CommonLargeCache):
     latency = 12 * Parent.clock.period
     is_shared = True
     
-    mshrs = 64
+    if mshrParamName in env:
+        mshrs = int(env[mshrParamName])*4
+        if mshrs < 64:
+            mshrs = 64
+    else:
+        mshrs = 64
+    
     tgts_per_mshr = 4
     write_buffers = 64
     

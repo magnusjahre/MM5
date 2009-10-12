@@ -148,10 +148,7 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
         root.SharedCache[i].do_modulo_addr = True
         root.SharedCache[i].interference_manager = root.interferenceManager
-        if l2mshrs != -1:
-            root.SharedCache[i].mshrs = l2mshrs
-        if l2mshrTargets != -1:
-            root.SharedCache[i].tgts_per_mshr = l2mshrTargets
+        
         buscnt += 1
         if buscnt % banksPerBus == 0:
             curbus += 1
@@ -242,25 +239,6 @@ if 'PROFILEIC' in env:
 progressInterval = 0
 if 'PROGRESS' in env:
     progressInterval = int(env['PROGRESS'])
-
-# MSHR parameters
-l1dmshrTargets = -1
-l1mshrsData = -1
-if 'MSHRSL1D' in env and 'MSHRL1DTARGETS' in env:
-    l1mshrsData = int(env['MSHRSL1D'])
-    l1dmshrTargets = int(env['MSHRL1DTARGETS'])
-
-l1mshrsInst = -1
-l1imshrTargets = -1
-if 'MSHRSL1I' in env and 'MSHRL1ITARGETS' in env:
-    l1mshrsInst = int(env['MSHRSL1I'])
-    l1imshrTargets = int(env['MSHRL1ITARGETS'])
-
-l2mshrTargets = -1
-l2mshrs = -1
-if 'MSHRSL2' in env and 'MSHRL2TARGETS' in env:
-    l2mshrs = int(env['MSHRSL2'])
-    l2mshrTargets = int(env['MSHRL2TARGETS'])
 
 useAdaptiveMHA = False
 if "USE-ADAPTIVE-MHA" in env:
@@ -458,17 +436,6 @@ if int(env['NP']) == 1:
     root.L1dcaches[0].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
     root.L1icaches[0].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
     root.L1icaches[0].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
-
-if l1mshrsData != -1:
-    for l1 in root.L1dcaches:
-        l1.mshrs = l1mshrsData
-        l1.tgts_per_mshr = l1dmshrTargets
-
-if l1mshrsInst != -1:
-    for l1 in root.L1icaches:
-        l1.mshrs = l1mshrsInst
-        l1.tgts_per_mshr = l1imshrTargets
-
 
 ###############################################################################
 # Checkpoints and Simulation Time
