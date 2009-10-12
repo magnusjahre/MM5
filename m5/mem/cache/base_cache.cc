@@ -76,6 +76,7 @@ BaseCache::BaseCache(const std::string &name,
     }
 
     nextFreeCache = 0;
+    associativity = -1;
 }
 
 void
@@ -333,6 +334,18 @@ BaseCache::regStats()
         .name(name() + ".miss_responses_recv")
         .desc("Number of the issued misses where the response has arrived")
         ;
+
+    assert(associativity != -1);
+    if(isShared){
+		hitProfile.init(cpuCount, 0, associativity-1, 1);
+    }
+    else{
+    	hitProfile.init(1, 0, associativity-1, 1);
+	}
+	hitProfile
+		.name(name() + ".cache_hit_distribution")
+		.desc("Number of cache hits at each LRU position")
+		;
 }
 
 void

@@ -300,7 +300,6 @@ void
 LRU::updateSetHitStats(MemReqPtr& req){
 
 	assert(!isShadow); // only real tags
-	assert(numBanks > 0); // only L2 cache
 	if(curTick < cache->detailedSimulationStartTick) return;
 
 	int hitIndex = -1;
@@ -309,15 +308,19 @@ LRU::updateSetHitStats(MemReqPtr& req){
 	LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
 	if(tmpBlk == NULL) return; // cache miss, no hit statistics :-)
 
-	// A few sanity checks :-)
-	assert(tmpBlk != NULL);
-	assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
-	assert(tmpBlk->origRequestingCpuID < cache->cpuCount);
-	assert(tmpBlk->origRequestingCpuID >= 0 && tmpBlk->origRequestingCpuID < perCPUperSetHitCounters.size());
-	assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
-	assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
+	assert(req->adaptiveMHASenderID != -1);
 
-	perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
+	if(cache->isShared){
+		assert(req->adaptiveMHASenderID == tmpBlk->origRequestingCpuID);
+		assert(set >= 0 && set < perCPUperSetHitCounters[0].size());
+		assert(hitIndex >= 0 && hitIndex < perCPUperSetHitCounters[0][0].size());
+		perCPUperSetHitCounters[tmpBlk->origRequestingCpuID][set][hitIndex]++;
+
+		cache->hitProfile[req->adaptiveMHASenderID].sample(hitIndex);
+	}
+	else{
+		cache->hitProfile[0].sample(hitIndex);
+	}
 }
 
 void

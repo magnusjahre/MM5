@@ -122,6 +122,8 @@ private:
 
 protected:
 
+	int associativity;
+
 	/** The master interface, typically nearer to Main Memory */
 	BaseInterface *mi;
 
@@ -281,6 +283,8 @@ public:
 	Stats::Vector<> cpuCapacityInterference;
 
 	Stats::Scalar<> recvMissResponses;
+
+	Stats::VectorDistribution<> hitProfile;
 
 	/**
 	 * @}

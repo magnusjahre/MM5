@@ -96,6 +96,8 @@ Cache(const std::string &_name, HierParams *hier_params,
     interferenceManager = params.interferenceManager;
     writebackOwnerPolicy = params.wbPolicy;
 
+    associativity = tags->getAssoc();
+
     // init shadowtags
 #ifdef USE_CACHE_LRU
 
@@ -270,9 +272,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
-	if(isShared){
-		tags->updateSetHitStats(req);
-	}
+	tags->updateSetHitStats(req);
 
 	if (req->cmd == Copy) {
 		if(useDirectory) fatal("directory copy not implemented");
