@@ -7,6 +7,8 @@ class DirectoryProtocol(Enum): vals = ['none', 'stenstrom']
 
 class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer', 'shadow-tags']
 
+class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private']
+
 class BaseCache(BaseMem):
     type = 'BaseCache'
     adaptive_compression = Param.Bool(False,
@@ -109,3 +111,5 @@ class BaseCache(BaseMem):
     interference_manager = Param.InterferenceManager("Interference Manager Object")
     
     writeback_owner_policy = Param.WritebackOwnerPolicy("The policy used for providing sender IDs to shared cache writebacks")
+    interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
+    ipp_bits = Param.Int("The resolution of the probability (used in a subset of IPP modes)")

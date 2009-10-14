@@ -129,6 +129,14 @@ def initSharedCache(bankcnt):
     if "SHADOW-TAG-LEADER-SETS" in env:
         for bank in root.SharedCache:
             bank.shadow_tag_leader_sets = int(env["SHADOW-TAG-LEADER-SETS"])
+            
+    if "IPP" in env:
+        for bank in root.SharedCache:
+            bank.interference_probability_policy = env["IPP"]
+            
+    if "IPP-BITS" in env:
+        for bank in root.SharedCache:
+            bank.ipp_bits = env["IPP-BITS"]
    
 def setUpSharedCache(bankcnt, detailedStartTick):
     

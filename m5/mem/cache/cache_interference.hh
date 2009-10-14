@@ -19,32 +19,99 @@ class BaseCache;
 class CacheInterference{
 
 public:
+
+
 	class MissCounter;
+	class FixedWidthCounter;
+
+	class FixedPointProbability{
+	private:
+		uint32_t value;
+		int numBits;
+		bool ready;
+		uint32_t max;
+
+		double floatValue;
+
+	public:
+
+		FixedPointProbability();
+
+		void setBits(int _numBits);
+
+		void compute(int numerator, int denominator);
+		bool doInsertion(FixedWidthCounter* counter);
+
+		bool isZero(){
+			assert(ready);
+			assert(numBits > 0);
+			return value == 0;
+		}
+
+		bool isMax(){
+			assert(ready);
+			assert(numBits > 0);
+			return value == max;
+		}
+
+		float getFloatValue(){
+			assert(ready);
+			return floatValue;
+		}
+
+	};
+
+	class FixedWidthCounter{
+	private:
+		uint32_t value;
+		bool saturate;
+		uint32_t max;
+		int bitWidth;
+
+	public:
+		FixedWidthCounter(){
+			value = 0;
+			saturate = false;
+		}
+
+		FixedWidthCounter(bool _saturate, int _numBits){
+			value = 0;
+			saturate = _saturate;
+			bitWidth = _numBits;
+			assert(_numBits < 32);
+			max = (1 << _numBits)-1;
+		}
+
+		void inc();
+
+		uint32_t get(){
+			assert(max > 0);
+			return value;
+		}
+
+		int width(){
+			return bitWidth;
+		}
+	};
 
 	class InterferenceMissProbability{
 	public:
-		double readInterferenceProbability;
-		double writeInterferenceProbability;
+		FixedPointProbability interferenceProbability;
+		int numBits;
 
-		InterferenceMissProbability(bool _doInterferenceProb);
+		InterferenceMissProbability(bool _doInterferenceProb, int _numBits);
 
 		void update(MissCounter privateEstimate, MissCounter sharedEstimate);
 
-		double get(MemCmd req);
-
-	private:
-		bool doInterferenceProb;
-		double computeProbability(double occurrences, double total);
-
+		FixedPointProbability get(MemCmd req);
 	};
 
 	class MissCounter{
 	public:
-		int reads;
-		int writes;
+		int value;
 
-		MissCounter(int _reads, int _writes)
-		: reads(_reads), writes(_writes) {}
+		MissCounter(int _value)
+		: value(_value) {}
 
 		void increment(MemReqPtr& req, int amount = 1);
 
@@ -74,6 +141,10 @@ private:
 	BaseCache* cache;
 	int setsInConstituency;
 
+	int randomCounterBits;
+	std::vector<FixedWidthCounter> requestCounters;
+	std::vector<FixedWidthCounter> responseCounters;
+
 	std::vector<LRU*> shadowTags;
 
 	std::vector<bool> doInterferenceInsertion;
@@ -97,7 +168,7 @@ private:
 
     void tagAsInterferenceMiss(MemReqPtr& req);
 
-    bool addAsInterference(double probability);
+    bool addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter);
 
     LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID);
 
@@ -107,7 +178,7 @@ public:
 
 	CacheInterference(){ }
 
-	CacheInterference(int _numLeaderSets, int _totalSetNumber, int _bankCount, std::vector<LRU*> _shadowTags, BaseCache* _cache);
+	CacheInterference(int _numLeaderSets, int _totalSetNumber, int _bankCount, std::vector<LRU*> _shadowTags, BaseCache* _cache, int _numBits);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;

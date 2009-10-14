@@ -286,9 +286,9 @@ ConfigHierarchy::Node::unserialize(Checkpoint *parentCkpt,
 				simObject->name(), cpSection);
 		if(cp->sectionExists(cpSection))
 			simObject->unserialize(cp, cpSection);
-		else
-			warn("Not unserializing '%s': no section found in checkpoint.\n",
-					cpSection);
+//		else
+//			warn("Not unserializing '%s': no section found in checkpoint.\n",
+//					cpSection);
 	}
 
 	for (int i = 0; i < children.size(); i++) {

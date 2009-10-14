@@ -196,6 +196,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<InterferenceManager *> interference_manager;
 
     Param<string> writeback_owner_policy;
+    Param<string> interference_probability_policy;
+    Param<int> ipp_bits;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -295,7 +297,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL),
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
-    INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner")
+    INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner"),
+    INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
+    INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -351,7 +355,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, wbpolicy,shadow_tag_leader_sets); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
@@ -542,6 +546,21 @@ CREATE_SIM_OBJECT(BaseCache)
     }
     else{
     	fatal("Unknown writeback policy provided to cache");
+    }
+
+    BaseCache::InterferenceProbabilityPolicy ipp;
+    string ipp_name = interference_probability_policy;
+    if(ipp_name == "float"){
+    	ipp = BaseCache::IPP_FULL_RANDOM_FLOAT;
+    }
+    else if(ipp_name == "fixed"){
+    	ipp = BaseCache::IPP_COUNTER_FIXED_INTMAN;
+    }
+    else if(ipp_name == "fixed-private"){
+    	ipp = BaseCache::IPP_COUNTER_FIXED_PRIVATE;
+    }
+    else{
+    	fatal("Unknown interference probability policy provided");
     }
 
     // Build BaseCache param object

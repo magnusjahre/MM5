@@ -179,6 +179,15 @@ public:
 
 	WritebackOwnerPolicy writebackOwnerPolicy;
 
+	enum InterferenceProbabilityPolicy{
+		IPP_FULL_RANDOM_FLOAT, // float
+		IPP_COUNTER_FIXED_INTMAN, // fixed
+		IPP_COUNTER_FIXED_PRIVATE, // fixed-private
+		IPP_INVALID
+	};
+
+	InterferenceProbabilityPolicy intProbabilityPolicy;
+
 	/** Bank addressing scheme */
 	bool doModuloAddressing;
 	int bankID;

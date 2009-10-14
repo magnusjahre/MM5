@@ -98,6 +98,9 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     associativity = tags->getAssoc();
 
+
+    intProbabilityPolicy = IPP_INVALID;
+
     // init shadowtags
 #ifdef USE_CACHE_LRU
 
@@ -115,7 +118,11 @@ Cache(const std::string &_name, HierParams *hier_params,
             shadowTags[i]->setCache(this, false);
         }
 
-        cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this);
+        // TODO: set interference probability policy here
+        // TODO: set number of bits here
+        intProbabilityPolicy = params.ipp;
+        int numBits = params.ippBits;
+        cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this, numBits);
     }
     else{
         cacheInterference = NULL;

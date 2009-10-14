@@ -11,14 +11,29 @@
 
 using namespace std;
 
-CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, int _numBanks, std::vector<LRU*> _shadowTags, BaseCache* _cache){
+CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, int _numBanks, std::vector<LRU*> _shadowTags, BaseCache* _cache, int _numBits){
 
 	totalSetNumber = _totalSetNumber;
 	numBanks = _numBanks;
 	shadowTags = _shadowTags;
 	cache = _cache;
 
-    numLeaderSets = _numLeaderSets / numBanks; //params.bankCount;
+	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN || cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
+		randomCounterBits = _numBits;
+		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, randomCounterBits));
+		responseCounters.resize(cache->cpuCount, FixedWidthCounter(false, randomCounterBits));
+	}
+	else if(cache->intProbabilityPolicy == BaseCache::IPP_FULL_RANDOM_FLOAT){
+		randomCounterBits = 0;
+		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
+		responseCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
+	}
+	else{
+		fatal("cache interference probability policy not set");
+	}
+
+
+    numLeaderSets = _numLeaderSets / numBanks;
     if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
 
 	if(totalSetNumber % numLeaderSets  != 0){
@@ -28,15 +43,15 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 
 	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
 
-	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0,0));
-	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0,0));
+	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0));
+	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0));
 
-	interferenceMissProbabilities.resize(cache->cpuCount, InterferenceMissProbability(true));
+	interferenceMissProbabilities.resize(cache->cpuCount, InterferenceMissProbability(true, randomCounterBits));
 
-	samplePrivateWritebacks.resize(cache->cpuCount, MissCounter(0,0));
-	sampleSharedResponses.resize(cache->cpuCount, MissCounter(0,0));
+	samplePrivateWritebacks.resize(cache->cpuCount, MissCounter(0));
+	sampleSharedResponses.resize(cache->cpuCount, MissCounter(0));
 
-	privateWritebackProbability.resize(cache->cpuCount, InterferenceMissProbability(false));
+	privateWritebackProbability.resize(cache->cpuCount, InterferenceMissProbability(false, randomCounterBits));
 
 	cache->interferenceManager->registerCacheInterferenceObj(this);
 
@@ -197,7 +212,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 				}
 			}
 			else{
-				if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd))){
+				if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd), req->adaptiveMHASenderID, true)){
 					tagAsInterferenceMiss(req);
 				}
 			}
@@ -206,14 +221,34 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 }
 
 bool
-CacheInterference::addAsInterference(double probability){
+CacheInterference::addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter){
 
-	double randNum = rand() / (double) RAND_MAX;
+	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN){
 
-	if(randNum < probability){
-		return true;
+		FixedWidthCounter* counter = NULL;
+		if(useRequestCounter) counter = &requestCounters[cpuID];
+		else counter = &responseCounters[cpuID];
+
+		bool doInsertion = probability.doInsertion(counter);
+
+		counter->inc();
+
+		return doInsertion;
 	}
-	return false;
+	else if(cache->intProbabilityPolicy == BaseCache::IPP_FULL_RANDOM_FLOAT){
+		double randNum = rand() / (double) RAND_MAX;
+
+		if(randNum < probability.getFloatValue()){
+			return true;
+		}
+		return false;
+	}
+	else if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
+		fatal("private counter based policy interference determination not implemented");
+	}
+	else{
+		fatal("unknown interference probabilty policy");
+	}
 }
 
 void
@@ -289,7 +324,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		   && numLeaderSets < totalSetNumber
 		   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
 		   && !cache->useUniformPartitioning
-		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read))){
+		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read), req->adaptiveMHASenderID, false)){
 
 			int set = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr);
 			issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, set);
@@ -326,11 +361,7 @@ CacheInterference::computeInterferenceProbabilities(int cpuID){
 	sampleSharedMisses[cpuID].reset();
 
 	// Update private writeback probability
-	assert(samplePrivateWritebacks[cpuID].writes == 0);
-	assert(sampleSharedResponses[cpuID].writes == 0);
-
 	privateWritebackProbability[cpuID].update(samplePrivateWritebacks[cpuID], sampleSharedResponses[cpuID]);
-	assert(privateWritebackProbability[cpuID].writeInterferenceProbability == 0.0);
 
 	samplePrivateWritebacks[cpuID].reset();
 	sampleSharedResponses[cpuID].reset();
@@ -360,71 +391,97 @@ CacheInterference::findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID){
 	return shadowTags[cpuID]->findBlock(req->paddr, req->asid);
 }
 
-CacheInterference::InterferenceMissProbability::InterferenceMissProbability(bool _doInterferenceProb){
-	readInterferenceProbability = 0.0;
-	writeInterferenceProbability = 0.0;
-
-	doInterferenceProb = _doInterferenceProb;
+CacheInterference::InterferenceMissProbability::InterferenceMissProbability(bool _doInterferenceProb, int _numBits){
+	interferenceProbability.setBits(_numBits);
+	numBits = _numBits;
 }
 
 void
 CacheInterference::InterferenceMissProbability::update(MissCounter privateEstimate, MissCounter sharedMeasurement){
-
-	if(doInterferenceProb){
-		double readInterference = (double) sharedMeasurement.reads - (double) privateEstimate.reads;
-		readInterferenceProbability = computeProbability(readInterference, (double) sharedMeasurement.reads);
-	}
-	else{
-		readInterferenceProbability = computeProbability((double) privateEstimate.reads, (double) sharedMeasurement.reads);
-	}
-
-	if(doInterferenceProb){
-
-		double writeInterference = (double) sharedMeasurement.writes - (double) privateEstimate.writes;
-		writeInterferenceProbability = computeProbability(writeInterference, (double) sharedMeasurement.writes);
-	}
-	else{
-		assert(sharedMeasurement.writes == 0);
-		assert(privateEstimate.writes == 0);
-	}
+	int readInterference = sharedMeasurement.value - privateEstimate.value;
+	interferenceProbability.compute(readInterference, sharedMeasurement.value);
 }
 
-double
-CacheInterference::InterferenceMissProbability::computeProbability(double occurrences, double total){
-	if(total == 0.0) return 0.0;
-	if(occurrences <= 0.0) return 0.0;
-	if(occurrences > total) return 1.0;
-	return occurrences / total;
-}
-
-double
+CacheInterference::FixedPointProbability
 CacheInterference::InterferenceMissProbability::get(MemCmd cmd){
-	if(cmd == Read){
-		return readInterferenceProbability;
-	}
-	else if(cmd == Writeback){
-		return writeInterferenceProbability;
-	}
-
-	fatal("Unknown memory command");
-	return 0.0;
+	return interferenceProbability;
 }
 
 void
 CacheInterference::MissCounter::increment(MemReqPtr& req, int amount){
-	if(req->cmd == Read){
-		reads += amount;
-	}
-	else if(req->cmd == Writeback){
-		writes += amount;
-	}
-	else{
-		fatal("Unsupported memory command encountered");
-	}
+	value += amount;
 }
 
 void
 CacheInterference::MissCounter::reset(){
-	reads = 0;
-	writes = 0;
+	value = 0;
+}
+
+CacheInterference::FixedPointProbability::FixedPointProbability(){
+	ready = false;
+}
+
+void
+CacheInterference::FixedPointProbability::setBits(int _numBits){
+	ready = true;
+	numBits = _numBits;
+	max = (1 << numBits) - 1;
+}
+
+void
+CacheInterference::FixedPointProbability::compute(int numerator, int denominator){
+	assert(ready);
+
+	if(denominator == 0){
+		value = max;
+		floatValue = 1.0;
+	}
+	else if(numerator <= 0){
+		floatValue = 0.0;
+		value = 0;
+	}
+	else if(numerator >= denominator){
+		value = max;
+		floatValue = 1.0;
+	}
+	else{
+
+		floatValue = (double) ((double) numerator / (double) denominator);
+
+		uint64_t tmpval = numerator << numBits;
+		uint32_t result = tmpval / denominator;
+		assert(result <= max);
+
+		value = result;
+	}
+}
+
+bool
+CacheInterference::FixedPointProbability::doInsertion(FixedWidthCounter* counter){
+
+	assert(ready);
+	assert(counter->width() == numBits);
+
+	if(counter->get() < value){
+		return true;
+	}
+	return false;
+}
+
+void
+CacheInterference::FixedWidthCounter::inc(){
+
+	assert(max > 0);
+	assert(value <= max);
+	if(value == max){
+		if(saturate){
+			return;
+		}
+		else{
+			value = 0;
+		}
+	}
+	else{
+		value++;
+	}
 }
