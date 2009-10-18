@@ -30,6 +30,7 @@
  */
 
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 
@@ -314,7 +315,18 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(stdinPos);
 	if(stdinPos != -1){
 		int newPos = lseek(fd_map[STDIN_FILENO], stdinPos, SEEK_SET);
-		assert(stdinPos == newPos);
+		if(newPos == -1){
+			if(errno == ESPIPE){
+				// stallo checkpoints may report offset 0 in pipes
+				assert(stdinPos == 0);
+			}
+			else if(errno == EBADF){
+				fatal("tried to seek in a closed file");
+			}
+		}
+		else{
+			assert(stdinPos == newPos);
+		}
 	}
 
 	// unserialize process memory
