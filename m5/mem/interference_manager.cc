@@ -28,6 +28,9 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 	interferenceSum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
 	numInterferenceReqs.resize(_cpu_count, vector<int>(NUM_LAT_TYPES, 0));
 
+	regularMisses.resize(_cpu_count, 0);
+	interferenceMisses.resize(_cpu_count, 0);
+
 	totalRequestCount.resize(_cpu_count, 0);
 	runningLatencySum.resize(_cpu_count, 0);
 
@@ -49,6 +52,7 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 
 	estimateTraces.resize(_cpu_count, RequestTrace());
 	latencyTraces.resize(_cpu_count, RequestTrace());
+	aloneMissTrace.resize(_cpu_count, RequestTrace());
 
 	for(int i=0;i<_cpu_count;i++){
 
@@ -69,6 +73,17 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 
 		estimateTraces[i].initalizeTrace(traceHeaders);
 		latencyTraces[i].initalizeTrace(traceHeaders);
+
+		stringstream mtitle;
+		mtitle << "CPU" << i << "MissTrace";
+		aloneMissTrace[i] = RequestTrace(mtitle.str(), "");
+
+		vector<string> mTraceHeaders;
+		mTraceHeaders.push_back("Requests");
+		mTraceHeaders.push_back("Alone (estimate or actual)");
+		mTraceHeaders.push_back("Interference Misses");
+
+		aloneMissTrace[i].initalizeTrace(mTraceHeaders);
 	}
 }
 
@@ -194,6 +209,7 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 		vector<double> avgLats = traceLatency(req->adaptiveMHASenderID);
 		traceInterference(req->adaptiveMHASenderID, avgLats);
+		traceMisses(req->adaptiveMHASenderID);
 	}
 
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
@@ -206,6 +222,26 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 				cacheInterferenceObjs[i]->initiateInterferenceInsertions(req->adaptiveMHASenderID);
 			}
 		}
+	}
+}
+
+void
+InterferenceManager::traceMisses(int fromCPU){
+	std::vector<RequestTraceEntry> data;
+	data.resize(3, RequestTraceEntry(0));
+	data[0] = RequestTraceEntry(requests[fromCPU].value());
+	data[1] = RequestTraceEntry(regularMisses[fromCPU]);
+	data[2] = RequestTraceEntry(interferenceMisses[fromCPU]);
+	aloneMissTrace[fromCPU].addTrace(data);
+}
+
+void
+InterferenceManager::addCacheResult(MemReqPtr& req){
+	if(req->interferenceMissAt > 0){
+		interferenceMisses[req->adaptiveMHASenderID]++;
+	}
+	else{
+		regularMisses[req->adaptiveMHASenderID]++;
 	}
 }
 
@@ -267,6 +303,9 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 	for(int i=0;i<NUM_LAT_TYPES;i++) latencySum[fromCPU][i] = 0;
 
 	for(int i=0;i<NUM_LAT_TYPES;i++) interferenceSum[fromCPU][i] = 0;
+
+	interferenceMisses[fromCPU] = 0;
+	regularMisses[fromCPU] = 0;
 }
 
 void

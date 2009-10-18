@@ -103,7 +103,7 @@ CacheSet::moveToHead(LRUBlk *blk)
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
-LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor) :
+LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor, int _shadowID) :
 	numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
 	{
 
@@ -122,6 +122,10 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	if (hitLatency <= 0) {
 		fatal("access latency must be greater than zero");
 	}
+	if(_isShadow){
+		assert(_shadowID != -1);
+	}
+	shadowID = _shadowID;
 
 	LRUBlk  *blk;
 	int i, j, blkIndex;
@@ -751,13 +755,6 @@ LRU::serialize(std::ostream &os){
 
 	contentfile.flush();
 	contentfile.close();
-
-	//	for(int i=0;i<numSets;i++){
-	//		for(int j=0;j<dumpSets;j++){
-	//			Serializable::staticNameOut(os, generateIniName(cache->name(), i, j));
-	//			sets[i].blks[j]->serialize(os);
-	//		}
-	//	}
 }
 
 void
@@ -804,41 +801,39 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 					sets[i].blks[j]->set = extractSet(relocatedAddr);
 				}
 			}
+		}
+	}
 
+	// fix LRU stack to match single program baseline
+	if(cache->cpuCount > 1 && isShadow){
+		assert(shadowID != -1);
+
+		for(int i=0;i<numSets;i++){
+
+			std::list<LRUBlk*> thisCoreBlks;
+			std::list<LRUBlk*> otherBlks;
+			for(int j=0;j<assoc;j++){
+				if(sets[i].blks[j]->origRequestingCpuID == shadowID){
+					thisCoreBlks.push_back(sets[i].blks[j]);
+				}
+				else{
+					otherBlks.push_back(sets[i].blks[j]);
+				}
+			}
+
+			for(int j=0;j<assoc;j++){
+				if(!thisCoreBlks.empty()){
+					sets[i].blks[j] = thisCoreBlks.front();
+					thisCoreBlks.pop_front();
+				}
+				else{
+					assert(!otherBlks.empty());
+					sets[i].blks[j] = otherBlks.front();
+					otherBlks.pop_front();
+				}
+			}
 		}
 	}
 
 	contentfile.close();
-
-	//	for(int i=0;i<numSets;i++){
-	//		for(int j=0;j<assoc;j++){
-	//			string name = generateIniName(section, i , j);
-	//			string val = "";
-	//
-	//			if(cp->find(name, "set", val)){
-	//
-	//				sets[i].blks[j]->unserialize(cp, name);
-	//
-	//				if(cache->cpuCount > 1){
-	//					int blockAddrCPUID = -1;
-	//					if(cache->isShared){
-	//						blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
-	//						if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
-	//					}
-	//					else{
-	//						assert(cache->cacheCpuID != -1);
-	//						blockAddrCPUID = cache->cacheCpuID;
-	//					}
-	//
-	//					if(blockAddrCPUID != -1){
-	//						Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
-	//						Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
-	//
-	//						sets[i].blks[j]->tag = extractTag(relocatedAddr);
-	//						sets[i].blks[j]->set = extractSet(relocatedAddr);
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
 }

@@ -113,13 +113,12 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     hitLatency,
                                     params.bankCount,
                                     true,
-                                    -1);
+                                    -1,
+                                    i);
 
             shadowTags[i]->setCache(this, false);
         }
 
-        // TODO: set interference probability policy here
-        // TODO: set number of bits here
         intProbabilityPolicy = params.ipp;
         int numBits = params.ippBits;
         cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this, numBits);
@@ -179,8 +178,6 @@ Cache(const std::string &_name, HierParams *hier_params,
     		adaptiveMHA = NULL;
     	}
     }
-
-
 
     directoryProtocol = NULL;
     if(params.directoryCoherence != NULL){
@@ -276,6 +273,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	else{
 		if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 	}
+
+
 
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
@@ -421,6 +420,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		assert(req->adaptiveMHASenderID != -1);
 		assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 		missesPerCPU[req->adaptiveMHASenderID]++;
+
+		interferenceManager->addCacheResult(req);
 	}
 	else{
 		missesPerCPU[cacheCpuID]++;

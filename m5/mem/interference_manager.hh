@@ -26,6 +26,9 @@ private:
 	std::vector<int> totalRequestCount;
 	std::vector<Tick> runningLatencySum;
 
+	std::vector<int> interferenceMisses;
+	std::vector<int> regularMisses;
+
 	int intManCPUCount;
 
 	bool traceStarted;
@@ -41,8 +44,11 @@ private:
 
 	std::vector<double> traceLatency(int fromCPU);
 
+	void traceMisses(int fromCPU);
+
 	void resetInterferenceMeasurements(int fromCPU);
 
+	std::vector<RequestTrace> aloneMissTrace;
 public:
 	typedef enum{
 			InterconnectEntry,
@@ -95,6 +101,8 @@ public:
 	void incrementTotalReqCount(MemReqPtr& req, int roundTripLatency);
 
 	void registerCacheInterferenceObj(CacheInterference* ci);
+
+	void addCacheResult(MemReqPtr& req);
 };
 
 #endif

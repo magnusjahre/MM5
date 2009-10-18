@@ -135,6 +135,7 @@ protected:
 	std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
 
 	int divFactor;
+	int shadowID;
 
 public:
 	/**
@@ -144,7 +145,7 @@ public:
 	 * @param _assoc The associativity of the cache.
 	 * @param _hit_latency The latency in cycles for a hit.
 	 */
-	LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor);
+	LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor, int _shadowID = -1);
 
 	/**
 	 * Destructor
