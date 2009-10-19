@@ -82,6 +82,13 @@ protected:
 
 	Stats::Formula avgRoundTripLatency;
 
+
+	Stats::Vector<> totalLatency;
+	Stats::Vector<> totalInterference;
+	Stats::Formula avgTotalLatency;
+	Stats::Formula avgTotalInterference;
+	Stats::Formula avgInterferencePercentage;
+
 public:
 
 	InterferenceManager(std::string _name, int _cpu_count, int _sample_size, int _num_reqs_at_reset);

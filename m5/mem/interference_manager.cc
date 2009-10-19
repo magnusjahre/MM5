@@ -155,6 +155,34 @@ InterferenceManager::regStats(){
 
 		avgLatency[i] = latencies[i] / requests;
 	}
+
+	totalLatency
+		.init(intManCPUCount)
+		.name(name() + ".total_latency")
+		.desc("total latency");
+
+	totalInterference
+		.init(intManCPUCount)
+		.name(name() + ".total_interference")
+		.desc("total estimated latency clock cycles");
+
+	avgTotalLatency
+		.name(name() + ".avg_total_latency")
+		.desc("Average shared memory system latency");
+
+	avgTotalLatency = totalLatency / requests;
+
+	avgTotalInterference
+		.name(name() + ".avg_total_interference")
+		.desc("Average shared memory system interference latency");
+
+	avgTotalInterference = totalInterference / requests;
+
+	avgInterferencePercentage
+		.name(name() + ".avg_total_interference_percentage")
+		.desc("The percentage interference / round trip latency");
+
+	avgInterferencePercentage = avgTotalInterference / avgTotalLatency;
 }
 
 void
@@ -169,6 +197,8 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 	assert(req->adaptiveMHASenderID != -1);
 	interferenceSum[req->adaptiveMHASenderID][t] += interferenceTicks;
 	interference[t][req->adaptiveMHASenderID] += interferenceTicks;
+
+	totalInterference[req->adaptiveMHASenderID] += interferenceTicks;
 }
 
 void
@@ -185,6 +215,8 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	assert(req->adaptiveMHASenderID != -1);
 	latencySum[req->adaptiveMHASenderID][t] += latency;
 	latencies[t][req->adaptiveMHASenderID] += latency;
+
+	totalLatency[req->adaptiveMHASenderID] += latency;
 }
 
 void
