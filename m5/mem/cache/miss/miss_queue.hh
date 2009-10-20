@@ -46,6 +46,7 @@
 
 class BaseCache;
 class BasePrefetcher;
+
 /**
  * Manages cache misses and writebacks. Contains MSHRs to store miss data
  * and the writebuffer for writes/writebacks.
@@ -200,10 +201,6 @@ class MissQueue
     Stats::Formula avg_bus_entry_latency;
     Stats::Formula avg_bus_queue_latency;
     Stats::Formula avg_bus_service_latency;
-
-    /**
-     * @}
-     */
 
   private:
     /** Pointer to the MSHR that has no targets. */

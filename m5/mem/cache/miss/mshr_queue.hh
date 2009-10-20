@@ -55,27 +55,38 @@ class MSHRQueue {
     MSHR::List freeList;
 
     // Parameters
-    /** 
+    /**
      * The total number of MSHRs in this queue. This number is set as the
-     * number of MSHRs requested plus (numReserve - 1). This allows for 
+     * number of MSHRs requested plus (numReserve - 1). This allows for
      * the same number of effective MSHRs while still maintaining the reserve.
      */
     int numMSHRs;
 
-    /** 
+    /**
      * The number of MSHRs to hold in reserve. This is needed because copy
      * operations can allocate upto 4 MSHRs at one time.
      */
     const int numReserve;
-    
+
     BaseCache* cache;
 
     MSHR* maxMSHRAddr;
     MSHR* minMSHRAddr;
-    
-  public:
+
     /** The number of allocated MSHRs. */
-    int allocated;
+	int allocated;
+
+	Tick allocationChangedAt;
+	int lastAllocation;
+
+	void updateMLPStatistics();
+
+  protected:
+	Stats::Scalar<> mlp_active_cycles;
+	Stats::Scalar<> mlp_accumulator;
+	Stats::Formula avg_mlp;
+
+  public:
     /** The number of MSHRs that have been forwarded to the bus. */
     int inServiceMSHRs;
     /** The number of targets waiting for response. */
@@ -91,6 +102,8 @@ class MSHRQueue {
     /** Destructor */
     ~MSHRQueue();
 
+    void regStats();
+
     /**
      * Find the first MSHR that matches the provide address and asid.
      * @param addr The address to find.
@@ -98,10 +111,10 @@ class MSHRQueue {
      * @return Pointer to the matching MSHR, null if not found.
      */
     MSHR* findMatch(Addr addr, int asid) const;
-    
+
     // Magnus HACK for coherence behaviour
     MSHR* findMatch(Addr addr, MemCmd cmd) const;
-    
+
 
     /**
      * Find and return all the matching MSHRs in the provided vector.
@@ -237,7 +250,7 @@ class MSHRQueue {
     {
 	return allocatedTargets;
     }
-    
+
     // Adaptive MSHR methods
     void incrementNumMSHRs(){
         // assumes MSHR count to be a power of two
@@ -245,28 +258,28 @@ class MSHRQueue {
         int newCount = currentMSHRCount << 1;
         numMSHRs = newCount + numReserve -1;
     }
-    
+
     void decrementNumMSHRs(){
         // assumes MSHR count to be a power of two
         int currentMSHRCount = (numMSHRs - numReserve) + 1;
         int newCount = currentMSHRCount >> 1;
         numMSHRs = newCount + numReserve -1;
     }
-    
+
     void incrementNumMSHRsByOne(){
         numMSHRs++;
     }
-    
+
     void decrementNumMSHRsByOne(){
         numMSHRs--;
     }
-    
+
     int getCurrentMSHRCount(){
         return (numMSHRs - numReserve) + 1;
     }
-    
+
     std::map<int,int> assignBlockingBlame(int maxTargets, bool blockedMSHRs, double threshold);
-    
+
     void printMSHRQueue(){
         std::cout << "Allocated list:\n";
         MSHR::ConstIterator i = allocatedList.begin();
@@ -275,7 +288,7 @@ class MSHRQueue {
             MSHR *mshr = *i;
             mshr->dump();
         }
-        
+
         std::cout << "Pending list:\n";
         i = pendingList.begin();
         end = pendingList.end();
@@ -283,7 +296,7 @@ class MSHRQueue {
             MSHR *mshr = *i;
             mshr->dump();
         }
-        
+
         std::cout << "Free list:\n";
         i = freeList.begin();
         end = freeList.end();
@@ -292,16 +305,16 @@ class MSHRQueue {
             mshr->dump();
         }
         std::cout << "\n";
-        
+
     }
-    
+
     void printShortStatus(){
         std::cout << "Allocated: " << allocatedList.size() << ", Pending: " << pendingList.size() << ", Free: " << freeList.size() << "\n";
     }
-    
+
     void setCache(BaseCache* _cache){
         cache = _cache;
-        
+
         for (int i = 0; i < numMSHRs; ++i) {
             registers[i].setCache(_cache);
         }
