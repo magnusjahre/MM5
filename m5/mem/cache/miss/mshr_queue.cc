@@ -55,6 +55,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, int reserve)
 
 	allocationChangedAt = 0;
 	lastAllocation = 0;
+
+	countdownCounter = 0;
+	ROBSize = 128; // TODO: this is a hack, fix
 }
 
 MSHRQueue::~MSHRQueue()
@@ -80,6 +83,23 @@ MSHRQueue::regStats(){
 		;
 
 	avg_mlp = mlp_accumulator / mlp_active_cycles;
+
+	overlapped_misses
+		.name(cache->name() + ".overlapped_misses")
+		.desc("the number of misses that overlapped with the previous miss in the ROB")
+		;
+
+	serial_misses
+		.name(cache->name() + ".serial_misses")
+		.desc("the number of misses that did not overlap with the previous miss")
+		;
+
+	serial_percentage
+		.name(cache->name() + ".serial_percentage")
+		.desc("the ratio of serial misses over all misses")
+		;
+
+	serial_percentage = serial_misses / (overlapped_misses+serial_misses);
 }
 
 MemReqPtr
@@ -209,6 +229,7 @@ MSHRQueue::allocate(MemReqPtr &req, int size)
 	allocated += 1;
 
 	updateMLPStatistics();
+	missArrived();
 
 	return mshr;
 }
@@ -226,6 +247,7 @@ MSHRQueue::allocateFetch(Addr addr, int asid, int size, MemReqPtr &target)
 	mshr->readyIter = pendingList.insert(pendingList.end(), mshr);
 
 	updateMLPStatistics();
+	missArrived();
 
 	allocated += 1;
 	return mshr;
@@ -245,6 +267,7 @@ MSHRQueue::allocateTargetList(Addr addr, int asid, int size)
 	++inServiceMSHRs;
 	++allocated;
 
+	missArrived();
 	updateMLPStatistics();
 
 	return mshr;
@@ -429,4 +452,23 @@ MSHRQueue::updateMLPStatistics(){
 
 	allocationChangedAt = curTick;
 	lastAllocation = allocated;
+}
+
+void
+MSHRQueue::missArrived(){
+	if(countdownCounter > 0){
+		overlapped_misses++;
+	}
+	else{
+		serial_misses++;
+		countdownCounter = ROBSize;
+	}
+}
+
+void
+MSHRQueue::cpuCommittedInstruction(){
+	if(countdownCounter > 0){
+		countdownCounter--;
+	}
+	assert(countdownCounter >= 0);
 }

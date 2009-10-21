@@ -188,6 +188,11 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     amhatrace.close();
 }
 
+void
+AdaptiveMHA::coreCommittedInstruction(int cpuID){
+	dataCaches[cpuID]->coreCommittedInstruction();
+}
+
 AdaptiveMHA::~AdaptiveMHA(){
     delete sampleEvent;
 }

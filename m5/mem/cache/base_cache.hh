@@ -582,6 +582,8 @@ public:
 
 	virtual void dumpHitStats() = 0;
 
+	virtual void coreCommittedInstruction() = 0;
+
 #ifdef CACHE_DEBUG
 	virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;
 	virtual void addPendingRequest(Addr address, MemReqPtr& req) = 0;

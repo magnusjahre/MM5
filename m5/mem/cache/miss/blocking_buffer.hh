@@ -206,9 +206,9 @@ public:
 	}
 	return false;
     }
-    
-     
-     
+
+
+
     /**
      * Perform a writeback of dirty data to the given address.
      * @param addr The address to write to.
@@ -220,7 +220,7 @@ public:
      */
     void doWriteback(Addr addr, int asid, ExecContext *xc,
 		     int size, uint8_t *data, bool compressed);
-    
+
     /**
      * Perform a writeback request.
      * @param req The writeback request.
@@ -235,7 +235,7 @@ public:
     {
 	return !miss.inService || !wb.inService;
     }
-    
+
     /**
      * Add a target to the given MSHR. This assumes it is in the miss queue.
      * @param mshr The mshr to add a target to.
@@ -253,31 +253,35 @@ public:
     {
 	fatal("Unimplemented");
     }
-    
+
     void incrementNumMSHRs(bool onMSHRs){
         fatal("Makes no sense");
     }
-    
+
     void decrementNumMSHRs(bool onMSHRs){
         fatal("Makes no sense");
     }
-    
+
     void incrementNumMSHRsByOne(bool onMSHRs){
         fatal("Makes no sense");
     }
-    
+
     void decrementNumMSHRsByOne(bool onMSHRs){
         fatal("Makes no sense");
     }
-    
+
     int getCurrentMSHRCount(bool onMSHRs){
         fatal("Makes no sense");
         return 0;
     }
-    
+
     std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold){
         fatal("Makes no sense");
         return map<int,int>();
+    }
+
+    void coreCommittedInstruction(){
+    	fatal("Makes no sense");
     }
 };
 

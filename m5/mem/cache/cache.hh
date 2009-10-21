@@ -395,6 +395,10 @@ class Cache : public BaseCache
         return missQueue->getCurrentMSHRCount(onMSHRs);
     }
 
+    virtual void coreCommittedInstruction(){
+    	missQueue->coreCommittedInstruction();
+    }
+
     virtual std::vector<int> perCoreOccupancy(){
         return tags->perCoreOccupancy();
     }

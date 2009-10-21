@@ -224,6 +224,8 @@ class AdaptiveMHA : public SimObject{
                                   std::vector<std::vector<bool> > nextIsRead);
         void addTotalDelay(int issuedCPU, Tick delay, Addr addr, bool isRead);
 
+        void coreCommittedInstruction(int cpuID);
+
     private:
 
         void doFairAMHA();

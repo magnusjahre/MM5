@@ -656,6 +656,7 @@ FullCPU::FullCPU(Params *p,
     if(_amha != NULL){
         _amha->registerFullCPU(p->cpu_id, this);
     }
+    amha = _amha;
 
     noCommitCycles = 0;
     string tracename = name() + "BlockedTrace.txt";

@@ -81,10 +81,19 @@ class MSHRQueue {
 
 	void updateMLPStatistics();
 
+	int countdownCounter;
+	int ROBSize;
+
+	void missArrived();
+
   protected:
 	Stats::Scalar<> mlp_active_cycles;
 	Stats::Scalar<> mlp_accumulator;
 	Stats::Formula avg_mlp;
+
+	Stats::Scalar<> overlapped_misses;
+	Stats::Scalar<> serial_misses;
+	Stats::Formula serial_percentage;
 
   public:
     /** The number of MSHRs that have been forwarded to the bus. */
@@ -319,6 +328,8 @@ class MSHRQueue {
             registers[i].setCache(_cache);
         }
     }
+
+    void cpuCommittedInstruction();
 
 };
 

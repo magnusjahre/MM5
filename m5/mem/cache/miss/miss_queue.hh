@@ -433,6 +433,8 @@ class MissQueue
     std::map<int,int> assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, double threshold);
 
     void measureInterference(MemReqPtr& req);
+
+    void coreCommittedInstruction();
 };
 
 

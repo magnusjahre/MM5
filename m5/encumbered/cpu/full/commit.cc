@@ -64,23 +64,23 @@ using namespace std;
 
 class FaultHandlerDelayEvent : public Event
 {
-    FullCPU *cpu;
-    int thread;
+	FullCPU *cpu;
+	int thread;
 
-  public:
-    FaultHandlerDelayEvent(FullCPU *_cpu, int _thread, Tick tick)
+public:
+	FaultHandlerDelayEvent(FullCPU *_cpu, int _thread, Tick tick)
 	: Event(&mainEventQueue), cpu(_cpu), thread(_thread)
-    {
-	setFlags(AutoDelete);
-	schedule(tick);
-    }
+	{
+		setFlags(AutoDelete);
+		schedule(tick);
+	}
 
-    ~FaultHandlerDelayEvent() {}
+	~FaultHandlerDelayEvent() {}
 
-    virtual void process()
-    {
-	cpu->fetch_fault_count[thread]--;
-    }
+	virtual void process()
+	{
+		cpu->fetch_fault_count[thread]--;
+	}
 };
 
 
@@ -93,300 +93,536 @@ class FaultHandlerDelayEvent : public Event
 void
 FullCPU::commit()
 {
-    static int crash_counter = 0;
-    unsigned committed = 0;
-    unsigned committed_thread[SMT_MAX_THREADS];
-    int finished_thread[SMT_MAX_THREADS];
-    int num_finished_threads;
+	static int crash_counter = 0;
+	unsigned committed = 0;
+	unsigned committed_thread[SMT_MAX_THREADS];
+	int finished_thread[SMT_MAX_THREADS];
+	int num_finished_threads;
 
-    CommitEndCause reason;
-    CommitEndCause reason_overall = COMMIT_CAUSE_NOT_SET;;
-    CommitEndCause reason_thread[SMT_MAX_THREADS];
+	CommitEndCause reason;
+	CommitEndCause reason_overall = COMMIT_CAUSE_NOT_SET;;
+	CommitEndCause reason_thread[SMT_MAX_THREADS];
 
-    int detail;
-    int detail_overall = 0;
-    int detail_thread[SMT_MAX_THREADS];
+	int detail;
+	int detail_overall = 0;
+	int detail_thread[SMT_MAX_THREADS];
 
-    // in case there are NO unfinished instructions
-    InstSeqNum seq_overall = InstSeqNum(-1);
-    InstSeqNum seq_thread[SMT_MAX_THREADS];
+	// in case there are NO unfinished instructions
+	InstSeqNum seq_overall = InstSeqNum(-1);
+	InstSeqNum seq_thread[SMT_MAX_THREADS];
 
-    unsigned blame = 0;   // thread numbers
-    unsigned blame_overall = 0;
-
-    //
-    //  This code causes the simulator to halt if it doesn't commit
-    //  an instruction in CRACH_COUNT cycles
-    //
-    if (++crash_counter > CRASH_COUNT) {
-	ccprintf(cerr, "DEADLOCK at CPU %s\n", name());
-
-        //FIXME: uncomment these lines
-// 	dumpIQ();
-//         cout << "iq dump fin\n";
-// 	LSQ->dump();
-//         cout << "lsq dump fin\n";
-// 	ROB.dump();
-//         cout << "rob dump fin\n";
-	panic("We stopped committing instructions!!!");
-    }
-
-    if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
-        string tracename = name() + "BlockedTrace.txt";
-        ofstream tracefile(tracename.c_str(), ofstream::app);
-        tracefile << curTick << "; " <<  ((double) ((double) noCommitCycles /  (double) MEM_BLOCKED_TRACE_FREQUENCY)) << "\n";
-        tracefile.flush();
-        tracefile.close();
-        noCommitCycles = 0;
-    }
-
-    //
-    //  Determine which threads we don't need to worry about
-    //
-    num_finished_threads = 0;
-    int num_inactive_threads = 0;
-    for (int i = 0; i < number_of_threads; i++) {
-	// if thread has no instructions in ROB then we can skip it
-	if (!thread_info[i].active || ROB.num_thread(i) == 0) {
-	    finished_thread[i] = true;
-	    num_finished_threads++;
-            if(ROB.num_thread(i) == 0) commit_cycles_empty_ROB++;
-	    if (!thread_info[i].active
-		|| execContexts[i]->status() != ExecContext::Active) {
-		num_inactive_threads++;
-	    }
-	} else {
-	    finished_thread[i] = false;
-	}
-    }
-
-    if (num_finished_threads == number_of_threads) {
-	// If we're not committing because all the threads are
-	// inactive, don't consider this a microarchitectural
-	// deadlock... it can happen e.g. in an MP where there is only
-	// one runnable thread.
-	if (num_inactive_threads == number_of_threads) {
-	    crash_counter = 0;
-	}
-	return;
-    }
-
-    //
-    //  Initialize & allocate per-thread data structs...
-    //
-    //  FIXME:  we don't really want to do all this allocation every cycle
-    //
-    ROBStation **commit_list[SMT_MAX_THREADS];
-    unsigned clist_num[SMT_MAX_THREADS];
-    unsigned clist_idx[SMT_MAX_THREADS];
-
-    bool list_done[SMT_MAX_THREADS];
-    unsigned num_list_done = num_finished_threads;
-
-    unsigned completed[SMT_MAX_THREADS];
-    unsigned total_completed = 0;
-
-
-    for (int i = 0; i < number_of_threads; ++i) {
-	clist_num[i] = 0;
-	list_done[i] = finished_thread[i];
-
-	clist_idx[i] = 0;
-
-	reason_thread[i] = COMMIT_CAUSE_NOT_SET;
-	detail_thread[i] = 0;
-	seq_thread[i] = 0;
-
-	completed[i] = 0;
-	committed_thread[i] = 0;
-
-	if (!finished_thread[i]) {
-
-	    // allocate storage for the max number of insts we could
-	    // commit in a cycle
-	    commit_list[i] = new ROBStation *[commit_width];
-	} else {
-	    commit_list[i] = 0;
-	}
-    }
-
-    unsigned num_eligible = 0;
-
-    //
-    //  put commitable instructions into the lists...
-    //
-    //  We walk the ROB, filling each per-thread list
-    //
-    //  We also keep track of the first non-commitable inst for each thread
-    //  and overall, and also squash instructions we encounter along the way
-    //
-    bool done = false;
-    for (ROBStation *rs = ROB.head(); (rs != NULL) && !done;
-	 rs = ROB.next(rs))
-    {
-	unsigned thread = rs->thread_number;
+	unsigned blame = 0;   // thread numbers
+	unsigned blame_overall = 0;
 
 	//
-	//  count the number of instruction ready to commit
+	//  This code causes the simulator to halt if it doesn't commit
+	//  an instruction in CRACH_COUNT cycles
 	//
-	if (!finished_thread[thread] && rs->completed) {
-	    ++completed[thread];
-	    ++total_completed;
+	if (++crash_counter > CRASH_COUNT) {
+		ccprintf(cerr, "DEADLOCK at CPU %s\n", name());
+
+		//FIXME: uncomment these lines
+		// 	dumpIQ();
+		//         cout << "iq dump fin\n";
+		// 	LSQ->dump();
+		//         cout << "lsq dump fin\n";
+		// 	ROB.dump();
+		//         cout << "rob dump fin\n";
+		panic("We stopped committing instructions!!!");
 	}
 
-
-	reason = COMMIT_CAUSE_NOT_SET;
+	if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
+		string tracename = name() + "BlockedTrace.txt";
+		ofstream tracefile(tracename.c_str(), ofstream::app);
+		tracefile << curTick << "; " <<  ((double) ((double) noCommitCycles /  (double) MEM_BLOCKED_TRACE_FREQUENCY)) << "\n";
+		tracefile.flush();
+		tracefile.close();
+		noCommitCycles = 0;
+	}
 
 	//
-	//  ignore instructions from threads that we're done listing...
+	//  Determine which threads we don't need to worry about
 	//
-	if (!list_done[thread]) {
-
-	    //
-	    //  If we're still looking at a thread and run across a squashed
-	    //  instruction, then blow it away...
-	    //
-	    if (rs->squashed) {
-		if (ptrace)
-		    ptrace->deleteInst(rs->inst);
-
-		remove_ROB_element(rs);
-
-		// go look at next instruction
-		continue;
-	    }
-
-	    //
-	    //  Add potentially-eligible instructions to the list
-	    //  because things change as we commit, we'll double-check each
-	    //  instruction as it comes up...
-	    //
-	    if (eligible_to_commit(rs, &reason)) {
-		commit_list[thread][clist_num[thread]++] = rs;
-		++num_eligible;
-
-		if (clist_num[thread] == commit_width) {
-		    list_done[thread] = true;
-		    ++num_list_done;
-
-		    if (num_list_done == number_of_threads)
-			done = true;
-		}
-	    } else {
-		DynInst *inst = rs->inst;
-
-		//
-		//  An ineligible instruction means that we're done
-		//  looking at this thread... determine the commit-end
-		//  cause for _this_thread_ in case we need it later
-		//
-		if (rs->completed) {
-		    //
-		    //  For completed but not eligible instructions,
-		    //  we'll use the "reason" determined by the
-		    //  eligible_to_commit() function
-		    //
-		    reason_thread[thread] = reason;
-		} else if (inst->isLoad() && !rs->eaCompPending
-			   && rs->issued) {
-		    // It's a load that's been issued from the LSQ,
-		    // so it's a memory stall... (not necessarily a miss,
-		    // despite the name)
-		    reason_thread[thread] = COMMIT_DMISS;
-		    detail_thread[thread] = rs->mem_result;
-		} else if (inst->isMemBarrier()) {
-		    reason_thread[thread] = COMMIT_MEMBAR;
+	num_finished_threads = 0;
+	int num_inactive_threads = 0;
+	for (int i = 0; i < number_of_threads; i++) {
+		// if thread has no instructions in ROB then we can skip it
+		if (!thread_info[i].active || ROB.num_thread(i) == 0) {
+			finished_thread[i] = true;
+			num_finished_threads++;
+			if(ROB.num_thread(i) == 0) commit_cycles_empty_ROB++;
+			if (!thread_info[i].active
+					|| execContexts[i]->status() != ExecContext::Active) {
+				num_inactive_threads++;
+			}
 		} else {
-		    // anything else: blame it on the function unit
-		    reason_thread[thread] = COMMIT_FU;
-		    detail_thread[thread] = inst->opClass();
+			finished_thread[i] = false;
 		}
-
-		if (clist_num[thread] == 0) {
-		    // Special checks when the oldest instruction on
-		    // the thread is not committable: it might be an
-		    // instruction that has to wait until this point
-		    // to issue.
-
-		    // Uncached loads must wait to guarantee they're
-		    // non-speculative.  Memory barriers must wait to
-		    // guarantee that all previous loads have
-		    // completed.  (MBs also must wait for the store
-		    // buffer to empty to guarantee all previous
-		    // stores have completed as well.)
-
-		    bool uc_load = (inst->isLoad()
-				    && (inst->mem_req_flags & UNCACHEABLE));
-		    bool ready_mb = (inst->isMemBarrier()
-				     && storebuffer->count(thread) == 0);
-		    if ((uc_load || ready_mb)
-			&& rs->lsq_entry.notnull()
-			&& !rs->lsq_entry->queued
-			&& rs->lsq_entry->ops_ready()) {
-			LSQ->ready_list_enqueue(rs->lsq_entry);
-		    }
-		}
-
-		//
-		//  Make a note of the first uncommitable inst...
-		//
-		if ((seq_overall == 0) || (seq_overall > rs->seq)) {
-		    seq_overall = rs->seq;
-
-		    reason_overall = reason_thread[thread];
-		    blame_overall  = thread;
-		    detail_overall = detail_thread[thread];
-		}
-
-		list_done[thread] = true;
-		++num_list_done;
-
-		if (clist_num[thread] == 0) {
-		    finished_thread[thread] = true;
-		    ++num_finished_threads;
-		}
-
-		if (num_list_done == number_of_threads)
-		    done = true;
-	    }
 	}
-    }
 
-    //
-    //  We'll blame the oldest uncommitted instruction by default
-    //
-    reason = reason_overall;
-    blame  = blame_overall;
-    detail = detail_overall;
+	if (num_finished_threads == number_of_threads) {
+		// If we're not committing because all the threads are
+		// inactive, don't consider this a microarchitectural
+		// deadlock... it can happen e.g. in an MP where there is only
+		// one runnable thread.
+		if (num_inactive_threads == number_of_threads) {
+			crash_counter = 0;
+		}
+		return;
+	}
 
-    if (num_eligible == 0) {
+	//
+	//  Initialize & allocate per-thread data structs...
+	//
+	//  FIXME:  we don't really want to do all this allocation every cycle
+	//
+	ROBStation **commit_list[SMT_MAX_THREADS];
+	unsigned clist_num[SMT_MAX_THREADS];
+	unsigned clist_idx[SMT_MAX_THREADS];
+
+	bool list_done[SMT_MAX_THREADS];
+	unsigned num_list_done = num_finished_threads;
+
+	unsigned completed[SMT_MAX_THREADS];
+	unsigned total_completed = 0;
+
+
+	for (int i = 0; i < number_of_threads; ++i) {
+		clist_num[i] = 0;
+		list_done[i] = finished_thread[i];
+
+		clist_idx[i] = 0;
+
+		reason_thread[i] = COMMIT_CAUSE_NOT_SET;
+		detail_thread[i] = 0;
+		seq_thread[i] = 0;
+
+		completed[i] = 0;
+		committed_thread[i] = 0;
+
+		if (!finished_thread[i]) {
+
+			// allocate storage for the max number of insts we could
+			// commit in a cycle
+			commit_list[i] = new ROBStation *[commit_width];
+		} else {
+			commit_list[i] = 0;
+		}
+	}
+
+	unsigned num_eligible = 0;
+
+	//
+	//  put commitable instructions into the lists...
+	//
+	//  We walk the ROB, filling each per-thread list
+	//
+	//  We also keep track of the first non-commitable inst for each thread
+	//  and overall, and also squash instructions we encounter along the way
+	//
+	bool done = false;
+	for (ROBStation *rs = ROB.head(); (rs != NULL) && !done;
+	rs = ROB.next(rs))
+	{
+		unsigned thread = rs->thread_number;
+
+		//
+		//  count the number of instruction ready to commit
+		//
+		if (!finished_thread[thread] && rs->completed) {
+			++completed[thread];
+			++total_completed;
+		}
+
+
+		reason = COMMIT_CAUSE_NOT_SET;
+
+		//
+		//  ignore instructions from threads that we're done listing...
+		//
+		if (!list_done[thread]) {
+
+			//
+			//  If we're still looking at a thread and run across a squashed
+			//  instruction, then blow it away...
+			//
+			if (rs->squashed) {
+				if (ptrace)
+					ptrace->deleteInst(rs->inst);
+
+				remove_ROB_element(rs);
+
+				// go look at next instruction
+				continue;
+			}
+
+			//
+			//  Add potentially-eligible instructions to the list
+			//  because things change as we commit, we'll double-check each
+			//  instruction as it comes up...
+			//
+			if (eligible_to_commit(rs, &reason)) {
+				commit_list[thread][clist_num[thread]++] = rs;
+				++num_eligible;
+
+				if (clist_num[thread] == commit_width) {
+					list_done[thread] = true;
+					++num_list_done;
+
+					if (num_list_done == number_of_threads)
+						done = true;
+				}
+			} else {
+				DynInst *inst = rs->inst;
+
+				//
+				//  An ineligible instruction means that we're done
+				//  looking at this thread... determine the commit-end
+				//  cause for _this_thread_ in case we need it later
+				//
+				if (rs->completed) {
+					//
+					//  For completed but not eligible instructions,
+					//  we'll use the "reason" determined by the
+					//  eligible_to_commit() function
+					//
+					reason_thread[thread] = reason;
+				} else if (inst->isLoad() && !rs->eaCompPending
+						&& rs->issued) {
+					// It's a load that's been issued from the LSQ,
+					// so it's a memory stall... (not necessarily a miss,
+					// despite the name)
+					reason_thread[thread] = COMMIT_DMISS;
+					detail_thread[thread] = rs->mem_result;
+				} else if (inst->isMemBarrier()) {
+					reason_thread[thread] = COMMIT_MEMBAR;
+				} else {
+					// anything else: blame it on the function unit
+					reason_thread[thread] = COMMIT_FU;
+					detail_thread[thread] = inst->opClass();
+				}
+
+				if (clist_num[thread] == 0) {
+					// Special checks when the oldest instruction on
+					// the thread is not committable: it might be an
+					// instruction that has to wait until this point
+					// to issue.
+
+					// Uncached loads must wait to guarantee they're
+					// non-speculative.  Memory barriers must wait to
+					// guarantee that all previous loads have
+					// completed.  (MBs also must wait for the store
+					// buffer to empty to guarantee all previous
+					// stores have completed as well.)
+
+					bool uc_load = (inst->isLoad()
+							&& (inst->mem_req_flags & UNCACHEABLE));
+					bool ready_mb = (inst->isMemBarrier()
+							&& storebuffer->count(thread) == 0);
+					if ((uc_load || ready_mb)
+							&& rs->lsq_entry.notnull()
+							&& !rs->lsq_entry->queued
+							&& rs->lsq_entry->ops_ready()) {
+						LSQ->ready_list_enqueue(rs->lsq_entry);
+					}
+				}
+
+				//
+				//  Make a note of the first uncommitable inst...
+				//
+				if ((seq_overall == 0) || (seq_overall > rs->seq)) {
+					seq_overall = rs->seq;
+
+					reason_overall = reason_thread[thread];
+					blame_overall  = thread;
+					detail_overall = detail_thread[thread];
+				}
+
+				list_done[thread] = true;
+				++num_list_done;
+
+				if (clist_num[thread] == 0) {
+					finished_thread[thread] = true;
+					++num_finished_threads;
+				}
+
+				if (num_list_done == number_of_threads)
+					done = true;
+			}
+		}
+	}
+
+	//
+	//  We'll blame the oldest uncommitted instruction by default
+	//
+	reason = reason_overall;
+	blame  = blame_overall;
+	detail = detail_overall;
+
+	if (num_eligible == 0) {
+		//
+		//  Assign blame
+		//
+		switch(reason) {
+		case COMMIT_BW:
+		case COMMIT_NO_INSN:
+		case COMMIT_STOREBUF:
+		case COMMIT_MEMBAR:
+			break;
+		case COMMIT_FU:
+			floss_state.commit_fu[0][0] = OpClass(detail);
+			break;
+		case COMMIT_DMISS:
+			commit_total_mem_stall_time++;
+			noCommitCycles++;
+			tmpBlockedCycles++;
+
+			//HACK: the hit latency should be retrived from the L1 cache
+			if(tmpBlockedCycles > 3) l1MissStallCycles++;
+
+			floss_state.commit_mem_result[0] = MemAccessResult(detail);
+			break;
+		case COMMIT_CAUSE_NOT_SET:
+			done = true;  // dummy
+			break;
+		default:
+			fatal("commit causes screwed up");
+		}
+		floss_state.commit_end_cause[0] = reason;
+
+		//
+		//  De-allocate memory
+		//
+		for (int i = 0; i < number_of_threads; ++i)
+			if (commit_list[i])
+				delete [] commit_list[i];
+
+		return;
+	}
+
+	//
+	//
+	//
+	if (prioritized_commit) {
+		//
+		//  Choose the order of threads to commit
+		//
+
+		fatal("prioritized commit isn't implemented, yet...");
+	}
+
+
+	//
+	//  Prepare to enter the commit loop...
+	//
+	//  ... do commit-model specific tasks
+	//
+
+	//
+	//  Choose the thread we're commiting by looking at the oldest
+	//  eligible instruction
+	//
+	unsigned pt_thread = 0;
+	if (commit_model == COMMIT_MODEL_PERTHREAD)
+		pt_thread = oldest_inst(commit_list, clist_num, clist_idx);
+
+
+	//
+	//  Increment the RR value, looking for a thread we can commit from
+	//
+	if (commit_model == COMMIT_MODEL_RR) {
+		do {
+			rr_commit_last_thread
+			= (rr_commit_last_thread +1) % number_of_threads;
+		} while (finished_thread[rr_commit_last_thread]);
+
+		//
+		//  Mark all remaining threads as done...
+		//
+		for (int i = 0; i < number_of_threads; ++i)
+			finished_thread[i] = true;
+
+		num_finished_threads = number_of_threads - 1;
+		finished_thread[rr_commit_last_thread] = false;
+	}
+
+
+	// entering main commit loop, reset tmp blocked cycle counter
+	tmpBlockedCycles = 0;
+
+	//
+	//  Main commit loop
+	//
+	done = false;
+	do {
+		ROBStation *rs = 0;
+		unsigned thread = 0;
+
+		//
+		//  Choose the instruction to commit
+		//
+		switch(commit_model) {
+		case COMMIT_MODEL_SMT:
+			thread = oldest_inst(commit_list, clist_num, clist_idx);
+			rs = commit_list[thread][clist_idx[thread]++];
+			break;
+
+		case COMMIT_MODEL_SSCALAR:
+			thread = oldest_inst(commit_list, clist_num, clist_idx);
+			rs = commit_list[thread][clist_idx[thread]++];
+
+			// if this inst is younger than the oldest non-commitable
+			// inst, we are done.
+			if (rs->seq > seq_overall) {
+				rs = 0;
+				done = true;
+				reason_thread[thread] = COMMIT_NO_INSN;
+			}
+			break;
+
+		case COMMIT_MODEL_PERTHREAD:
+			thread = pt_thread;
+			if (clist_num[thread] - clist_idx[thread]) {
+				rs = commit_list[thread][clist_idx[thread]++];
+			} else {
+				rs = 0;
+				done = true;
+				reason_thread[thread] = COMMIT_NO_INSN;
+			}
+			break;
+
+		case COMMIT_MODEL_RR:
+			thread = rr_commit_last_thread;
+			if (clist_num[thread] - clist_idx[thread])
+				rs = commit_list[thread][clist_idx[thread]++];
+			else
+				reason_thread[thread] = COMMIT_NO_INSN;
+			break;
+
+		default:
+			fatal("commit model screwed up");
+			break;
+		};
+
+
+		//
+		//  If we have an instruction to commit, do it...
+		//
+		if (rs) {
+			--num_eligible;
+
+			if (eligible_to_commit(rs, &reason)) {
+				if (rs->inst->spec_mode == 0) {
+
+					commit_one_inst(rs);
+
+					++committed;
+					++committed_thread[thread];
+					amha->coreCommittedInstruction(CPUParamsCpuID);
+
+					crash_counter = 0;
+				} else {
+					//
+					//  It is possible for completed, mis-speculated
+					//  instructions to arrive here between the time
+					//  a mispredicted branch is written-back and the time
+					//  the recovery event occurs.  In this case, a mis-
+					//  speculated instruction would not have been
+					//  squashed...  if this happens, squash it now...
+					//  --> this doesn't count as a committed instruction
+					//
+
+					rs->squash();
+
+					if (ptrace)
+						ptrace->deleteInst(rs->inst);
+
+					remove_ROB_element(rs);
+				}
+
+				//
+				//  Check ending conditions
+				//
+				if (committed == commit_width) {
+					reason = COMMIT_BW;
+					blame = thread;
+					done = true;
+				} else if (num_eligible == 0) {
+					reason = COMMIT_NO_INSN;
+					blame = thread;
+					done = true;
+				}
+			} else {
+				//  We can't commit this instruction... reason is set in
+				//  eligible_to_commit(), so just set thread
+				blame = thread;
+
+				// we're done with this thread
+				clist_idx[thread] = clist_num[thread];
+			}
+		} else {
+			//  use the default blame info...
+
+			finished_thread[thread] = true;
+
+			++num_finished_threads;
+
+			if (num_finished_threads == number_of_threads)
+				done = true;
+		}
+
+
+		//
+		//  Check to see if we've examined all eligible instructions
+		//  in this thread...
+		//
+		if (clist_idx[thread] == clist_num[thread]) {
+			finished_thread[thread] = true;
+
+			++num_finished_threads;
+
+			if (num_finished_threads == number_of_threads) {
+				done = true;
+			}
+		}
+
+	} while (!done);
+
+
 	//
 	//  Assign blame
 	//
 	switch(reason) {
-	  case COMMIT_BW:
-	  case COMMIT_NO_INSN:
-	  case COMMIT_STOREBUF:
-	  case COMMIT_MEMBAR:
-	    break;
-	  case COMMIT_FU:
-	    floss_state.commit_fu[0][0] = OpClass(detail);
-	    break;
-	  case COMMIT_DMISS:
-            commit_total_mem_stall_time++;
-            noCommitCycles++;
-            tmpBlockedCycles++;
+	case COMMIT_BW:
+		if (total_completed > commit_width) {
+			//  we want to count the number of instructions that could
+			//  have committed if we hadn't run out of bandwidth
+			++commit_eligible_samples;
 
-            //HACK: the hit latency should be retrived from the L1 cache
-            if(tmpBlockedCycles > 3) l1MissStallCycles++;
+			for (int t = 0; t < number_of_threads; ++t) {
+				assert(completed[t] >= committed_thread[t]);
+				unsigned uncommitted = completed[t] - committed_thread[t];
+				commit_eligible[t] += uncommitted;
 
-	    floss_state.commit_mem_result[0] = MemAccessResult(detail);
-	    break;
-	  case COMMIT_CAUSE_NOT_SET:
-	    done = true;  // dummy
-	    break;
-	  default:
-	    fatal("commit causes screwed up");
+				commit_bwlimit_stat[t].sample(uncommitted);
+			}
+		}
+		break;
+	case COMMIT_NO_INSN:
+	case COMMIT_STOREBUF:
+	case COMMIT_MEMBAR:
+		break;
+	case COMMIT_FU:
+		floss_state.commit_fu[0][0] = OpClass(detail);
+		break;
+	case COMMIT_DMISS:
+		floss_state.commit_mem_result[0] = MemAccessResult(detail);
+		break;
+	case COMMIT_CAUSE_NOT_SET:
+		done = true;  // dummy
+		break;
+	default:
+		fatal("commit causes screwed up");
 	}
 	floss_state.commit_end_cause[0] = reason;
 
@@ -394,454 +630,219 @@ FullCPU::commit()
 	//  De-allocate memory
 	//
 	for (int i = 0; i < number_of_threads; ++i)
-	    if (commit_list[i])
-		delete [] commit_list[i];
+		if (commit_list[i])
+			delete [] commit_list[i];
 
-	return;
-    }
+	n_committed_dist.sample(committed);
 
-    //
-    //
-    //
-    if (prioritized_commit) {
-	//
-	//  Choose the order of threads to commit
-	//
+	if (floss_state.commit_end_cause[0] == COMMIT_CAUSE_NOT_SET) {
+		// very rarely we can have a queue-full fetch problem even when
+		// we committed the full B/W of instructions, or all of the
+		// entries in the IQ... maybe because LSQ is full??
+		floss_state.commit_end_cause[0] =
+			(committed == commit_width) ? COMMIT_BW : COMMIT_NO_INSN;
 
-	fatal("prioritized commit isn't implemented, yet...");
-    }
-
-
-    //
-    //  Prepare to enter the commit loop...
-    //
-    //  ... do commit-model specific tasks
-    //
-
-    //
-    //  Choose the thread we're commiting by looking at the oldest
-    //  eligible instruction
-    //
-    unsigned pt_thread = 0;
-    if (commit_model == COMMIT_MODEL_PERTHREAD)
-	pt_thread = oldest_inst(commit_list, clist_num, clist_idx);
-
-
-    //
-    //  Increment the RR value, looking for a thread we can commit from
-    //
-    if (commit_model == COMMIT_MODEL_RR) {
-	do {
-	    rr_commit_last_thread
-		= (rr_commit_last_thread +1) % number_of_threads;
-	} while (finished_thread[rr_commit_last_thread]);
-
-	//
-	//  Mark all remaining threads as done...
-	//
-	for (int i = 0; i < number_of_threads; ++i)
-	    finished_thread[i] = true;
-
-	num_finished_threads = number_of_threads - 1;
-	finished_thread[rr_commit_last_thread] = false;
-    }
-
-
-    // entering main commit loop, reset tmp blocked cycle counter
-    tmpBlockedCycles = 0;
-
-    //
-    //  Main commit loop
-    //
-    done = false;
-    do {
-	ROBStation *rs = 0;
-	unsigned thread = 0;
-
-	//
-	//  Choose the instruction to commit
-	//
-	switch(commit_model) {
-	  case COMMIT_MODEL_SMT:
-	    thread = oldest_inst(commit_list, clist_num, clist_idx);
-	    rs = commit_list[thread][clist_idx[thread]++];
-	    break;
-
-	  case COMMIT_MODEL_SSCALAR:
-	    thread = oldest_inst(commit_list, clist_num, clist_idx);
-	    rs = commit_list[thread][clist_idx[thread]++];
-
-	    // if this inst is younger than the oldest non-commitable
-	    // inst, we are done.
-	    if (rs->seq > seq_overall) {
-		rs = 0;
-		done = true;
-		reason_thread[thread] = COMMIT_NO_INSN;
-	    }
-	    break;
-
-	  case COMMIT_MODEL_PERTHREAD:
-	    thread = pt_thread;
-	    if (clist_num[thread] - clist_idx[thread]) {
-		rs = commit_list[thread][clist_idx[thread]++];
-	    } else {
-		rs = 0;
-		done = true;
-		reason_thread[thread] = COMMIT_NO_INSN;
-	    }
-	    break;
-
-	  case COMMIT_MODEL_RR:
-	    thread = rr_commit_last_thread;
-	    if (clist_num[thread] - clist_idx[thread])
-		rs = commit_list[thread][clist_idx[thread]++];
-	    else
-		reason_thread[thread] = COMMIT_NO_INSN;
-	    break;
-
-	  default:
-	    fatal("commit model screwed up");
-	    break;
-	};
-
-
-	//
-	//  If we have an instruction to commit, do it...
-	//
-	if (rs) {
-	    --num_eligible;
-
-	    if (eligible_to_commit(rs, &reason)) {
-		if (rs->inst->spec_mode == 0) {
-
-		    commit_one_inst(rs);
-
-		    ++committed;
-		    ++committed_thread[thread];
-
-		    crash_counter = 0;
-		} else {
-		    //
-		    //  It is possible for completed, mis-speculated
-		    //  instructions to arrive here between the time
-		    //  a mispredicted branch is written-back and the time
-		    //  the recovery event occurs.  In this case, a mis-
-		    //  speculated instruction would not have been
-		    //  squashed...  if this happens, squash it now...
-		    //  --> this doesn't count as a committed instruction
-		    //
-
-		    rs->squash();
-
-		    if (ptrace)
-			ptrace->deleteInst(rs->inst);
-
-		    remove_ROB_element(rs);
-		}
-
-		//
-		//  Check ending conditions
-		//
-		if (committed == commit_width) {
-		    reason = COMMIT_BW;
-		    blame = thread;
-		    done = true;
-		} else if (num_eligible == 0) {
-		    reason = COMMIT_NO_INSN;
-		    blame = thread;
-		    done = true;
-		}
-	    } else {
-		//  We can't commit this instruction... reason is set in
-		//  eligible_to_commit(), so just set thread
-		blame = thread;
-
-		// we're done with this thread
-		clist_idx[thread] = clist_num[thread];
-	    }
-	} else {
-	    //  use the default blame info...
-
-	    finished_thread[thread] = true;
-
-	    ++num_finished_threads;
-
-	    if (num_finished_threads == number_of_threads)
-		done = true;
+		// we arbitrarily attribute these to thread 0; should be factored out
+		// when interpreting results
+		floss_state.commit_end_thread = 0;
 	}
-
-
-	//
-	//  Check to see if we've examined all eligible instructions
-	//  in this thread...
-	//
-	if (clist_idx[thread] == clist_num[thread]) {
-	    finished_thread[thread] = true;
-
-	    ++num_finished_threads;
-
-	    if (num_finished_threads == number_of_threads) {
-		done = true;
-	    }
-	}
-
-    } while (!done);
-
-
-    //
-    //  Assign blame
-    //
-    switch(reason) {
-      case COMMIT_BW:
-	    if (total_completed > commit_width) {
-		//  we want to count the number of instructions that could
-		//  have committed if we hadn't run out of bandwidth
-		++commit_eligible_samples;
-
-		for (int t = 0; t < number_of_threads; ++t) {
-		    assert(completed[t] >= committed_thread[t]);
-		    unsigned uncommitted = completed[t] - committed_thread[t];
-		    commit_eligible[t] += uncommitted;
-
-		    commit_bwlimit_stat[t].sample(uncommitted);
-		}
-	    }
-	    break;
-      case COMMIT_NO_INSN:
-      case COMMIT_STOREBUF:
-      case COMMIT_MEMBAR:
-	break;
-      case COMMIT_FU:
-	floss_state.commit_fu[0][0] = OpClass(detail);
-	break;
-      case COMMIT_DMISS:
-	floss_state.commit_mem_result[0] = MemAccessResult(detail);
-	break;
-      case COMMIT_CAUSE_NOT_SET:
-	done = true;  // dummy
-	break;
-      default:
-	fatal("commit causes screwed up");
-    }
-    floss_state.commit_end_cause[0] = reason;
-
-    //
-    //  De-allocate memory
-    //
-    for (int i = 0; i < number_of_threads; ++i)
-	if (commit_list[i])
-	    delete [] commit_list[i];
-
-    n_committed_dist.sample(committed);
-
-    if (floss_state.commit_end_cause[0] == COMMIT_CAUSE_NOT_SET) {
-	// very rarely we can have a queue-full fetch problem even when
-	// we committed the full B/W of instructions, or all of the
-	// entries in the IQ... maybe because LSQ is full??
-	floss_state.commit_end_cause[0] =
-	    (committed == commit_width) ? COMMIT_BW : COMMIT_NO_INSN;
-
-	// we arbitrarily attribute these to thread 0; should be factored out
-	// when interpreting results
-	floss_state.commit_end_thread = 0;
-    }
 }
 
 bool
 FullCPU::eligible_to_commit(ROBStation *rs,
-			enum CommitEndCause *reason)
+		enum CommitEndCause *reason)
 {
-    bool storebuf_stall = false;
+	bool storebuf_stall = false;
 
 
-    // To be ready to commit:
-    //  - ROB entry must be complete
-    //  - for loads/stores, LSQ entry must be complete
-    //  - for stores, a store buffer entry must be available
-    //  - for "leading" thread of reg-file-checking redundant pair,
-    //      reg check buffer entry must be available
+	// To be ready to commit:
+	//  - ROB entry must be complete
+	//  - for loads/stores, LSQ entry must be complete
+	//  - for stores, a store buffer entry must be available
+	//  - for "leading" thread of reg-file-checking redundant pair,
+	//      reg check buffer entry must be available
 
-    if (!rs->completed)
+	if (!rs->completed)
+		return false;
+
+	if (rs->inst->isStore()) {
+		storebuf_stall = storebuffer->full();
+
+		if (*reason == COMMIT_CAUSE_NOT_SET && storebuf_stall)
+			*reason = COMMIT_STOREBUF;
+	}
+
+	//
+	//  If everything is OK for committing this instruction...
+	//
+	if (!storebuf_stall)
+		return true;
+
 	return false;
-
-    if (rs->inst->isStore()) {
-	storebuf_stall = storebuffer->full();
-
-	if (*reason == COMMIT_CAUSE_NOT_SET && storebuf_stall)
-	    *reason = COMMIT_STOREBUF;
-    }
-
-    //
-    //  If everything is OK for committing this instruction...
-    //
-    if (!storebuf_stall)
-	return true;
-
-    return false;
 }
 
 
 unsigned
 FullCPU::oldest_inst(ROBStation ***clist, unsigned *cnum, unsigned *cidx)
 {
-    unsigned rv = 0;
-    InstSeqNum oldest_seq = 0;
-    bool not_set = true;
+	unsigned rv = 0;
+	InstSeqNum oldest_seq = 0;
+	bool not_set = true;
 
-    for (int t = 0; t < number_of_threads; ++t) {
-	//
-	//  Look at this thread if:
-	//    (1)  The thread has a commit list
-	//    (2)  There are still instructions in the list
-	//
-	if (clist[t] != 0 && cnum[t] > 0 && cidx[t] < cnum[t]
-	    && (oldest_seq > clist[t][cidx[t]]->seq || not_set))
-	{
-	    rv = t;
-	    oldest_seq = clist[t][cidx[t]]->seq;
+	for (int t = 0; t < number_of_threads; ++t) {
+		//
+		//  Look at this thread if:
+		//    (1)  The thread has a commit list
+		//    (2)  There are still instructions in the list
+		//
+		if (clist[t] != 0 && cnum[t] > 0 && cidx[t] < cnum[t]
+		                                                   && (oldest_seq > clist[t][cidx[t]]->seq || not_set))
+		{
+			rv = t;
+			oldest_seq = clist[t][cidx[t]]->seq;
 
-	    not_set = false;
+			not_set = false;
+		}
 	}
-    }
 
-    return rv;
+	return rv;
 }
 
 
 void
 FullCPU::commit_one_inst(ROBStation *rs)
 {
-    DynInst *inst = rs->inst;
-    bool store_inst = false;
-    unsigned thread = rs->thread_number;
+	DynInst *inst = rs->inst;
+	bool store_inst = false;
+	unsigned thread = rs->thread_number;
 
-    //
-    // Stores: commit to store buffer if an entry is available.
-    // Skip stores that faulted and write prefetches that didn't
-    // translate to a valid physical address..
-    //
-    if (inst->isStore() && inst->fault == No_Fault &&
-	!(inst->isDataPrefetch() &&
-	  inst->phys_eff_addr == MemReq::inval_addr)) {
+	//
+	// Stores: commit to store buffer if an entry is available.
+	// Skip stores that faulted and write prefetches that didn't
+	// translate to a valid physical address..
+	//
+	if (inst->isStore() && inst->fault == No_Fault &&
+			!(inst->isDataPrefetch() &&
+					inst->phys_eff_addr == MemReq::inval_addr)) {
 
-	assert(inst->phys_eff_addr != MemReq::inval_addr);
+		assert(inst->phys_eff_addr != MemReq::inval_addr);
 
-	if (inst->isCopy()) {
-	    storebuffer->addCopy(thread, inst->asid,
-				 dcacheInterface->getBlockSize(), inst->xc,
-				 inst->eff_addr, inst->phys_eff_addr,
-				 inst->copySrcEffAddr,
-				 inst->copySrcPhysEffAddr,
-				 inst->mem_req_flags,
-				 inst->PC, rs->seq,
-				 inst->fetch_seq, rs->queue_num);
-	} else {
-	    storebuffer->add(thread, inst->asid, inst->store_size,
-			     inst->store_data,
-			     inst->xc,
-			     inst->eff_addr, inst->phys_eff_addr,
-			     inst->mem_req_flags,
-			     inst->PC, rs->seq,
-			     inst->fetch_seq, rs->queue_num);
+		if (inst->isCopy()) {
+			storebuffer->addCopy(thread, inst->asid,
+					dcacheInterface->getBlockSize(), inst->xc,
+					inst->eff_addr, inst->phys_eff_addr,
+					inst->copySrcEffAddr,
+					inst->copySrcPhysEffAddr,
+					inst->mem_req_flags,
+					inst->PC, rs->seq,
+					inst->fetch_seq, rs->queue_num);
+		} else {
+			storebuffer->add(thread, inst->asid, inst->store_size,
+					inst->store_data,
+					inst->xc,
+					inst->eff_addr, inst->phys_eff_addr,
+					inst->mem_req_flags,
+					inst->PC, rs->seq,
+					inst->fetch_seq, rs->queue_num);
+		}
+		// remember to remove LSQ entry
+		store_inst = true;
+
+		//  check for bogus store size
+		assert(inst->store_size <= 64);
 	}
-	// remember to remove LSQ entry
-	store_inst = true;
 
-	//  check for bogus store size
-	assert(inst->store_size <= 64);
-    }
-
-    if (rs->inst->isWriteBarrier()) {
-	storebuffer->addWriteBarrier(thread);
-    }
-
-    // Faulting instruction: we are holding off dispatch of the fault
-    // handler waiting for this to commit.  Notify dispatch that we've
-    // committed the instruction so it can continue.
-    if (inst->fault != No_Fault) {
-	assert(fetch_fault_count[thread] == 1);
-	new FaultHandlerDelayEvent(this, thread,
-				   curTick + cycles(fault_handler_delay));
-    }
-
-    // if we're committing a branch, update predictor state...
-    // if we're using leading-thread prediction, put the
-    // outcome in the queue too
-    if (rs->inst->isControl()) {
-	branch_pred->update(thread, inst->PC, inst->Next_PC,
-			    inst->Next_PC != inst->PC + sizeof(MachInst),
-			    /* pred taken? */
-			    inst->Pred_PC != inst->PC + sizeof(MachInst),
-			    /* correct pred? */
-			    inst->Pred_PC == inst->Next_PC,
-			    rs->inst->staticInst, &inst->dir_update);
-    }
-
-    thread_info[thread].commit_counter++;
-
-    // track last committed PC for sampling stats
-    commitPC[thread] = inst->PC;
-
-    traceFunctions(inst->PC);
-
-    update_com_inst_stats(inst);
-
-    // invalidate ROB operation instance
-    rs->tag++;
-
-    if (DTRACE(Pipeline)) {
-	string s;
-	inst->dump(s);
-	DPRINTF(Pipeline, "Commit %s\n", s);
-    }
-
-    //
-    //  Special Handling: When instruction commits
-    //  before branch recovery is done...
-    //
-    //  We need to tell the event handler not to try
-    //  to update the now non-existant ROB entry.
-    //
-    //  Note that we're OK if there is no event here,
-    //  as long as there is _some_ event pending
-    //
-    if (rs->inst->recover_inst) {
-	assert ((rs->recovery_event != NULL) ||
-		thread_info[thread].recovery_event_pending);
-
-	if (rs->recovery_event) {
-	    //  This recovery event will still happen...
-	    //  we just have to tell it that it doesn't need to worry
-	    //  about updating this ROB entry
-	    rs->recovery_event->invalidate_branch_entry();
-	    rs->recovery_event = 0;  // to make remove_ROB_entry() happy
+	if (rs->inst->isWriteBarrier()) {
+		storebuffer->addWriteBarrier(thread);
 	}
-    }
 
-    //
-    //  Store Instructions: Remove LSQ portion of store
-    //
-    if (store_inst)
-	LSQ->squash(rs->lsq_entry);
+	// Faulting instruction: we are holding off dispatch of the fault
+	// handler waiting for this to commit.  Notify dispatch that we've
+	// committed the instruction so it can continue.
+	if (inst->fault != No_Fault) {
+		assert(fetch_fault_count[thread] == 1);
+		new FaultHandlerDelayEvent(this, thread,
+				curTick + cycles(fault_handler_delay));
+	}
 
-    if (ptrace) {
-	ptrace->moveInst(rs->inst, PipeTrace::Commit, 0, 0, 0);
-	ptrace->deleteInst(rs->inst);
-    }
+	// if we're committing a branch, update predictor state...
+	// if we're using leading-thread prediction, put the
+	// outcome in the queue too
+	if (rs->inst->isControl()) {
+		branch_pred->update(thread, inst->PC, inst->Next_PC,
+				inst->Next_PC != inst->PC + sizeof(MachInst),
+				/* pred taken? */
+				inst->Pred_PC != inst->PC + sizeof(MachInst),
+				/* correct pred? */
+				inst->Pred_PC == inst->Next_PC,
+				rs->inst->staticInst, &inst->dir_update);
+	}
 
-    // update head entry of IQ
-    remove_ROB_element(rs);
+	thread_info[thread].commit_counter++;
 
-    //
-    // check for instruction-count-based events
-    //
+	// track last committed PC for sampling stats
+	commitPC[thread] = inst->PC;
 
-    /**
-     *@todo com_inst is used as a Stat && in other ways, like here. needs fix
-     *in case com_inst becomes binned...
-     */
-    comInstEventQueue[thread]->serviceEvents(com_inst[thread]);
-    comLoadEventQueue[thread]->serviceEvents(com_loads[thread]);
+	traceFunctions(inst->PC);
+
+	update_com_inst_stats(inst);
+
+	// invalidate ROB operation instance
+	rs->tag++;
+
+	if (DTRACE(Pipeline)) {
+		string s;
+		inst->dump(s);
+		DPRINTF(Pipeline, "Commit %s\n", s);
+	}
+
+	//
+	//  Special Handling: When instruction commits
+	//  before branch recovery is done...
+	//
+	//  We need to tell the event handler not to try
+	//  to update the now non-existant ROB entry.
+	//
+	//  Note that we're OK if there is no event here,
+	//  as long as there is _some_ event pending
+	//
+	if (rs->inst->recover_inst) {
+		assert ((rs->recovery_event != NULL) ||
+				thread_info[thread].recovery_event_pending);
+
+		if (rs->recovery_event) {
+			//  This recovery event will still happen...
+			//  we just have to tell it that it doesn't need to worry
+			//  about updating this ROB entry
+			rs->recovery_event->invalidate_branch_entry();
+			rs->recovery_event = 0;  // to make remove_ROB_entry() happy
+		}
+	}
+
+	//
+	//  Store Instructions: Remove LSQ portion of store
+	//
+	if (store_inst)
+		LSQ->squash(rs->lsq_entry);
+
+	if (ptrace) {
+		ptrace->moveInst(rs->inst, PipeTrace::Commit, 0, 0, 0);
+		ptrace->deleteInst(rs->inst);
+	}
+
+	// update head entry of IQ
+	remove_ROB_element(rs);
+
+	//
+	// check for instruction-count-based events
+	//
+
+	/**
+	 *@todo com_inst is used as a Stat && in other ways, like here. needs fix
+	 *in case com_inst becomes binned...
+	 */
+	comInstEventQueue[thread]->serviceEvents(com_inst[thread]);
+	comLoadEventQueue[thread]->serviceEvents(com_loads[thread]);
 }
 
 
@@ -914,41 +915,41 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 void
 FullCPU::commitRegStats()
 {
-    using namespace Stats;
+	using namespace Stats;
 
-    n_committed_dist
+	n_committed_dist
 	.init(0,commit_width,1)
 	.name(name() + ".COM:committed_per_cycle")
 	.desc("Number of insts commited each cycle")
 	.flags(pdf)
 	;
 
-    //
-    //  Commit-Eligible instructions...
-    //
-    //  -> The number of instructions eligible to commit in those
-    //  cycles where we reached our commit BW limit (less the number
-    //  actually committed)
-    //
-    //  -> The average value is computed over ALL CYCLES... not just
-    //  the BW limited cycles
-    //
-    //  -> The standard deviation is computed only over cycles where
-    //  we reached the BW limit
-    //
-    commit_eligible
+	//
+	//  Commit-Eligible instructions...
+	//
+	//  -> The number of instructions eligible to commit in those
+	//  cycles where we reached our commit BW limit (less the number
+	//  actually committed)
+	//
+	//  -> The average value is computed over ALL CYCLES... not just
+	//  the BW limited cycles
+	//
+	//  -> The standard deviation is computed only over cycles where
+	//  we reached the BW limit
+	//
+	commit_eligible
 	.init(number_of_threads)
 	.name(name() + ".COM:bw_limited")
 	.desc("number of insts not committed due to BW limits")
 	.flags(total)
 	;
 
-    commit_eligible_samples
+	commit_eligible_samples
 	.name(name() + ".COM:bw_lim_events")
 	.desc("number cycles where commit BW limit reached")
 	;
 
-    commit_bwlimit_stat
+	commit_bwlimit_stat
 	.init(number_of_threads)
 	.name(name() + ".COM:bw_lim_stdev")
 	.desc("standard deviation of bw_lim_avg value")
@@ -956,37 +957,37 @@ FullCPU::commitRegStats()
 	.flags(total)
 	;
 
-    // Magnus
-    commit_total_mem_stall_time
-        .name(name() + ".COM:total_ticks_stalled_for_memory")
-        .desc("Number of ticks the processor was stalled due to memory")
-        ;
+	// Magnus
+	commit_total_mem_stall_time
+	.name(name() + ".COM:total_ticks_stalled_for_memory")
+	.desc("Number of ticks the processor was stalled due to memory")
+	;
 
-    commit_cycles_empty_ROB
-            .name(name() + ".COM:commit_cycles_empty_ROB")
-            .desc("Number of ticks the processor could not commit instructions because the ROB was empty")
-            ;
+	commit_cycles_empty_ROB
+	.name(name() + ".COM:commit_cycles_empty_ROB")
+	.desc("Number of ticks the processor could not commit instructions because the ROB was empty")
+	;
 
 }
 
 void
 FullCPU::commitRegFormulas()
 {
-    using namespace Stats;
+	using namespace Stats;
 
-    bw_lim_avg
+	bw_lim_avg
 	.name(name() + ".COM:bw_lim_avg")
 	.desc("Avg number not committed in cycles BW limited")
 	.precision(4)
 	.flags(total)
 	;
-    bw_lim_avg = commit_eligible / commit_eligible_samples;
+	bw_lim_avg = commit_eligible / commit_eligible_samples;
 
-    bw_lim_rate
+	bw_lim_rate
 	.name(name() + ".COM:bw_lim_rate")
 	.desc("Average number not committed due to BW (over all cycles)")
 	.precision(4)
 	.flags(total)
 	;
-    bw_lim_rate = commit_eligible / numCycles;
+	bw_lim_rate = commit_eligible / numCycles;
 }

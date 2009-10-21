@@ -80,6 +80,8 @@ class FullCPU : public BaseCPU
 
       bool hasDumpedStats;
 
+      AdaptiveMHA* amha;
+
   public:
     ////////////////////////////////////////////
     //

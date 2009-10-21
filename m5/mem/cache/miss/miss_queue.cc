@@ -1115,3 +1115,8 @@ MissQueue::assignBlockingBlame(bool blockedForMiss, bool blockedForTargets, doub
 	if(blockedForMiss) return mq.assignBlockingBlame(numTarget, !blockedForTargets, threshold);
 	return wb.assignBlockingBlame(numTarget, !blockedForTargets, threshold);
 }
+
+void
+MissQueue::coreCommittedInstruction(){
+	mq.cpuCommittedInstruction();
+}
