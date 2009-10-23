@@ -86,14 +86,24 @@ class MSHRQueue {
 
 	void missArrived();
 
+	bool isMissQueue;
+
   protected:
 	Stats::Scalar<> mlp_active_cycles;
 	Stats::Scalar<> mlp_accumulator;
 	Stats::Formula avg_mlp;
 
-	Stats::Scalar<> overlapped_misses;
-	Stats::Scalar<> serial_misses;
-	Stats::Formula serial_percentage;
+	Stats::Scalar<> opacu_overlapped_misses;
+	Stats::Scalar<> opacu_serial_misses;
+	Stats::Formula opacu_serial_percentage;
+
+	Stats::Scalar<> mshrcnt_overlapped_misses;
+	Stats::Scalar<> mshrcnt_serial_misses;
+	Stats::Formula mshrcnt_serial_percentage;
+
+	Stats::Scalar<> roblookup_overlapped_misses;
+	Stats::Scalar<> roblookup_serial_misses;
+	Stats::Formula roblookup_serial_percentage;
 
   public:
     /** The number of MSHRs that have been forwarded to the bus. */
@@ -106,7 +116,7 @@ class MSHRQueue {
      * @param num_mshrs The number of MSHRs in this queue.
      * @param reserve The minimum number of MSHRs needed to satisfy any access.
      */
-    MSHRQueue(int num_mshrs, int reserve = 1);
+    MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve = 1);
 
     /** Destructor */
     ~MSHRQueue();

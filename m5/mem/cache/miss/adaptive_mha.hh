@@ -226,6 +226,8 @@ class AdaptiveMHA : public SimObject{
 
         void coreCommittedInstruction(int cpuID);
 
+        bool requestInROB(MemReqPtr& req, int cpuID, int blockSize);
+
     private:
 
         void doFairAMHA();

@@ -38,9 +38,10 @@
 
 using namespace std;
 
-MSHRQueue::MSHRQueue(int num_mshrs, int reserve)
+MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 : numMSHRs(num_mshrs + reserve - 1), numReserve(reserve)
 {
+	isMissQueue = _isMissQueue;
 
 	allocated = 0;
 	inServiceMSHRs = 0;
@@ -84,22 +85,58 @@ MSHRQueue::regStats(){
 
 	avg_mlp = mlp_accumulator / mlp_active_cycles;
 
-	overlapped_misses
-		.name(cache->name() + ".overlapped_misses")
+	opacu_overlapped_misses
+		.name(cache->name() + ".opacu_overlapped_misses")
 		.desc("the number of misses that overlapped with the previous miss in the ROB")
 		;
 
-	serial_misses
-		.name(cache->name() + ".serial_misses")
+	opacu_serial_misses
+		.name(cache->name() + ".opacu_serial_misses")
 		.desc("the number of misses that did not overlap with the previous miss")
 		;
 
-	serial_percentage
-		.name(cache->name() + ".serial_percentage")
+	opacu_serial_percentage
+		.name(cache->name() + ".opacu_serial_percentage")
 		.desc("the ratio of serial misses over all misses")
 		;
 
-	serial_percentage = serial_misses / (overlapped_misses+serial_misses);
+	opacu_serial_percentage = opacu_serial_misses / (opacu_overlapped_misses+opacu_serial_misses);
+
+
+	mshrcnt_overlapped_misses
+		.name(cache->name() + ".mshrcnt_overlapped_misses")
+		.desc("the number of misses that overlapped with the previous miss in the ROB")
+		;
+
+	mshrcnt_serial_misses
+		.name(cache->name() + ".mshrcnt_serial_misses")
+		.desc("the number of misses that did not overlap with the previous miss")
+		;
+
+	mshrcnt_serial_percentage
+		.name(cache->name() + ".mshrcnt_serial_percentage")
+		.desc("the ratio of serial misses over all misses")
+		;
+
+	mshrcnt_serial_percentage = mshrcnt_serial_misses / (mshrcnt_serial_misses+mshrcnt_overlapped_misses);
+
+
+	roblookup_overlapped_misses
+		.name(cache->name() + ".roblookup_overlapped_misses")
+		.desc("the number of misses that overlapped with the previous miss in the ROB")
+		;
+
+	roblookup_serial_misses
+		.name(cache->name() + ".roblookup_serial_misses")
+		.desc("the number of misses that did not overlap with the previous miss")
+		;
+
+	roblookup_serial_percentage
+		.name(cache->name() + ".roblookup_serial_percentage")
+		.desc("the ratio of serial misses over all misses")
+		;
+
+	roblookup_serial_percentage = roblookup_serial_misses / (roblookup_serial_misses+roblookup_overlapped_misses);
 }
 
 MemReqPtr
@@ -456,19 +493,50 @@ MSHRQueue::updateMLPStatistics(){
 
 void
 MSHRQueue::missArrived(){
+
 	if(countdownCounter > 0){
-		overlapped_misses++;
+		opacu_overlapped_misses++;
 	}
 	else{
-		serial_misses++;
+		opacu_serial_misses++;
 		countdownCounter = ROBSize;
+	}
+
+	// check ROB to see if the requests actually overlap
+	if(cache->adaptiveMHA != NULL && !cache->isShared && isMissQueue){
+		int outstandingCnt = 0;
+
+		MSHR::ConstIterator i = allocatedList.begin();
+		MSHR::ConstIterator end = allocatedList.end();
+		for (; i != end; ++i) {
+			MSHR *mshr = *i;
+			assert(mshr->req->cmd == Read);
+			bool tmpInROB = cache->adaptiveMHA->requestInROB(mshr->req, cache->cacheCpuID, cache->getBlockSize());
+			if(tmpInROB) outstandingCnt++;
+		}
+
+		if(outstandingCnt > 1){
+			roblookup_overlapped_misses++;
+		}
+		else{
+			roblookup_serial_misses++;
+		}
+	}
+
+	if(allocated > 1){
+		mshrcnt_overlapped_misses++;
+	}
+	else{
+		mshrcnt_serial_misses++;
 	}
 }
 
 void
 MSHRQueue::cpuCommittedInstruction(){
+
 	if(countdownCounter > 0){
 		countdownCounter--;
 	}
 	assert(countdownCounter >= 0);
 }
+

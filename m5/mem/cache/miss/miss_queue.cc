@@ -51,7 +51,7 @@ using namespace std;
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
 		bool write_allocate, bool prefetch_miss)
-: mq(numMSHRs, 4), wb(write_buffers,numMSHRs+1000), numMSHR(numMSHRs),
+: mq(numMSHRs, true, 4), wb(write_buffers, false, numMSHRs+1000), numMSHR(numMSHRs),
 numTarget(numTargets), writeBuffers(write_buffers),
 writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 {

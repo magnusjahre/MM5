@@ -84,6 +84,29 @@ public:
 };
 
 
+bool
+FullCPU::requestInROB(MemReqPtr& req, int blockSize){
+
+	assert(req->oldAddr != MemReq::inval_addr);
+
+	Addr mask = ~((Addr)blockSize - 1);
+
+	bool found = false;
+	for(ROBStation *rs = ROB.head(); rs != NULL ; rs = ROB.next(rs)){
+		if(rs->inst->isLoad() || rs->inst->isStore()){
+			Addr robCacheAddr = rs->inst->eff_addr & mask;
+			Addr reqCacheAddr = req->oldAddr & mask;
+
+			if(robCacheAddr == reqCacheAddr){
+				found = true;
+			}
+
+		}
+	}
+
+	return true;
+}
+
 
 /* this function commits the results of the oldest completed entries from the
    IQ and LSQ to the architected reg file, stores in the LSQ will commit
@@ -221,8 +244,7 @@ FullCPU::commit()
 	//  and overall, and also squash instructions we encounter along the way
 	//
 	bool done = false;
-	for (ROBStation *rs = ROB.head(); (rs != NULL) && !done;
-	rs = ROB.next(rs))
+	for (ROBStation *rs = ROB.head(); (rs != NULL) && !done; rs = ROB.next(rs))
 	{
 		unsigned thread = rs->thread_number;
 

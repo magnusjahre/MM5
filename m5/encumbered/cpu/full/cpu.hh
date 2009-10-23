@@ -976,6 +976,8 @@ class FullCPU : public BaseCPU
         return tmp;
     }
 
+    bool requestInROB(MemReqPtr& req, int blockSize);
+
 
     //----------------------------------------------------------------------
     //

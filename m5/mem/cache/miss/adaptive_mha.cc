@@ -193,6 +193,12 @@ AdaptiveMHA::coreCommittedInstruction(int cpuID){
 	dataCaches[cpuID]->coreCommittedInstruction();
 }
 
+bool
+AdaptiveMHA::requestInROB(MemReqPtr& req, int cpuID, int blockSize){
+	assert(cpuID < cpus.size());
+	return cpus[cpuID]->requestInROB(req, blockSize);
+}
+
 AdaptiveMHA::~AdaptiveMHA(){
     delete sampleEvent;
 }

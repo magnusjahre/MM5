@@ -37,7 +37,7 @@
 using namespace std;
 
 UniCoherence::UniCoherence()
-    : cshrs(50)
+    : cshrs(50, false)
 {
 }
 
