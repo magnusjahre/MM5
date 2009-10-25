@@ -256,6 +256,7 @@ BaseCache::regStats()
     blocked_cycles.init(NUM_BLOCKED_CAUSES);
     blocked_cycles
 	.name(name() + ".blocked_cycles")
+	.flags(total)
 	.desc("number of cycles access was blocked")
 	.subname(Blocked_NoMSHRs, "no_mshrs")
 	.subname(Blocked_NoTargets, "no_targets")
@@ -266,7 +267,8 @@ BaseCache::regStats()
     blocked_causes.init(NUM_BLOCKED_CAUSES);
     blocked_causes
 	.name(name() + ".blocked")
-	.desc("number of cycles access was blocked")
+	.flags(total)
+	.desc("number of times access was blocked")
 	.subname(Blocked_NoMSHRs, "no_mshrs")
 	.subname(Blocked_NoTargets, "no_targets")
         .subname(Blocked_NoWBBuffers, "no_wb_buffers")
