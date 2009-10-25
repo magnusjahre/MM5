@@ -52,6 +52,8 @@ class Ring : public AddressDependentIC{
 
         ADIArbitrationEvent* arbEvent;
 
+        int fixedRoundtripLat;
+
         std::vector<int> findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* direction);
         std::vector<int> findMasterPath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
         std::vector<int> findSlavePath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* direction);
@@ -86,7 +88,8 @@ class Ring : public AddressDependentIC{
                        AdaptiveMHA* _adaptiveMHA,
                        Tick _detailedStart,
                        int _singleProcessorID,
-                       InterferenceManager* _intman);
+                       InterferenceManager* _intman,
+                       int _fixedRoundtripLat);
 
         virtual void send(MemReqPtr& req, Tick time, int fromID);
 

@@ -510,7 +510,7 @@ MSHRQueue::missArrived(){
 		MSHR::ConstIterator end = allocatedList.end();
 		for (; i != end; ++i) {
 			MSHR *mshr = *i;
-			assert(mshr->req->cmd == Read);
+			assert(mshr->req->cmd == Read || mshr->req->cmd == Write);
 			bool tmpInROB = cache->adaptiveMHA->requestInROB(mshr->req, cache->cacheCpuID, cache->getBlockSize());
 			if(tmpInROB) outstandingCnt++;
 		}

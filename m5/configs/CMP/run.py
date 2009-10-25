@@ -545,6 +545,10 @@ BaseCache.detailed_sim_start_tick = fwticks
 
 BaseCache.multiprog_workload = True
 
+fixedRoundtripLatency = -1
+if 'FIXED-ROUNDTRIP-LATENCY' in env:
+    fixedRoundtripLatency = int(env['FIXED-ROUNDTRIP-LATENCY'])
+
 if env['MEMORY-SYSTEM'] == "Legacy":
     panic("Legacy memory system no longer supported")
 
@@ -561,6 +565,7 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.interconnect.shared_cache_mshrs = root.SharedCache[0].mshrs
     root.interconnect.adaptive_mha = root.adaptiveMHA
     root.interconnect.interference_manager = root.interferenceManager
+    root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
 
     setUpSharedCache(bankcnt, cacheProfileStart)
 
@@ -577,6 +582,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     root.interconnect.adaptive_mha = root.adaptiveMHA
     root.interconnect.detailed_sim_start_tick = cacheProfileStart
     root.interconnect.interference_manager = root.interferenceManager
+    root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
     
     setUpSharedCache(bankcnt, cacheProfileStart)
     

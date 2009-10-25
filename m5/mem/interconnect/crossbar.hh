@@ -62,6 +62,8 @@ class Crossbar : public AddressDependentIC
 
         ADIArbitrationEvent* crossbarArbEvent;
 
+        int fixedRoundtripLat;
+
         bool attemptDelivery(std::list<std::pair<MemReqPtr, int> >* currentQueue, int* crossbarState, bool toSlave);
 
         int addBlockedInterfaces();
@@ -85,7 +87,8 @@ class Crossbar : public AddressDependentIC
                  int _shared_cache_wb_buffers,
                  int _shared_cache_mshrs,
                  int _pipe_stages,
-                 InterferenceManager* _intman);
+                 InterferenceManager* _intman,
+                 int _fixedRoundtripLat);
 
         ~Crossbar(){ }
 

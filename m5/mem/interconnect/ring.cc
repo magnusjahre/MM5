@@ -16,7 +16,8 @@ Ring::Ring(const std::string &_name,
                                AdaptiveMHA* _adaptiveMHA,
                                Tick _detailedStart,
                                int _singleProcessorID,
-							   InterferenceManager* _intman)
+							   InterferenceManager* _intman,
+							   int _fixedRoundtripLat)
     : AddressDependentIC(_name,
                          _width,
                          _clock,
@@ -30,6 +31,8 @@ Ring::Ring(const std::string &_name,
 
     sharedCacheBankCount = 4; //FIXME: parameterize
     queueSize = 32; // FIXME: parameterize
+
+    fixedRoundtripLat = _fixedRoundtripLat;
 
     if(_cpu_count == 4){
         numberOfRequestRings = 1;
@@ -130,6 +133,11 @@ Ring::send(MemReqPtr& req, Tick time, int fromID){
             delivery->schedule(curTick + arbitrationDelay);
         }
         return;
+    }
+
+    if(fixedRoundtripLat != -1){
+    	createFixedLatencyResponse(fixedRoundtripLat, fromID, req);
+    	return;
     }
 
     updateEntryInterference(req, fromID);
@@ -675,6 +683,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Ring)
     Param<Tick> detailed_sim_start_tick;
     Param<int> single_proc_id;
     SimObjectParam<InterferenceManager* > interference_manager;
+    Param<int> fixed_roundtrip_latency;
 END_DECLARE_SIM_OBJECT_PARAMS(Ring)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
@@ -687,7 +696,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Ring)
     INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
     INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
     INIT_PARAM_DFLT(single_proc_id, "the expected CPU ID if there is only one processor", -1),
-    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL)
+    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL),
+    INIT_PARAM_DFLT(fixed_roundtrip_latency, "Models infinite bandwidth, fixed latency shared memory system", -1)
+
 END_INIT_SIM_OBJECT_PARAMS(Ring)
 
 CREATE_SIM_OBJECT(Ring)
@@ -702,7 +713,8 @@ CREATE_SIM_OBJECT(Ring)
                               adaptive_mha,
                               detailed_sim_start_tick,
                               single_proc_id,
-							  interference_manager);
+							  interference_manager,
+							  fixed_roundtrip_latency);
 }
 
 REGISTER_SIM_OBJECT("Ring", Ring)

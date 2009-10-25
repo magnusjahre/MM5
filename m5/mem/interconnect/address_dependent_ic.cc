@@ -168,24 +168,23 @@ AddressDependentIC::updateEntryInterference(MemReqPtr& req, int fromID){
         	interferenceManager->addInterference(InterferenceManager::InterconnectEntry, req, waitTime);
         	interferenceManager->addLatency(InterferenceManager::InterconnectEntry, req, waitTime);
         }
-
-
-//        assert(req->cmd == Read || req->cmd == Writeback);
-//        if(req->cmd == Read && waitTime > 0){
-//            assert(req->adaptiveMHASenderID != -1);
-//
-//            int extraDelay = (int) ((double) waitTime * 0.75);
-//            cpuEntryInterferenceCycles[req->adaptiveMHASenderID] += extraDelay;
-//            adaptiveMHA->addAloneInterference(extraDelay, req->adaptiveMHASenderID, INTERCONNECT_INTERFERENCE);
-//            req->interferenceBreakdown[INTERCONNECT_ENTRY_LAT] += extraDelay;
-//
-//            entryReadDelay += waitTime;
-//            perCpuTotalDelay[req->adaptiveMHASenderID] += waitTime;
-//        }
-
     }
     entryRequests++;
     if(req->cmd == Read) entryReadRequests++;
+}
+
+void
+AddressDependentIC::createFixedLatencyResponse(int latency, int fromID, MemReqPtr& req){
+
+	assert(req->cmd == Read || req->cmd == Writeback);
+	if(req->cmd == Read){
+		if(allInterfaces[fromID]->isMaster()){
+			req->toInterfaceID = fromID;
+		}
+
+		ADIDeliverEvent* delivery = new ADIDeliverEvent(this, req, allInterfaces[fromID]->isMaster());
+		delivery->schedule(curTick + latency);
+	}
 }
 
 

@@ -17,7 +17,8 @@ Crossbar::Crossbar(const std::string &_name,
                    int _shared_cache_wb_buffers,
                    int _shared_cache_mshrs,
                    int _pipe_stages,
-                   InterferenceManager* _intman)
+                   InterferenceManager* _intman,
+                   int _fixedRoundtripLat)
     : AddressDependentIC(_name,
                          _width,
                          _clock,
@@ -32,6 +33,8 @@ Crossbar::Crossbar(const std::string &_name,
     detailedSimStartTick = _detailedSimStartTick;
     crossbarTransferDelay = _transDelay + _arbDelay;
     crossbarRequests = vector<list<pair<MemReqPtr, int> > >(_cpu_count, list<pair<MemReqPtr, int> >());
+
+    fixedRoundtripLat = _fixedRoundtripLat;
 
     assert(_pipe_stages != -1);
     requestOccupancyTicks = crossbarTransferDelay / _pipe_stages;
@@ -90,6 +93,11 @@ Crossbar::send(MemReqPtr& req, Tick time, int fromID){
         }
 
         return;
+    }
+
+    if(fixedRoundtripLat != -1){
+    	createFixedLatencyResponse(fixedRoundtripLat, fromID, req);
+    	return;
     }
 
     updateEntryInterference(req, fromID);
@@ -522,6 +530,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
     Param<int> shared_cache_mshrs;
     Param<int> pipe_stages;
     SimObjectParam<InterferenceManager* > interference_manager;
+    Param<int> fixed_roundtrip_latency;
 END_DECLARE_SIM_OBJECT_PARAMS(Crossbar)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
@@ -539,7 +548,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Crossbar)
     INIT_PARAM_DFLT(shared_cache_writeback_buffers, "Number of writeback buffers in the shared cache", -1),
     INIT_PARAM_DFLT(shared_cache_mshrs, "Number of MSHRs in the shared cache", -1),
     INIT_PARAM_DFLT(pipe_stages, "Crossbar pipeline stages", -1),
-    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL)
+    INIT_PARAM_DFLT(interference_manager, "The interference manager related to this interconnect", NULL),
+    INIT_PARAM_DFLT(fixed_roundtrip_latency, "Models infinite bandwidth, fixed latency shared memory system", -1)
 END_INIT_SIM_OBJECT_PARAMS(Crossbar)
 
 CREATE_SIM_OBJECT(Crossbar)
@@ -557,7 +567,8 @@ CREATE_SIM_OBJECT(Crossbar)
                         shared_cache_writeback_buffers,
                         shared_cache_mshrs,
                         pipe_stages,
-                        interference_manager);
+                        interference_manager,
+                        fixed_roundtrip_latency);
 }
 
 REGISTER_SIM_OBJECT("Crossbar", Crossbar)

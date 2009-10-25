@@ -67,6 +67,8 @@ class AddressDependentIC : public Interconnect
         void retrieveAdditionalRequests();
 
         void updateEntryInterference(MemReqPtr& req, int fromID);
+
+        void createFixedLatencyResponse(int latency, int fromID, MemReqPtr& req);
 };
 
 class ADIRetrieveReqEvent : public Event
