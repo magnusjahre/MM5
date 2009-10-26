@@ -510,7 +510,8 @@ MissQueue::regStats(const string &name)
 	avg_bus_queue_latency = bus_queue_latency / num_roundtrip_responses;
 	avg_bus_service_latency = bus_service_latency / num_roundtrip_responses;
 
-	mq.regStats();
+	mq.regStats(".mq");
+	wb.regStats(".wb");
 }
 
 void

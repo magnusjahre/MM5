@@ -50,6 +50,7 @@ MSHR::MSHR()
     inService = false;
     ntargets = 0;
     threadNum = -1;
+    mlpCost = 0;
 
 //     cache = NULL;
 }
@@ -62,6 +63,8 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 	assert(targets.empty());
 	addr = _addr;
 	asid = _asid;
+
+	mlpCost = 0;
 
 	req = new MemReq(); // allocate new memory request
 	req->completionEvent = 0; // Don't delete twice!
@@ -151,6 +154,8 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
     }
+
+    mlpCost = 0;
 }
 
 void

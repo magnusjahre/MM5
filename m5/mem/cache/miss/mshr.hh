@@ -58,7 +58,7 @@ public:
     typedef List::iterator Iterator;
     /** MSHR list const_iterator. */
     typedef List::const_iterator ConstIterator;
-    
+
     /** Address of the miss. */
     Addr addr;
     /** Adress space id of the miss. */
@@ -75,9 +75,9 @@ public:
     MemCmd originalCmd;
     /** Order number of assigned by the miss queue. */
     uint64_t order;
-    
+
     MemCmd directoryOriginalCmd;
-    
+
     /**
      * Pointer to this MSHR on the ready list.
      * @sa MissQueue, MSHRQueue::readyList
@@ -89,10 +89,12 @@ public:
      */
     Iterator allocIter;
 
+    float mlpCost;
+
 private:
     /** List of all requests that match the address */
     TargetList targets;
-    
+
     BaseCache* cache;
 
 public:
@@ -155,7 +157,7 @@ public:
     {
 	return targets.front();
     }
-    
+
     /**
      * Pop first target.
      */
@@ -178,7 +180,7 @@ public:
      * Prints the contents of this MSHR to stderr.
      */
     void dump();
-    
+
     void setCache(BaseCache* _cache);
 };
 

@@ -40,6 +40,10 @@
 #include "mem/cache/miss/mshr.hh"
 #include "mem/cache/base_cache.hh" // for CACHE_DEBUG
 
+#include "base/statistics.hh"
+
+class MLPEstimationEvent;
+
 /**
  * A Class for maintaining a list of pending and allocated memory requests.
  */
@@ -76,22 +80,16 @@ class MSHRQueue {
     /** The number of allocated MSHRs. */
 	int allocated;
 
-	Tick allocationChangedAt;
-	int lastAllocation;
-
-	void updateMLPStatistics();
-
 	int countdownCounter;
 	int ROBSize;
 
-	void missArrived();
+	void missArrived(MemCmd cmd);
 
 	bool isMissQueue;
 
+	MLPEstimationEvent* mlpEstEvent;
+
   protected:
-	Stats::Scalar<> mlp_active_cycles;
-	Stats::Scalar<> mlp_accumulator;
-	Stats::Formula avg_mlp;
 
 	Stats::Scalar<> opacu_overlapped_misses;
 	Stats::Scalar<> opacu_serial_misses;
@@ -104,6 +102,14 @@ class MSHRQueue {
 	Stats::Scalar<> roblookup_overlapped_misses;
 	Stats::Scalar<> roblookup_serial_misses;
 	Stats::Formula roblookup_serial_percentage;
+
+	Stats::Scalar<> mlp_cost_accumulator;
+	Stats::Scalar<> mlp_cost_total_misses;
+	Stats::Formula avg_mlp_cost_per_miss;
+
+	Stats::Distribution<> mlp_cost_distribution;
+	Stats::Distribution<> latency_distribution;
+	Stats::Distribution<> allocated_mshrs_distribution;
 
   public:
     /** The number of MSHRs that have been forwarded to the bus. */
@@ -121,7 +127,7 @@ class MSHRQueue {
     /** Destructor */
     ~MSHRQueue();
 
-    void regStats();
+    void regStats(const char* subname);
 
     /**
      * Find the first MSHR that matches the provide address and asid.
@@ -340,6 +346,32 @@ class MSHRQueue {
     }
 
     void cpuCommittedInstruction();
+
+    void handleMLPEstimationEvent();
+
+    bool isDemandRequest(MemCmd cmd);
+
+};
+
+class MLPEstimationEvent : public Event{
+
+private:
+	MSHRQueue* mshrQueue;
+
+public:
+	MLPEstimationEvent(MSHRQueue* _mshrQueue)
+		: Event(&mainEventQueue, Event::Stat_Event_Pri), mshrQueue(_mshrQueue) {
+
+	}
+
+	void process() {
+		mshrQueue->handleMLPEstimationEvent();
+		this->schedule(curTick + 1);
+	}
+
+	virtual const char *description() {
+		return "MLP Estimation Event";
+	}
 
 };
 

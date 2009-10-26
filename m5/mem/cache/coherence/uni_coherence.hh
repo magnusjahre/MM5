@@ -61,7 +61,7 @@ class UniCoherence
     void setCache(BaseCache *_cache)
     {
 	cache = _cache;
-        
+
         cshrs.setCache(_cache);
     }
 
@@ -71,6 +71,7 @@ class UniCoherence
      */
     void regStats(const std::string &name)
     {
+		cshrs.regStats(".coherence");
     }
 
     /**

@@ -54,49 +54,38 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	minMSHRAddr = &registers[0];
 	maxMSHRAddr = &registers[numMSHRs-1];
 
-	allocationChangedAt = 0;
-	lastAllocation = 0;
-
 	countdownCounter = 0;
 	ROBSize = 128; // TODO: this is a hack, fix
+
+	mlpEstEvent = new MLPEstimationEvent(this);
+	mlpEstEvent->schedule(curTick+1);
 }
 
 MSHRQueue::~MSHRQueue()
 {
 	delete [] registers;
+
+	assert(!mlpEstEvent->scheduled());
+	delete mlpEstEvent;
 }
 
 void
-MSHRQueue::regStats(){
-	mlp_active_cycles
-		.name(cache->name() + ".mlp_active_cycles")
-		.desc("the number of cycles where at least one miss was allocated")
-		;
+MSHRQueue::regStats(const char* subname){
 
-	mlp_accumulator
-		.name(cache->name() + ".mlp_accumulator")
-		.desc("accumulated 1/(alloced mshrs)")
-		;
-
-	avg_mlp
-		.name(cache->name() + ".average_mlp")
-		.desc("the percentage of the average miss latency that the CPU is exposed to")
-		;
-
-	avg_mlp = mlp_accumulator / mlp_active_cycles;
+	using namespace Stats;
 
 	opacu_overlapped_misses
-		.name(cache->name() + ".opacu_overlapped_misses")
+		.name(cache->name() + subname + ".opacu_overlapped_misses")
 		.desc("the number of misses that overlapped with the previous miss in the ROB")
 		;
 
 	opacu_serial_misses
-		.name(cache->name() + ".opacu_serial_misses")
+		.name(cache->name() + subname + ".opacu_serial_misses")
 		.desc("the number of misses that did not overlap with the previous miss")
 		;
 
 	opacu_serial_percentage
-		.name(cache->name() + ".opacu_serial_percentage")
+		.name(cache->name() + subname + ".opacu_serial_percentage")
 		.desc("the ratio of serial misses over all misses")
 		;
 
@@ -104,17 +93,17 @@ MSHRQueue::regStats(){
 
 
 	mshrcnt_overlapped_misses
-		.name(cache->name() + ".mshrcnt_overlapped_misses")
+		.name(cache->name() + subname + ".mshrcnt_overlapped_misses")
 		.desc("the number of misses that overlapped with the previous miss in the ROB")
 		;
 
 	mshrcnt_serial_misses
-		.name(cache->name() + ".mshrcnt_serial_misses")
+		.name(cache->name() + subname + ".mshrcnt_serial_misses")
 		.desc("the number of misses that did not overlap with the previous miss")
 		;
 
 	mshrcnt_serial_percentage
-		.name(cache->name() + ".mshrcnt_serial_percentage")
+		.name(cache->name() + subname + ".mshrcnt_serial_percentage")
 		.desc("the ratio of serial misses over all misses")
 		;
 
@@ -122,21 +111,59 @@ MSHRQueue::regStats(){
 
 
 	roblookup_overlapped_misses
-		.name(cache->name() + ".roblookup_overlapped_misses")
+		.name(cache->name() + subname + ".roblookup_overlapped_misses")
 		.desc("the number of misses that overlapped with the previous miss in the ROB")
 		;
 
 	roblookup_serial_misses
-		.name(cache->name() + ".roblookup_serial_misses")
+		.name(cache->name() + subname + ".roblookup_serial_misses")
 		.desc("the number of misses that did not overlap with the previous miss")
 		;
 
 	roblookup_serial_percentage
-		.name(cache->name() + ".roblookup_serial_percentage")
+		.name(cache->name() + subname + ".roblookup_serial_percentage")
 		.desc("the ratio of serial misses over all misses")
 		;
 
 	roblookup_serial_percentage = roblookup_serial_misses / (roblookup_serial_misses+roblookup_overlapped_misses);
+
+	mlp_cost_accumulator
+		.name(cache->name()+ subname  + ".mlp_cost_accumulator")
+		.desc("accumulated MLP cost (from Qureshi et al. ISCA2006)")
+		;
+
+	mlp_cost_total_misses
+		.name(cache->name() + subname + ".mlp_cost_total_misses")
+		.desc("number of misses in mlp-cost measurement(from Qureshi et al. ISCA2006)")
+		;
+
+	avg_mlp_cost_per_miss
+		.name(cache->name() + subname + ".avg_mlp_cost_per_miss")
+		.desc("average mlp-cost measurement per miss (in clock cycles) (from Qureshi et al. ISCA2006)")
+		;
+
+	avg_mlp_cost_per_miss = mlp_cost_accumulator / mlp_cost_total_misses;
+
+	mlp_cost_distribution
+		.init(0, 5000, 25)
+		.name(cache->name() + subname +".mlp_cost_distribution")
+		.desc("MLP cost distribution")
+		.flags(total | pdf | cdf)
+		;
+
+    latency_distribution
+		.init(0, 5000, 25)
+		.name(cache->name() + subname +".latency_distribution")
+		.desc("Roundtrip latency distribution")
+		.flags(total | pdf | cdf)
+		;
+
+    allocated_mshrs_distribution
+		.init(0, 32, 1)
+		.name(cache->name() + subname  + ".allocated_mshrs_distribution")
+		.desc("Allocated mshrs distribution")
+		.flags(total | pdf | cdf)
+		;
 }
 
 MemReqPtr
@@ -265,8 +292,7 @@ MSHRQueue::allocate(MemReqPtr &req, int size)
 
 	allocated += 1;
 
-	updateMLPStatistics();
-	missArrived();
+	missArrived(req->cmd);
 
 	return mshr;
 }
@@ -283,8 +309,7 @@ MSHRQueue::allocateFetch(Addr addr, int asid, int size, MemReqPtr &target)
 	mshr->allocIter = allocatedList.insert(allocatedList.end(), mshr);
 	mshr->readyIter = pendingList.insert(pendingList.end(), mshr);
 
-	updateMLPStatistics();
-	missArrived();
+	missArrived(Read);
 
 	allocated += 1;
 	return mshr;
@@ -304,8 +329,7 @@ MSHRQueue::allocateTargetList(Addr addr, int asid, int size)
 	++inServiceMSHRs;
 	++allocated;
 
-	missArrived();
-	updateMLPStatistics();
+	missArrived(Read);
 
 	return mshr;
 }
@@ -325,6 +349,18 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 	//HACK by Magnus
 	mshr->directoryOriginalCmd = InvalidCmd;
 
+	if(mshr->mlpCost != 0 && isMissQueue && !cache->isShared){
+
+		int latency = curTick - (mshr->req->time + cache->getHitLatency());
+		assert(mshr->mlpCost <= latency);
+
+		mlp_cost_accumulator += mshr->mlpCost;
+		mlp_cost_total_misses += 1;
+
+		mlp_cost_distribution.sample(mshr->mlpCost);
+		latency_distribution.sample(latency);
+	}
+
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);
 	freeList.push_front(mshr);
 	allocated--;
@@ -335,8 +371,6 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 		pendingList.erase(mshr->readyIter);
 	}
 	mshr->deallocate();
-
-	updateMLPStatistics();
 
 	return retval;
 }
@@ -477,22 +511,7 @@ MSHRQueue::assignBlockingBlame(int maxTargets, bool blockedMSHRs, double thresho
 }
 
 void
-MSHRQueue::updateMLPStatistics(){
-
-	if(lastAllocation > 0){
-		Tick activeCycles = curTick - allocationChangedAt;
-		float weightedValue = (1 / ((float) lastAllocation)) * activeCycles;
-
-		mlp_accumulator += weightedValue;
-		mlp_active_cycles += activeCycles;
-	}
-
-	allocationChangedAt = curTick;
-	lastAllocation = allocated;
-}
-
-void
-MSHRQueue::missArrived(){
+MSHRQueue::missArrived(MemCmd cmd){
 
 	if(countdownCounter > 0){
 		opacu_overlapped_misses++;
@@ -538,5 +557,36 @@ MSHRQueue::cpuCommittedInstruction(){
 		countdownCounter--;
 	}
 	assert(countdownCounter >= 0);
+}
+
+bool
+MSHRQueue::isDemandRequest(MemCmd cmd){
+	//TODO: might want more sophisticated demand read determination
+	assert(cmd == Read || cmd == Write || cmd == Soft_Prefetch);
+	return cmd == Read || cmd == Write;
+}
+
+void
+MSHRQueue::handleMLPEstimationEvent(){
+
+	allocated_mshrs_distribution.sample(allocated);
+
+	if(!cache->isShared && isMissQueue && allocated > 0){
+
+		float mlpcost = 1.0 / (float) allocated;
+
+		MSHR::ConstIterator i = allocatedList.begin();
+		MSHR::ConstIterator end = allocatedList.end();
+		for (; i != end; ++i) {
+			MSHR *mshr = *i;
+
+			// mshrs are allocated in the same cycle as the access arrives, but the miss latency
+			// starts when the request is finished in the cache (i.e after hit latency cycles)
+			int ticksSinceInserted = curTick - mshr->req->time;
+			if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+				mshr->mlpCost += mlpcost;
+			}
+		}
+	}
 }
 
