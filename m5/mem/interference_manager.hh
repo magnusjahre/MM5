@@ -13,6 +13,16 @@ class CacheInterference;
 
 #include <vector>
 
+class InterferenceMeasurement{
+public:
+	Tick cycleCount;
+	std::vector<int> committedInstructions;
+	std::vector<Tick> sharedLatencies;
+	std::vector<Tick> estimatedPrivateLatencies;
+	std::vector<double> latencyBreakdown;
+	std::vector<double> interferenceBreakdown;
+};
+
 class InterferenceManager : public SimObject{
 
 private:
@@ -110,6 +120,8 @@ public:
 	void registerCacheInterferenceObj(CacheInterference* ci);
 
 	void addCacheResult(MemReqPtr& req);
+
+	void buildInterferenceMeasurement();
 };
 
 #endif

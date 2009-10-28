@@ -341,6 +341,11 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 }
 
 void
+InterferenceManager::buildInterferenceMeasurement(){
+	fatal("build int measurement not impl");
+}
+
+void
 InterferenceManager::registerCacheInterferenceObj(CacheInterference* ci){
 	cacheInterferenceObjs.push_back(ci);
 }
