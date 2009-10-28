@@ -340,6 +340,9 @@ for build_dir in build_dirs:
     else:
         # if file doesn't exist, make sure at least the directory is there
         # so we can create it later
+        if not os.path.exists("build_options"):
+            os.mkdir("build_options")
+        
         opt_dir = os.path.dirname(current_options_file)
         if not os.path.isdir(opt_dir):
             os.mkdir(opt_dir)
