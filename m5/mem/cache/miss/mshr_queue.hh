@@ -72,6 +72,8 @@ class MSHRQueue {
      */
     const int numReserve;
 
+    int maxMSHRs;
+
     BaseCache* cache;
 
     MSHR* maxMSHRAddr;
@@ -110,6 +112,10 @@ class MSHRQueue {
 	Stats::Distribution<> mlp_cost_distribution;
 	Stats::Distribution<> latency_distribution;
 	Stats::Distribution<> allocated_mshrs_distribution;
+
+	Stats::Vector<> mlp_estimation_accumulator;
+	Stats::Scalar<> mlp_active_cycles;
+	Stats::Formula avg_mlp_estimation;
 
   public:
     /** The number of MSHRs that have been forwarded to the bus. */

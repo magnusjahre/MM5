@@ -43,6 +43,8 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 {
 	isMissQueue = _isMissQueue;
 
+	maxMSHRs = num_mshrs;
+
 	allocated = 0;
 	inServiceMSHRs = 0;
 	allocatedTargets = 0;
@@ -170,6 +172,24 @@ MSHRQueue::regStats(const char* subname){
 		.desc("Allocated mshrs distribution")
 		.flags(total | pdf | cdf)
 		;
+
+    mlp_estimation_accumulator
+		.init(maxMSHRs+1)
+    	.name(cache->name() + subname  + ".mlp_estimation_accumulator")
+    	.desc("Accumulated estimated mlp with fewer MSHRs")
+    	;
+
+    mlp_active_cycles
+		.name(cache->name() + subname  + ".mlp_active_cycles")
+		.desc("The total number of cycles a miss was outstanding")
+		;
+
+    avg_mlp_estimation
+		.name(cache->name() + subname  + ".avg_mlp_estimation")
+		.desc("Estimated mlp with fewer MSHRs")
+		;
+
+    avg_mlp_estimation = mlp_estimation_accumulator / mlp_active_cycles;
 }
 
 MemReqPtr
@@ -593,6 +613,18 @@ MSHRQueue::handleMLPEstimationEvent(){
 				mshr->mlpCost += mlpcost;
 			}
 		}
+
+		for(int i=1;i<=maxMSHRs;i++){
+			if(i < allocated){
+				float estimatedCost = 1.0 / float(i);
+				mlp_estimation_accumulator[i] += estimatedCost;
+			}
+			else{
+				mlp_estimation_accumulator[i] += mlpcost;
+			}
+		}
+
+		mlp_active_cycles++;
 	}
 }
 
