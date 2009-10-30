@@ -355,7 +355,7 @@ inline void
 Event::schedule(Tick t)
 {
     assert(!scheduled());
-    assert(t >= curTick);
+    assert((uint64_t)t >= (uint64_t)curTick);
 
     setFlags(Scheduled);
 #if TRACING_ON

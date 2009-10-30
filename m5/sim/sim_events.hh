@@ -33,6 +33,7 @@
 #define __SIM_SIM_EVENTS_HH__
 
 #include "sim/eventq.hh"
+#include <cstdio>
 
 //
 // Event to terminate simulation at a particular cycle/instruction
