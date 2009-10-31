@@ -154,6 +154,9 @@ Bus::Bus(const string &_name,
 
     detailedSimulationStart = _switch_at;
 
+    MemoryBusQueuedReqEvent* qrm = new MemoryBusQueuedReqEvent(this);
+    qrm->schedule(curTick+1);
+
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
     file << "";
@@ -235,6 +238,11 @@ Bus::regStats()
             .desc("Total number of cycles spent in memory controller queue")
             ;
 
+    totalServiceCycles
+			.name(name() + ".total_service_cycles")
+			.desc("Total number of cycles spent servicing memory requests")
+			;
+
     totalRequests
             .name(name() + ".total_requests")
             .desc("Total number of requests to memory controller")
@@ -246,6 +254,13 @@ Bus::regStats()
             ;
 
     avgQueueCycles = totalQueueCycles / totalRequests;
+
+    avgServiceCycles
+			.name(name() + ".avg_service_cycles")
+			.desc("Average number of cycles each request spent beeing serviced (not counting blocked cycles)")
+			;
+
+    avgServiceCycles = totalServiceCycles / totalRequests;
 
     accessesPerCPU.init(cpu_count);
     accessesPerCPU
@@ -290,109 +305,17 @@ Bus::regStats()
             .desc("Number of times the bus was granted in error")
             ;
 
-    perCPUTotalEntryDelay
-        .init(cpu_count)
-        .name(name() + ".per_cpu_entry_delay")
-        .desc("number of cycles the read reqs had to wait for bus access")
-        .flags(total)
-        ;
-
-    perCPUTotalEntryRequests
-        .init(cpu_count)
-        .name(name() + ".per_cpu_entry_request")
-        .desc("number of requests in total delay measurement")
-        .flags(total)
-        ;
-
-    perCPUAvgEntryDelay
-        .name(name() + ".per_cpu_entry_avg_delay")
-        .desc("average entry delay per read")
-        .flags(total)
-        ;
-
-    perCPUAvgEntryDelay = perCPUTotalEntryDelay / perCPUTotalEntryRequests;
-
-    predictedServiceLatencySum
-        .init(cpu_count)
-        .name(name() + ".predicted_service_latency")
-        .desc("The predicted private service latency")
-        .flags(total)
-        ;
-
-    numServiceLatencyRequests
-        .init(cpu_count)
-        .name(name() + ".service_latency_requests")
-        .desc("Number of requests in service latency measurements")
-        .flags(total)
-        ;
-
-    avgPredictedServiceLatency
-        .name(name() + ".avg_predicted_service_latency")
-        .desc("The average predicted private service latency")
-        ;
-
-    avgPredictedServiceLatency = predictedServiceLatencySum / numServiceLatencyRequests;
-
-    actualServiceLatencySum
-		.init(cpu_count)
-        .name(name() + ".actual_service_latency")
-        .desc("The actual service latency")
-        ;
-
-    actualServiceLatencyRequests
-		.init(cpu_count)
-        .name(name() + ".actual_service_latency_requests")
-        .desc("Number of requests in the actual service latency measurements")
-        ;
-
-    avgActualServiceLatency
-        .name(name() + ".avg_actual_service_latency")
-        .desc("The average actual service latency")
-        ;
-
-    avgActualServiceLatency = actualServiceLatencySum / actualServiceLatencyRequests;
-
-    estimatedPrivateQueueLatency
-        .init(cpu_count)
-        .name(name() + ".estimated_private_queue_latency")
-        .desc("Estimated private queue latency")
-        .flags(total)
-        ;
-
-    estimatedPrivateQueueRequests
-        .init(cpu_count)
-        .name(name() + ".estimated_private_queue_requests")
-        .desc("Number of requests in the private queue latency measurements")
-        .flags(total)
-        ;
-
-    avgEstimatedPrivateQueueLatency
-        .name(name() + ".avg_estimated_private_queue_latency")
-        .desc("Average estimated private queue latency")
-        ;
-
-    avgEstimatedPrivateQueueLatency = estimatedPrivateQueueLatency / estimatedPrivateQueueRequests;
-
-    actualQueueDelaySum
-		.init(cpu_count)
-		.name(name() + ".actual_queue_delay_sum")
-		.desc("Sum of the actual queue delay latency")
-		.flags(total)
+    queueSizeDistribution
+		.init(0,128,2)
+		.name(name() + ".queue_size_distribution")
+		.desc("number of ticks the given number of requests was queued")
 		;
+}
 
-    actualQueueDelayRequests
-		.init(cpu_count)
-		.name(name() + ".actual_queue_delay_requests")
-		.desc("Number of requests in the actual queue delay measurements")
-		.flags(total)
-		;
-
-    avgActualQueueDelay
-		.name(name() + ".avg_actual_queue_delay")
-		.desc("The average actual queue delay")
-		;
-
-    avgActualQueueDelay = actualQueueDelaySum / actualQueueDelayRequests;
+void
+Bus::addQueueLengthSample(){
+	int numQueuedReqs = memoryController->getWaitingReadCount() + memoryController->getWaitingReadCount();
+	queueSizeDistribution.sample(numQueuedReqs);
 }
 
 void
@@ -532,11 +455,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 		}
     }
 
-    if(req->cmd == Read && req->adaptiveMHASenderID != -1){
-        perCPUTotalEntryDelay[req->adaptiveMHASenderID] += curTick - origReqTime;
-        perCPUTotalEntryRequests[req->adaptiveMHASenderID]++;
-    }
-
     // Insert request into memory controller
     memoryController->insertRequest(req);
     totalRequests++;
@@ -633,6 +551,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->cmd != Activate && req->cmd != Close){
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
+
         if(req->adaptiveMHASenderID != -1){
             perCPUDataBusUse[req->adaptiveMHASenderID] += slaveInterfaces[0]->getDataTransTime();
         }
@@ -640,6 +559,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
         }
 
+
+        totalServiceCycles += time - curTick;
     }
 
 #ifdef INJECT_TEST_REQUESTS
@@ -706,22 +627,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             	interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queueInterference);
             	interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, serviceInterference);
             }
-
-            estimatedPrivateQueueLatency[req->adaptiveMHASenderID]
-                    += req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate;
-            estimatedPrivateQueueRequests[req->adaptiveMHASenderID]++;
-
-            predictedServiceLatencySum[req->adaptiveMHASenderID]
-                    += req->busAloneServiceEstimate;
-            numServiceLatencyRequests[req->adaptiveMHASenderID]++;
-        }
-
-        if(req->interferenceMissAt == 0){
-			actualServiceLatencySum[req->adaptiveMHASenderID] += serviceLatency;
-			actualServiceLatencyRequests[req->adaptiveMHASenderID]++;
-
-			actualQueueDelaySum[req->adaptiveMHASenderID] += queueLatency;
-			actualQueueDelayRequests[req->adaptiveMHASenderID]++;
         }
 
         assert(req->busId < interfaces.size() && req->busId > -1);

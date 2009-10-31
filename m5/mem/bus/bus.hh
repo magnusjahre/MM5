@@ -145,8 +145,10 @@ class Bus : public BaseHier
     Stats::Formula unknownSenderFraction;
 
     Stats::Scalar<> totalQueueCycles;
+    Stats::Scalar<> totalServiceCycles;
     Stats::Scalar<> totalRequests;
     Stats::Formula avgQueueCycles;
+    Stats::Formula avgServiceCycles;
 
     Stats::Vector<> accessesPerCPU;
     Stats::Vector<> readsPerCPU;
@@ -158,40 +160,7 @@ class Bus : public BaseHier
 
     Stats::Scalar<> nullGrants;
 
-//    Stats::Scalar<> interferenceRemovedHits;
-//    Stats::Scalar<> constructiveInterferenceHits;
-
-//    Stats::Vector<> cpuInterferenceCycles;
-//    Stats::Vector<> cpuConflictInterferenceCycles;
-//    Stats::Vector<> cpuHtMInterferenceCycles;
-
-    //    Stats::Vector<> shadowCtrlPageHits;
-    //    Stats::Vector<> shadowCtrlAccesses;
-    //    Stats::Vector<> shadowUseCycles;
-    //
-    //    Stats::Vector<> shadowBlockedCycles;
-
-//    Stats::Vector<> blockingInterferenceCycles;
-
-    Stats::Vector<> perCPUTotalEntryDelay;
-    Stats::Vector<> perCPUTotalEntryRequests;
-    Stats::Formula perCPUAvgEntryDelay;
-
-    Stats::Vector<> predictedServiceLatencySum;
-    Stats::Vector<> numServiceLatencyRequests;
-    Stats::Formula avgPredictedServiceLatency;
-
-    Stats::Vector<> actualServiceLatencySum;
-    Stats::Vector<> actualServiceLatencyRequests;
-    Stats::Formula avgActualServiceLatency;
-
-    Stats::Vector<> estimatedPrivateQueueLatency;
-    Stats::Vector<> estimatedPrivateQueueRequests;
-    Stats::Formula avgEstimatedPrivateQueueLatency;
-
-    Stats::Vector<> actualQueueDelaySum;
-    Stats::Vector<> actualQueueDelayRequests;
-    Stats::Formula avgActualQueueDelay;
+    Stats::Distribution<> queueSizeDistribution;
 
     /** The last cycle the data arbiter was run, used for debugging. */
 	Tick runDataLast;
@@ -355,6 +324,8 @@ class Bus : public BaseHier
     void addInterferenceCycles(int victimID, Tick delay, interference_type iType);
 
     void viritualPrivateWriteAccess(MemReqPtr& req);
+
+    void addQueueLengthSample();
 
   private:
     std::vector<int> perCPUDataBusUse;
@@ -649,6 +620,34 @@ class MemoryControllerSwitchEvent : public Event
      */
     virtual const char *description(){
         return "Memory Controller Switch Event";
+    }
+};
+
+class MemoryBusQueuedReqEvent : public Event
+{
+    Bus *bus;
+
+    public:
+    // constructor
+    /** A simple constructor. */
+    MemoryBusQueuedReqEvent(Bus *_bus)
+        : Event(&mainEventQueue), bus(_bus)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process(){
+        bus->addQueueLengthSample();
+        schedule(curTick+1);
+    }
+
+    /**
+    * Returns the string description of this event.
+    * @return The description of this event.
+     */
+    virtual const char *description(){
+        return "Memory Controller Queued Requests Event";
     }
 };
 
