@@ -16,7 +16,7 @@ class MissBandwidthPolicyEvent;
 
 class MissBandwidthPolicy : public SimObject{
 
-private:
+protected:
 	InterferenceManager* intManager;
 	Tick period;
 	MissBandwidthPolicyEvent* policyEvent;

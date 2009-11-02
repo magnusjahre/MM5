@@ -9,8 +9,8 @@
 
 using namespace std;
 
-MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _intManager, Tick _period):
-SimObject(_name){
+MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _intManager, Tick _period)
+: SimObject(_name){
 
 	intManager = _intManager;
 
@@ -28,4 +28,11 @@ void
 MissBandwidthPolicy::handlePolicyEvent(){
 	intManager->buildInterferenceMeasurement();
 }
+
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+DEFINE_SIM_OBJECT_CLASS_NAME("MissBandwidthPolicy", MissBandwidthPolicy);
+
+#endif
 
