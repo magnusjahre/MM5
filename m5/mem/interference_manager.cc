@@ -90,6 +90,8 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 void
 InterferenceManager::regStats(){
 
+	using namespace Stats;
+
 	for(int i=0;i<NUM_LAT_TYPES;i++){
 
 		stringstream namestream;
@@ -115,16 +117,19 @@ InterferenceManager::regStats(){
 	roundTripLatencies
 		.init(intManCPUCount)
 		.name(name() + ".round_trip_latency")
-		.desc("total round trip latency");
+		.desc("total round trip latency")
+		.flags(total);
 
 	requests
 		.init(intManCPUCount)
 		.name(name() + ".requests")
-		.desc("total number of requests");
+		.desc("total number of requests")
+		.flags(total);
 
 	avgRoundTripLatency
 		.name(name() + ".avg_round_trip_latency")
-		.desc("average total round trip latency");
+		.desc("average total round trip latency")
+		.flags(total);
 
 	avgRoundTripLatency = roundTripLatencies / requests;
 

@@ -1,5 +1,5 @@
 from m5 import *
 from MissBandwidthPolicy import MissBandwidthPolicy
 
-class OptimalPolicy(MissBandwidtPolicy):
+class OptimalPolicy(MissBandwidthPolicy):
     type = 'OptimalPolicy'
