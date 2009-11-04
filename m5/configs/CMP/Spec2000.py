@@ -28,10 +28,12 @@ spec_bin  = rootdir+'/spec2000/'
 # Create symlink to input files
 # NOTE: suppresses error messages to avoid flooding output with messages if the link exists
 def copysym(fra, til):
-  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
+#  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
+  os.system("cp " + fra + " " + til +" 2> /dev/null")
 
 def copysymtree(fra, til):
-  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
+#  os.system("ln -s " + fra + " " + til +" 2> /dev/null")
+  os.system("cp -r " + fra + " " + til +" 2> /dev/null")
 
 
 benchmarknames= ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
