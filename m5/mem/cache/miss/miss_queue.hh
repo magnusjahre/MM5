@@ -243,6 +243,10 @@ class MissQueue
      */
     ~MissQueue();
 
+    int getNumMSHRs(){
+    	return numMSHR;
+    }
+
     /**
      * Register statistics for this object.
      * @param name The name of the parent cache.
@@ -435,6 +439,10 @@ class MissQueue
     void measureInterference(MemReqPtr& req);
 
     void coreCommittedInstruction();
+
+    std::vector<double> getMLPEstimate(){
+    	return mq.getMLPEstimate();
+    }
 };
 
 

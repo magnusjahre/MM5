@@ -61,6 +61,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	mlpEstEvent = new MLPEstimationEvent(this);
 	mlpEstEvent->schedule(curTick+1);
+
+	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
+	mlpAccumulatorTicks = 0;
 }
 
 MSHRQueue::~MSHRQueue()
@@ -618,13 +621,30 @@ MSHRQueue::handleMLPEstimationEvent(){
 			if(i < allocated){
 				float estimatedCost = 1.0 / float(i);
 				mlp_estimation_accumulator[i] += estimatedCost;
+				currentMLPAccumulator[i] += estimatedCost;
 			}
 			else{
 				mlp_estimation_accumulator[i] += mlpcost;
+				currentMLPAccumulator[i] += mlpcost;
 			}
 		}
 
+		mlpAccumulatorTicks++;
 		mlp_active_cycles++;
 	}
+}
+
+std::vector<double>
+MSHRQueue::getMLPEstimate(){
+	vector<double> estimateSample;
+	estimateSample.resize(maxMSHRs+1, 0.0);
+
+	for(int i=0;i<estimateSample.size();i++){
+		if(mlpAccumulatorTicks > 0) estimateSample[i] = currentMLPAccumulator[i] / mlpAccumulatorTicks;
+		currentMLPAccumulator[i] = 0;
+	}
+	mlpAccumulatorTicks = 0;
+
+	return estimateSample;
 }
 

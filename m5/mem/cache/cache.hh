@@ -407,6 +407,10 @@ class Cache : public BaseCache
         tags->dumpHitStats();
     }
 
+    virtual std::vector<double> getMLPEstimate(){
+    	return missQueue->getMLPEstimate();
+    }
+
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 

@@ -372,7 +372,8 @@ FullCPU::FullCPU(Params *p,
 		 //
 		 int _pc_sample_interval,
 		 PipeTrace *_ptrace,
-                 AdaptiveMHA* _amha)
+		 AdaptiveMHA* _amha,
+		 InterferenceManager* _intMan)
     : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -676,6 +677,9 @@ FullCPU::FullCPU(Params *p,
     statDumpFile.close();
 
     useInExitDesicion = true;
+    committedSinceLast = 0;
+
+    _intMan->registerCPU(this, CPUParamsCpuID);
 }
 
 
@@ -1174,6 +1178,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     SimObjectParam<AdaptiveMHA *>  adaptiveMHA;
     Param<Counter> min_insts_all_cpus;
 
+    SimObjectParam<InterferenceManager* > interferenceManager;
+
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
 static const char *fetch_policy_strings[] = {
@@ -1317,8 +1323,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
     INIT_PARAM_DFLT(adaptiveMHA, "adaptive mha pointer", 0),
 
-    INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0)
+    INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0),
 
+    INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL)
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
 
@@ -1517,7 +1524,8 @@ CREATE_SIM_OBJECT(FullCPU)
 		      commit_model,
 		      pc_sample_interval,
 		      (PipeTrace *)ptrace,
-                      adaptiveMHA);
+			  adaptiveMHA,
+			  interferenceManager);
 
     return cpu;
 }

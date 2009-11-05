@@ -107,6 +107,12 @@ FullCPU::requestInROB(MemReqPtr& req, int blockSize){
 	return true;
 }
 
+int
+FullCPU::getCommittedInstructions(){
+	int tmpCommitted = committedSinceLast;
+	committedSinceLast = 0;
+	return tmpCommitted;
+}
 
 /* this function commits the results of the oldest completed entries from the
    IQ and LSQ to the architected reg file, stores in the LSQ will commit
@@ -541,6 +547,7 @@ FullCPU::commit()
 					++committed;
 					++committed_thread[thread];
 					amha->coreCommittedInstruction(CPUParamsCpuID);
+					committedSinceLast++;
 
 					crash_counter = 0;
 				} else {

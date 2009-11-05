@@ -283,6 +283,14 @@ public:
     void coreCommittedInstruction(){
     	fatal("Makes no sense");
     }
+
+    std::vector<double> getMLPEstimate(){
+    	fatal("Makes no sense");
+    }
+
+    int getNumMSHRs(){
+    	return 1;
+    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__

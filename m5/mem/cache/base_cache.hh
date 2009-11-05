@@ -82,6 +82,7 @@ enum RequestCause {
 	Request_DirectoryCoherence
 };
 
+class InterferenceManager;
 class AdaptiveMHA;
 
 /**
@@ -583,6 +584,8 @@ public:
 	virtual void dumpHitStats() = 0;
 
 	virtual void coreCommittedInstruction() = 0;
+
+	virtual std::vector<double> getMLPEstimate() = 0;
 
 #ifdef CACHE_DEBUG
 	virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;

@@ -19,8 +19,19 @@ InterferenceManager::latencyStrings[NUM_LAT_TYPES] = {
 	(char*) "bus_service"
 };
 
-InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int _sample_size, int _num_reqs_at_reset)
+InterferenceManager::InterferenceManager(std::string _name,
+										 int _cpu_count,
+										 int _sample_size,
+										 int _num_reqs_at_reset)
 : SimObject(_name){
+
+	fullCPUs.resize(_cpu_count, NULL);
+	lastPrivateCaches.resize(_cpu_count, NULL);
+	requestsSinceLastSample.resize(_cpu_count, 0);
+	maxMSHRs = 0;
+
+	currentAvgLatencyMeasurement.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
+	currentAvgPrivateLatencyEstimation.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
 
 	latencySum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
 	numLatencyReqs.resize(_cpu_count, vector<int>(NUM_LAT_TYPES, 0));
@@ -33,6 +44,8 @@ InterferenceManager::InterferenceManager(std::string _name, int _cpu_count, int 
 
 	totalRequestCount.resize(_cpu_count, 0);
 	runningLatencySum.resize(_cpu_count, 0);
+
+	missBandwidthPolicy = NULL;
 
 	traceStarted = false;
 
@@ -242,10 +255,12 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	roundTripLatencies[req->adaptiveMHASenderID] += roundTripLatency;
 	requests[req->adaptiveMHASenderID]++;
 
+	requestsSinceLastSample[req->adaptiveMHASenderID]++;
+
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
 
-		vector<double> avgLats = traceLatency(req->adaptiveMHASenderID);
-		traceInterference(req->adaptiveMHASenderID, avgLats);
+		currentAvgLatencyMeasurement[req->adaptiveMHASenderID] = traceLatency(req->adaptiveMHASenderID);
+		currentAvgPrivateLatencyEstimation[req->adaptiveMHASenderID] = traceInterference(req->adaptiveMHASenderID, currentAvgLatencyMeasurement[req->adaptiveMHASenderID]);
 		traceMisses(req->adaptiveMHASenderID);
 	}
 
@@ -282,8 +297,11 @@ InterferenceManager::addCacheResult(MemReqPtr& req){
 	}
 }
 
-void
+vector<double>
 InterferenceManager::traceInterference(int fromCPU, vector<double> avgLats){
+
+	vector<double> privateLatencyEstimate;
+	privateLatencyEstimate.resize(NUM_LAT_TYPES+1, 0.0);
 
 	double tmpInterferenceSum = 0;
 
@@ -297,12 +315,17 @@ InterferenceManager::traceInterference(int fromCPU, vector<double> avgLats){
 	data[0] = requests[fromCPU].value();
 	data[1] = avgLats[0] - avgInterference;
 
+	privateLatencyEstimate[0] = avgLats[0] - avgInterference;
+
 	for(int i=0;i<NUM_LAT_TYPES;i++){
 		double tmpAvgInt = (double) ((double) interferenceSum[fromCPU][i] / (double) totalRequestCount[fromCPU] );
 		data[i+2] = avgLats[i+1] - tmpAvgInt;
+		privateLatencyEstimate[i+1] =  avgLats[i+1] - tmpAvgInt;
 	}
 
 	estimateTraces[fromCPU].addTrace(data);
+
+	return privateLatencyEstimate;
 
 }
 
@@ -347,12 +370,164 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 
 void
 InterferenceManager::buildInterferenceMeasurement(){
-	fatal("build int measurement not impl");
+
+	int np = fullCPUs.size();
+
+	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs);
+
+	for(int i=0;i<fullCPUs.size();i++){
+		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
+	}
+
+	for(int i=0;i<lastPrivateCaches.size();i++){
+		currentMeasurement.mlpEstimate[i] = lastPrivateCaches[i]->getMLPEstimate();
+	}
+
+	currentMeasurement.addInterferenceData(currentAvgLatencyMeasurement, currentAvgPrivateLatencyEstimation);
+
+	missBandwidthPolicy->runPolicy(currentMeasurement);
 }
 
 void
 InterferenceManager::registerCacheInterferenceObj(CacheInterference* ci){
 	cacheInterferenceObjs.push_back(ci);
+}
+
+void
+InterferenceManager::registerMissBandwidthPolicy(MissBandwidthPolicy* policy){
+	assert(missBandwidthPolicy == NULL);
+	missBandwidthPolicy = policy;
+}
+
+void
+InterferenceManager::registerLastLevelPrivateCache(BaseCache* cache, int cpuID, int cacheMaxMSHRs){
+	assert(lastPrivateCaches[cpuID] == NULL);
+	lastPrivateCaches[cpuID] = cache;
+	maxMSHRs = cacheMaxMSHRs;
+}
+
+void
+InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
+	assert(fullCPUs[cpuID] == NULL);
+	fullCPUs[cpuID] = cpu;
+}
+
+PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs){
+
+	cpuCount = _cpuCount;
+	numIntTypes = _numIntTypes;
+	maxMSHRs = _maxMSHRs;
+
+	committedInstructions.resize(cpuCount, 0);
+	requestsInSample.resize(cpuCount, 0);
+	mlpEstimate.resize(cpuCount, vector<double>());
+
+	sharedLatencies.resize(cpuCount, 0.0);
+	estimatedPrivateLatencies.resize(cpuCount, 0.0);
+
+	latencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
+	privateLatencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
+}
+
+void
+PerformanceMeasurement::addInterferenceData(vector<vector<double> > sharedAvgLatencies,
+										     vector<vector<double> > privateAvgEstimation){
+
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<numIntTypes+1;j++){
+			if(j == 0){
+				sharedLatencies[i] = sharedAvgLatencies[i][j];
+				estimatedPrivateLatencies[i] = privateAvgEstimation[i][j];
+			}
+			else{
+				latencyBreakdown[i][j-1] = sharedAvgLatencies[i][j];
+				privateLatencyBreakdown[i][j-1] = privateAvgEstimation[i][j];
+			}
+		}
+	}
+}
+
+vector<string>
+PerformanceMeasurement::getTraceHeader(){
+	vector<string> header;
+
+	for(int i=0;i<cpuCount;i++){
+		stringstream name;
+		name << "Committed Instructions CPU" << i;
+		header.push_back(name.str());
+	}
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<maxMSHRs+1;j++){
+			stringstream name;
+			name << "CPU" << i << " MLP" << j;
+			header.push_back(name.str());
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<numIntTypes+1;j++){
+			stringstream name;
+			name << "CPU" << i << " Shared ";
+
+			if(j == 0){
+				name << "Total";
+			}
+			else{
+				name << InterferenceManager::latencyStrings[j-1];
+			}
+
+			header.push_back(name.str());
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<numIntTypes+1;j++){
+			stringstream name;
+			name << "CPU" << i << " Private ";
+
+			if(j == 0){
+				name << "Total";
+
+			}
+			else{
+				name << InterferenceManager::latencyStrings[j-1];
+			}
+
+			header.push_back(name.str());
+		}
+	}
+
+	return header;
+}
+
+vector<RequestTraceEntry>
+PerformanceMeasurement::createTraceLine(){
+	vector<RequestTraceEntry> line;
+
+	for(int i=0;i<cpuCount;i++){
+		line.push_back(committedInstructions[i]);
+	}
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<maxMSHRs+1;j++){
+			line.push_back(mlpEstimate[i][j]);
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		line.push_back(sharedLatencies[i]);
+		for(int j=0;j<numIntTypes;j++){
+			line.push_back(latencyBreakdown[i][j]);
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		line.push_back(estimatedPrivateLatencies[i]);
+		for(int j=0;j<numIntTypes;j++){
+			line.push_back(privateLatencyBreakdown[i][j]);
+		}
+	}
+
+	return line;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

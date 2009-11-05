@@ -207,7 +207,7 @@ base_sources = Split('''
 	mem/cache/miss/mshr_queue.cc
 	mem/cache/miss/adaptive_mha.cc
 	mem/cache/miss/policy/miss_bandwidth_policy.cc
-	mem/cache/miss/policy/optimal_policy.cc
+	mem/cache/miss/policy/fairness_policy.cc
     mem/cache/prefetch/base_prefetcher.cc
     mem/cache/prefetch/prefetcher.cc
     mem/cache/prefetch/tagged_prefetcher.cc

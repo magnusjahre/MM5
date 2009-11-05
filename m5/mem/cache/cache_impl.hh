@@ -222,6 +222,10 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     // TODO: if cache hit stats are needed, impl exit callback
     // callback should call dumpHitStats()
+
+    if(adaptiveMHA != NULL && !isShared && !params.isReadOnly){
+    	interferenceManager->registerLastLevelPrivateCache(this, cacheCpuID, missQueue->getNumMSHRs());
+    }
 }
 
 template<class TagStore, class Buffering, class Coherence>

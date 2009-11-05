@@ -14,9 +14,13 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _int
 
 	intManager = _intManager;
 
+	intManager->registerMissBandwidthPolicy(this);
+
 	period = _period;
 	policyEvent = new MissBandwidthPolicyEvent(this, period);
 	policyEvent->schedule(period);
+
+	measurementTrace = RequestTrace(_name, "MeasurementTrace");
 }
 
 MissBandwidthPolicy::~MissBandwidthPolicy(){
@@ -29,6 +33,17 @@ MissBandwidthPolicy::handlePolicyEvent(){
 	intManager->buildInterferenceMeasurement();
 }
 
+void
+MissBandwidthPolicy::addTraceEntry(PerformanceMeasurement* measurement){
+
+	if(!measurementTrace.isInitialized()){
+		vector<string> header = measurement->getTraceHeader();
+		measurementTrace.initalizeTrace(header);
+	}
+	vector<RequestTraceEntry> line = measurement->createTraceLine();
+	measurementTrace.addTrace(line);
+
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

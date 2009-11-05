@@ -91,6 +91,9 @@ class MSHRQueue {
 
 	MLPEstimationEvent* mlpEstEvent;
 
+	std::vector<double > currentMLPAccumulator;
+	Tick mlpAccumulatorTicks;
+
   protected:
 
 	Stats::Scalar<> opacu_overlapped_misses;
@@ -356,6 +359,8 @@ class MSHRQueue {
     void handleMLPEstimationEvent();
 
     bool isDemandRequest(MemCmd cmd);
+
+    std::vector<double> getMLPEstimate();
 
 };
 

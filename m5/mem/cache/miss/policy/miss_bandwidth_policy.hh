@@ -8,11 +8,14 @@
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"
 #include "mem/interference_manager.hh"
+#include "mem/requesttrace.hh"
 
 #ifndef MISS_BANDWIDTH_POLICY_HH_
 #define MISS_BANDWIDTH_POLICY_HH_
 
 class MissBandwidthPolicyEvent;
+class InterferenceManager;
+class PerformanceMeasurement;
 
 class MissBandwidthPolicy : public SimObject{
 
@@ -21,6 +24,8 @@ protected:
 	Tick period;
 	MissBandwidthPolicyEvent* policyEvent;
 
+	RequestTrace measurementTrace;
+
 public:
 	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period);
 
@@ -28,7 +33,9 @@ public:
 
 	void handlePolicyEvent();
 
-	virtual void runPolicy(InterferenceMeasurement measurements) = 0;
+	void addTraceEntry(PerformanceMeasurement* measurement);
+
+	virtual void runPolicy(PerformanceMeasurement measurements) = 0;
 
 
 };

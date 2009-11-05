@@ -20,6 +20,8 @@ all_protocols = ['none', 'msi', 'mesi', 'mosi', 'moesi', 'stenstrom']
 snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
 
+miss_bw_policies = ["fairness"]
+
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
 SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
@@ -160,6 +162,24 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         buscnt += 1
         if buscnt % banksPerBus == 0:
             curbus += 1
+
+def setUpMissBwPolicy():
+    if env['MISS-BW-POLICY'] not in miss_bw_policies:
+        panic("Miss bandwidth policy "+str(env['MISS-BW-POLICY'])+" is invalid. Available policies: "+str(miss_bw_policies))
+        
+    if env["NP"] > 1:
+        
+        if env['MISS-BW-POLICY'] == "fairness":
+            root.missBandwidthPolicy = FairnessPolicy()
+        
+        
+        assert "MISS-BW-POLICY-PERIOD" in env
+        root.missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])
+        
+        
+        root.missBandwidthPolicy.interferenceManager = root.interferenceManager
+    else:
+        warn("One core experiment, ignoring MISS-BW-POLICY argument")
 
 def getCheckpointDirectory(simpoint = -1):
 
@@ -369,16 +389,20 @@ else:
 
 
 ###############################################################################
-#  Interference Manager
+#  Interference Manager and Miss Bandwidth Policy
 ###############################################################################
 
 root.interferenceManager = InterferenceManager()
 root.interferenceManager.cpu_count = int(env["NP"])
+
 if "INTERFERENCE-MANAGER-RESET-INTERVAL" in env:
     root.interferenceManager.reset_interval = int(env["INTERFERENCE-MANAGER-RESET-INTERVAL"])
 if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
     root.interferenceManager.sample_size = int(env["INTERFERENCE-MANAGER-SAMPLE-SIZE"])
-    
+
+if 'MISS-BW-POLICY' in env:
+    setUpMissBwPolicy()
+
 
 ###############################################################################
 #  CPUs and L1 caches
@@ -391,7 +415,7 @@ if "SIMPOINT-SAMPLE-SIZE" in env:
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
-root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA) for i in xrange(int(env['NP'])) ]
+root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA,interferenceManager=root.interferenceManager) for i in xrange(int(env['NP'])) ]
 
 if env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
@@ -404,6 +428,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
     for l1 in root.L1icaches:
         l1.adaptive_mha = root.adaptiveMHA
         l1.interference_manager = root.interferenceManager
+    
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
@@ -597,7 +622,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
             root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
-
+        
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
 
