@@ -48,6 +48,7 @@ class InterferenceManager : public SimObject{
 
 private:
 
+	int cpuCount;
 	int maxMSHRs;
 
 	MissBandwidthPolicy* missBandwidthPolicy;
@@ -159,6 +160,10 @@ public:
 	void registerLastLevelPrivateCache(BaseCache* cache, int cpuID, int maxMSHRs);
 
 	void registerCPU(FullCPU* cpu, int cpuID);
+
+	int getCPUCount(){
+		return cpuCount;
+	}
 };
 
 #endif

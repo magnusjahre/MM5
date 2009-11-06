@@ -291,6 +291,10 @@ public:
     int getNumMSHRs(){
     	return 1;
     }
+
+    void setNumMSHRs(int newMSHRCount){
+    	fatal("Makes no sense");
+    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__

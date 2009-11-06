@@ -6,10 +6,10 @@ FairnessPolicy::FairnessPolicy(string _name, InterferenceManager* _intManager, T
 
 }
 
-void
-FairnessPolicy::runPolicy(PerformanceMeasurement measurements){
-	cout << curTick << ": run policy called but not implemented\n";
-	addTraceEntry(&measurements);
+double
+FairnessPolicy::computeMetric(){
+	fatal("compute fairness metric not implemented");
+	return 0.0;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

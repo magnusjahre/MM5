@@ -308,6 +308,8 @@ class MSHRQueue {
         numMSHRs--;
     }
 
+    void setNumMSHRs(int newMSHRSize);
+
     int getCurrentMSHRCount(){
         return (numMSHRs - numReserve) + 1;
     }

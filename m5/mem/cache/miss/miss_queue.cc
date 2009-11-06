@@ -1121,3 +1121,16 @@ void
 MissQueue::coreCommittedInstruction(){
 	mq.cpuCommittedInstruction();
 }
+
+void
+MissQueue::setNumMSHRs(int newMSHRCount){
+	mq.setNumMSHRs(newMSHRCount);
+
+	if(mq.isFull() && !cache->isBlockedNoMSHRs()){
+        cache->setBlocked(Blocked_NoMSHRs);
+    }
+
+    if(!mq.isFull() && cache->isBlockedNoMSHRs()){
+    	cache->clearBlocked(Blocked_NoMSHRs);
+    }
+}

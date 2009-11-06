@@ -429,6 +429,8 @@ class MissQueue
         }
     }
 
+    void setNumMSHRs(int newMSHRCount);
+
     int getCurrentMSHRCount(bool onMSHRs){
         if(onMSHRs) return mq.getCurrentMSHRCount();
         else return wb.getCurrentMSHRCount();

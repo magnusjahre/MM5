@@ -166,20 +166,24 @@ def setUpSharedCache(bankcnt, detailedStartTick):
 def setUpMissBwPolicy():
     if env['MISS-BW-POLICY'] not in miss_bw_policies:
         panic("Miss bandwidth policy "+str(env['MISS-BW-POLICY'])+" is invalid. Available policies: "+str(miss_bw_policies))
-        
+    
+    
+    missBandwidthPolicy = None
     if env["NP"] > 1:
         
         if env['MISS-BW-POLICY'] == "fairness":
-            root.missBandwidthPolicy = FairnessPolicy()
-        
+            missBandwidthPolicy = FairnessPolicy()
+        else:
+            fatal("error in setUpMissBwPolicy()")
         
         assert "MISS-BW-POLICY-PERIOD" in env
-        root.missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])
-        
-        
-        root.missBandwidthPolicy.interferenceManager = root.interferenceManager
+        missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])
+                
+        missBandwidthPolicy.interferenceManager = root.interferenceManager
     else:
         warn("One core experiment, ignoring MISS-BW-POLICY argument")
+
+    return missBandwidthPolicy
 
 def getCheckpointDirectory(simpoint = -1):
 
@@ -401,7 +405,7 @@ if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
     root.interferenceManager.sample_size = int(env["INTERFERENCE-MANAGER-SAMPLE-SIZE"])
 
 if 'MISS-BW-POLICY' in env:
-    setUpMissBwPolicy()
+    root.missBandwidthPolicy = setUpMissBwPolicy()
 
 
 ###############################################################################
@@ -424,6 +428,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
     for l1 in root.L1dcaches:
         l1.adaptive_mha = root.adaptiveMHA
         l1.interference_manager = root.interferenceManager
+        l1.miss_bandwidth_policy = root.missBandwidthPolicy
         
     for l1 in root.L1icaches:
         l1.adaptive_mha = root.adaptiveMHA
@@ -619,6 +624,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
         root.PrivateL2Cache[i].interference_manager = root.interferenceManager
+        root.PrivateL2Cache[i].miss_bandwidth_policy = root.missBandwidthPolicy
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
             root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])

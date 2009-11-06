@@ -66,6 +66,12 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	mlpAccumulatorTicks = 0;
 }
 
+void
+MSHRQueue::setNumMSHRs(int newMSHRSize){
+	numMSHRs = newMSHRSize + numReserve - 1;
+	cout << curTick << ": setting new MSHR size to " << numMSHRs << ", arg was " << newMSHRSize << ", reserve " << numReserve << "\n";
+}
+
 MSHRQueue::~MSHRQueue()
 {
 	delete [] registers;

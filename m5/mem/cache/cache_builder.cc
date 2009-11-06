@@ -194,6 +194,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     SimObjectParam<InterferenceManager *> interference_manager;
+    SimObjectParam<MissBandwidthPolicy *> miss_bandwidth_policy;
 
     Param<string> writeback_owner_policy;
     Param<string> interference_probability_policy;
@@ -297,6 +298,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL),
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
+	INIT_PARAM_DFLT(miss_bandwidth_policy, "Miss Bandwidth Policy", NULL),
     INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner"),
     INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
     INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6)
@@ -355,7 +357,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

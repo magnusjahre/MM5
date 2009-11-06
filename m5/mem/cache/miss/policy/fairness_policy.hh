@@ -9,7 +9,7 @@ class FairnessPolicy : public MissBandwidthPolicy{
 public:
 	FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period);
 
-	virtual void runPolicy(PerformanceMeasurement measurements);
+	virtual double computeMetric();
 };
 
 #endif /* FAIRNESS_POLICY_HH_ */

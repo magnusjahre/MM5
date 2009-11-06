@@ -174,6 +174,7 @@ class Cache : public BaseCache
 		  int memoryAddressOffset;
 		  int memoryAddressParts;
 		  InterferenceManager* interferenceManager;
+		  MissBandwidthPolicy* missBandwidthPolicy;
 		  WritebackOwnerPolicy wbPolicy;
 		  int shadowTagLeaderSets;
 		  InterferenceProbabilityPolicy ipp;
@@ -186,7 +187,7 @@ class Cache : public BaseCache
 				  Interconnect* _inInterconnect, Interconnect* _outInterconnect,
 				  Prefetcher<TagStore, Buffering> *_prefetcher,
 				  bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets, InterferenceProbabilityPolicy _ipp, int _ippBits)
+				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman, MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets, InterferenceProbabilityPolicy _ipp, int _ippBits)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
 		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
 		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -200,7 +201,7 @@ class Cache : public BaseCache
 		  detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
 		  simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup),
 		  memoryAddressOffset(_memoryAddressOffset),
-		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman), wbPolicy(_wbPolicy), shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits)
+		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy), shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits)
 		  {
 		  }
 	  };
@@ -409,6 +410,10 @@ class Cache : public BaseCache
 
     virtual std::vector<double> getMLPEstimate(){
     	return missQueue->getMLPEstimate();
+    }
+
+    virtual void setNumMSHRs(int newMSHRCount){
+    	return missQueue->setNumMSHRs(newMSHRCount);
     }
 
     virtual void serialize(std::ostream &os);

@@ -109,6 +109,7 @@ class BaseCache(BaseMem):
     
     adaptive_mha = Param.AdaptiveMHA("Adaptive MHA Object")
     interference_manager = Param.InterferenceManager("Interference Manager Object")
+    miss_bandwidth_policy = Param.MissBandwidthPolicy("Miss Bandwidth Policy Object")
     
     writeback_owner_policy = Param.WritebackOwnerPolicy("The policy used for providing sender IDs to shared cache writebacks")
     interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
