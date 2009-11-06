@@ -1200,11 +1200,11 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 		fatal("Bad translation on instruction fetch, vaddr = 0x%x",
 		      req->vaddr);
 #endif
-            
+
 	    mem_access_result = icacheInterface->access(req);
 
 	    if (mem_access_result != MA_HIT) {
-                
+
 		/* if we missed in the I-cache, stop fetching after this
 		   block.   */
 		floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_IMISS;
@@ -1287,7 +1287,7 @@ FullCPU::fetch()
      * if we don't need them for scheduling this cycle */
 
     update_icounts();
-    
+
     bool blockedDueToCache = false;
 
     /*
@@ -1378,7 +1378,7 @@ FullCPU::fetch()
 
 	if (fetch_fault_count[thread_number] != 0) {
 	    // pending faults...
-	    floss_state.fetch_end_cause[thread_number] = 
+	    floss_state.fetch_end_cause[thread_number] =
 		FLOSS_FETCH_FAULT_FLUSH;
 	    continue;
 	}
@@ -1560,7 +1560,7 @@ FullCPU::fetch()
 }
 
 
-
+
 
 /*=====================================================================*/
 
@@ -1580,7 +1580,7 @@ FullCPU::choose_next_thread(ThreadListElement *thread_list)
 	break;
     }
 }
-
+
 
 /*=====================================================================*/
 
@@ -1639,7 +1639,7 @@ FullCPU::round_robin_policy(ThreadListElement *thread_list)
 	last = first;
     }
 }
-
+
 
 void
 FullCPU::update_icounts()
@@ -1801,12 +1801,12 @@ FullCPU::fetchRegStats()
             .name(name() + ".FETCH:idle_cycles")
             .desc("number of cycles where fetch stage was idle")
             ;
-    
+
     fetch_idle_cycles_cache_miss
             .name(name() + ".FETCH:idle_cycles_cache_miss")
             .desc("number of cycles where fetch stage was idle due to cache miss")
             ;
-    
+
     fetch_idle_icache_blocked_cycles
 	.name(name() + ".FETCH:idle_icache_blocked_cycles")
 	.desc("number of cycles where fetch was idle due to icache blocked")
@@ -1934,4 +1934,11 @@ FullCPU::fetchRegFormulas()
 	;
     fetch_chance_pct = fetch_chances / sum(fetch_chances);
 
+}
+
+short
+FetchQueue::num_total(){
+	short total = num_valid + num_reserved + num_squashed;
+	assert(total >= 0);
+	return total;
 }

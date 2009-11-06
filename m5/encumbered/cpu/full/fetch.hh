@@ -111,7 +111,7 @@ struct FetchQueue
 	return ((index + 1) & index_mask);
     }
 
-    short num_total() { return num_valid + num_reserved + num_squashed; }
+    short num_total();
     short num_total(unsigned t)
     {
 	assert((mt_frontend && t == num_threads) ||
