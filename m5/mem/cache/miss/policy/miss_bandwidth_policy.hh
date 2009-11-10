@@ -32,9 +32,19 @@ protected:
 	int maxMSHRs;
 	int cpuCount;
 
+	double getAverageMemoryLatency(int cpuID, int numMSHRs, PerformanceMeasurement* measurements);
+
+	int level;
+	double maxMetricValue;
+	std::vector<int> maxMHAConfiguration;
+	std::vector<int> exhaustiveSearch(std::vector<std::vector<double> >* speedups);
+	void recursiveExhaustiveSearch(std::vector<int>* value, int k, std::vector<std::vector<double> >* speedups);
+
+	std::vector<int> relocateMHA(std::vector<int>* mhaConfig);
+	std::vector<double> retrieveSpeedups(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups);
 
 public:
-	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period);
+	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount);
 
 	~MissBandwidthPolicy();
 
@@ -47,7 +57,7 @@ public:
 	void runPolicy(PerformanceMeasurement measurements);
 
 
-	virtual double computeMetric() = 0;
+  virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups) = 0;
 
 
 };

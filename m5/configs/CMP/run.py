@@ -177,9 +177,9 @@ def setUpMissBwPolicy():
             fatal("error in setUpMissBwPolicy()")
         
         assert "MISS-BW-POLICY-PERIOD" in env
-        missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])
-                
+        missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])        
         missBandwidthPolicy.interferenceManager = root.interferenceManager
+        missBandwidthPolicy.cpuCount = int(env["NP"])
     else:
         warn("One core experiment, ignoring MISS-BW-POLICY argument")
 
@@ -404,8 +404,10 @@ if "INTERFERENCE-MANAGER-RESET-INTERVAL" in env:
 if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
     root.interferenceManager.sample_size = int(env["INTERFERENCE-MANAGER-SAMPLE-SIZE"])
 
+useMissBWPolicy = False
 if 'MISS-BW-POLICY' in env:
     root.missBandwidthPolicy = setUpMissBwPolicy()
+    useMissBWPolicy = True
 
 
 ###############################################################################
@@ -624,7 +626,10 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
         root.PrivateL2Cache[i].interference_manager = root.interferenceManager
-        root.PrivateL2Cache[i].miss_bandwidth_policy = root.missBandwidthPolicy
+        
+        if useMissBWPolicy:
+            root.PrivateL2Cache[i].miss_bandwidth_policy = root.missBandwidthPolicy
+
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
             root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])

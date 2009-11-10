@@ -32,6 +32,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	currentAvgLatencyMeasurement.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
 	currentAvgPrivateLatencyEstimation.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
+	currentRequests.resize(_cpu_count, 0);
 
 	latencySum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
 	numLatencyReqs.resize(_cpu_count, vector<int>(NUM_LAT_TYPES, 0));
@@ -257,6 +258,8 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 	requestsSinceLastSample[req->adaptiveMHASenderID]++;
 
+	currentRequests[req->adaptiveMHASenderID]++;
+
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
 
 		currentAvgLatencyMeasurement[req->adaptiveMHASenderID] = traceLatency(req->adaptiveMHASenderID);
@@ -381,6 +384,8 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	for(int i=0;i<lastPrivateCaches.size();i++){
 		currentMeasurement.mlpEstimate[i] = lastPrivateCaches[i]->getMLPEstimate();
+		currentMeasurement.requestsInSample[i] = currentRequests[i];
+		currentRequests[i] = 0;
 	}
 
 	currentMeasurement.addInterferenceData(currentAvgLatencyMeasurement, currentAvgPrivateLatencyEstimation);

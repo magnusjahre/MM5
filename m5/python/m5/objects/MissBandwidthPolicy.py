@@ -5,3 +5,4 @@ class MissBandwidthPolicy(SimObject):
     abstract = True
     period = Param.Tick("The number of clock cycles between each decision")
     interferenceManager = Param.InterferenceManager("The system's interference manager")
+    cpuCount = Param.Int("The number of cores in the system")

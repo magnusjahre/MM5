@@ -58,6 +58,7 @@ private:
 
 	std::vector<std::vector<double> > currentAvgLatencyMeasurement;
 	std::vector<std::vector<double> > currentAvgPrivateLatencyEstimation;
+	std::vector<int> currentRequests;
 
 	std::vector<std::vector<Tick> > interferenceSum;
 	std::vector<std::vector<int> > numInterferenceReqs;

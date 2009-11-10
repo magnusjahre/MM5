@@ -224,9 +224,10 @@ Cache(const std::string &_name, HierParams *hier_params,
     // callback should call dumpHitStats()
 
     if(adaptiveMHA != NULL && !isShared && !params.isReadOnly){
-    	cout << "registering for cahce " << name() << ", miss bw ptr " << params.missBandwidthPolicy << "\n";
     	interferenceManager->registerLastLevelPrivateCache(this, cacheCpuID, missQueue->getNumMSHRs());
-    	params.missBandwidthPolicy->registerCache(this, cacheCpuID, missQueue->getNumMSHRs());
+    	if(params.missBandwidthPolicy != NULL){
+    		params.missBandwidthPolicy->registerCache(this, cacheCpuID, missQueue->getNumMSHRs());
+    	}
     }
 }
 

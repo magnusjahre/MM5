@@ -6,10 +6,15 @@
 
 class FairnessPolicy : public MissBandwidthPolicy{
 
-public:
-	FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period);
+private:
+	double findMaxValue(std::vector<double>* data);
+	double findMinValue(std::vector<double>* data);
 
-	virtual double computeMetric();
+
+public:
+	FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount);
+
+	virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups);
 };
 
 #endif /* FAIRNESS_POLICY_HH_ */
