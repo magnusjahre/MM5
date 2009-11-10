@@ -278,9 +278,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
         if(staticAsymmetricMHAs.size() != 0){
             assert(onlyTraceBus);
             for(int i=0;i<staticAsymmetricMHAs.size();i++){
-                for(int j=0;j<staticAsymmetricMHAs[i];j++){
-                    dataCaches[i]->decrementNumMSHRs(true);
-                }
+				dataCaches[i]->setNumMSHRs(staticAsymmetricMHAs[i]);
             }
         }
     }
@@ -367,8 +365,10 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     ipcfile.close();
 
 
-    assert(!sampleEvent->scheduled());
-    sampleEvent->schedule(time + sampleFrequency);
+    if(staticAsymmetricMHAs.size() == 0){
+    	assert(!sampleEvent->scheduled());
+    	sampleEvent->schedule(time + sampleFrequency);
+    }
 }
 
 
