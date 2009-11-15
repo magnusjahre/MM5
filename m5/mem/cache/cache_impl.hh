@@ -229,6 +229,13 @@ Cache(const std::string &_name, HierParams *hier_params,
     		params.missBandwidthPolicy->registerCache(this, cacheCpuID, missQueue->getNumMSHRs());
     	}
     }
+
+    if(isShared && interferenceManager != NULL){
+    	interferenceManager->registerSharedCache(this);
+    }
+
+    accessSample = 0;
+    missSample = 0;
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -379,6 +386,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		cacheInterference->access(req, !blk);
 	}
 
+	accessSample++;
 	if (blk) {
 
 		if(isDirectoryAndL2Cache()){
@@ -404,6 +412,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 		return MA_HIT;
 	}
+
+	missSample++;
 
 	// Miss
 	if (!req->isUncacheable()) {
@@ -447,6 +457,14 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	return MA_CACHE_MISS;
 }
 
+template<class TagStore, class Buffering, class Coherence>
+RateMeasurement
+Cache<TagStore,Buffering,Coherence>::getMissRate(){
+	RateMeasurement rateMeasurement(missSample, accessSample);
+	missSample = 0;
+	accessSample = 0;
+	return rateMeasurement;
+}
 
 template<class TagStore, class Buffering, class Coherence>
 MemReqPtr

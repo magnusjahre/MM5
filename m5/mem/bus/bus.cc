@@ -90,6 +90,11 @@ Bus::Bus(const string &_name,
     infiniteBW = _infiniteBW;
 
     interferenceManager = intman;
+    interferenceManager->registerBus(this);
+
+    serviceCyclesSample = 0;
+    requestSample = 0;
+    lastSampleTick = 0;
 
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -561,6 +566,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
 
         totalServiceCycles += time - curTick;
+
+        serviceCyclesSample += time - curTick;
+        requestSample++;
     }
 
 #ifdef INJECT_TEST_REQUESTS
@@ -821,6 +829,22 @@ Bus::addInterference(int victimID, int interfererID, interference_type iType){
 void
 Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 	fatal("deprecated");
+}
+
+double
+Bus::getActualUtilization(){
+
+	Tick period = curTick - lastSampleTick;
+
+	double avgServiceLat = (double) ((double) serviceCyclesSample / (double) requestSample);
+	double busSlots = (double) period / avgServiceLat;
+	double actualUtil = (double) requestSample / busSlots;
+
+	serviceCyclesSample = 0;
+	requestSample = 0;
+	lastSampleTick = curTick;
+
+	return actualUtil;
 }
 
 #ifdef INJECT_TEST_REQUESTS

@@ -205,6 +205,11 @@ InterferenceManager::regStats(){
 }
 
 void
+InterferenceManager::registerBus(Bus* bus){
+	memoryBuses.push_back(bus);
+}
+
+void
 InterferenceManager::resetStats(){
 	if(curTick != 0) traceStarted = true;
 	for(int i=0;i<intManCPUCount;i++) resetInterferenceMeasurements(i);
@@ -390,7 +395,27 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	currentMeasurement.addInterferenceData(currentAvgLatencyMeasurement, currentAvgPrivateLatencyEstimation);
 
+	double utilSum;
+	for(int i=0;i<memoryBuses.size();i++){
+		utilSum += memoryBuses[i]->getActualUtilization();
+	}
+	currentMeasurement.actualBusUtilization = utilSum / (double) memoryBuses.size();
+
+	double totalMisses = 0.0;
+	double totalAccesses = 0.0;
+	for(int i=0;i<sharedCaches.size();i++){
+		RateMeasurement rm = sharedCaches[i]->getMissRate();
+		totalMisses += rm.nominator;
+		totalAccesses += rm.denominator;
+	}
+	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
+
 	missBandwidthPolicy->runPolicy(currentMeasurement);
+}
+
+void
+InterferenceManager::registerSharedCache(BaseCache* cache){
+	sharedCaches.push_back(cache);
 }
 
 void
@@ -432,6 +457,9 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	latencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
 	privateLatencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
+
+	actualBusUtilization = 0.0;
+	sharedCacheMissRate = 0.0;
 }
 
 void
@@ -502,6 +530,9 @@ PerformanceMeasurement::getTraceHeader(){
 		}
 	}
 
+	header.push_back("Actual Bus Utilization");
+	header.push_back("Shared Cache Miss Rate");
+
 	return header;
 }
 
@@ -531,6 +562,9 @@ PerformanceMeasurement::createTraceLine(){
 			line.push_back(privateLatencyBreakdown[i][j]);
 		}
 	}
+
+	line.push_back(actualBusUtilization);
+	line.push_back(sharedCacheMissRate);
 
 	return line;
 }

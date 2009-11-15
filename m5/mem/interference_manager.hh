@@ -11,10 +11,12 @@
 #include "mem/cache/miss/policy/miss_bandwidth_policy.hh"
 #include "encumbered/cpu/full/cpu.hh"
 #include "cache/base_cache.hh"
+#include "mem/bus/bus.hh"
 
 class CacheInterference;
 class MissBandwidthPolicy;
 class BaseCache;
+class Bus;
 
 #include <vector>
 
@@ -35,6 +37,9 @@ public:
 	std::vector<std::vector<double> > latencyBreakdown;
 	std::vector<std::vector<double> > privateLatencyBreakdown;
 
+	double actualBusUtilization;
+	double sharedCacheMissRate;
+
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs);
 
 	void addInterferenceData(std::vector<std::vector<double> > sharedAvgLatencies,
@@ -42,6 +47,21 @@ public:
 
 	std::vector<std::string> getTraceHeader();
 	std::vector<RequestTraceEntry> createTraceLine();
+};
+
+class RateMeasurement{
+public:
+	double nominator;
+	double denominator;
+
+	RateMeasurement(double _nominator, double _denominator){
+		nominator = _nominator;
+		denominator = _denominator;
+	}
+
+	double getRate(){
+		return nominator / denominator;
+	}
 };
 
 class InterferenceManager : public SimObject{
@@ -54,6 +74,8 @@ private:
 	MissBandwidthPolicy* missBandwidthPolicy;
 	std::vector<FullCPU*> fullCPUs;
 	std::vector<BaseCache*> lastPrivateCaches;
+	std::vector<Bus*> memoryBuses;
+	std::vector<BaseCache* > sharedCaches;
 	std::vector<int> requestsSinceLastSample;
 
 	std::vector<std::vector<double> > currentAvgLatencyMeasurement;
@@ -159,12 +181,15 @@ public:
 	void registerMissBandwidthPolicy(MissBandwidthPolicy* policy);
 
 	void registerLastLevelPrivateCache(BaseCache* cache, int cpuID, int maxMSHRs);
+	void registerSharedCache(BaseCache* cache);
 
 	void registerCPU(FullCPU* cpu, int cpuID);
 
 	int getCPUCount(){
 		return cpuCount;
 	}
+
+	void registerBus(Bus* bus);
 };
 
 #endif

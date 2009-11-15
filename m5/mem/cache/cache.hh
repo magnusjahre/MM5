@@ -71,6 +71,9 @@ class Cache : public BaseCache
 
     MultipleTimeSharingParititions* mtp;
 
+    int accessSample;
+    int missSample;
+
   public:
     /** Define the type of cache block to use. */
     typedef typename TagStore::BlkType BlkType;
@@ -418,6 +421,8 @@ class Cache : public BaseCache
 
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
+
+    virtual RateMeasurement getMissRate();
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);

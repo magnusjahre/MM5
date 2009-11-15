@@ -74,6 +74,7 @@ template <class BusType> class BusInterface;
 class AdaptiveMHA;
 class TimingMemoryController;
 class InterferenceManager;
+class RateMeasurement;
 
 using namespace std;
 
@@ -107,6 +108,10 @@ class Bus : public BaseHier
 
     std::vector<std::vector<std::vector<Tick> > > queueDelaySum;
     std::vector<std::vector<std::vector<int> > > queueDelayRequests;
+
+    Tick lastSampleTick;
+    int serviceCyclesSample;
+    int requestSample;
 
   public:
     /** Width of the bus in bytes. */
@@ -326,6 +331,8 @@ class Bus : public BaseHier
     void viritualPrivateWriteAccess(MemReqPtr& req);
 
     void addQueueLengthSample();
+
+    double getActualUtilization();
 
   private:
     std::vector<int> perCPUDataBusUse;

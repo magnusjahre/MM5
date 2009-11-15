@@ -83,6 +83,7 @@ enum RequestCause {
 };
 
 class InterferenceManager;
+class RateMeasurement;
 class MissBandwidthPolicy;
 class AdaptiveMHA;
 
@@ -589,6 +590,8 @@ public:
 	virtual std::vector<double> getMLPEstimate() = 0;
 
 	virtual void setNumMSHRs(int newMSHRCount) = 0;
+
+	virtual RateMeasurement getMissRate() = 0;
 
 #ifdef CACHE_DEBUG
 	virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;

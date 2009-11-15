@@ -140,6 +140,9 @@ def initSharedCache(bankcnt):
         for bank in root.SharedCache:
             bank.ipp_bits = env["IPP-BITS"]
    
+    for bank in root.SharedCache:
+        bank.interference_manager = root.interferenceManager
+   
 def setUpSharedCache(bankcnt, detailedStartTick):
     
     assert 'MEMORY-BUS-CHANNELS' in env
