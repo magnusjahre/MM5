@@ -395,7 +395,7 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	currentMeasurement.addInterferenceData(currentAvgLatencyMeasurement, currentAvgPrivateLatencyEstimation);
 
-	double utilSum;
+	double utilSum = 0.0;
 	for(int i=0;i<memoryBuses.size();i++){
 		utilSum += memoryBuses[i]->getActualUtilization();
 	}

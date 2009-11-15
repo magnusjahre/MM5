@@ -57,7 +57,7 @@ public:
 	void runPolicy(PerformanceMeasurement measurements);
 
 
-  virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups) = 0;
+	virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups) = 0;
 
 
 };
