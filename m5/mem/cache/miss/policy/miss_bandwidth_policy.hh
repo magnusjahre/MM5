@@ -10,13 +10,13 @@
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/cache/base_cache.hh"
+#include "mem/cache/miss/policy/performance_measurement.hh"
 
 #ifndef MISS_BANDWIDTH_POLICY_HH_
 #define MISS_BANDWIDTH_POLICY_HH_
 
 class MissBandwidthPolicyEvent;
 class InterferenceManager;
-class PerformanceMeasurement;
 class BaseCache;
 
 class MissBandwidthPolicy : public SimObject{
@@ -29,22 +29,36 @@ protected:
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
 
+	PerformanceMeasurement* currentMeasurements;
+
 	int maxMSHRs;
 	int cpuCount;
 
-	double getAverageMemoryLatency(int cpuID, int numMSHRs, PerformanceMeasurement* measurements);
+	double requestCountThreshold;
+	double busUtilizationThreshold;
+
+	void getAverageMemoryLatency(std::vector<int>* currentMHA,
+							     std::vector<double>* estimatedSharedLatencies,
+							     std::vector<double>* estimatedNewRequestCount);
 
 	int level;
 	double maxMetricValue;
 	std::vector<int> maxMHAConfiguration;
-	std::vector<int> exhaustiveSearch(std::vector<std::vector<double> >* speedups);
-	void recursiveExhaustiveSearch(std::vector<int>* value, int k, std::vector<std::vector<double> >* speedups);
+	std::vector<int> exhaustiveSearch();
+	void recursiveExhaustiveSearch(std::vector<int>* value, int k);
 
 	std::vector<int> relocateMHA(std::vector<int>* mhaConfig);
-	std::vector<double> retrieveSpeedups(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups);
+
+	double evaluateMHA(std::vector<int>* mhaConfig);
+
+	template<class T>
+	T computeSum(std::vector<T>* values);
+
+	template<class T>
+	std::vector<double> computePercetages(std::vector<T>* values);
 
 public:
-	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount);
+	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt);
 
 	~MissBandwidthPolicy();
 
@@ -56,8 +70,7 @@ public:
 
 	void runPolicy(PerformanceMeasurement measurements);
 
-
-	virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups) = 0;
+	virtual double computeMetric(std::vector<double>* speedups) = 0;
 
 
 };

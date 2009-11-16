@@ -12,6 +12,7 @@
 #include "encumbered/cpu/full/cpu.hh"
 #include "cache/base_cache.hh"
 #include "mem/bus/bus.hh"
+#include "mem/cache/miss/policy/performance_measurement.hh"
 
 class CacheInterference;
 class MissBandwidthPolicy;
@@ -19,35 +20,6 @@ class BaseCache;
 class Bus;
 
 #include <vector>
-
-class PerformanceMeasurement{
-private:
-	int cpuCount;
-	int numIntTypes;
-	int maxMSHRs;
-
-public:
-	std::vector<int> committedInstructions;
-	std::vector<int> requestsInSample;
-
-	std::vector<std::vector<double> > mlpEstimate;
-
-	std::vector<double> sharedLatencies;
-	std::vector<double> estimatedPrivateLatencies;
-	std::vector<std::vector<double> > latencyBreakdown;
-	std::vector<std::vector<double> > privateLatencyBreakdown;
-
-	double actualBusUtilization;
-	double sharedCacheMissRate;
-
-	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs);
-
-	void addInterferenceData(std::vector<std::vector<double> > sharedAvgLatencies,
-							 std::vector<std::vector<double> > privateAvgEstimation);
-
-	std::vector<std::string> getTraceHeader();
-	std::vector<RequestTraceEntry> createTraceLine();
-};
 
 class RateMeasurement{
 public:

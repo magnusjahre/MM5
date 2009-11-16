@@ -12,9 +12,9 @@ private:
 
 
 public:
-	FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount);
+	FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt);
 
-	virtual double computeMetric(std::vector<int>* mhaConfig, std::vector<std::vector<double> >* speedups);
+	virtual double computeMetric(std::vector<double>* speedups);
 };
 
 #endif /* FAIRNESS_POLICY_HH_ */
