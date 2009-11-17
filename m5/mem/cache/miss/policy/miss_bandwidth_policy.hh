@@ -82,9 +82,9 @@ protected:
 	Stats::Scalar<> numErrors;
 
 	Stats::Formula avgRequestError;
-	Stats::Formula requestErrorStdDev;
+//	Stats::Formula requestErrorStdDev;
 	Stats::Formula avgSharedLatencyError;
-	Stats::Formula sharedLatencyStdDev;
+//	Stats::Formula sharedLatencyStdDev;
 
 	void regStats();
 

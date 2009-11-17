@@ -87,11 +87,11 @@ MissBandwidthPolicy::regStats(){
 
 	avgRequestError = requestError / numErrors;
 
-	requestErrorStdDev
-		.name(name() + ".req_estimation_error_stddev")
-		.desc("Standard deviation of request estimation errors (in %)");
-
-	requestErrorStdDev = ((numErrors * requestErrorSq) - (requestError*requestError)) / (numErrors*(numErrors-1));
+//	requestErrorStdDev
+//		.name(name() + ".req_estimation_error_stddev")
+//		.desc("Standard deviation of request estimation errors (in %)");
+//
+//	requestErrorStdDev = sqrt((numErrors * requestErrorSq) - (requestError*requestError)) / (numErrors*(numErrors-1));
 
 	avgSharedLatencyError
 		.name(name() + ".avg_shared_latency_estimation_error (in %)")
@@ -99,11 +99,11 @@ MissBandwidthPolicy::regStats(){
 
 	avgSharedLatencyError = sharedLatencyError / numErrors;
 
-	sharedLatencyStdDev
-		.name(name() + ".shared_latency_estimation_stddev (in %)")
-		.desc("Standard deviation of shared latency errors");
-
-	sharedLatencyStdDev = ((numErrors* sharedLatencyErrorSq) - (sharedLatencyError*sharedLatencyError)) / (numErrors*(numErrors-1));
+//	sharedLatencyStdDev
+//		.name(name() + ".shared_latency_estimation_stddev (in %)")
+//		.desc("Standard deviation of shared latency errors");
+//
+//	sharedLatencyStdDev = sqrt((numErrors* sharedLatencyErrorSq) - (sharedLatencyError*sharedLatencyError)) / (numErrors*(numErrors-1));
 }
 
 void
@@ -268,6 +268,7 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 
 double
 MissBandwidthPolicy::computeError(double estimate, double actual){
+	if(actual == 0) return 0;
 	double relErr = (estimate - actual) / actual;
 	return relErr*100;
 }
