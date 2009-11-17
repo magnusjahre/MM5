@@ -266,7 +266,6 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	currentRequests[req->adaptiveMHASenderID]++;
 
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
-
 		currentAvgLatencyMeasurement[req->adaptiveMHASenderID] = traceLatency(req->adaptiveMHASenderID);
 		currentAvgPrivateLatencyEstimation[req->adaptiveMHASenderID] = traceInterference(req->adaptiveMHASenderID, currentAvgLatencyMeasurement[req->adaptiveMHASenderID]);
 		traceMisses(req->adaptiveMHASenderID);

@@ -139,13 +139,15 @@ PerformanceMeasurement::createTraceLine(){
 
 double
 PerformanceMeasurement::getNonMemoryCycles(int cpuID, int currentMSHRCount, int period){
-	double totalLatencyCycles = sharedLatencies[cpuID] * requestsInSample[cpuID];
-	return period - (mlpEstimate[cpuID][currentMSHRCount] * totalLatencyCycles);
+	double totalLatencyCycles = (mlpEstimate[cpuID][currentMSHRCount] * sharedLatencies[cpuID]) * (double) requestsInSample[cpuID];
+	if(period < totalLatencyCycles) return 0;
+	return period - totalLatencyCycles;
 }
 
 double
-PerformanceMeasurement::getAloneCycles(int cpuID, int currentMSHRCount, int period){
-	double interference = sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID];
-	double totalInterferenceCycles = interference * requestsInSample[cpuID];
-	return period - (mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles);
+PerformanceMeasurement::getAloneCycles(int cpuID, int period){
+	double totalInterferenceCycles = (sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID]) * requestsInSample[cpuID];
+	double visibleIntCycles = mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles;
+	if(visibleIntCycles > period) return 0;
+	return period - visibleIntCycles;
 }

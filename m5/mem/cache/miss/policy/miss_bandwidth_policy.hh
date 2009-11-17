@@ -29,6 +29,17 @@ protected:
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
 
+	std::vector<double> aloneCycleEstimates;
+
+	RequestTrace predictionTrace;
+	RequestTrace partialMeasurementTrace;
+	std::vector<double> currentLatencyProjection;
+	std::vector<double> currentRequestProjection;
+	std::vector<double> currentSpeedupProjection;
+	std::vector<double> bestLatencyProjection;
+	std::vector<double> bestRequestProjection;
+	std::vector<double> bestSpeedupProjection;
+
 	PerformanceMeasurement* currentMeasurements;
 
 	int maxMSHRs;
@@ -56,6 +67,28 @@ protected:
 
 	template<class T>
 	std::vector<double> computePercetages(std::vector<T>* values);
+
+	void initProjectionTrace(int cpuCount);
+	void traceBestProjection(std::vector<int> bestMHA);
+	void initPartialMeasurementTrace(int cpuCount);
+	void tracePartialMeasurements();
+
+	Stats::Vector<> aloneEstimationFailed;
+
+	Stats::Scalar<> requestError;
+	Stats::Scalar<> requestErrorSq;
+	Stats::Scalar<> sharedLatencyError;
+	Stats::Scalar<> sharedLatencyErrorSq;
+	Stats::Scalar<> numErrors;
+
+	Stats::Formula avgRequestError;
+	Stats::Formula requestErrorStdDev;
+	Stats::Formula avgSharedLatencyError;
+	Stats::Formula sharedLatencyStdDev;
+
+	void regStats();
+
+	double computeError(double estimate, double actual);
 
 public:
 	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt);

@@ -89,7 +89,8 @@ public:
      */
     Iterator allocIter;
 
-    float mlpCost;
+    double mlpCost;
+    std::vector<double> mlpCostDistribution;
 
 private:
     /** List of all requests that match the address */

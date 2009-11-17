@@ -51,6 +51,7 @@ MSHR::MSHR()
     ntargets = 0;
     threadNum = -1;
     mlpCost = 0;
+    mlpCostDistribution.clear();
 
 //     cache = NULL;
 }
@@ -65,6 +66,7 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 	asid = _asid;
 
 	mlpCost = 0;
+	mlpCostDistribution.clear();
 
 	req = new MemReq(); // allocate new memory request
 	req->completionEvent = 0; // Don't delete twice!
@@ -156,6 +158,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     }
 
     mlpCost = 0;
+    mlpCostDistribution.clear();
 }
 
 void

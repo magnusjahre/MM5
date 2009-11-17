@@ -447,8 +447,6 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     	else outstandingWrites[req->adaptiveMHASenderID]++;
     }
 
-
-    //TODO: might need to add a more clever way of estimating mem bus entry interference
     // assumption: no memory bus blocking in private memory system
     if(req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
     	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;

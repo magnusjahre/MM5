@@ -7,28 +7,30 @@
 #include <fstream>
 #include <sstream>
 
-#define REQUEST_DUMP_INTERVAL 1000000
-
 using namespace std;
 
-RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename){
-    
+RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename,int _dumpInterval){
+
     stringstream filenamestream;
     filenamestream << _simobjectname << _filename << ".txt";
     filename = filenamestream.str();
-    
+
+    dumpInterval = _dumpInterval;
+    assert(dumpInterval > 0);
     curTracePos = 0;
-    tracebuffer.resize(REQUEST_DUMP_INTERVAL, string(""));
-    
+    tracebuffer.resize(dumpInterval, string(""));
+
     initialized = false;
+
+
 }
 
-void 
+void
 RequestTrace::initalizeTrace(std::vector<std::string>& headers){
-    
+
     registerExitCallback(new RequestTraceCallback(this));
     initialized = true;
-    
+
     ofstream tracefile(filename.c_str());
     tracefile << "Tick";
     for(int i=0;i<headers.size();i++){
@@ -37,11 +39,11 @@ RequestTrace::initalizeTrace(std::vector<std::string>& headers){
     tracefile << "\n";
 }
 
-void 
+void
 RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
-    
+
     assert(isInitialized());
-    
+
     stringstream tracestring;
     tracestring << curTick;
     for(int i=0;i<values.size();i++){
@@ -65,10 +67,10 @@ RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
             fatal("Unknown trace type");
         }
     }
-    
+
     tracebuffer[curTracePos] = tracestring.str();
     curTracePos++;
-      
+
     if(curTracePos == tracebuffer.size()){
         dumpTracebuffer();
     }
@@ -76,20 +78,27 @@ RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
 }
 
 
-void 
+void
 RequestTrace::dumpTracebuffer(){
-    
+
     assert(isInitialized());
-    
+
     if(!tracebuffer.empty()){
 
         ofstream tracefile(filename.c_str(), ofstream::app);
-        
+
         for(int i=0;i<curTracePos;i++) tracefile << tracebuffer[i].c_str() << "\n";
         curTracePos = 0;
 
         tracefile.flush();
         tracefile.close();
     }
+}
+
+std::string
+RequestTrace::buildTraceName(const char* name, int id){
+	stringstream strstream;
+	strstream << name << " " << id;
+	return strstream.str();
 }
 

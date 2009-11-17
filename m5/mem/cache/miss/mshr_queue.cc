@@ -393,6 +393,13 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 
 		mlp_cost_distribution.sample(mshr->mlpCost);
 		latency_distribution.sample(latency);
+
+		for(int i=0;i<=maxMSHRs;i++){
+			mlp_estimation_accumulator[i] += mshr->mlpCostDistribution[i];
+			currentMLPAccumulator[i] += mshr->mlpCostDistribution[i];
+		}
+		mlpAccumulatorTicks += latency;
+		mlp_active_cycles += latency;
 	}
 
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);
@@ -607,8 +614,7 @@ MSHRQueue::handleMLPEstimationEvent(){
 
 	if(!cache->isShared && isMissQueue && allocated > 0){
 
-		float mlpcost = 1.0 / (float) allocated;
-
+		int demandAllocated = 0;
 		MSHR::ConstIterator i = allocatedList.begin();
 		MSHR::ConstIterator end = allocatedList.end();
 		for (; i != end; ++i) {
@@ -618,24 +624,32 @@ MSHRQueue::handleMLPEstimationEvent(){
 			// starts when the request is finished in the cache (i.e after hit latency cycles)
 			int ticksSinceInserted = curTick - mshr->req->time;
 			if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+				demandAllocated++;
+			}
+		}
+
+		double mlpcost = 1 / (double) demandAllocated;
+
+		i = allocatedList.begin();
+		end = allocatedList.end();
+		for (; i != end; ++i) {
+			MSHR *mshr = *i;
+			int ticksSinceInserted = curTick - mshr->req->time;
+			if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
 				mshr->mlpCost += mlpcost;
+
+				if(mshr->mlpCostDistribution.empty()) mshr->mlpCostDistribution.resize(maxMSHRs+1, 0.0);
+				for(int j=0;j<=maxMSHRs;j++){
+					if(j<demandAllocated){
+						double estimatedCost = 1.0 / (double) j;
+						mshr->mlpCostDistribution[j] += estimatedCost;
+					}
+					else{
+						mshr->mlpCostDistribution[j] += mlpcost;
+					}
+				}
 			}
 		}
-
-		for(int i=1;i<=maxMSHRs;i++){
-			if(i < allocated){
-				float estimatedCost = 1.0 / float(i);
-				mlp_estimation_accumulator[i] += estimatedCost;
-				currentMLPAccumulator[i] += estimatedCost;
-			}
-			else{
-				mlp_estimation_accumulator[i] += mlpcost;
-				currentMLPAccumulator[i] += mlpcost;
-			}
-		}
-
-		mlpAccumulatorTicks++;
-		mlp_active_cycles++;
 	}
 }
 
@@ -645,7 +659,9 @@ MSHRQueue::getMLPEstimate(){
 	estimateSample.resize(maxMSHRs+1, 0.0);
 
 	for(int i=0;i<estimateSample.size();i++){
-		if(mlpAccumulatorTicks > 0) estimateSample[i] = currentMLPAccumulator[i] / mlpAccumulatorTicks;
+		if(mlpAccumulatorTicks > 0){
+			estimateSample[i] = currentMLPAccumulator[i] / ((double) mlpAccumulatorTicks);
+		}
 		currentMLPAccumulator[i] = 0;
 	}
 	mlpAccumulatorTicks = 0;

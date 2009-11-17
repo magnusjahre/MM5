@@ -41,7 +41,7 @@ public:
 	std::vector<RequestTraceEntry> createTraceLine();
 
 	double getNonMemoryCycles(int cpuID, int currentMSHRCount, int period);
-	double getAloneCycles(int cpuID, int currentMSHRCount, int period);
+	double getAloneCycles(int cpuID, int period);
 };
 
 

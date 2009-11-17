@@ -34,31 +34,31 @@ class RequestTraceEntry{
         double doubleVal;
         char* strVal;
         TRACE_ENTRY_TYPE type;
-        
+
         RequestTraceEntry(Tick _val){
             resetValues();
             tickVal = _val;
             type = TICK_TRACE;
         }
-        
+
         RequestTraceEntry(Addr _val){
             resetValues();
             addrVal = _val;
             type = ADDR_TRACE;
         }
-        
+
         RequestTraceEntry(int _val){
             resetValues();
             intVal = _val;
             type = INT_TRACE;
         }
-        
+
         RequestTraceEntry(double _val){
             resetValues();
             doubleVal = _val;
             type = DOUBLE_TRACE;
         }
-        
+
         RequestTraceEntry(const char* _val){
             resetValues();
             strVal = (char*) _val;
@@ -67,30 +67,33 @@ class RequestTraceEntry{
 };
 
 class RequestTrace{
-    
+
     private:
         int curTracePos;
         std::vector<std::string> tracebuffer;
         std::string filename;
         bool initialized;
-    
+        int dumpInterval;
+
     public:
-        
-        RequestTrace(){ 
+
+        RequestTrace(){
             initialized = false;
         }
-        
-        RequestTrace(std::string _simobjectname, const char* _filename);
-    
+
+        RequestTrace(std::string _simobjectname, const char* _filename, int _dumpInterval = 1000000);
+
         void initalizeTrace(std::vector<std::string>& headers);
-        
+
         void addTrace(std::vector<RequestTraceEntry>& values);
-        
+
         void dumpTracebuffer();
-        
+
         bool isInitialized(){
             return initialized;
         }
+
+        static std::string buildTraceName(const char* name, int id);
 };
 
 class RequestTraceCallback : public Callback
