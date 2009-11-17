@@ -297,11 +297,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	vector<int> bestMHA = exhaustiveSearch();
 	assert(bestMHA.size() == cpuCount);
 
-	cout << curTick << ": policy desicion:\n";
-	for(int i=0;i<bestMHA.size();i++){
-		cout << i << ": " << bestMHA[i] << "\n";
-	}
-
 	traceBestProjection(bestMHA);
 
 	for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
