@@ -375,7 +375,7 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 	regularMisses[fromCPU] = 0;
 }
 
-void
+PerformanceMeasurement
 InterferenceManager::buildInterferenceMeasurement(){
 
 	int np = fullCPUs.size();
@@ -409,7 +409,7 @@ InterferenceManager::buildInterferenceMeasurement(){
 	}
 	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
 
-	missBandwidthPolicy->runPolicy(currentMeasurement);
+	return currentMeasurement;
 }
 
 void

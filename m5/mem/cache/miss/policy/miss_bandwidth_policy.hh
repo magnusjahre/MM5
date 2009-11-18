@@ -16,6 +16,7 @@
 #define MISS_BANDWIDTH_POLICY_HH_
 
 class MissBandwidthPolicyEvent;
+class MissBandwidthTraceEvent;
 class InterferenceManager;
 class BaseCache;
 
@@ -25,6 +26,10 @@ protected:
 	InterferenceManager* intManager;
 	Tick period;
 	MissBandwidthPolicyEvent* policyEvent;
+	MissBandwidthTraceEvent* traceEvent;
+	std::vector<Addr> cummulativeMemoryRequests;
+
+	RequestTrace aloneIPCTrace;
 
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
@@ -72,30 +77,36 @@ protected:
 	void traceBestProjection(std::vector<int> bestMHA);
 	void initPartialMeasurementTrace(int cpuCount);
 	void tracePartialMeasurements();
+	void initAloneIPCTrace(int cpuCount, bool policyEnforced);
+
+	template<class T>
+	void traceAloneIPC(std::vector<int> memoryRequests, std::vector<T> committedInsts);
 
 	Stats::Vector<> aloneEstimationFailed;
 
-	Stats::Scalar<> requestError;
-	Stats::Scalar<> requestErrorSq;
-	Stats::Scalar<> sharedLatencyError;
-	Stats::Scalar<> sharedLatencyErrorSq;
-	Stats::Scalar<> numErrors;
-
-	Stats::Formula avgRequestError;
-//	Stats::Formula requestErrorStdDev;
-	Stats::Formula avgSharedLatencyError;
-//	Stats::Formula sharedLatencyStdDev;
+	Stats::VectorStandardDeviation<> requestAbsError;
+	Stats::VectorStandardDeviation<> sharedLatencyAbsError;
+	Stats::VectorStandardDeviation<> requestRelError;
+	Stats::VectorStandardDeviation<> sharedLatencyRelError;
 
 	void regStats();
 
 	double computeError(double estimate, double actual);
 
 public:
-	MissBandwidthPolicy(std::string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt);
+	MissBandwidthPolicy(std::string _name,
+						InterferenceManager* _intManager,
+						Tick _period,
+						int _cpuCount,
+						double _busUtilThreshold,
+						double _cutoffReqInt,
+						bool _enforcePolicy = true);
 
 	~MissBandwidthPolicy();
 
 	void handlePolicyEvent();
+
+	void handleTraceEvent();
 
 	void registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs);
 
@@ -125,6 +136,27 @@ public:
 
 	virtual const char *description() {
 		return "Miss Bandwidth Policy Event";
+	}
+
+};
+
+class MissBandwidthTraceEvent : public Event{
+private:
+	MissBandwidthPolicy* policy;
+	Tick period;
+
+public:
+	MissBandwidthTraceEvent(MissBandwidthPolicy* _policy, Tick _period):
+	Event(&mainEventQueue), policy(_policy), period(_period){
+
+	}
+	void process() {
+		policy->handleTraceEvent();
+		schedule(curTick + period);
+	}
+
+	virtual const char *description() {
+		return "Miss Bandwidth Trace Event";
 	}
 
 };

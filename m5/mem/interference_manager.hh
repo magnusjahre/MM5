@@ -148,7 +148,7 @@ public:
 
 	void addCacheResult(MemReqPtr& req);
 
-	void buildInterferenceMeasurement();
+	PerformanceMeasurement buildInterferenceMeasurement();
 
 	void registerMissBandwidthPolicy(MissBandwidthPolicy* policy);
 

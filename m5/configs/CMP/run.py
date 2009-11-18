@@ -20,7 +20,7 @@ all_protocols = ['none', 'msi', 'mesi', 'mosi', 'moesi', 'stenstrom']
 snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
 
-miss_bw_policies = ["fairness"]
+miss_bw_policies = ["fairness", "none"]
 
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
@@ -170,21 +170,22 @@ def setUpMissBwPolicy():
     if env['MISS-BW-POLICY'] not in miss_bw_policies:
         panic("Miss bandwidth policy "+str(env['MISS-BW-POLICY'])+" is invalid. Available policies: "+str(miss_bw_policies))
     
-    
     missBandwidthPolicy = None
     if env["NP"] > 1:
-        
         if env['MISS-BW-POLICY'] == "fairness":
             missBandwidthPolicy = FairnessPolicy()
+        elif env['MISS-BW-POLICY'] == "none":
+            missBandwidthPolicy = NoBandwidthPolicy()
         else:
             fatal("error in setUpMissBwPolicy()")
-        
-        assert "MISS-BW-POLICY-PERIOD" in env
-        missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])        
-        missBandwidthPolicy.interferenceManager = root.interferenceManager
-        missBandwidthPolicy.cpuCount = int(env["NP"])
     else:
-        warn("One core experiment, ignoring MISS-BW-POLICY argument")
+        assert env['MISS-BW-POLICY'] == "none"
+        missBandwidthPolicy = NoBandwidthPolicy()
+
+    assert "MISS-BW-POLICY-PERIOD" in env
+    missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])        
+    missBandwidthPolicy.interferenceManager = root.interferenceManager
+    missBandwidthPolicy.cpuCount = int(env["NP"])
 
     return missBandwidthPolicy
 

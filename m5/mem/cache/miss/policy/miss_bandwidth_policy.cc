@@ -11,7 +11,13 @@
 
 using namespace std;
 
-MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt)
+MissBandwidthPolicy::MissBandwidthPolicy(string _name,
+										 InterferenceManager* _intManager,
+									     Tick _period,
+									     int _cpuCount,
+									     double _busUtilThreshold,
+									     double _cutoffReqInt,
+									     bool _enforcePolicy)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -23,15 +29,26 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _int
 	intManager->registerMissBandwidthPolicy(this);
 
 	period = _period;
-	policyEvent = new MissBandwidthPolicyEvent(this, period);
-	policyEvent->schedule(period);
+	if(_enforcePolicy){
+		policyEvent = new MissBandwidthPolicyEvent(this, period);
+		policyEvent->schedule(period);
+		traceEvent = NULL;
+	}
+	else{
+		traceEvent = new MissBandwidthTraceEvent(this, period);
+		traceEvent->schedule(period);
+		policyEvent = NULL;
+	}
 
 	measurementTrace = RequestTrace(_name, "MeasurementTrace", 1);
 	predictionTrace = RequestTrace(_name, "PredictionTrace", 1);
 	partialMeasurementTrace = RequestTrace(_name, "PartialMeasurementTrace", 1);
+	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", 1);
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, 0);
+
+	cummulativeMemoryRequests.resize(_cpuCount, 0);
 
 	aloneCycleEstimates.resize(_cpuCount, 0.0);
 
@@ -42,11 +59,14 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name, InterferenceManager* _int
 
 	initProjectionTrace(_cpuCount);
 	initPartialMeasurementTrace(_cpuCount);
+	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 }
 
 MissBandwidthPolicy::~MissBandwidthPolicy(){
-	assert(!policyEvent->scheduled());
-	delete policyEvent;
+	if(policyEvent != NULL){
+		assert(!policyEvent->scheduled());
+		delete policyEvent;
+	}
 }
 
 void
@@ -59,51 +79,30 @@ MissBandwidthPolicy::regStats(){
 		.desc("the number of times the alone cycles estimation failed")
 		.flags(total);
 
+	requestAbsError
+		.init(cpuCount)
+		.name(name() + ".req_est_abs_error")
+		.desc("Absolute request estimation errors (in requests)")
+		.flags(total);
 
-	requestError
-		.name(name() + ".request_error_sum")
-		.desc("Sum of req errors");
+	sharedLatencyAbsError
+		.init(cpuCount)
+		.name(name() + ".shared_latency_est_abs_error")
+		.desc("Absolute shared latency errors (in cc)")
+		.flags(total);
 
-	requestErrorSq
-		.name(name() + ".request_error_sumsq")
-		.desc("Square of req errors");
+	requestRelError
+		.init(cpuCount)
+		.name(name() + ".req_est_rel_error")
+		.desc("Relative request estimation errors (in %)")
+		.flags(total);
 
-	sharedLatencyError
-		.name(name() + ".shared_latency_err")
-		.desc("Sum of shared latency errors");
+	sharedLatencyRelError
+		.init(cpuCount)
+		.name(name() + ".shared_latency_est_rel_error")
+		.desc("Relative shared latency errors (in %)")
+		.flags(total);
 
-	sharedLatencyErrorSq
-		.name(name() + ".shared_latency_errsq")
-		.desc("Square of latency errors");
-
-	numErrors
-		.name(name() + ".number_of_errors")
-		.desc("Number of errors");
-
-
-	avgRequestError
-		.name(name() + ".avg_req_estimation_error")
-		.desc("Average error of request measurements (in %)");
-
-	avgRequestError = requestError / numErrors;
-
-//	requestErrorStdDev
-//		.name(name() + ".req_estimation_error_stddev")
-//		.desc("Standard deviation of request estimation errors (in %)");
-//
-//	requestErrorStdDev = sqrt((numErrors * requestErrorSq) - (requestError*requestError)) / (numErrors*(numErrors-1));
-
-	avgSharedLatencyError
-		.name(name() + ".avg_shared_latency_estimation_error (in %)")
-		.desc("Avg shared lat error");
-
-	avgSharedLatencyError = sharedLatencyError / numErrors;
-
-//	sharedLatencyStdDev
-//		.name(name() + ".shared_latency_estimation_stddev (in %)")
-//		.desc("Standard deviation of shared latency errors");
-//
-//	sharedLatencyStdDev = sqrt((numErrors* sharedLatencyErrorSq) - (sharedLatencyError*sharedLatencyError)) / (numErrors*(numErrors-1));
 }
 
 void
@@ -115,7 +114,53 @@ MissBandwidthPolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs)
 
 void
 MissBandwidthPolicy::handlePolicyEvent(){
-	intManager->buildInterferenceMeasurement();
+	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement();
+	runPolicy(curMeasurement);
+}
+
+void
+MissBandwidthPolicy::handleTraceEvent(){
+	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement();
+	traceAloneIPC(curMeasurement.requestsInSample, curMeasurement.committedInstructions);
+}
+
+void
+MissBandwidthPolicy::initAloneIPCTrace(int cpuCount, bool policyEnforced){
+	vector<string> headers;
+
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Requests", i));
+
+	if(cpuCount > 1){
+		if(policyEnforced){
+			for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone IPC Estimate", i));
+		}
+		else{
+			for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Shared IPC Measurement", i));
+		}
+	}
+	else{
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone IPC Measurement", i));
+	}
+
+	aloneIPCTrace.initalizeTrace(headers);
+}
+
+template<class T>
+void
+MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<T> committedInsts){
+	vector<RequestTraceEntry> data;
+
+	assert(memoryRequests.size() == cpuCount);
+	assert(committedInsts.size() == cpuCount);
+
+	for(int i=0;i<cpuCount;i++){
+		cummulativeMemoryRequests[i] += memoryRequests[i];
+	}
+
+	for(int i=0;i<cpuCount;i++) data.push_back(cummulativeMemoryRequests[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back((double) committedInsts[i] / (double) period);
+
+	aloneIPCTrace.addTrace(data);
 }
 
 void
@@ -283,17 +328,14 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	if(!bestRequestProjection.empty()){
 		for(int i=0;i<cpuCount;i++){
 			double reqError = computeError(bestRequestProjection[i], measurements.requestsInSample[i]);
-			requestError += reqError;
-			requestErrorSq += reqError*reqError;
+			requestRelError[i].sample(reqError);
+			requestAbsError[i].sample(bestRequestProjection[i] - measurements.requestsInSample[i]);
 
 			double latError = computeError(bestLatencyProjection[i], measurements.sharedLatencies[i]);
-			sharedLatencyError += latError;
-			sharedLatencyErrorSq += latError*latError;
-
-			numErrors++;
+			sharedLatencyRelError[i].sample(latError);
+			sharedLatencyAbsError[i].sample(bestLatencyProjection[i] - measurements.sharedLatencies[i]);
 		}
 	}
-
 
 	vector<int> bestMHA = exhaustiveSearch();
 	assert(bestMHA.size() == cpuCount);
@@ -301,6 +343,8 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	traceBestProjection(bestMHA);
 
 	for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+
+	traceAloneIPC(measurements.requestsInSample, aloneCycleEstimates);
 
 	currentMeasurements = NULL;
 }
