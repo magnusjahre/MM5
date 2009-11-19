@@ -32,6 +32,7 @@ file_bases = ['AdaptiveMHA',
               'FullCPU',
               'FunctionalMemory',
               'HierParams',
+              'HmosPolicy',
               'Ide',
               'IdealInterconnect', #Magnus
               'Interconnect', #Magnus

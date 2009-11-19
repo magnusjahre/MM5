@@ -20,7 +20,7 @@ all_protocols = ['none', 'msi', 'mesi', 'mosi', 'moesi', 'stenstrom']
 snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
 
-miss_bw_policies = ["fairness", "none"]
+miss_bw_policies = ["fairness", "hmos", "none"]
 
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
@@ -174,10 +174,12 @@ def setUpMissBwPolicy():
     if env["NP"] > 1:
         if env['MISS-BW-POLICY'] == "fairness":
             missBandwidthPolicy = FairnessPolicy()
+        elif env['MISS-BW-POLICY'] == "hmos":
+            missBandwidthPolicy = HmosPolicy()
         elif env['MISS-BW-POLICY'] == "none":
             missBandwidthPolicy = NoBandwidthPolicy()
         else:
-            fatal("error in setUpMissBwPolicy()")
+            panic("error in setUpMissBwPolicy()")
     else:
         assert env['MISS-BW-POLICY'] == "none"
         missBandwidthPolicy = NoBandwidthPolicy()
