@@ -121,7 +121,11 @@ MissBandwidthPolicy::handlePolicyEvent(){
 void
 MissBandwidthPolicy::handleTraceEvent(){
 	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement();
-	traceAloneIPC(curMeasurement.requestsInSample, curMeasurement.committedInstructions);
+	vector<double> measuredIPC(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++){
+		measuredIPC[i] = (double) curMeasurement.committedInstructions[i] / (double) period;
+	}
+	traceAloneIPC(curMeasurement.requestsInSample, measuredIPC);
 }
 
 void
@@ -145,20 +149,19 @@ MissBandwidthPolicy::initAloneIPCTrace(int cpuCount, bool policyEnforced){
 	aloneIPCTrace.initalizeTrace(headers);
 }
 
-template<class T>
 void
-MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<T> committedInsts){
+MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<double> ipcs){
 	vector<RequestTraceEntry> data;
 
 	assert(memoryRequests.size() == cpuCount);
-	assert(committedInsts.size() == cpuCount);
+	assert(ipcs.size() == cpuCount);
 
 	for(int i=0;i<cpuCount;i++){
 		cummulativeMemoryRequests[i] += memoryRequests[i];
 	}
 
 	for(int i=0;i<cpuCount;i++) data.push_back(cummulativeMemoryRequests[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back((double) committedInsts[i] / (double) period);
+	for(int i=0;i<cpuCount;i++) data.push_back(ipcs[i]);
 
 	aloneIPCTrace.addTrace(data);
 }
@@ -344,7 +347,12 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
 
-	traceAloneIPC(measurements.requestsInSample, aloneCycleEstimates);
+	vector<double> currentIPCEstimate(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++){
+		currentIPCEstimate[i] = (double) measurements.committedInstructions[i] / aloneCycleEstimates[i];
+	}
+
+	traceAloneIPC(measurements.requestsInSample, currentIPCEstimate);
 
 	currentMeasurements = NULL;
 }

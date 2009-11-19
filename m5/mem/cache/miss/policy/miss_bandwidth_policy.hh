@@ -79,8 +79,7 @@ protected:
 	void tracePartialMeasurements();
 	void initAloneIPCTrace(int cpuCount, bool policyEnforced);
 
-	template<class T>
-	void traceAloneIPC(std::vector<int> memoryRequests, std::vector<T> committedInsts);
+	void traceAloneIPC(std::vector<int> memoryRequests, std::vector<double> ipcs);
 
 	Stats::Vector<> aloneEstimationFailed;
 
