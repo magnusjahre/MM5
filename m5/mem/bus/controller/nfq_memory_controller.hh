@@ -1,6 +1,6 @@
 /**
  * @file
- * FCFS memory controller 
+ * FCFS memory controller
  *
  */
 
@@ -11,51 +11,51 @@
  */
 class NFQMemoryController : public TimingMemoryController
 {
-    
+
     private:
         int readQueueLength;
         int writeQueueLenght;
         int starvationPreventionThreshold;
         int nfqNumCPUs;
-        
+
         int processorPriority;
         int processorInc;
         int writebackPriority;
         int writebackInc;
-        
+
         std::vector<Tick> virtualFinishTimes;
         std::vector<std::vector<MemReqPtr> > requests;
-        
+
         std::vector<Addr> activePages;
-        
+
         MemReqPtr pageCmd;
-    
+
         int queuedReads;
         int queuedWrites;
-        
+
         int starvationCounter;
-        
+
         bool infiniteWriteBW;
-        
+
     private:
         Tick getMinStartTag();
-    
+
         bool findColumnRequest(MemReqPtr& req, bool (NFQMemoryController::*compare)(MemReqPtr&));
-        
+
         bool findRowRequest(MemReqPtr& req);
-        
+
         bool pageActivated(MemReqPtr& req);
-        
+
         MemReqPtr& createCloseReq(Addr pageAddr);
-        
+
         MemReqPtr& createActivateReq(MemReqPtr& req);
-        
+
         MemReqPtr& prepareColumnRequest(MemReqPtr& req);
-        
+
         void printRequestQueue(Tick fromTick);
-        
+
     public:
-        
+
         /** Constructs a Memory Controller object. */
         NFQMemoryController(std::string _name,
                             int _rdQueueLength,
@@ -65,16 +65,20 @@ class NFQMemoryController : public TimingMemoryController
                             int _processorPriority,
                             int _writePriority,
                             bool _infiniteWriteBW);
-    
+
         /** Frees locally allocated memory. */
         ~NFQMemoryController();
-    
+
         int insertRequest(MemReqPtr &req);
-    
+
         bool hasMoreRequests();
-    
-        MemReqPtr& getRequest();
-    
+
+        MemReqPtr getRequest();
+
         virtual void setOpenPages(std::list<Addr> pages);
+
+        virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+        	// not needed
+        }
 };
 

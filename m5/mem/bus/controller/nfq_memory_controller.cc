@@ -11,7 +11,7 @@
 
 using namespace std;
 
-NFQMemoryController::NFQMemoryController(std::string _name, 
+NFQMemoryController::NFQMemoryController(std::string _name,
                                          int _rdQueueLength,
                                          int _wrQueueLength,
                                          int _spt,
@@ -20,15 +20,15 @@ NFQMemoryController::NFQMemoryController(std::string _name,
                                          int _writePriority,
                                          bool _infWriteBW)
     : TimingMemoryController(_name) {
-    
+
     readQueueLength = _rdQueueLength;
     writeQueueLenght = _wrQueueLength;
     starvationPreventionThreshold = _spt;
-    
+
     nfqNumCPUs = _numCPUs;
     processorPriority = _processorPriority;
     writebackPriority = _writePriority;
-    
+
     if(processorPriority < writebackPriority){
         processorInc = writebackPriority / processorPriority;
         writebackInc = 1;
@@ -37,18 +37,18 @@ NFQMemoryController::NFQMemoryController(std::string _name,
         processorInc = 1;
         writebackInc = processorPriority / writebackPriority;
     }
-    
+
     virtualFinishTimes.resize(nfqNumCPUs+1, 0);
     requests.resize(nfqNumCPUs+1);
-    
+
     pageCmd = new MemReq();
     pageCmd->cmd = Activate;
     pageCmd->paddr = 0;
-    
+
     queuedReads = 0;
     queuedWrites = 0;
     starvationCounter = 0;
-    
+
     infiniteWriteBW = _infWriteBW;
 }
 
@@ -60,13 +60,13 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
 
     req->inserted_into_memory_controller = curTick;
     assert(req->cmd == Read || req->cmd == Writeback);
-    
+
     if(infiniteWriteBW && req->cmd == Writeback){
         return 0;
     }
-    
+
     req->cmd == Read ? queuedReads++ : queuedWrites++;
-    
+
     Tick minTag = getMinStartTag();
     Tick curFinTag = -1;
     if(req->adaptiveMHASenderID >= 0){
@@ -75,7 +75,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     else{
         curFinTag = virtualFinishTimes[nfqNumCPUs];
     }
-    
+
     // assign start time and update virtual clock
     req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
     if(req->adaptiveMHASenderID >= 0){
@@ -85,28 +85,28 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
         assert(req->cmd == Writeback);
         virtualFinishTimes[nfqNumCPUs] = req->virtualStartTime + writebackInc;
     }
-    
-    DPRINTF(MemoryController, 
+
+    DPRINTF(MemoryController,
             "Inserting request from cpu %d, addr %x, start time is %d, minimum time is %d\n",
-            req->adaptiveMHASenderID, 
-            req->paddr, 
-            req->virtualStartTime, 
+            req->adaptiveMHASenderID,
+            req->paddr,
+            req->virtualStartTime,
             minTag);
-    
+
     if(req->adaptiveMHASenderID >= 0){
         assert(req->adaptiveMHASenderID < nfqNumCPUs);
         requests[req->adaptiveMHASenderID].push_back(req);
-        
+
     }
     else{
         requests[nfqNumCPUs].push_back(req);
     }
-    
+
     if((queuedReads >= readQueueLength || queuedWrites >= writeQueueLenght) && !isBlocked() ){
         DPRINTF(MemoryController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setBlocked();
     }
-    
+
     return 0;
 }
 
@@ -128,37 +128,37 @@ NFQMemoryController::getMinStartTag(){
 
 bool
 NFQMemoryController::hasMoreRequests() {
-    
+
     bool allEmpty = true;
-    
+
     for(int i=0;i<requests.size();i++){
         if(!requests[i].empty()) allEmpty = false;
     }
-    
+
     if(!allEmpty){
         return true;
     }
-    
+
     for(int i=0;i<virtualFinishTimes.size();i++){
         virtualFinishTimes[i] = 0;
     }
-    
+
     DPRINTF(MemoryController, "No more requests, setting all finish times to 0\n");
     return false;
 }
 
-MemReqPtr&
+MemReqPtr
 NFQMemoryController::getRequest() {
-    
-    MemReqPtr& retval = pageCmd; // dummy initialization
-    
+
+    MemReqPtr retval = pageCmd; // dummy initialization
+
     bool foundReady = false;
     bool foundColumn = false;
-    
+
     if(starvationCounter < starvationPreventionThreshold){
         // 1. Prioritize ready pages
         foundReady = findColumnRequest(retval, &NFQMemoryController::isActive);
-        
+
         // 2. Prioritize CAS commands
         if(!foundReady){
             foundColumn = findColumnRequest(retval, &NFQMemoryController::pageActivated);
@@ -170,7 +170,7 @@ NFQMemoryController::getRequest() {
                starvationCounter,
                starvationPreventionThreshold);
     }
-    
+
     bool foundRow = false;
     if(!foundReady && !foundColumn){
         // 3. Prioritize commands based on start tags
@@ -191,24 +191,24 @@ NFQMemoryController::getRequest() {
         else{
             assert(retval->virtualStartTime <= oldest);
             starvationCounter = 0;
-            DPRINTF(MemoryController, 
+            DPRINTF(MemoryController,
                     "Resetting starvation counter (req at %d, lowest %d)\n",
                     retval->virtualStartTime,
                     oldest);
         }
     }
-    
+
     return retval;
 }
 
 bool
-NFQMemoryController::findColumnRequest(MemReqPtr& req, 
+NFQMemoryController::findColumnRequest(MemReqPtr& req,
                                        bool (NFQMemoryController::*compare)(MemReqPtr&)){
-    
+
     Tick minval = LARGE_TICK;
     int minrow = -1;
     int mincol = -1;
-    
+
     for(int i=0;i<requests.size();i++){
         for(int j=0;j<requests[i].size();j++){
             if( (this->*compare)(requests[i][j]) ){
@@ -220,20 +220,20 @@ NFQMemoryController::findColumnRequest(MemReqPtr& req,
             }
         }
     }
-    
+
     if(minrow != -1 && mincol != -1){
         req = prepareColumnRequest(requests[minrow][mincol]);
         requests[minrow].erase(requests[minrow].begin()+mincol);
         return true;
     }
-    
+
     return false;
 }
 
-bool 
+bool
 NFQMemoryController::pageActivated(MemReqPtr& req){
     assert(activePages.size() <= MAX_ACTIVE_PAGES);
-    
+
     for(int i=0;i<activePages.size();i++){
         if(activePages[i] == getPage(req)){
             return true;
@@ -244,11 +244,11 @@ NFQMemoryController::pageActivated(MemReqPtr& req){
 
 bool
 NFQMemoryController::findRowRequest(MemReqPtr& req){
-    
+
     Tick minval = LARGE_TICK;
     int minrow = -1;
     int mincol = -1;
-    
+
     for(int i=0;i<requests.size();i++){
         for(int j=0;j<requests[i].size();j++){
             if(requests[i][j]->virtualStartTime < minval){
@@ -258,10 +258,10 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             }
         }
     }
-    
+
     assert(minrow >= 0 && mincol >= 0);
     MemReqPtr oldestReq = requests[minrow][mincol];
-    
+
     if(pageActivated(oldestReq)){
         // issuing oldest column command because starvation prevention threshold has been reached
         assert(starvationCounter >= starvationPreventionThreshold);
@@ -269,7 +269,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         requests[minrow].erase(requests[minrow].begin()+mincol);
         return true;
     }
-    
+
     // check for pages that can be closed
     for(int i=0;i<activePages.size();i++){
         bool canClose = true;
@@ -283,16 +283,16 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         if(canClose){
             req = createCloseReq(activePages[i]);
             activePages.erase(activePages.begin()+i);
-            
-            DPRINTF(MemoryController, 
+
+            DPRINTF(MemoryController,
                     "Closing page %x request addr %x because it has no pending requests\n",
                     getPage(req),
                     req->paddr);
-            
+
             return true;
         }
     }
-    
+
     if(!bankIsClosed(oldestReq)){
         //bank conflict, close bank
         int hitIndex = -1;
@@ -304,7 +304,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         assert(hitIndex >= 0);
         req = createCloseReq(activePages[hitIndex]);
         activePages.erase(activePages.begin()+hitIndex);
-        DPRINTF(MemoryController, 
+        DPRINTF(MemoryController,
                 "Closing page %x, request addr %x due to page conflict with addr %x\n",
                 getPage(req),
                 req->paddr,
@@ -315,22 +315,22 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         // close the page that has been active for the longest time
         req = createCloseReq(activePages[0]);
         activePages.erase(activePages.begin());
-        DPRINTF(MemoryController, 
+        DPRINTF(MemoryController,
                 "Closing page %x, request addr %x to issue oldest request\n",
                 getPage(req),
                 req->paddr);
-        
+
     }
     else{
         req = createActivateReq(oldestReq);
         activePages.push_back(getPage(oldestReq));
-        DPRINTF(MemoryController, 
+        DPRINTF(MemoryController,
                 "Activating page, req addr %x, page addr %x, %d pages are currently active\n",
                 req->paddr,
                 getPage(req),
                 activePages.size());
     }
-    
+
     return true;
 }
 
@@ -341,10 +341,10 @@ NFQMemoryController::createCloseReq(Addr pageAddr){
     pageCmd->flags &= ~SATISFIED;
     return pageCmd;
 }
-        
+
 MemReqPtr&
 NFQMemoryController::createActivateReq(MemReqPtr& req){
-    
+
     Addr pageAddr = getPage(req);
     pageCmd->cmd = Activate;
     pageCmd->paddr = getPageAddr(pageAddr);
@@ -356,18 +356,18 @@ MemReqPtr&
 NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
     assert(req->cmd == Read || req->cmd == Writeback);
     req->cmd == Writeback ? queuedWrites-- : queuedReads--;
-        
+
     if(queuedReads < readQueueLength && queuedWrites < writeQueueLenght && isBlocked() ){
         DPRINTF(MemoryController, "Unblocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setUnBlocked();
     }
-        
-    DPRINTF(MemoryController, 
+
+    DPRINTF(MemoryController,
             "Returning column request, start time %d, addr %x, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
             req->adaptiveMHASenderID);
-    
+
     return req;
 }
 
@@ -382,16 +382,16 @@ NFQMemoryController::setOpenPages(std::list<Addr> pages){
 void
 NFQMemoryController::printRequestQueue(Tick fromTick){
     bool allEmpty = true;
-    
+
     for(int i=0;i<requests.size();i++){
         if(!requests[i].empty()) allEmpty = false;
     }
-    
+
     if(curTick >= fromTick){
         if(!allEmpty){
             cout << "\n";
             cout << "Request queue at " << curTick << "\n";
-        
+
             for(int i=0;i<requests.size();i++){
                 cout << "Queue " << i << ":";
                 for(int j=0;j<requests[i].size();j++){
@@ -426,7 +426,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
     INIT_PARAM_DFLT(processor_priority, "The priority given to writeback requests", -1),
     INIT_PARAM_DFLT(writeback_priority, "The priority given to writeback requests", -1),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false)
-            
+
 END_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
 
 

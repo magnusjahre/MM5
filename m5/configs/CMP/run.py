@@ -41,27 +41,31 @@ def createMemBus(bankcnt):
     
     root.membus = [ConventionalMemBus() for i in range(channels)]
     root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(channels)]
-        
-    assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS"
+    
     for i in range(channels):
         
         if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
             root.membus[i].memory_controller = ReadyFirstMemoryController()
-            root.membus[i].adaptive_mha = root.adaptiveMHA
-            root.membus[i].interference_manager = root.interferenceManager
             
             if "MEMORY-BUS-PAGE-POLICY" in env:
                 root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
             if "MEMORY-BUS-PRIORITY-SCHEME" in env:
                 root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
-                
-        else:
-            assert env["MEMORY-BUS-SCHEDULER"] == "FCFS"
+        
+        elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
+            root.membus[i].memory_controller = ThroughputNFQMemoryController()
+            
+        elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
+            root.membus[i].memory_controller = FairNFQMemoryController()
+            
+        elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
             root.membus[i].memory_controller = InOrderMemoryController()
-            root.membus[i].adaptive_mha = root.adaptiveMHA
-            root.membus[i].interference_manager = root.interferenceManager
+        
+        else:
+            panic("Unkown memory bus scheduler")
             
-            
+        root.membus[i].adaptive_mha = root.adaptiveMHA
+        root.membus[i].interference_manager = root.interferenceManager
     
     if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
         root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
@@ -83,7 +87,6 @@ def createMemBus(bankcnt):
                 else:
                     root.controllerInterference[i].pure_head_pointer_model = False
     else:
-        assert env["MEMORY-BUS-SCHEDULER"] == "FCFS" 
         root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
 
     for i in range(channels):

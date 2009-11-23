@@ -31,18 +31,14 @@ MultipleTimeSharingParititions::~MultipleTimeSharingParititions(){
 void
 MultipleTimeSharingParititions::handleRepartitioningEvent(){
 
-	cout << curTick << " " << cache->name() << ": handleRepartEvent called\n";
-
     switch(mtpPhase){
 
         case -1:{
-        	cout << curTick << " " << cache->name() << ": phase -1, entering phase 0\n";
             mtpPhase = 0; //enter measuring phase
             break;
         }
         case 0:{
 
-        	cout << curTick << " " << cache->name() << ": in phase 0\n";
             string filename = cache->name()+"MTPTrace.txt";
             ofstream mtptracefile(filename.c_str());
 
@@ -114,8 +110,6 @@ MultipleTimeSharingParititions::handleRepartitioningEvent(){
             break;
         }
         case 1:{
-
-        	cout << curTick << " " << cache->name() << ": in phase 1\n";
 
             // switch to next partitioning
             curMTPPartition = (curMTPPartition + 1) % mtpPartitions.size();
