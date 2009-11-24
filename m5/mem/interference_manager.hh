@@ -50,8 +50,10 @@ private:
 	std::vector<BaseCache* > sharedCaches;
 	std::vector<int> requestsSinceLastSample;
 
-	std::vector<std::vector<double> > currentAvgLatencyMeasurement;
-	std::vector<std::vector<double> > currentAvgPrivateLatencyEstimation;
+	std::vector<double> sharedLatencyAccumulator;
+	std::vector<double> interferenceAccumulator;
+	std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator;
+	std::vector<std::vector<double> > interferenceBreakdownAccumulator;
 	std::vector<int> currentRequests;
 
 	std::vector<std::vector<Tick> > interferenceSum;

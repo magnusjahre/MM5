@@ -30,8 +30,10 @@ InterferenceManager::InterferenceManager(std::string _name,
 	requestsSinceLastSample.resize(_cpu_count, 0);
 	maxMSHRs = 0;
 
-	currentAvgLatencyMeasurement.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
-	currentAvgPrivateLatencyEstimation.resize(_cpu_count, vector<double>(NUM_LAT_TYPES+1, 0));
+	sharedLatencyAccumulator.resize(_cpu_count, 0);
+	interferenceAccumulator.resize(_cpu_count, 0);
+	sharedLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
+	interferenceBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
 	currentRequests.resize(_cpu_count, 0);
 
 	latencySum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
@@ -75,8 +77,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 		stringstream ltitle;
 		ltitle << "CPU" << i << "LatencyTrace";
 
-		estimateTraces[i] = RequestTrace(etitle.str(),"");
-		latencyTraces[i] = RequestTrace(ltitle.str(),"");
+		estimateTraces[i] = RequestTrace(etitle.str(),"", 1);
+		latencyTraces[i] = RequestTrace(ltitle.str(),"", 1);
 
 		vector<string> traceHeaders;
 		traceHeaders.push_back("Requests");
@@ -223,6 +225,9 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 	interference[t][req->adaptiveMHASenderID] += interferenceTicks;
 
 	totalInterference[req->adaptiveMHASenderID] += interferenceTicks;
+
+	interferenceBreakdownAccumulator[req->adaptiveMHASenderID][t] += interferenceTicks;
+	interferenceAccumulator[req->adaptiveMHASenderID] += interferenceTicks;
 }
 
 void
@@ -241,6 +246,8 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	latencies[t][req->adaptiveMHASenderID] += latency;
 
 	totalLatency[req->adaptiveMHASenderID] += latency;
+
+	sharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
 }
 
 void
@@ -264,10 +271,11 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	requestsSinceLastSample[req->adaptiveMHASenderID]++;
 
 	currentRequests[req->adaptiveMHASenderID]++;
+	sharedLatencyAccumulator[req->adaptiveMHASenderID] += roundTripLatency;
 
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
-		currentAvgLatencyMeasurement[req->adaptiveMHASenderID] = traceLatency(req->adaptiveMHASenderID);
-		currentAvgPrivateLatencyEstimation[req->adaptiveMHASenderID] = traceInterference(req->adaptiveMHASenderID, currentAvgLatencyMeasurement[req->adaptiveMHASenderID]);
+		vector<double> tmpLatencies = traceLatency(req->adaptiveMHASenderID);
+		traceInterference(req->adaptiveMHASenderID, tmpLatencies);
 		traceMisses(req->adaptiveMHASenderID);
 	}
 
@@ -389,10 +397,13 @@ InterferenceManager::buildInterferenceMeasurement(){
 	for(int i=0;i<lastPrivateCaches.size();i++){
 		currentMeasurement.mlpEstimate[i] = lastPrivateCaches[i]->getMLPEstimate();
 		currentMeasurement.requestsInSample[i] = currentRequests[i];
-		currentRequests[i] = 0;
 	}
 
-	currentMeasurement.addInterferenceData(currentAvgLatencyMeasurement, currentAvgPrivateLatencyEstimation);
+	currentMeasurement.addInterferenceData(sharedLatencyAccumulator,
+										   interferenceAccumulator,
+										   sharedLatencyBreakdownAccumulator,
+										   interferenceBreakdownAccumulator,
+										   currentRequests);
 
 	double utilSum = 0.0;
 	for(int i=0;i<memoryBuses.size();i++){
@@ -408,6 +419,18 @@ InterferenceManager::buildInterferenceMeasurement(){
 		totalAccesses += rm.denominator;
 	}
 	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
+
+	for(int i=0;i<cpuCount;i++){
+
+		currentRequests[i] = 0;
+		sharedLatencyAccumulator[i] = 0;
+		interferenceAccumulator[i] = 0;
+
+		for(int j=0;j<NUM_LAT_TYPES;j++){
+			sharedLatencyBreakdownAccumulator[i][j] = 0;
+			interferenceBreakdownAccumulator[i][j] = 0;
+		}
+	}
 
 	return currentMeasurement;
 }

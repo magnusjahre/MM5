@@ -52,10 +52,10 @@ protected:
 
 	double requestCountThreshold;
 	double busUtilizationThreshold;
+	double acceptanceThreshold;
 
 	void getAverageMemoryLatency(std::vector<int>* currentMHA,
-							     std::vector<double>* estimatedSharedLatencies,
-							     std::vector<double>* estimatedNewRequestCount);
+							     std::vector<double>* estimatedSharedLatencies);
 
 	int level;
 	double maxMetricValue;
@@ -91,6 +91,19 @@ protected:
 	void regStats();
 
 	double computeError(double estimate, double actual);
+
+	// Debug trace methods
+	void traceVerboseVector(const char* message, std::vector<int>& data);
+	void traceVerboseVector(const char* message, std::vector<double>& data);
+	void traceVector(const char* message, std::vector<int>& data);
+	void traceVector(const char* message, std::vector<double>& data);
+	void tracePerformance(std::vector<double>& sharedCycles);
+
+	bool doMHAEvaluation(std::vector<int>& currentMHA);
+
+	double computeCurrentMetricValue();
+
+	void updateAloneCycleEstimate();
 
 public:
 	MissBandwidthPolicy(std::string _name,

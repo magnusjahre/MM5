@@ -31,19 +31,22 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 }
 
 void
-PerformanceMeasurement::addInterferenceData(vector<vector<double> > sharedAvgLatencies,
-										     vector<vector<double> > privateAvgEstimation){
+PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAccumulator,
+	                                        std::vector<double> interferenceEstimateAccumulator,
+	                                        std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator,
+	                                        std::vector<std::vector<double> > interferenceBreakdownAccumulator,
+	                                        std::vector<int> localRequests){
 
 	for(int i=0;i<cpuCount;i++){
-		for(int j=0;j<numIntTypes+1;j++){
-			if(j == 0){
-				sharedLatencies[i] = sharedAvgLatencies[i][j];
-				estimatedPrivateLatencies[i] = privateAvgEstimation[i][j];
-			}
-			else{
-				latencyBreakdown[i][j-1] = sharedAvgLatencies[i][j];
-				privateLatencyBreakdown[i][j-1] = privateAvgEstimation[i][j];
-			}
+		sharedLatencies[i] = sharedLatencyAccumulator[i] / (double) localRequests[i];
+
+		double tmpPrivateEstimate = sharedLatencyAccumulator[i] - interferenceEstimateAccumulator[i];
+		estimatedPrivateLatencies[i] = tmpPrivateEstimate / (double) localRequests[i];
+
+		for(int j=0;j<numIntTypes;j++){
+			latencyBreakdown[i][j] = sharedLatencyBreakdownAccumulator[i][j] / (double) localRequests[i];
+			double tmpPrivateBreakdownEstimate = sharedLatencyBreakdownAccumulator[i][j] - interferenceBreakdownAccumulator[i][j];
+			privateLatencyBreakdown[i][j] = tmpPrivateBreakdownEstimate / (double) localRequests[i];
 		}
 	}
 }
@@ -57,6 +60,12 @@ PerformanceMeasurement::getTraceHeader(){
 		name << "Committed Instructions CPU" << i;
 		header.push_back(name.str());
 	}
+	for(int i=0;i<cpuCount;i++){
+		stringstream name;
+		name << "Requests CPU" << i;
+		header.push_back(name.str());
+	}
+
 	for(int i=0;i<cpuCount;i++){
 		for(int j=0;j<maxMSHRs+1;j++){
 			stringstream name;
@@ -111,6 +120,11 @@ PerformanceMeasurement::createTraceLine(){
 	for(int i=0;i<cpuCount;i++){
 		line.push_back(committedInstructions[i]);
 	}
+
+	for(int i=0;i<cpuCount;i++){
+		line.push_back(requestsInSample[i]);
+	}
+
 	for(int i=0;i<cpuCount;i++){
 		for(int j=0;j<maxMSHRs+1;j++){
 			line.push_back(mlpEstimate[i][j]);
@@ -148,6 +162,7 @@ double
 PerformanceMeasurement::getAloneCycles(int cpuID, int period){
 	double totalInterferenceCycles = (sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID]) * requestsInSample[cpuID];
 	double visibleIntCycles = mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles;
+	DPRINTF(MissBWPolicyExtra, "Estimating alone cycles for CPU %d, visible interference is %f, period %d\n", cpuID, visibleIntCycles, period);
 	if(visibleIntCycles > period) return 0;
 	return period - visibleIntCycles;
 }

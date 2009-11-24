@@ -34,8 +34,11 @@ public:
 
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs);
 
-	void addInterferenceData(std::vector<std::vector<double> > sharedAvgLatencies,
-							 std::vector<std::vector<double> > privateAvgEstimation);
+	void addInterferenceData(std::vector<double> sharedLatencyAccumulator,
+						     std::vector<double> interferenceEstimateAccumulator,
+							 std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator,
+							 std::vector<std::vector<double> > interferenceBreakdownAccumulator,
+							 std::vector<int> localRequests);
 
 	std::vector<std::string> getTraceHeader();
 	std::vector<RequestTraceEntry> createTraceLine();

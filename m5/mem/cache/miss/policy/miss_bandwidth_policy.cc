@@ -25,6 +25,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
 
+	acceptanceThreshold = 1.05; // TODO: parameterize
 
 	intManager->registerMissBandwidthPolicy(this);
 
@@ -178,43 +179,109 @@ MissBandwidthPolicy::addTraceEntry(PerformanceMeasurement* measurement){
 
 }
 
+void
+MissBandwidthPolicy::traceVerboseVector(const char* message, std::vector<int>& data){
+	DPRINTFR(MissBWPolicyExtra, message);
+	for(int i=0;i<data.size();i++) DPRINTFR(MissBWPolicyExtra, "%d:%d ", i, data[i]);
+	DPRINTFR(MissBWPolicyExtra, "\n");
+}
+
+void
+MissBandwidthPolicy::traceVerboseVector(const char* message, std::vector<double>& data){
+	DPRINTFR(MissBWPolicyExtra, message);
+	for(int i=0;i<data.size();i++) DPRINTFR(MissBWPolicyExtra, "%d:%f ", i, data[i]);
+	DPRINTFR(MissBWPolicyExtra, "\n");
+}
+
+void
+MissBandwidthPolicy::traceVector(const char* message, std::vector<int>& data){
+	DPRINTF(MissBWPolicy, message);
+	for(int i=0;i<data.size();i++) DPRINTFR(MissBWPolicy, "%d:%d ", i, data[i]);
+	DPRINTFR(MissBWPolicy, "\n");
+}
+
+void
+MissBandwidthPolicy::traceVector(const char* message, std::vector<double>& data){
+	DPRINTF(MissBWPolicy, message);
+	for(int i=0;i<data.size();i++) DPRINTFR(MissBWPolicy, "%d:%f ", i, data[i]);
+	DPRINTFR(MissBWPolicy, "\n");
+}
+
+void
+MissBandwidthPolicy::tracePerformance(std::vector<double>& sharedCycles){
+	vector<double> estimatedSharedIPC(cpuCount, 0.0);
+	vector<double> aloneIPC(cpuCount, 0.0);
+
+	for(int i=0;i<cpuCount;i++){
+		estimatedSharedIPC[i] = currentMeasurements->committedInstructions[i] / sharedCycles[i];
+		aloneIPC[i] = currentMeasurements->committedInstructions[i] / aloneCycleEstimates[i];
+	}
+
+	traceVerboseVector("Shared IPC Estimate: ", estimatedSharedIPC);
+	traceVerboseVector("Alone IPC Estimate: ", aloneIPC);
+	traceVerboseVector("Estimated Speedup: ", currentSpeedupProjection);
+}
+
+bool
+MissBandwidthPolicy::doMHAEvaluation(std::vector<int>& currentMHA){
+	for(int i=0;i<currentMHA.size();i++){
+		if(currentMHA[i] < maxMSHRs && currentMeasurements->requestsInSample[i] < requestCountThreshold){
+//			DPRINTFR(MissBWPolicyExtra, "Pruning MHA for CPU %d since number of requests %d < threshold %d\n", i, currentMeasurements->requestsInSample[i], requestCountThreshold);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 double
 MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	vector<int> currentMHA = relocateMHA(mhaConfig);
 
-	// 1. Estimate new shared memory latencies
+	// 1. Prune search space
+	if(!doMHAEvaluation(currentMHA)) return 0.0;
+
+	traceVerboseVector("--- Evaluating MHA: ", currentMHA);
+
+	traceVerboseVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
+	traceVerboseVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
+
+	// 2. Estimate new shared memory latencies
 	vector<double> sharedLatencyEstimates(cpuCount, 0.0);
-	vector<double> newRequestCountEstimates(cpuCount, 0.0);
-	getAverageMemoryLatency(&currentMHA, &sharedLatencyEstimates, &newRequestCountEstimates);
-
+	getAverageMemoryLatency(&currentMHA, &sharedLatencyEstimates);
 	currentLatencyProjection = sharedLatencyEstimates;
-	currentRequestProjection = newRequestCountEstimates;
 
-	// 2. Compute speedups
+	traceVerboseVector("Shared Latency Projection: ", sharedLatencyEstimates);
+
+	// 3. Compute speedups
 	vector<double> speedups(cpuCount, 0.0);
-
+	vector<double> sharedCycleEstimates(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 
-		double totalLatencyEstimate = sharedLatencyEstimates[i] * newRequestCountEstimates[i];
+		double totalLatencyEstimate = sharedLatencyEstimates[i] * currentMeasurements->requestsInSample[i];
 		double memStallEstimate = currentMeasurements->mlpEstimate[i][currentMHA[i]] * totalLatencyEstimate;
-		double sharedCycleEstimate = currentMeasurements->getNonMemoryCycles(i, caches[i]->getCurrentMSHRCount(true), period) + memStallEstimate;
+		sharedCycleEstimates[i] = currentMeasurements->getNonMemoryCycles(i, caches[i]->getCurrentMSHRCount(true), period) + memStallEstimate;
 
-		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
-			double tmpAloneEstimate = currentMeasurements->getAloneCycles(i, period);
-			if(tmpAloneEstimate > 0){
-				aloneCycleEstimates[i] = tmpAloneEstimate;
-			}
-			else{
-				aloneEstimationFailed[i]++;
-			}
+		DPRINTFR(MissBWPolicyExtra, "CPU %d, estimating new total latency %f, mlp %f, stall estimate %f\n", i, totalLatencyEstimate, currentMeasurements->mlpEstimate[i][currentMHA[i]], memStallEstimate);
+
+		assert(sharedCycleEstimates[i] > 0);
+		if(aloneCycleEstimates[i] > sharedCycleEstimates[i]){
+			speedups[i] = 1.0;
 		}
-		speedups[i] = aloneCycleEstimates[i] / sharedCycleEstimate;
+		else{
+			speedups[i] = aloneCycleEstimates[i] / sharedCycleEstimates[i];
+		}
+
 	}
 
 	currentSpeedupProjection = speedups;
 
-	// 3. Compute metric
+	tracePerformance(sharedCycleEstimates);
+
+	// 4. Compute metric
 	double metricValue = computeMetric(&speedups);
+
+	DPRINTFR(MissBWPolicyExtra, "Returning metric value %f\n", metricValue);
 
 	return metricValue;
 }
@@ -245,12 +312,12 @@ MissBandwidthPolicy::computePercetages(vector<T>* values){
 
 void
 MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
-											 vector<double>* estimatedSharedLatencies,
-											 vector<double>* estimatedNewRequestCount){
+											 vector<double>* estimatedSharedLatencies){
 
 	assert(estimatedSharedLatencies->size() == cpuCount);
-	assert(estimatedNewRequestCount->size() == cpuCount);
 	assert(currentMeasurements != NULL);
+
+	vector<double> newRequestCountEstimates(cpuCount, 0.0);
 
 	// 1. Estimate change in request count due change in MLP
 	double freeBusSlots = 0;
@@ -260,40 +327,53 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 			mlpRatio = 1;
 		}
 		else{
+			assert(currentMeasurements->mlpEstimate[i][caches[i]->getCurrentMSHRCount(true)] > 0);
 			mlpRatio = currentMeasurements->mlpEstimate[i][caches[i]->getCurrentMSHRCount(true)] / currentMeasurements->mlpEstimate[i][currentMHA->at(i)];
 		}
-		(*estimatedNewRequestCount)[i] = ((double) currentMeasurements->requestsInSample[i]) - (((double) currentMeasurements->requestsInSample[i]) * mlpRatio);
 
-		freeBusSlots += currentMeasurements->sharedCacheMissRate * (((double) currentMeasurements->requestsInSample[i]) - estimatedNewRequestCount->at(i));
+		newRequestCountEstimates[i] = (double) currentMeasurements->requestsInSample[i] * mlpRatio;
+
+		double tmpFreeBusSlots = currentMeasurements->sharedCacheMissRate * (((double) currentMeasurements->requestsInSample[i]) - newRequestCountEstimates[i]);
+		freeBusSlots += tmpFreeBusSlots;
+
+		DPRINTFR(MissBWPolicyExtra, "Request change for CPU %i, MLP ratio %f, request estimate %f, freed bus slots %f\n", i, mlpRatio, newRequestCountEstimates[i], tmpFreeBusSlots);
 	}
 
 	// 2. Estimate the response in request demand
 	vector<double> additionalBusRequests(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 		double busRequests = currentMeasurements->sharedCacheMissRate * (double) currentMeasurements->requestsInSample[i];
-		if(busRequests > requestCountThreshold){
+		if(busRequests > requestCountThreshold && currentMHA->at(i) >= caches[i]->getCurrentMSHRCount(true)){
 			double queueRatio = 1.0;
 			if(currentMeasurements->privateLatencyBreakdown[i][InterferenceManager::MemoryBusQueue] > 0){
 				queueRatio = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue] / currentMeasurements->privateLatencyBreakdown[i][InterferenceManager::MemoryBusQueue];
 			}
 			double additionalRequests = queueRatio * currentMeasurements->requestsInSample[i];
 			additionalBusRequests[i] = additionalRequests * currentMeasurements->sharedCacheMissRate;
+			DPRINTFR(MissBWPolicyExtra, "CPU %d has queue ratio %f, estimating %f reqs in next sample, %f bus reqs\n", i, queueRatio, additionalRequests, additionalBusRequests[i]);
+		}
+		else{
+			DPRINTFR(MissBWPolicyExtra, "CPU %d has too few requests (%f < %i) or num MSHRs is not increased (new count %d < old count %d)\n", i, busRequests, requestCountThreshold, currentMHA->at(i), caches[i]->getCurrentMSHRCount(true));
 		}
 	}
 
 	vector<double> currentRequestDistribution = computePercetages(&(currentMeasurements->requestsInSample));
 	if(currentMeasurements->actualBusUtilization > busUtilizationThreshold && freeBusSlots > 0){
+		DPRINTFR(MissBWPolicyExtra, "Bus utilzation is larger than threshold (%f > %f)\n", currentMeasurements->actualBusUtilization, busUtilizationThreshold);
 		double addBusReqSum = computeSum(&additionalBusRequests);
 		if(addBusReqSum > freeBusSlots){
 			for(int i=0;i<cpuCount;i++){
-				(*estimatedNewRequestCount)[i] += freeBusSlots * (double) currentRequestDistribution[i];
+				newRequestCountEstimates[i] += freeBusSlots * (double) currentRequestDistribution[i];
 			}
 		}
 		else{
 			for(int i=0;i<cpuCount;i++){
-				(*estimatedNewRequestCount)[i] += additionalBusRequests[i];
+				newRequestCountEstimates[i] += additionalBusRequests[i];
 			}
 		}
+	}
+	else{
+		DPRINTFR(MissBWPolicyExtra, "Bus utilzation smaller than threshold (%f < %f)\n", currentMeasurements->actualBusUtilization, busUtilizationThreshold);
 	}
 
 	// 3. Estimate the new average request latency
@@ -301,17 +381,22 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	double newTotalRequests = 0.0;
 	for(int i=0;i<cpuCount;i++){
 		oldTotalRequests += currentMeasurements->sharedCacheMissRate * currentMeasurements->requestsInSample[i];
-		newTotalRequests += currentMeasurements->sharedCacheMissRate * estimatedNewRequestCount->at(i);
+		newTotalRequests += currentMeasurements->sharedCacheMissRate * newRequestCountEstimates[i];
 	}
 
 	double requestRatio = newTotalRequests / oldTotalRequests;
+
+	DPRINTFR(MissBWPolicyExtra, "New request ratio is %f, estimated new request count %f, old request count %f\n", requestRatio, newTotalRequests, oldTotalRequests);
 
 	for(int i=0;i<cpuCount;i++){
 		double currentAvgBusLat = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue];
 		double newAvgBusLat = requestRatio * currentAvgBusLat;
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat;
+		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i));
 	}
 
+	traceVerboseVector("Request Count Projection: ", newRequestCountEstimates);
+	currentRequestProjection = newRequestCountEstimates;
 }
 
 double
@@ -321,11 +406,52 @@ MissBandwidthPolicy::computeError(double estimate, double actual){
 	return relErr*100;
 }
 
+double
+MissBandwidthPolicy::computeCurrentMetricValue(){
+
+	vector<double> speedups(cpuCount, 0.0);
+
+	for(int i=0;i<cpuCount;i++){
+		if(aloneCycleEstimates[i] == 0){
+			speedups[i] = 1;
+		}
+		else{
+			speedups[i] = aloneCycleEstimates[i] / period;
+		}
+	}
+	traceVector("Estimated Current Speedups: ", speedups);
+
+	double metricValue = computeMetric(&speedups);
+	DPRINTF(MissBWPolicy, "Estimated current metric value to be %f\n", metricValue);
+	return metricValue;
+}
+
+void
+MissBandwidthPolicy::updateAloneCycleEstimate(){
+	for(int i=0;i<cpuCount;i++){
+		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
+			double tmpAloneEstimate = currentMeasurements->getAloneCycles(i, period);
+			if(tmpAloneEstimate > 0){
+				aloneCycleEstimates[i] = tmpAloneEstimate;
+			}
+			else{
+				aloneEstimationFailed[i]++;
+				DPRINTF(MissBWPolicyExtra, "Alone estimation failed for cpu %i\n", i);
+			}
+		}
+	}
+}
+
 void
 MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	addTraceEntry(&measurements);
 	assert(currentMeasurements == NULL);
 	currentMeasurements = &measurements;
+
+	traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
+	traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
+	traceVector("Committed Instructions: ", currentMeasurements->committedInstructions);
+
 	tracePartialMeasurements();
 
 	if(!bestRequestProjection.empty()){
@@ -334,25 +460,41 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 			requestRelError[i].sample(reqError);
 			requestAbsError[i].sample(bestRequestProjection[i] - measurements.requestsInSample[i]);
 
-			double latError = computeError(bestLatencyProjection[i], measurements.sharedLatencies[i]);
-			sharedLatencyRelError[i].sample(latError);
-			sharedLatencyAbsError[i].sample(bestLatencyProjection[i] - measurements.sharedLatencies[i]);
+			if(currentMeasurements->sharedLatencies[i] > 0){
+				double latError = computeError(bestLatencyProjection[i], measurements.sharedLatencies[i]);
+				sharedLatencyRelError[i].sample(latError);
+				sharedLatencyAbsError[i].sample(bestLatencyProjection[i] - measurements.sharedLatencies[i]);
+			}
 		}
 	}
 
-	vector<int> bestMHA = exhaustiveSearch();
-	assert(bestMHA.size() == cpuCount);
+	updateAloneCycleEstimate();
 
+	vector<int> bestMHA = exhaustiveSearch();
+	if(bestMHA.size() != cpuCount){
+		DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
+		bestMHA.resize(cpuCount, maxMSHRs);
+	}
+
+	traceVector("Best MHA: ", bestMHA);
 	traceBestProjection(bestMHA);
 
-	for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+	double currentMetricValue = computeCurrentMetricValue();
+	double benefit = maxMetricValue / currentMetricValue;
+	if(benefit > acceptanceThreshold){
+		DPRINTF(MissBWPolicy, "Implementing new MHA, benefit is %d, acceptance threshold %d\n", benefit, acceptanceThreshold);
+		for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+	}
+	else{
+		DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
+	}
 
 	vector<double> currentIPCEstimate(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 		currentIPCEstimate[i] = (double) measurements.committedInstructions[i] / aloneCycleEstimates[i];
 	}
-
 	traceAloneIPC(measurements.requestsInSample, currentIPCEstimate);
+
 
 	currentMeasurements = NULL;
 }
@@ -431,6 +573,9 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 	if(level == cpuCount){
 		double metricValue = evaluateMHA(value);
 		if(metricValue >= maxMetricValue){
+
+			if(metricValue > 0) DPRINTFR(MissBWPolicyExtra, "Metric value %f is larger than previous best %f, new best MHA\n", metricValue, maxMetricValue);
+
 			maxMetricValue = metricValue;
 			maxMHAConfiguration = *value;
 
