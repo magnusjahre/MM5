@@ -477,7 +477,8 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	traceVector("Best MHA: ", bestMHA);
-	traceBestProjection(bestMHA);
+	DPRINTF(MissBWPolicy, "Best metric value is %f\n", maxMetricValue);
+
 
 	double currentMetricValue = computeCurrentMetricValue();
 	double benefit = maxMetricValue / currentMetricValue;
@@ -488,6 +489,8 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	else{
 		DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
 	}
+
+	traceBestProjection(bestMHA);
 
 	vector<double> currentIPCEstimate(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
@@ -527,7 +530,7 @@ MissBandwidthPolicy::traceBestProjection(vector<int> bestMHA){
 
 	vector<RequestTraceEntry> data;
 
-	for(int i=0;i<cpuCount;i++) data.push_back(bestMHA[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(caches[i]->getCurrentMSHRCount(true));
 	for(int i=0;i<cpuCount;i++) data.push_back(bestSpeedupProjection[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestRequestProjection[i]);
