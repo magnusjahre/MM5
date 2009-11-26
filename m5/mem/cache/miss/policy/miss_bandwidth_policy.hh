@@ -34,7 +34,7 @@ protected:
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
 
-	std::vector<double> aloneCycleEstimates;
+	std::vector<double> aloneIPCEstimates;
 
 	RequestTrace predictionTrace;
 	RequestTrace partialMeasurementTrace;
@@ -103,7 +103,9 @@ protected:
 
 	double computeCurrentMetricValue();
 
-	void updateAloneCycleEstimate();
+	void updateAloneIPCEstimate();
+
+	double computeSpeedup(double sharedIPCEstimate, int cpuID);
 
 public:
 	MissBandwidthPolicy(std::string _name,

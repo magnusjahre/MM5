@@ -160,9 +160,21 @@ PerformanceMeasurement::getNonMemoryCycles(int cpuID, int currentMSHRCount, int 
 
 double
 PerformanceMeasurement::getAloneCycles(int cpuID, int period){
-	double totalInterferenceCycles = (sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID]) * requestsInSample[cpuID];
-	double visibleIntCycles = mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles;
-	DPRINTF(MissBWPolicyExtra, "Estimating alone cycles for CPU %d, visible interference is %f, period %d\n", cpuID, visibleIntCycles, period);
-	if(visibleIntCycles > period) return 0;
-	return period - visibleIntCycles;
+
+	double privateMemoryCycles = estimatedPrivateLatencies[cpuID] * requestsInSample[cpuID];
+	double visiblePrivateMemoryCycles = privateMemoryCycles * mlpEstimate[cpuID][maxMSHRs];
+	double nonMemoryCycles = getNonMemoryCycles(cpuID, maxMSHRs, period);
+
+	double aloneCycleEstimate = nonMemoryCycles + visiblePrivateMemoryCycles;
+
+	DPRINTFR(MissBWPolicy, "Estimating alone cycles for CPU %d, visible private latency is %f, mlp %f, avg private latency %f, requests %d\n", cpuID, visiblePrivateMemoryCycles, mlpEstimate[cpuID][maxMSHRs], estimatedPrivateLatencies[cpuID], requestsInSample[cpuID]);
+
+	return aloneCycleEstimate;
+
+//	double avgInterference = sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID];
+//	double totalInterferenceCycles = avgInterference * requestsInSample[cpuID];
+//	double visibleIntCycles = mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles;
+//	DPRINTFR(MissBWPolicy, "Estimating alone cycles for CPU %d, visible interference is %f, period %f, mlp %f, avg interference %f, requests %d\n", cpuID, visibleIntCycles, period, mlpEstimate[cpuID][maxMSHRs], avgInterference, requestsInSample[cpuID]);
+//	if(visibleIntCycles > period) return 0;
+//	return period - visibleIntCycles;
 }
