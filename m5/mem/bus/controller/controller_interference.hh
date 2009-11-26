@@ -77,9 +77,7 @@ public:
 
 	virtual bool isInitialized() = 0;
 
-    virtual void insertPrivateVirtualRequest(MemReqPtr& req){
-    	fatal("ControllerInterference: not implemented");
-    }
+    virtual void insertPrivateVirtualRequest(MemReqPtr& req) = 0;
 
 };
 

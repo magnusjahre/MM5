@@ -27,6 +27,10 @@ public:
 	bool isInitialized(){
 		fatal("isInitialized() is not needed in FCFS interference implementation");
 	}
+
+	virtual void insertPrivateVirtualRequest(MemReqPtr& req){
+		//NOTE: private virtual requests are not supported in FCFS interference
+	}
 };
 
 #endif
