@@ -33,6 +33,8 @@
  * Definition of the MSHRQueue.
  */
 
+//#define DO_MISS_COUNT_TRACE
+
 #include "mem/cache/miss/mshr_queue.hh"
 #include "sim/eventq.hh"
 
@@ -64,11 +66,32 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
 	mlpAccumulatorTicks = 0;
+
+	outstandingMissAccumulator = 0;
+	outstandingMissAccumulatorCount = 0;
 }
 
 void
 MSHRQueue::setNumMSHRs(int newMSHRSize){
 	numMSHRs = newMSHRSize + numReserve - 1;
+}
+
+void
+MSHRQueue::setCache(BaseCache* _cache){
+	cache = _cache;
+
+	for (int i = 0; i < numMSHRs; ++i) {
+		registers[i].setCache(_cache);
+	}
+
+#ifdef DO_MISS_COUNT_TRACE
+	if(isMissQueue && cache->adaptiveMHA != NULL && !cache->isShared){
+		missCountTrace = RequestTrace(cache->name(), "MissCountTrace", 1);
+		vector<string> headers;
+		headers.push_back("Outstanding Misses");
+		missCountTrace.initalizeTrace(headers);
+	}
+#endif
 }
 
 MSHRQueue::~MSHRQueue()
@@ -612,44 +635,69 @@ MSHRQueue::handleMLPEstimationEvent(){
 
 	allocated_mshrs_distribution.sample(allocated);
 
-	if(!cache->isShared && isMissQueue && allocated > 0){
-
+	if(!cache->isShared && isMissQueue){
 		int demandAllocated = 0;
-		MSHR::ConstIterator i = allocatedList.begin();
-		MSHR::ConstIterator end = allocatedList.end();
-		for (; i != end; ++i) {
-			MSHR *mshr = *i;
+		if(allocated > 0){
 
-			// mshrs are allocated in the same cycle as the access arrives, but the miss latency
-			// starts when the request is finished in the cache (i.e after hit latency cycles)
-			int ticksSinceInserted = curTick - mshr->req->time;
-			if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
-				demandAllocated++;
+			MSHR::ConstIterator i = allocatedList.begin();
+			MSHR::ConstIterator end = allocatedList.end();
+			for (; i != end; ++i) {
+				MSHR *mshr = *i;
+
+				// mshrs are allocated in the same cycle as the access arrives, but the miss latency
+				// starts when the request is finished in the cache (i.e after hit latency cycles)
+				int ticksSinceInserted = curTick - mshr->req->time;
+				if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+					demandAllocated++;
+				}
 			}
-		}
 
-		double mlpcost = 1 / (double) demandAllocated;
+			if(demandAllocated > 0){
+				double mlpcost = 1 / (double) demandAllocated;
 
-		i = allocatedList.begin();
-		end = allocatedList.end();
-		for (; i != end; ++i) {
-			MSHR *mshr = *i;
-			int ticksSinceInserted = curTick - mshr->req->time;
-			if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
-				mshr->mlpCost += mlpcost;
+				i = allocatedList.begin();
+				end = allocatedList.end();
+				for (; i != end; ++i) {
+					MSHR *mshr = *i;
+					int ticksSinceInserted = curTick - mshr->req->time;
+					if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+						mshr->mlpCost += mlpcost;
 
-				if(mshr->mlpCostDistribution.empty()) mshr->mlpCostDistribution.resize(maxMSHRs+1, 0.0);
-				for(int j=0;j<=maxMSHRs;j++){
-					if(j<demandAllocated){
-						double estimatedCost = 1.0 / (double) j;
-						mshr->mlpCostDistribution[j] += estimatedCost;
-					}
-					else{
-						mshr->mlpCostDistribution[j] += mlpcost;
+						if(mshr->mlpCostDistribution.empty()) mshr->mlpCostDistribution.resize(maxMSHRs+1, 0.0);
+						for(int j=0;j<=maxMSHRs;j++){
+							if(j<demandAllocated){
+								double estimatedCost = 1.0 / (double) j;
+								mshr->mlpCostDistribution[j] += estimatedCost;
+							}
+							else{
+								mshr->mlpCostDistribution[j] += mlpcost;
+							}
+						}
 					}
 				}
 			}
 		}
+
+#ifdef DO_MISS_COUNT_TRACE
+
+		outstandingMissAccumulator += demandAllocated;
+		outstandingMissAccumulatorCount++;
+
+		int period = 100;
+		if(outstandingMissAccumulatorCount == period){
+			if(cache->adaptiveMHA != NULL){
+
+				double avgOutstanding = (double) outstandingMissAccumulator / (double) outstandingMissAccumulatorCount;
+
+				vector<RequestTraceEntry> curEntries;
+				curEntries.push_back(avgOutstanding);
+				missCountTrace.addTrace(curEntries);
+			}
+			outstandingMissAccumulator = 0;
+			outstandingMissAccumulatorCount = 0;
+		}
+		assert(outstandingMissAccumulatorCount < period);
+#endif
 	}
 }
 
@@ -668,4 +716,3 @@ MSHRQueue::getMLPEstimate(){
 
 	return estimateSample;
 }
-

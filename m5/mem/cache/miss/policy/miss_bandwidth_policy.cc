@@ -59,6 +59,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 	currentMeasurements = NULL;
 
+	mostRecentMLPEstimate.resize(cpuCount, vector<double>());
+
 	initProjectionTrace(_cpuCount);
 	initPartialMeasurementTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
@@ -257,15 +259,19 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	vector<double> sharedCycleEstimates(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 
-		double totalLatencyEstimate = sharedLatencyEstimates[i] * currentMeasurements->requestsInSample[i];
-		double memStallEstimate = currentMeasurements->mlpEstimate[i][currentMHA[i]] * totalLatencyEstimate;
-		sharedCycleEstimates[i] = currentMeasurements->getNonMemoryCycles(i, caches[i]->getCurrentMSHRCount(true), period) + memStallEstimate;
+		// use ratio of (shared latency / avg misses serviced while stalled) to estimate stall time with new MHA
 
-		DPRINTFR(MissBWPolicyExtra, "CPU %d, estimating new total latency %f, mlp %f, stall estimate %f\n", i, totalLatencyEstimate, currentMeasurements->mlpEstimate[i][currentMHA[i]], memStallEstimate);
+		double totalLatencyEstimate = sharedLatencyEstimates[i] * currentMeasurements->requestsInSample[i];
+		double memStallEstimate = mostRecentMLPEstimate[i][currentMHA[i]] * totalLatencyEstimate;
+		sharedCycleEstimates[i] = currentMeasurements->getNonMemoryCycles(i, period) + memStallEstimate;
+
+		DPRINTFR(MissBWPolicyExtra, "CPU %d, estimating new total latency %f, mlp %f, stall estimate %f\n", i, totalLatencyEstimate, mostRecentMLPEstimate[i][currentMHA[i]], memStallEstimate);
 
 		assert(sharedCycleEstimates[i] > 0);
 		double sharedIPCEstimate = (double) currentMeasurements->committedInstructions[i] / sharedCycleEstimates[i];
 		speedups[i] = computeSpeedup(sharedIPCEstimate, i);
+
+		fatal("estimate speedup not implemented");
 	}
 
 	currentSpeedupProjection = speedups;
@@ -317,12 +323,12 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	double freeBusSlots = 0;
 	for(int i=0;i<cpuCount;i++){
 		double mlpRatio = 0.0;
-		if(currentMeasurements->mlpEstimate[i][currentMHA->at(i)] == 0){
+		if(mostRecentMLPEstimate[i][currentMHA->at(i)] == 0){
 			mlpRatio = 1;
 		}
 		else{
-			assert(currentMeasurements->mlpEstimate[i][caches[i]->getCurrentMSHRCount(true)] > 0);
-			mlpRatio = currentMeasurements->mlpEstimate[i][caches[i]->getCurrentMSHRCount(true)] / currentMeasurements->mlpEstimate[i][currentMHA->at(i)];
+			assert(mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)] > 0);
+			mlpRatio = mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)] / mostRecentMLPEstimate[i][currentMHA->at(i)];
 		}
 
 		newRequestCountEstimates[i] = (double) currentMeasurements->requestsInSample[i] * mlpRatio;
@@ -440,6 +446,18 @@ MissBandwidthPolicy::updateAloneIPCEstimate(){
 }
 
 void
+MissBandwidthPolicy::updateMLPEstimates(){
+
+	for(int i=0;i<cpuCount;i++){
+		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
+			DPRINTF(MissBWPolicy, "Updating local MLP estimate for CPU %i\n", i);
+			mostRecentMLPEstimate[i] = currentMeasurements->mlpEstimate[i];
+		}
+	}
+
+}
+
+void
 MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	addTraceEntry(&measurements);
 	assert(currentMeasurements == NULL);
@@ -449,6 +467,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
 	traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
 	traceVector("Committed Instructions: ", currentMeasurements->committedInstructions);
+	traceVector("CPU Stall Cycles: ", currentMeasurements->cpuStallCycles);
 	vector<double> actualIPC(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++) actualIPC[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
 	traceVector("Measured IPC: ", actualIPC);
@@ -458,20 +477,27 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	if(!bestRequestProjection.empty()){
 		for(int i=0;i<cpuCount;i++){
-			double reqError = computeError(bestRequestProjection[i], measurements.requestsInSample[i]);
-			requestRelError[i].sample(reqError);
-			requestAbsError[i].sample(bestRequestProjection[i] - measurements.requestsInSample[i]);
+			if(currentMeasurements->requestsInSample[i] > requestCountThreshold){
+				double reqError = computeError(bestRequestProjection[i], measurements.requestsInSample[i]);
+				requestRelError[i].sample(reqError);
+				requestAbsError[i].sample(bestRequestProjection[i] - measurements.requestsInSample[i]);
 
-			if(currentMeasurements->sharedLatencies[i] > 0){
-				double latError = computeError(bestLatencyProjection[i], measurements.sharedLatencies[i]);
-				sharedLatencyRelError[i].sample(latError);
-				sharedLatencyAbsError[i].sample(bestLatencyProjection[i] - measurements.sharedLatencies[i]);
+				if(currentMeasurements->sharedLatencies[i] > 0){
+					double latError = computeError(bestLatencyProjection[i], measurements.sharedLatencies[i]);
+					sharedLatencyRelError[i].sample(latError);
+					sharedLatencyAbsError[i].sample(bestLatencyProjection[i] - measurements.sharedLatencies[i]);
+				}
+			}
+			else{
+				DPRINTF(MissBWPolicy, "Skipping accuracy check for CPU %i, %d requests < threshold %f\n", i, currentMeasurements->requestsInSample[i], requestCountThreshold);
 			}
 		}
 	}
 
 	updateAloneIPCEstimate();
 	traceVector("Alone IPC Estimates: ", aloneIPCEstimates);
+
+	updateMLPEstimates();
 
 	vector<int> bestMHA = exhaustiveSearch();
 	if(bestMHA.size() != cpuCount){
@@ -499,8 +525,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 
 
 	currentMeasurements = NULL;
-
-	if(curTick == 2000000) fatal("stop here for now");
 }
 
 void

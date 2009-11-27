@@ -9,7 +9,7 @@
 
 using namespace std;
 
-RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename,int _dumpInterval){
+RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, int _dumpInterval){
 
     stringstream filenamestream;
     filenamestream << _simobjectname << _filename << ".txt";

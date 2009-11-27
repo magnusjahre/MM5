@@ -418,6 +418,17 @@ FullCPU::commit()
 		}
 		floss_state.commit_end_cause[0] = reason;
 
+		ROBStation* oldestStation = ROB.head();
+		assert(oldestStation != NULL);
+		if(oldestStation->inst->isLoad()){
+			issueStallMessageCounter++;
+			int stallDetectionDelay = 20;
+			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
+				stallMessageIssued = true;
+				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
+			}
+		}
+
 		//
 		//  De-allocate memory
 		//
@@ -477,6 +488,11 @@ FullCPU::commit()
 
 	// entering main commit loop, reset tmp blocked cycle counter
 	tmpBlockedCycles = 0;
+	issueStallMessageCounter = 0;
+	if(stallMessageIssued){
+		stallMessageIssued = false;
+		interferenceManager->clearStalledForMemory(CPUParamsCpuID);
+	}
 
 	//
 	//  Main commit loop

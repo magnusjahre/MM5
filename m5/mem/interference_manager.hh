@@ -88,6 +88,11 @@ private:
 	void resetInterferenceMeasurements(int fromCPU);
 
 	std::vector<RequestTrace> aloneMissTrace;
+
+	std::vector<Tick> cpuStallAccumulator;
+	std::vector<Tick> cpuStalledAt;
+	std::vector<bool> cpuIsStalled;
+
 public:
 	typedef enum{
 			InterconnectEntry,
@@ -128,6 +133,11 @@ protected:
 	Stats::Formula avgTotalInterference;
 	Stats::Formula avgInterferencePercentage;
 
+	Stats::Vector<> cpuStallCycles;
+	Stats::Vector<> numCpuStalls;
+	Stats::Formula cpuStallPercentage;
+	Stats::Formula avgCpuStallLength;
+
 public:
 
 	InterferenceManager(std::string _name, int _cpu_count, int _sample_size, int _num_reqs_at_reset);
@@ -164,6 +174,9 @@ public:
 	}
 
 	void registerBus(Bus* bus);
+
+	void setStalledForMemory(int cpuID, int detectionDelay);
+	void clearStalledForMemory(int cpuID);
 };
 
 #endif

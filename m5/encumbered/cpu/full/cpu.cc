@@ -680,6 +680,10 @@ FullCPU::FullCPU(Params *p,
     committedSinceLast = 0;
 
     _intMan->registerCPU(this, CPUParamsCpuID);
+    interferenceManager = _intMan;
+
+	issueStallMessageCounter = 0;
+	stallMessageIssued = false;
 }
 
 

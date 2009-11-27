@@ -45,6 +45,8 @@ protected:
 	std::vector<double> bestRequestProjection;
 	std::vector<double> bestSpeedupProjection;
 
+	std::vector<std::vector<double> > mostRecentMLPEstimate;
+
 	PerformanceMeasurement* currentMeasurements;
 
 	int maxMSHRs;
@@ -104,6 +106,8 @@ protected:
 	double computeCurrentMetricValue();
 
 	void updateAloneIPCEstimate();
+
+	void updateMLPEstimates();
 
 	double computeSpeedup(double sharedIPCEstimate, int cpuID);
 

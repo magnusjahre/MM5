@@ -41,6 +41,7 @@
 #include "mem/cache/base_cache.hh" // for CACHE_DEBUG
 
 #include "base/statistics.hh"
+#include "mem/requesttrace.hh"
 
 class MLPEstimationEvent;
 
@@ -57,6 +58,8 @@ class MSHRQueue {
     MSHR::List pendingList;
     /** Holds non allocated MSHRs. */
     MSHR::List freeList;
+
+    RequestTrace missCountTrace;
 
     // Parameters
     /**
@@ -93,6 +96,10 @@ class MSHRQueue {
 
 	std::vector<double > currentMLPAccumulator;
 	Tick mlpAccumulatorTicks;
+
+
+	Tick outstandingMissAccumulator;
+	Tick outstandingMissAccumulatorCount;
 
   protected:
 
@@ -348,13 +355,7 @@ class MSHRQueue {
         std::cout << "Allocated: " << allocatedList.size() << ", Pending: " << pendingList.size() << ", Free: " << freeList.size() << "\n";
     }
 
-    void setCache(BaseCache* _cache){
-        cache = _cache;
-
-        for (int i = 0; i < numMSHRs; ++i) {
-            registers[i].setCache(_cache);
-        }
-    }
+    void setCache(BaseCache* _cache);
 
     void cpuCommittedInstruction();
 

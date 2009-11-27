@@ -101,6 +101,10 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 		aloneMissTrace[i].initalizeTrace(mTraceHeaders);
 	}
+
+	cpuStallAccumulator.resize(_cpu_count, 0);
+	cpuStalledAt.resize(_cpu_count, 0);
+	cpuIsStalled.resize(_cpu_count, false);
 }
 
 void
@@ -204,6 +208,28 @@ InterferenceManager::regStats(){
 		.desc("The percentage interference / round trip latency");
 
 	avgInterferencePercentage = avgTotalInterference / avgTotalLatency;
+
+	cpuStallCycles
+		.init(intManCPUCount)
+		.name(name() + ".cpu_stall_cycles")
+		.desc("total number of clock cycles the CPU was stalled");
+
+	numCpuStalls
+		.init(intManCPUCount)
+		.name(name() + ".num_of_cpu_stalls")
+		.desc("total number of times the CPU was stalled");
+
+	cpuStallPercentage
+		.name(name() + ".cpu_stall_percentage")
+		.desc("The percentage of time the CPU was stalled");
+
+	cpuStallPercentage = cpuStallCycles / simTicks;
+
+	avgCpuStallLength
+		.name(name() + ".avg_cpu_stall_length")
+		.desc("The average length of a CPU stall");
+
+	avgCpuStallLength = cpuStallCycles / numCpuStalls;
 }
 
 void
@@ -392,6 +418,8 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	for(int i=0;i<fullCPUs.size();i++){
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
+		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
+		cpuStallAccumulator[i] = 0;
 	}
 
 	for(int i=0;i<lastPrivateCaches.size();i++){
@@ -462,6 +490,27 @@ void
 InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	assert(fullCPUs[cpuID] == NULL);
 	fullCPUs[cpuID] = cpu;
+}
+
+void
+InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
+	assert(!cpuIsStalled[cpuID]);
+	cpuStalledAt[cpuID] = curTick - detectionDelay;
+	cpuIsStalled[cpuID] = true;
+}
+
+void
+InterferenceManager::clearStalledForMemory(int cpuID){
+	assert(cpuIsStalled[cpuID]);
+
+	Tick cpuStalledFor = curTick - cpuStalledAt[cpuID];
+
+	cpuStallAccumulator[cpuID] += cpuStalledFor;
+	cpuStallCycles[cpuID] += cpuStalledFor;
+	numCpuStalls[cpuID]++;
+
+	cpuStalledAt[cpuID] = 0;
+	cpuIsStalled[cpuID] = false;
 }
 
 

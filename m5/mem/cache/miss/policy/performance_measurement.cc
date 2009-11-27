@@ -28,6 +28,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	actualBusUtilization = 0.0;
 	sharedCacheMissRate = 0.0;
+
+	cpuStallCycles.resize(cpuCount, 0);
 }
 
 void
@@ -63,6 +65,11 @@ PerformanceMeasurement::getTraceHeader(){
 	for(int i=0;i<cpuCount;i++){
 		stringstream name;
 		name << "Requests CPU" << i;
+		header.push_back(name.str());
+	}
+	for(int i=0;i<cpuCount;i++){
+		stringstream name;
+		name << "Stall Cycles CPU" << i;
 		header.push_back(name.str());
 	}
 
@@ -126,6 +133,10 @@ PerformanceMeasurement::createTraceLine(){
 	}
 
 	for(int i=0;i<cpuCount;i++){
+		line.push_back(cpuStallCycles[i]);
+	}
+
+	for(int i=0;i<cpuCount;i++){
 		for(int j=0;j<maxMSHRs+1;j++){
 			line.push_back(mlpEstimate[i][j]);
 		}
@@ -152,10 +163,9 @@ PerformanceMeasurement::createTraceLine(){
 }
 
 double
-PerformanceMeasurement::getNonMemoryCycles(int cpuID, int currentMSHRCount, int period){
-	double totalLatencyCycles = (mlpEstimate[cpuID][currentMSHRCount] * sharedLatencies[cpuID]) * (double) requestsInSample[cpuID];
-	if(period < totalLatencyCycles) return 0;
-	return period - totalLatencyCycles;
+PerformanceMeasurement::getNonMemoryCycles(int cpuID, int period){
+	assert(period >= cpuStallCycles[cpuID]);
+	return period - cpuStallCycles[cpuID];
 }
 
 double
@@ -163,18 +173,12 @@ PerformanceMeasurement::getAloneCycles(int cpuID, int period){
 
 	double privateMemoryCycles = estimatedPrivateLatencies[cpuID] * requestsInSample[cpuID];
 	double visiblePrivateMemoryCycles = privateMemoryCycles * mlpEstimate[cpuID][maxMSHRs];
-	double nonMemoryCycles = getNonMemoryCycles(cpuID, maxMSHRs, period);
+	double nonMemoryCycles = getNonMemoryCycles(cpuID, period);
 
 	double aloneCycleEstimate = nonMemoryCycles + visiblePrivateMemoryCycles;
 
 	DPRINTFR(MissBWPolicy, "Estimating alone cycles for CPU %d, visible private latency is %f, mlp %f, avg private latency %f, requests %d\n", cpuID, visiblePrivateMemoryCycles, mlpEstimate[cpuID][maxMSHRs], estimatedPrivateLatencies[cpuID], requestsInSample[cpuID]);
 
+	fatal("getAloneCycles not implemented");
 	return aloneCycleEstimate;
-
-//	double avgInterference = sharedLatencies[cpuID] - estimatedPrivateLatencies[cpuID];
-//	double totalInterferenceCycles = avgInterference * requestsInSample[cpuID];
-//	double visibleIntCycles = mlpEstimate[cpuID][maxMSHRs] * totalInterferenceCycles;
-//	DPRINTFR(MissBWPolicy, "Estimating alone cycles for CPU %d, visible interference is %f, period %f, mlp %f, avg interference %f, requests %d\n", cpuID, visibleIntCycles, period, mlpEstimate[cpuID][maxMSHRs], avgInterference, requestsInSample[cpuID]);
-//	if(visibleIntCycles > period) return 0;
-//	return period - visibleIntCycles;
 }

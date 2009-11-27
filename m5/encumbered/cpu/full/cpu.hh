@@ -80,6 +80,10 @@ private:
 	Tick l1MissStallCycles;
 	std::string statsOrderFileName;
 
+	InterferenceManager* interferenceManager;
+	int issueStallMessageCounter;
+	bool stallMessageIssued;
+
 	bool hasDumpedStats;
 
 	AdaptiveMHA* amha;
