@@ -424,6 +424,7 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	for(int i=0;i<lastPrivateCaches.size();i++){
 		currentMeasurement.mlpEstimate[i] = lastPrivateCaches[i]->getMLPEstimate();
+		currentMeasurement.avgMissesWhileStalled[i] = lastPrivateCaches[i]->getServicedMissesWhileStalledEstimate();
 		currentMeasurement.requestsInSample[i] = currentRequests[i];
 	}
 
@@ -490,6 +491,11 @@ void
 InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	assert(fullCPUs[cpuID] == NULL);
 	fullCPUs[cpuID] = cpu;
+}
+
+bool
+InterferenceManager::isStalledForMemory(int cpuID){
+	return cpuIsStalled[cpuID];
 }
 
 void

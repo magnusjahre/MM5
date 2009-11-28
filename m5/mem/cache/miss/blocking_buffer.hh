@@ -288,6 +288,10 @@ public:
     	fatal("Makes no sense");
     }
 
+    std::vector<double> getServicedMissesWhileStalledEstimate(){
+    	fatal("Makes no sense");
+    }
+
     int getNumMSHRs(){
     	return 1;
     }

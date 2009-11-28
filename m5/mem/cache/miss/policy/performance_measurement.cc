@@ -19,6 +19,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	committedInstructions.resize(cpuCount, 0);
 	requestsInSample.resize(cpuCount, 0);
 	mlpEstimate.resize(cpuCount, vector<double>());
+	avgMissesWhileStalled.resize(cpuCount, vector<double>());
 
 	sharedLatencies.resize(cpuCount, 0.0);
 	estimatedPrivateLatencies.resize(cpuCount, 0.0);
@@ -77,6 +78,14 @@ PerformanceMeasurement::getTraceHeader(){
 		for(int j=0;j<maxMSHRs+1;j++){
 			stringstream name;
 			name << "CPU" << i << " MLP" << j;
+			header.push_back(name.str());
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<maxMSHRs+1;j++){
+			stringstream name;
+			name << "CPU" << i << " Avg MWS" << j;
 			header.push_back(name.str());
 		}
 	}
@@ -143,6 +152,12 @@ PerformanceMeasurement::createTraceLine(){
 	}
 
 	for(int i=0;i<cpuCount;i++){
+		for(int j=0;j<maxMSHRs+1;j++){
+			line.push_back(avgMissesWhileStalled[i][j]);
+		}
+	}
+
+	for(int i=0;i<cpuCount;i++){
 		line.push_back(sharedLatencies[i]);
 		for(int j=0;j<numIntTypes;j++){
 			line.push_back(latencyBreakdown[i][j]);
@@ -163,22 +178,7 @@ PerformanceMeasurement::createTraceLine(){
 }
 
 double
-PerformanceMeasurement::getNonMemoryCycles(int cpuID, int period){
+PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 	assert(period >= cpuStallCycles[cpuID]);
 	return period - cpuStallCycles[cpuID];
-}
-
-double
-PerformanceMeasurement::getAloneCycles(int cpuID, int period){
-
-	double privateMemoryCycles = estimatedPrivateLatencies[cpuID] * requestsInSample[cpuID];
-	double visiblePrivateMemoryCycles = privateMemoryCycles * mlpEstimate[cpuID][maxMSHRs];
-	double nonMemoryCycles = getNonMemoryCycles(cpuID, period);
-
-	double aloneCycleEstimate = nonMemoryCycles + visiblePrivateMemoryCycles;
-
-	DPRINTFR(MissBWPolicy, "Estimating alone cycles for CPU %d, visible private latency is %f, mlp %f, avg private latency %f, requests %d\n", cpuID, visiblePrivateMemoryCycles, mlpEstimate[cpuID][maxMSHRs], estimatedPrivateLatencies[cpuID], requestsInSample[cpuID]);
-
-	fatal("getAloneCycles not implemented");
-	return aloneCycleEstimate;
 }

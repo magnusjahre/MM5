@@ -45,7 +45,7 @@ protected:
 	std::vector<double> bestRequestProjection;
 	std::vector<double> bestSpeedupProjection;
 
-	std::vector<std::vector<double> > mostRecentMLPEstimate;
+	std::vector<std::vector<double> > mostRecentMWSEstimate;
 
 	PerformanceMeasurement* currentMeasurements;
 
@@ -107,9 +107,11 @@ protected:
 
 	void updateAloneIPCEstimate();
 
-	void updateMLPEstimates();
+	void updateMWSEstimates();
 
 	double computeSpeedup(double sharedIPCEstimate, int cpuID);
+
+	double estimateStallCycles(double currentStallTime, double currentMWS, double currentAvgSharedLat, double newMWS, double newAvgSharedLat);
 
 public:
 	MissBandwidthPolicy(std::string _name,

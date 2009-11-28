@@ -415,6 +415,10 @@ class Cache : public BaseCache
     	return missQueue->getMLPEstimate();
     }
 
+    virtual std::vector<double> getServicedMissesWhileStalledEstimate(){
+    	return missQueue->getServicedMissesWhileStalledEstimate();
+    }
+
     virtual void setNumMSHRs(int newMSHRCount){
     	return missQueue->setNumMSHRs(newMSHRCount);
     }

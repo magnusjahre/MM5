@@ -445,6 +445,10 @@ class MissQueue
     std::vector<double> getMLPEstimate(){
     	return mq.getMLPEstimate();
     }
+
+    std::vector<double> getServicedMissesWhileStalledEstimate(){
+    	return mq.getServicedMissesWhileStalledEstimate();
+    }
 };
 
 

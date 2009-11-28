@@ -25,6 +25,7 @@ public:
 	std::vector<int> cpuStallCycles;
 
 	std::vector<std::vector<double> > mlpEstimate;
+	std::vector<std::vector<double> > avgMissesWhileStalled;
 
 	std::vector<double> sharedLatencies;
 	std::vector<double> estimatedPrivateLatencies;
@@ -45,8 +46,7 @@ public:
 	std::vector<std::string> getTraceHeader();
 	std::vector<RequestTraceEntry> createTraceLine();
 
-	double getNonMemoryCycles(int cpuID, int period);
-	double getAloneCycles(int cpuID, int period);
+	double getNonStallCycles(int cpuID, int period);
 };
 
 

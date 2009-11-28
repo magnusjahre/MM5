@@ -66,6 +66,8 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
 	mlpAccumulatorTicks = 0;
+	stallMissCountAccumulator.resize(maxMSHRs+1, 0.0);
+	detectedStallCycleAccumulator = 0;
 
 	outstandingMissAccumulator = 0;
 	outstandingMissAccumulatorCount = 0;
@@ -637,6 +639,12 @@ MSHRQueue::handleMLPEstimationEvent(){
 
 	if(!cache->isShared && isMissQueue){
 		int demandAllocated = 0;
+
+		if(cache->interferenceManager != NULL &&
+		   cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
+			detectedStallCycleAccumulator++;
+		}
+
 		if(allocated > 0){
 
 			MSHR::ConstIterator i = allocatedList.begin();
@@ -675,6 +683,19 @@ MSHRQueue::handleMLPEstimationEvent(){
 						}
 					}
 				}
+
+				if(cache->interferenceManager != NULL){
+					for(int k=1;k<=maxMSHRs;k++){
+						if(demandAllocated > k){
+							stallMissCountAccumulator[k] += k;
+						}
+						else{
+							stallMissCountAccumulator[k] += demandAllocated;
+
+						}
+					}
+				}
+
 			}
 		}
 
@@ -713,6 +734,21 @@ MSHRQueue::getMLPEstimate(){
 		currentMLPAccumulator[i] = 0;
 	}
 	mlpAccumulatorTicks = 0;
+
+	return estimateSample;
+}
+
+std::vector<double>
+MSHRQueue::getServicedMissesWhileStalledEstimate(){
+	vector<double> estimateSample(maxMSHRs+1, 0.0);
+
+	for(int i=1;i<=maxMSHRs;i++){
+		if(detectedStallCycleAccumulator > 0){
+			estimateSample[i] = stallMissCountAccumulator[i] / detectedStallCycleAccumulator;
+		}
+		stallMissCountAccumulator[i] = 0;
+	}
+	detectedStallCycleAccumulator = 0;
 
 	return estimateSample;
 }

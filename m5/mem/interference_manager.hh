@@ -177,6 +177,8 @@ public:
 
 	void setStalledForMemory(int cpuID, int detectionDelay);
 	void clearStalledForMemory(int cpuID);
+	bool isStalledForMemory(int cpuID);
+
 };
 
 #endif

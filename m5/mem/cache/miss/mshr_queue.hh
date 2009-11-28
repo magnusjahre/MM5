@@ -97,6 +97,8 @@ class MSHRQueue {
 	std::vector<double > currentMLPAccumulator;
 	Tick mlpAccumulatorTicks;
 
+	std::vector<double > stallMissCountAccumulator;
+	Tick detectedStallCycleAccumulator;
 
 	Tick outstandingMissAccumulator;
 	Tick outstandingMissAccumulatorCount;
@@ -364,6 +366,8 @@ class MSHRQueue {
     bool isDemandRequest(MemCmd cmd);
 
     std::vector<double> getMLPEstimate();
+
+    std::vector<double> getServicedMissesWhileStalledEstimate();
 
 };
 
