@@ -25,8 +25,10 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
 
-//	acceptanceThreshold = 1.05; // TODO: parameterize
-	acceptanceThreshold = 0.0;
+	acceptanceThreshold = 0.0; // TODO: parameterize
+
+	renewMeasurementsThreshold = 10; // TODO: parameterize
+	renewMeasurementsCounter = 0;
 
 	intManager->registerMissBandwidthPolicy(this);
 
@@ -46,6 +48,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	predictionTrace = RequestTrace(_name, "PredictionTrace", 1);
 	partialMeasurementTrace = RequestTrace(_name, "PartialMeasurementTrace", 1);
 	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", 1);
+	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace", 1);
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, 0);
@@ -64,6 +67,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	initProjectionTrace(_cpuCount);
 	initPartialMeasurementTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
+	initNumMSHRsTrace(_cpuCount);
 }
 
 MissBandwidthPolicy::~MissBandwidthPolicy(){
@@ -479,6 +483,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	currentMeasurements = &measurements;
 
 	DPRINTF(MissBWPolicy, "--- Running Miss Bandwidth Policy\n");
+
 	traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
 	traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
 	traceVector("Committed Instructions: ", currentMeasurements->committedInstructions);
@@ -509,34 +514,53 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		}
 	}
 
+
+
+
 	updateAloneIPCEstimate();
 	traceVector("Alone IPC Estimates: ", aloneIPCEstimates);
 
 	updateMWSEstimates();
 
-	vector<int> bestMHA = exhaustiveSearch();
-	if(bestMHA.size() != cpuCount){
-		DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
-		bestMHA.resize(cpuCount, maxMSHRs);
-	}
+	if(renewMeasurementsCounter >= renewMeasurementsThreshold){
+		DPRINTF(MissBWPolicy, "Renew counter (%d) >= threshold (%d), increasing all MHAs to maximum (%d)\n",
+				              renewMeasurementsCounter,
+				              renewMeasurementsThreshold,
+				              maxMSHRs);
 
-	traceVector("Best MHA: ", bestMHA);
-	DPRINTF(MissBWPolicy, "Best metric value is %f\n", maxMetricValue);
+		renewMeasurementsCounter = 0;
 
-
-	double currentMetricValue = computeCurrentMetricValue();
-	double benefit = maxMetricValue / currentMetricValue;
-	if(benefit > acceptanceThreshold){
-		DPRINTF(MissBWPolicy, "Implementing new MHA, benefit is %d, acceptance threshold %d\n", benefit, acceptanceThreshold);
-		for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+		for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(maxMSHRs);
 	}
 	else{
-		DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
+		renewMeasurementsCounter++;
+
+		vector<int> bestMHA = exhaustiveSearch();
+		if(bestMHA.size() != cpuCount){
+			DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
+			bestMHA.resize(cpuCount, maxMSHRs);
+		}
+
+		traceVector("Best MHA: ", bestMHA);
+		DPRINTF(MissBWPolicy, "Best metric value is %f\n", maxMetricValue);
+
+
+		double currentMetricValue = computeCurrentMetricValue();
+		double benefit = maxMetricValue / currentMetricValue;
+		if(benefit > acceptanceThreshold){
+			DPRINTF(MissBWPolicy, "Implementing new MHA, benefit is %d, acceptance threshold %d\n", benefit, acceptanceThreshold);
+			for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+		}
+		else{
+			DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
+		}
+
+		traceAloneIPC(measurements.requestsInSample, aloneIPCEstimates);
+
+		traceBestProjection();
 	}
 
-	traceBestProjection(bestMHA);
-
-	traceAloneIPC(measurements.requestsInSample, aloneIPCEstimates);
+	traceNumMSHRs();
 
 	currentMeasurements = NULL;
 }
@@ -545,7 +569,6 @@ void
 MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	vector<string> headers;
 
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Num MSHRs", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Speedup", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Avg Shared Latency", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Num Requests", i));
@@ -564,12 +587,27 @@ MissBandwidthPolicy::initPartialMeasurementTrace(int cpuCount){
 	partialMeasurementTrace.initalizeTrace(headers);
 }
 
+
+
 void
-MissBandwidthPolicy::traceBestProjection(vector<int> bestMHA){
+MissBandwidthPolicy::initNumMSHRsTrace(int cpuCount){
+	vector<string> headers;
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Num MSHRs", i));
+	numMSHRsTrace.initalizeTrace(headers);
+}
+
+void
+MissBandwidthPolicy::traceNumMSHRs(){
+	vector<RequestTraceEntry> data;
+	for(int i=0;i<cpuCount;i++) data.push_back(caches[i]->getCurrentMSHRCount(true));
+	numMSHRsTrace.addTrace(data);
+}
+
+void
+MissBandwidthPolicy::traceBestProjection(){
 
 	vector<RequestTraceEntry> data;
 
-	for(int i=0;i<cpuCount;i++) data.push_back(caches[i]->getCurrentMSHRCount(true));
 	for(int i=0;i<cpuCount;i++) data.push_back(bestSpeedupProjection[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestRequestProjection[i]);

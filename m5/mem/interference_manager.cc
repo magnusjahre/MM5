@@ -418,6 +418,13 @@ InterferenceManager::buildInterferenceMeasurement(){
 
 	for(int i=0;i<fullCPUs.size();i++){
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
+
+		if(cpuIsStalled[i]){
+			// make sure no stalls crosses sample boundaries
+			clearStalledForMemory(i, false);
+			setStalledForMemory(i, 0);
+		}
+
 		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
 		cpuStallAccumulator[i] = 0;
 	}
@@ -506,14 +513,14 @@ InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
 }
 
 void
-InterferenceManager::clearStalledForMemory(int cpuID){
+InterferenceManager::clearStalledForMemory(int cpuID, bool incrementNumStalls){
 	assert(cpuIsStalled[cpuID]);
 
 	Tick cpuStalledFor = curTick - cpuStalledAt[cpuID];
 
 	cpuStallAccumulator[cpuID] += cpuStalledFor;
 	cpuStallCycles[cpuID] += cpuStalledFor;
-	numCpuStalls[cpuID]++;
+	if(incrementNumStalls) numCpuStalls[cpuID]++;
 
 	cpuStalledAt[cpuID] = 0;
 	cpuIsStalled[cpuID] = false;

@@ -45,6 +45,8 @@ protected:
 	std::vector<double> bestRequestProjection;
 	std::vector<double> bestSpeedupProjection;
 
+	RequestTrace numMSHRsTrace;
+
 	std::vector<std::vector<double> > mostRecentMWSEstimate;
 
 	PerformanceMeasurement* currentMeasurements;
@@ -55,6 +57,9 @@ protected:
 	double requestCountThreshold;
 	double busUtilizationThreshold;
 	double acceptanceThreshold;
+	int renewMeasurementsThreshold;
+
+	int renewMeasurementsCounter;
 
 	void getAverageMemoryLatency(std::vector<int>* currentMHA,
 							     std::vector<double>* estimatedSharedLatencies);
@@ -76,7 +81,9 @@ protected:
 	std::vector<double> computePercetages(std::vector<T>* values);
 
 	void initProjectionTrace(int cpuCount);
-	void traceBestProjection(std::vector<int> bestMHA);
+	void traceBestProjection();
+	void traceNumMSHRs();
+	void initNumMSHRsTrace(int cpuCount);
 	void initPartialMeasurementTrace(int cpuCount);
 	void tracePartialMeasurements();
 	void initAloneIPCTrace(int cpuCount, bool policyEnforced);

@@ -176,7 +176,7 @@ public:
 	void registerBus(Bus* bus);
 
 	void setStalledForMemory(int cpuID, int detectionDelay);
-	void clearStalledForMemory(int cpuID);
+	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);
 	bool isStalledForMemory(int cpuID);
 
 };
