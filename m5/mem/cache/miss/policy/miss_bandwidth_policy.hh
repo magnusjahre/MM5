@@ -35,6 +35,8 @@ protected:
 	std::vector<BaseCache* > caches;
 
 	std::vector<double> aloneIPCEstimates;
+	std::vector<double> avgLatencyAloneIPCModel;
+
 
 	RequestTrace predictionTrace;
 	RequestTrace partialMeasurementTrace;
@@ -48,6 +50,7 @@ protected:
 	RequestTrace numMSHRsTrace;
 
 	std::vector<std::vector<double> > mostRecentMWSEstimate;
+	std::vector<std::vector<double> > mostRecentMLPEstimate;
 
 	PerformanceMeasurement* currentMeasurements;
 

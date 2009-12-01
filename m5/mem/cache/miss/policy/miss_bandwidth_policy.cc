@@ -56,6 +56,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
 
 	aloneIPCEstimates.resize(_cpuCount, 0.0);
+	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
 
 	level = 0;
 	maxMetricValue = 0;
@@ -63,6 +64,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	currentMeasurements = NULL;
 
 	mostRecentMWSEstimate.resize(cpuCount, vector<double>());
+	mostRecentMLPEstimate.resize(cpuCount, vector<double>());
 
 	initProjectionTrace(_cpuCount);
 	initPartialMeasurementTrace(_cpuCount);
@@ -149,6 +151,7 @@ MissBandwidthPolicy::initAloneIPCTrace(int cpuCount, bool policyEnforced){
 		else{
 			for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Shared IPC Measurement", i));
 		}
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Avg Latency Based Alone IPC Estimate", i));
 	}
 	else{
 		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone IPC Measurement", i));
@@ -170,6 +173,10 @@ MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<
 
 	for(int i=0;i<cpuCount;i++) data.push_back(cummulativeMemoryRequests[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(ipcs[i]);
+
+	if(cpuCount > 1){
+		for(int i=0;i<cpuCount;i++) data.push_back(avgLatencyAloneIPCModel[i]);
+	}
 
 	aloneIPCTrace.addTrace(data);
 }
@@ -460,6 +467,12 @@ MissBandwidthPolicy::updateAloneIPCEstimate(){
 					              currentMeasurements->committedInstructions[i],
 					              currentMeasurements->getNonStallCycles(i, period),
 								  newStallEstimate);
+
+
+			double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
+			double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
+			double visibleIntCycles = mostRecentMLPEstimate[i][maxMSHRs] * totalInterferenceCycles;
+			avgLatencyAloneIPCModel[i]= (float) currentMeasurements->committedInstructions[i] / (period - visibleIntCycles);
 		}
 	}
 }
@@ -471,6 +484,7 @@ MissBandwidthPolicy::updateMWSEstimates(){
 		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
 			DPRINTF(MissBWPolicy, "Updating local MLP estimate for CPU %i\n", i);
 			mostRecentMWSEstimate[i] = currentMeasurements->avgMissesWhileStalled[i];
+			mostRecentMLPEstimate[i] = currentMeasurements->mlpEstimate[i];
 		}
 	}
 
@@ -515,12 +529,10 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 
-
+	updateMWSEstimates();
 
 	updateAloneIPCEstimate();
 	traceVector("Alone IPC Estimates: ", aloneIPCEstimates);
-
-	updateMWSEstimates();
 
 	if(renewMeasurementsCounter >= renewMeasurementsThreshold){
 		DPRINTF(MissBWPolicy, "Renew counter (%d) >= threshold (%d), increasing all MHAs to maximum (%d)\n",
