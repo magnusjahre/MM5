@@ -25,6 +25,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 										 int _num_reqs_at_reset)
 : SimObject(_name){
 
+	cpuCount = _cpu_count;
+
 	fullCPUs.resize(_cpu_count, NULL);
 	lastPrivateCaches.resize(_cpu_count, NULL);
 	requestsSinceLastSample.resize(_cpu_count, 0);
