@@ -54,6 +54,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	caches.resize(cpuCount, 0);
 
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
+	cummulativeCommittedInsts.resize(_cpuCount, 0);
 
 	aloneIPCEstimates.resize(_cpuCount, 0.0);
 	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
@@ -124,18 +125,23 @@ MissBandwidthPolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs)
 
 void
 MissBandwidthPolicy::handlePolicyEvent(){
-	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement();
+	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
 	runPolicy(curMeasurement);
 }
 
 void
 MissBandwidthPolicy::handleTraceEvent(){
-	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement();
+	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
 	vector<double> measuredIPC(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 		measuredIPC[i] = (double) curMeasurement.committedInstructions[i] / (double) period;
 	}
-	traceAloneIPC(curMeasurement.requestsInSample, measuredIPC);
+	traceAloneIPC(curMeasurement.requestsInSample,
+			      measuredIPC,
+			      curMeasurement.committedInstructions,
+			      curMeasurement.cpuStallCycles,
+			      curMeasurement.sharedLatencies,
+			      curMeasurement.avgMissesWhileStalled);
 }
 
 void
@@ -143,7 +149,13 @@ MissBandwidthPolicy::initAloneIPCTrace(int cpuCount, bool policyEnforced){
 	vector<string> headers;
 
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Requests", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Cummulative Requests", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Committed Insts", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Cummulative Insts", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Stall cycles", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Run cycles", i));
 
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Max MLP MWS", i));
 	if(cpuCount > 1){
 		if(policyEnforced){
 			for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone IPC Estimate", i));
@@ -151,17 +163,24 @@ MissBandwidthPolicy::initAloneIPCTrace(int cpuCount, bool policyEnforced){
 		else{
 			for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Shared IPC Measurement", i));
 		}
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Shared Avg Latency Measurement", i));
 		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Avg Latency Based Alone IPC Estimate", i));
 	}
 	else{
 		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone IPC Measurement", i));
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Alone Avg Latency Measurement", i));
 	}
 
 	aloneIPCTrace.initalizeTrace(headers);
 }
 
 void
-MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<double> ipcs){
+MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests,
+		                           std::vector<double> ipcs,
+		                           std::vector<int> committedInstructions,
+		                           std::vector<int> stallCycles,
+		                           std::vector<double> avgLatencies,
+		                           std::vector<std::vector<double> > missesWhileStalled){
 	vector<RequestTraceEntry> data;
 
 	assert(memoryRequests.size() == cpuCount);
@@ -169,10 +188,19 @@ MissBandwidthPolicy::traceAloneIPC(std::vector<int> memoryRequests, std::vector<
 
 	for(int i=0;i<cpuCount;i++){
 		cummulativeMemoryRequests[i] += memoryRequests[i];
+		cummulativeCommittedInsts[i] += committedInstructions[i];
 	}
 
+	for(int i=0;i<cpuCount;i++) data.push_back(memoryRequests[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(cummulativeMemoryRequests[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(committedInstructions[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(cummulativeCommittedInsts[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(stallCycles[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(period - stallCycles[i]);
+
+	for(int i=0;i<cpuCount;i++) data.push_back(missesWhileStalled[i][maxMSHRs]);
 	for(int i=0;i<cpuCount;i++) data.push_back(ipcs[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(avgLatencies[i]);
 
 	if(cpuCount > 1){
 		for(int i=0;i<cpuCount;i++) data.push_back(avgLatencyAloneIPCModel[i]);
@@ -262,7 +290,10 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	// 3. Compute speedups
 	vector<double> speedups(cpuCount, 0.0);
 	vector<double> sharedIPCEstimates(cpuCount, 0.0);
+	currentMWSProjection.resize(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
+
+		currentMWSProjection[i] = mostRecentMWSEstimate[i][currentMHA[i]];
 
 		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
@@ -280,6 +311,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 									currentMeasurements->cpuStallCycles[i]);
 	}
 
+	currentIPCProjection = sharedIPCEstimates;
 	currentSpeedupProjection = speedups;
 	tracePerformance(sharedIPCEstimates);
 
@@ -389,7 +421,10 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 		newTotalRequests += currentMeasurements->sharedCacheMissRate * newRequestCountEstimates[i];
 	}
 
-	double requestRatio = newTotalRequests / oldTotalRequests;
+	double requestRatio = 1.0;
+	if(oldTotalRequests != 0){
+		requestRatio = newTotalRequests / oldTotalRequests;
+	}
 
 	DPRINTFR(MissBWPolicyExtra, "New request ratio is %f, estimated new request count %f, old request count %f\n", requestRatio, newTotalRequests, oldTotalRequests);
 
@@ -397,7 +432,7 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 		double currentAvgBusLat = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue];
 		double newAvgBusLat = requestRatio * currentAvgBusLat;
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat;
-		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i));
+		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, request ratio %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i), requestRatio);
 	}
 
 	traceVerboseVector("Request Count Projection: ", newRequestCountEstimates);
@@ -506,7 +541,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<cpuCount;i++) actualIPC[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
 	traceVector("Measured IPC: ", actualIPC);
 
-
 	tracePartialMeasurements();
 
 	if(!bestRequestProjection.empty()){
@@ -567,7 +601,12 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 			DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
 		}
 
-		traceAloneIPC(measurements.requestsInSample, aloneIPCEstimates);
+		traceAloneIPC(measurements.requestsInSample,
+				      aloneIPCEstimates,
+				      measurements.committedInstructions,
+				      measurements.cpuStallCycles,
+				      measurements.sharedLatencies,
+				      measurements.avgMissesWhileStalled);
 
 		traceBestProjection();
 	}
@@ -581,9 +620,13 @@ void
 MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	vector<string> headers;
 
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Speedup", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Avg Shared Latency", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Num Requests", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Num Requests", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Avg Shared Latency", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated MWS", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated IPC", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Speedup", i));
+
+	headers.push_back("Estimated Metric Value");
 
 	predictionTrace.initalizeTrace(headers);
 }
@@ -620,9 +663,13 @@ MissBandwidthPolicy::traceBestProjection(){
 
 	vector<RequestTraceEntry> data;
 
-	for(int i=0;i<cpuCount;i++) data.push_back(bestSpeedupProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestRequestProjection[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(bestMWSProjection[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(bestIPCProjection[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(bestSpeedupProjection[i]);
+
+	data.push_back(maxMetricValue);
 
 	predictionTrace.addTrace(data);
 }
@@ -671,9 +718,11 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 			maxMetricValue = metricValue;
 			maxMHAConfiguration = *value;
 
-			bestSpeedupProjection = currentSpeedupProjection;
-			bestLatencyProjection = currentLatencyProjection;
 			bestRequestProjection = currentRequestProjection;
+			bestLatencyProjection = currentLatencyProjection;
+			bestMWSProjection = currentMWSProjection;
+			bestIPCProjection = currentIPCProjection;
+			bestSpeedupProjection = currentSpeedupProjection;
 		}
 	}
 	else{

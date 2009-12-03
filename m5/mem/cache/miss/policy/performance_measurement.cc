@@ -10,11 +10,12 @@
 
 using namespace std;
 
-PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs){
+PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period){
 
 	cpuCount = _cpuCount;
 	numIntTypes = _numIntTypes;
 	maxMSHRs = _maxMSHRs;
+	period = _period;
 
 	committedInstructions.resize(cpuCount, 0);
 	requestsInSample.resize(cpuCount, 0);
@@ -41,16 +42,27 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 	                                        std::vector<int> localRequests){
 
 	for(int i=0;i<cpuCount;i++){
-		sharedLatencies[i] = sharedLatencyAccumulator[i] / (double) localRequests[i];
+		if(localRequests[i] != 0){
+			sharedLatencies[i] = sharedLatencyAccumulator[i] / (double) localRequests[i];
 
-		double tmpPrivateEstimate = sharedLatencyAccumulator[i] - interferenceEstimateAccumulator[i];
-		estimatedPrivateLatencies[i] = tmpPrivateEstimate / (double) localRequests[i];
+			double tmpPrivateEstimate = sharedLatencyAccumulator[i] - interferenceEstimateAccumulator[i];
+			estimatedPrivateLatencies[i] = tmpPrivateEstimate / (double) localRequests[i];
 
-		for(int j=0;j<numIntTypes;j++){
-			latencyBreakdown[i][j] = sharedLatencyBreakdownAccumulator[i][j] / (double) localRequests[i];
-			double tmpPrivateBreakdownEstimate = sharedLatencyBreakdownAccumulator[i][j] - interferenceBreakdownAccumulator[i][j];
-			privateLatencyBreakdown[i][j] = tmpPrivateBreakdownEstimate / (double) localRequests[i];
+			for(int j=0;j<numIntTypes;j++){
+				latencyBreakdown[i][j] = sharedLatencyBreakdownAccumulator[i][j] / (double) localRequests[i];
+				double tmpPrivateBreakdownEstimate = sharedLatencyBreakdownAccumulator[i][j] - interferenceBreakdownAccumulator[i][j];
+				privateLatencyBreakdown[i][j] = tmpPrivateBreakdownEstimate / (double) localRequests[i];
+			}
 		}
+		else{
+			sharedLatencies[i] = 0;
+			estimatedPrivateLatencies[i] = 0;
+			for(int j=0;j<numIntTypes;j++){
+				latencyBreakdown[i][j] = 0;
+				privateLatencyBreakdown[i][j] = 0;
+			}
+		}
+
 	}
 }
 
@@ -63,6 +75,10 @@ PerformanceMeasurement::getTraceHeader(){
 		name << "Committed Instructions CPU" << i;
 		header.push_back(name.str());
 	}
+
+	for(int i=0;i<cpuCount;i++) header.push_back(RequestTrace::buildTraceName("IPC", i));
+
+
 	for(int i=0;i<cpuCount;i++){
 		stringstream name;
 		name << "Requests CPU" << i;
@@ -135,6 +151,10 @@ PerformanceMeasurement::createTraceLine(){
 
 	for(int i=0;i<cpuCount;i++){
 		line.push_back(committedInstructions[i]);
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		line.push_back((double) committedInstructions[i] / (double) period);
 	}
 
 	for(int i=0;i<cpuCount;i++){

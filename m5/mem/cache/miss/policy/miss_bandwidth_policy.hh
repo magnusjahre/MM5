@@ -27,7 +27,9 @@ protected:
 	Tick period;
 	MissBandwidthPolicyEvent* policyEvent;
 	MissBandwidthTraceEvent* traceEvent;
+
 	std::vector<Addr> cummulativeMemoryRequests;
+	std::vector<Addr> cummulativeCommittedInsts;
 
 	RequestTrace aloneIPCTrace;
 
@@ -40,12 +42,19 @@ protected:
 
 	RequestTrace predictionTrace;
 	RequestTrace partialMeasurementTrace;
-	std::vector<double> currentLatencyProjection;
+
 	std::vector<double> currentRequestProjection;
+	std::vector<double> currentLatencyProjection;
+	std::vector<double> currentMWSProjection;
+	std::vector<double> currentIPCProjection;
 	std::vector<double> currentSpeedupProjection;
-	std::vector<double> bestLatencyProjection;
+
 	std::vector<double> bestRequestProjection;
+	std::vector<double> bestLatencyProjection;
+	std::vector<double> bestMWSProjection;
+	std::vector<double> bestIPCProjection;
 	std::vector<double> bestSpeedupProjection;
+
 
 	RequestTrace numMSHRsTrace;
 
@@ -91,7 +100,12 @@ protected:
 	void tracePartialMeasurements();
 	void initAloneIPCTrace(int cpuCount, bool policyEnforced);
 
-	void traceAloneIPC(std::vector<int> memoryRequests, std::vector<double> ipcs);
+	void traceAloneIPC(std::vector<int> memoryRequests,
+			           std::vector<double> ipcs,
+			           std::vector<int> committedInstructions,
+			           std::vector<int> stallCycles,
+			           std::vector<double> avgLatencies,
+		               std::vector<std::vector<double> > missesWhileStalled);
 
 	Stats::Vector<> aloneEstimationFailed;
 

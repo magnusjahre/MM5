@@ -17,6 +17,7 @@ private:
 	int cpuCount;
 	int numIntTypes;
 	int maxMSHRs;
+	int period;
 
 public:
 	std::vector<int> committedInstructions;
@@ -35,7 +36,7 @@ public:
 	double actualBusUtilization;
 	double sharedCacheMissRate;
 
-	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs);
+	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 
 	void addInterferenceData(std::vector<double> sharedLatencyAccumulator,
 						     std::vector<double> interferenceEstimateAccumulator,

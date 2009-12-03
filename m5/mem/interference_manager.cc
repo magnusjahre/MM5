@@ -412,11 +412,11 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 }
 
 PerformanceMeasurement
-InterferenceManager::buildInterferenceMeasurement(){
+InterferenceManager::buildInterferenceMeasurement(int period){
 
 	int np = fullCPUs.size();
 
-	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs);
+	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs, period);
 
 	for(int i=0;i<fullCPUs.size();i++){
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();

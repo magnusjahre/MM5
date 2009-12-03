@@ -160,7 +160,7 @@ public:
 
 	void addCacheResult(MemReqPtr& req);
 
-	PerformanceMeasurement buildInterferenceMeasurement();
+	PerformanceMeasurement buildInterferenceMeasurement(int period);
 
 	void registerMissBandwidthPolicy(MissBandwidthPolicy* policy);
 
