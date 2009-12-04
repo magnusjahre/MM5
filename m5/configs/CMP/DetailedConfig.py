@@ -49,6 +49,12 @@ class DetailedCPU(FullCPU):
     num_icache_ports = 1
     branch_pred = DefaultBranchPred()
     
+    if "SW-PREFETCH-POLICY" in env:
+        assert env["SW-PREFETCH-POLICY"] in ["enable", "squash"]
+        sw_prefetch_policy = env["SW-PREFETCH-POLICY"]
+    else:
+        sw_prefetch_policy = "enable"
+    
     def setCache(self, dcache, icache):
         self.dcache = dcache
         self.icache = icache
