@@ -562,8 +562,6 @@ FullCPU::commit()
 
 					++committed;
 					++committed_thread[thread];
-					amha->coreCommittedInstruction(CPUParamsCpuID);
-					committedSinceLast++;
 
 					crash_counter = 0;
 				} else {
@@ -908,6 +906,8 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		assert(thread == 0);
 		commitedInstructionSample++;
 		stat_com_inst[thread]++;
+		amha->coreCommittedInstruction(CPUParamsCpuID);
+		committedSinceLast++;
 	}
 #else
 	fatal("IPC profiling for non-alpha not implemented");
