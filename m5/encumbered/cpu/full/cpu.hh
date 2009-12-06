@@ -56,6 +56,8 @@
 
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/interference_manager.hh"
+#include "mem/requesttrace.hh"
+
 
 class BaseIQ;
 class Process;
@@ -89,6 +91,10 @@ private:
 	AdaptiveMHA* amha;
 
 	int committedSinceLast;
+
+	int committedTraceCounter;
+	Tick lastDumpTick;
+	RequestTrace committedInstTrace;
 
 public:
 	////////////////////////////////////////////

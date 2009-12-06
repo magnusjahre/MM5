@@ -49,6 +49,8 @@
 
 using namespace std;
 
+#define IPC_TRACE_FREQUENCY 100000
+
 /*======================================================================*/
 
 /*
@@ -908,6 +910,21 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		stat_com_inst[thread]++;
 		amha->coreCommittedInstruction(CPUParamsCpuID);
 		committedSinceLast++;
+
+		committedTraceCounter++;
+		if(committedTraceCounter == IPC_TRACE_FREQUENCY){
+			double ipc = (double) IPC_TRACE_FREQUENCY / (double) (curTick - lastDumpTick);
+
+			vector<RequestTraceEntry> data;
+			assert(thread == 0);
+			data.push_back(stat_com_inst[0].value());
+			data.push_back(ipc);
+			committedInstTrace.addTrace(data);
+
+			lastDumpTick = curTick;
+			committedTraceCounter = 0;
+		}
+		assert(committedTraceCounter <= IPC_TRACE_FREQUENCY);
 	}
 #else
 	fatal("IPC profiling for non-alpha not implemented");
