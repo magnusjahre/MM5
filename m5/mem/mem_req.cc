@@ -164,12 +164,14 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 	req->sharedCacheSet = r->sharedCacheSet;
 	req->ringBaselineHops = r->ringBaselineHops;
 	req->ringBaselineTransLat = r->ringBaselineTransLat;
+	req->isSWPrefetch = r->isSWPrefetch;
 
 	req->latencyBreakdown = r->latencyBreakdown;
 	req->interferenceBreakdown = r->interferenceBreakdown;
 
 	req->adaptiveMHASenderID = r->adaptiveMHASenderID;
 	req->interferenceAccurateSenderID = r->interferenceAccurateSenderID;
+
 
 	req->data = new uint8_t[r->size];
 	if (r->data != NULL) {
@@ -259,6 +261,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 	to->sharedCacheSet = from->sharedCacheSet;
 	to->ringBaselineHops = from->ringBaselineHops;
 	to->ringBaselineTransLat = from->ringBaselineTransLat;
+	to->isSWPrefetch = from->isSWPrefetch;
 
 	to->latencyBreakdown = from->latencyBreakdown;
 	to->interferenceBreakdown = from->interferenceBreakdown;

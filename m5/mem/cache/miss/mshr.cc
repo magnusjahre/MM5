@@ -107,6 +107,8 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 		req->memCtrlGenReadInterference = target->memCtrlGenReadInterference;
 		req->memCtrlWbGenBy = target->memCtrlWbGenBy;
 
+		req->isSWPrefetch = target->isSWPrefetch;
+
 		if(cache->isShared){
 			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
 			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
@@ -156,6 +158,8 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
     }
+
+    req->isSWPrefetch = req->isSWPrefetch;
 
     mlpCost = 0;
     mlpCostDistribution.clear();

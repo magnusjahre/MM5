@@ -626,9 +626,13 @@ MSHRQueue::cpuCommittedInstruction(){
 }
 
 bool
-MSHRQueue::isDemandRequest(MemCmd cmd){
-	//TODO: might want more sophisticated demand read determination
+MSHRQueue::isDemandRequest(MemReqPtr&  req){
+
+	MemCmd cmd = req->cmd;
+
 	assert(cmd == Read || cmd == Write || cmd == Soft_Prefetch);
+
+	if(req->isSWPrefetch) return false;
 	return cmd == Read || cmd == Write;
 }
 
@@ -655,7 +659,7 @@ MSHRQueue::handleMLPEstimationEvent(){
 				// mshrs are allocated in the same cycle as the access arrives, but the miss latency
 				// starts when the request is finished in the cache (i.e after hit latency cycles)
 				int ticksSinceInserted = curTick - mshr->req->time;
-				if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+				if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req)){
 					demandAllocated++;
 				}
 			}
@@ -668,7 +672,7 @@ MSHRQueue::handleMLPEstimationEvent(){
 				for (; i != end; ++i) {
 					MSHR *mshr = *i;
 					int ticksSinceInserted = curTick - mshr->req->time;
-					if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req->cmd)){
+					if(ticksSinceInserted >= cache->getHitLatency() && isDemandRequest(mshr->req)){
 						mshr->mlpCost += mlpcost;
 
 						if(mshr->mlpCostDistribution.empty()) mshr->mlpCostDistribution.resize(maxMSHRs+1, 0.0);

@@ -262,6 +262,8 @@ class MemReq : public FastAlloc, public RefCounted
     int ringBaselineHops;
     int ringBaselineTransLat;
 
+    bool isSWPrefetch;
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -342,7 +344,8 @@ class MemReq : public FastAlloc, public RefCounted
     interconnectTransferDelay(0),
     sharedCacheSet(-1),
     ringBaselineHops(-1),
-    ringBaselineTransLat(0)
+    ringBaselineTransLat(0),
+    isSWPrefetch(false)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -425,6 +428,7 @@ class MemReq : public FastAlloc, public RefCounted
 
         ringBaselineHops = r.ringBaselineHops;
         ringBaselineTransLat = r.ringBaselineTransLat;
+        isSWPrefetch = r.isSWPrefetch;
     }
 
     /**

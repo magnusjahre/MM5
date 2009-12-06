@@ -288,7 +288,9 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		if(cpuCount > 1) assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 	}
 
-
+	if(req->cmd == Soft_Prefetch){
+		req->isSWPrefetch = true;
+	}
 
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position

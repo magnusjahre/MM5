@@ -363,7 +363,7 @@ class MSHRQueue {
 
     void handleMLPEstimationEvent();
 
-    bool isDemandRequest(MemCmd cmd);
+    bool isDemandRequest(MemReqPtr& req);
 
     std::vector<double> getMLPEstimate();
 
