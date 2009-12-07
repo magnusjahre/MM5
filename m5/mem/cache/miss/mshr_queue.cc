@@ -635,7 +635,7 @@ MSHRQueue::isDemandRequest(MemReqPtr&  req){
 
 	assert(cmd == Read || cmd == Write || cmd == Soft_Prefetch);
 
-	if(req->isSWPrefetch) return false;
+//	if(req->isSWPrefetch) return false;
 	return cmd == Read || cmd == Write;
 }
 
