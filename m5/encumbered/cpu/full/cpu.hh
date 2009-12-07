@@ -93,6 +93,7 @@ private:
 	int committedSinceLast;
 
 	int committedTraceCounter;
+	int stallCycleTraceCounter;
 	Tick lastDumpTick;
 	RequestTrace committedInstTrace;
 

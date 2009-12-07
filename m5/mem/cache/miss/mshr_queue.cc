@@ -71,6 +71,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	outstandingMissAccumulator = 0;
 	outstandingMissAccumulatorCount = 0;
+
+	instTraceMWSAccumulator = 0;
+	instTraceMWSCount = 0;
 }
 
 void
@@ -647,6 +650,7 @@ MSHRQueue::handleMLPEstimationEvent(){
 		if(cache->interferenceManager != NULL &&
 		   cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
 			detectedStallCycleAccumulator++;
+			instTraceMWSCount++;
 		}
 
 		if(allocated > 0){
@@ -688,7 +692,8 @@ MSHRQueue::handleMLPEstimationEvent(){
 					}
 				}
 
-				if(cache->interferenceManager != NULL){
+				if(cache->interferenceManager != NULL
+				   && cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
 					for(int k=1;k<=maxMSHRs;k++){
 						if(demandAllocated > k){
 							stallMissCountAccumulator[k] += k;
@@ -698,6 +703,8 @@ MSHRQueue::handleMLPEstimationEvent(){
 
 						}
 					}
+
+					instTraceMWSAccumulator += demandAllocated;
 				}
 
 			}
@@ -755,4 +762,16 @@ MSHRQueue::getServicedMissesWhileStalledEstimate(){
 	detectedStallCycleAccumulator = 0;
 
 	return estimateSample;
+}
+
+double
+MSHRQueue::getInstTraceMWS(){
+	double mws = 0;
+	if(instTraceMWSCount > 0){
+		mws = (double) instTraceMWSAccumulator / (double) instTraceMWSCount;
+	}
+	instTraceMWSAccumulator = 0;
+	instTraceMWSCount = 0;
+
+	return mws;
 }

@@ -449,6 +449,10 @@ class MissQueue
     std::vector<double> getServicedMissesWhileStalledEstimate(){
     	return mq.getServicedMissesWhileStalledEstimate();
     }
+
+    double getInstTraceMWS(){
+    	return mq.getInstTraceMWS();
+    }
 };
 
 

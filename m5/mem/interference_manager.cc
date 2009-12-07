@@ -50,6 +50,11 @@ InterferenceManager::InterferenceManager(std::string _name,
 	totalRequestCount.resize(_cpu_count, 0);
 	runningLatencySum.resize(_cpu_count, 0);
 
+
+	instTraceInterferenceSum.resize(_cpu_count, 0);
+	instTraceLatencySum.resize(_cpu_count, 0);
+	instTraceRequests.resize(_cpu_count, 0);
+
 	missBandwidthPolicy = NULL;
 
 	traceStarted = false;
@@ -256,6 +261,8 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 
 	interferenceBreakdownAccumulator[req->adaptiveMHASenderID][t] += interferenceTicks;
 	interferenceAccumulator[req->adaptiveMHASenderID] += interferenceTicks;
+
+	instTraceInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
 }
 
 void
@@ -300,6 +307,9 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 	currentRequests[req->adaptiveMHASenderID]++;
 	sharedLatencyAccumulator[req->adaptiveMHASenderID] += roundTripLatency;
+
+	instTraceLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
+	instTraceRequests[req->adaptiveMHASenderID]++;
 
 	if(totalRequestCount[req->adaptiveMHASenderID] % sampleSize == 0 && traceStarted){
 		vector<double> tmpLatencies = traceLatency(req->adaptiveMHASenderID);
@@ -528,6 +538,28 @@ InterferenceManager::clearStalledForMemory(int cpuID, bool incrementNumStalls){
 	cpuIsStalled[cpuID] = false;
 }
 
+void
+InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int stallCycles, Tick ticksInSample){
+
+	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
+
+	// get alone latency prediction
+	double avgSharedLatency = (double) instTraceLatencySum[cpuID] / (double) instTraceRequests[cpuID];
+	double avgInterferenceLatency = (double) instTraceInterferenceSum[cpuID] / (double) instTraceRequests[cpuID];
+	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
+
+	instTraceInterferenceSum[cpuID] = 0;
+	instTraceRequests[cpuID] = 0;
+	instTraceLatencySum[cpuID] = 0;
+
+	missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
+			                                         avgSharedLatency,
+			                                         predictedAloneLat,
+			                                         mws,
+			                                         stallCycles,
+			                                         ticksInSample,
+			                                         committedInstructions);
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

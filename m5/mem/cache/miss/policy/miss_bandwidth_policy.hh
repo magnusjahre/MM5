@@ -55,6 +55,9 @@ protected:
 	std::vector<double> bestIPCProjection;
 	std::vector<double> bestSpeedupProjection;
 
+	std::vector<RequestTrace> comInstModelTraces;
+	std::vector<Tick> comInstModelTraceCummulativeInst;
+
 
 	RequestTrace numMSHRsTrace;
 
@@ -106,6 +109,8 @@ protected:
 			           std::vector<int> stallCycles,
 			           std::vector<double> avgLatencies,
 		               std::vector<std::vector<double> > missesWhileStalled);
+
+	void initComInstModelTrace(int cpuCount);
 
 	Stats::Vector<> aloneEstimationFailed;
 
@@ -160,7 +165,7 @@ public:
 
 	virtual double computeMetric(std::vector<double>* speedups) = 0;
 
-
+	void doCommittedInstructionTrace(int cpuID, double avgSharedLat, double avgPrivateLatEstimate, double mws, int stallCycles, int totalCycles, int committedInsts);
 };
 
 class MissBandwidthPolicyEvent : public Event{

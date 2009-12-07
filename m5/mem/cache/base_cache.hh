@@ -591,6 +591,8 @@ public:
 
 	virtual std::vector<double> getServicedMissesWhileStalledEstimate() = 0;
 
+	virtual double getInstTraceMWS() = 0;
+
 	virtual void setNumMSHRs(int newMSHRCount) = 0;
 
 	virtual RateMeasurement getMissRate() = 0;

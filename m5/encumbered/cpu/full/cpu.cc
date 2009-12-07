@@ -687,6 +687,7 @@ FullCPU::FullCPU(Params *p,
 
 	committedInstTrace = RequestTrace(name(), "IPCTrace", 1);
 	committedTraceCounter = 0;
+	stallCycleTraceCounter = 0;
 	lastDumpTick = 0;
 
 	vector<string> headers;

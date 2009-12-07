@@ -67,10 +67,13 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	mostRecentMWSEstimate.resize(cpuCount, vector<double>());
 	mostRecentMLPEstimate.resize(cpuCount, vector<double>());
 
+	comInstModelTraceCummulativeInst.resize(cpuCount, 0);
+
 	initProjectionTrace(_cpuCount);
 	initPartialMeasurementTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
+	initComInstModelTrace(_cpuCount);
 }
 
 MissBandwidthPolicy::~MissBandwidthPolicy(){
@@ -744,6 +747,74 @@ MissBandwidthPolicy::relocateMHA(std::vector<int>* mhaConfig){
 	}
 
 	return configCopy;
+}
+
+void
+MissBandwidthPolicy::initComInstModelTrace(int cpuCount){
+	vector<string> headers;
+
+	headers.push_back("Cummulative Committed Instructions");
+	headers.push_back("Cycles in Sample");
+	headers.push_back("Stall Cycles");
+	headers.push_back("Misses while Stalled");
+
+	if(cpuCount > 1){
+		headers.push_back("Average Shared Latency");
+		headers.push_back("Estimated Private Latency");
+		headers.push_back("Shared IPC");
+		headers.push_back("Estimated Alone IPC");
+	}
+	else{
+		headers.push_back("Alone Memory Latency");
+		headers.push_back("Measured Alone IPC");
+	}
+
+	comInstModelTraces.resize(cpuCount, RequestTrace());
+	for(int i=0;i<cpuCount;i++){
+		comInstModelTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("CommittedInsts", i).c_str(), 1);
+		comInstModelTraces[i].initalizeTrace(headers);
+	}
+}
+
+void
+MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
+		                                         double avgSharedLat,
+		                                         double avgPrivateLatEstimate,
+		                                         double mws,
+		                                         int stallCycles,
+		                                         int totalCycles,
+		                                         int committedInsts){
+
+	vector<RequestTraceEntry> data;
+
+	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
+
+	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
+	data.push_back(totalCycles);
+	data.push_back(stallCycles);
+	data.push_back(mws);
+
+	if(cpuCount > 1){
+		double newStallEstimate = estimateStallCycles(stallCycles, mws, avgSharedLat, mws, avgPrivateLatEstimate);
+
+		double nonStallCycles = (double) totalCycles - (double) stallCycles;
+
+		double sharedIPC = (double) committedInsts / (double) totalCycles;
+		double aloneIPCEstimate = (double) committedInsts / (nonStallCycles + newStallEstimate);
+
+		data.push_back(avgSharedLat);
+		data.push_back(avgPrivateLatEstimate);
+		data.push_back(sharedIPC);
+		data.push_back(aloneIPCEstimate);
+	}
+	else{
+		double aloneIPC = (double) committedInsts / (double) totalCycles;
+
+		data.push_back(avgSharedLat);
+		data.push_back(aloneIPC);
+	}
+
+	comInstModelTraces[cpuID].addTrace(data);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

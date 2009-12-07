@@ -62,6 +62,10 @@ private:
 	std::vector<std::vector<Tick> > latencySum;
 	std::vector<std::vector<int> > numLatencyReqs;
 
+	std::vector<Tick> instTraceInterferenceSum;
+	std::vector<Tick> instTraceLatencySum;
+	std::vector<int> instTraceRequests;
+
 	std::vector<int> totalRequestCount;
 	std::vector<Tick> runningLatencySum;
 
@@ -178,6 +182,8 @@ public:
 	void setStalledForMemory(int cpuID, int detectionDelay);
 	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);
 	bool isStalledForMemory(int cpuID);
+
+	void doCommitTrace(int cpuID, int committedInstructions, int stallCycles, Tick ticksInSample);
 
 };
 

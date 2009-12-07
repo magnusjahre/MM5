@@ -94,6 +94,7 @@ class RequestTrace{
         }
 
         static std::string buildTraceName(const char* name, int id);
+        static std::string buildFilename(const char* name, int id);
 };
 
 class RequestTraceCallback : public Callback

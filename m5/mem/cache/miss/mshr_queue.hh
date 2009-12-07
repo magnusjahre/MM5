@@ -103,6 +103,9 @@ class MSHRQueue {
 	Tick outstandingMissAccumulator;
 	Tick outstandingMissAccumulatorCount;
 
+	Tick instTraceMWSAccumulator;
+	int instTraceMWSCount;
+
   protected:
 
 	Stats::Scalar<> opacu_overlapped_misses;
@@ -368,6 +371,8 @@ class MSHRQueue {
     std::vector<double> getMLPEstimate();
 
     std::vector<double> getServicedMissesWhileStalledEstimate();
+
+    double getInstTraceMWS();
 
 };
 

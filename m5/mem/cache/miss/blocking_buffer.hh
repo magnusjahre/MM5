@@ -292,6 +292,10 @@ public:
     	fatal("Makes no sense");
     }
 
+    double getInstTraceMWS(){
+    	fatal("Makes no sense");
+    }
+
     int getNumMSHRs(){
     	return 1;
     }

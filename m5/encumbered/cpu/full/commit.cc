@@ -49,7 +49,7 @@
 
 using namespace std;
 
-#define IPC_TRACE_FREQUENCY 100000
+#define IPC_TRACE_FREQUENCY 500000
 
 /*======================================================================*/
 
@@ -423,12 +423,16 @@ FullCPU::commit()
 		ROBStation* oldestStation = ROB.head();
 		assert(oldestStation != NULL);
 		if(oldestStation->inst->isLoad()){
+
+			//TODO: might want to remove the detection delay
 			issueStallMessageCounter++;
 			int stallDetectionDelay = 20;
 			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
 				stallMessageIssued = true;
 				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
 			}
+
+			stallCycleTraceCounter++;
 		}
 
 		//
@@ -913,13 +917,17 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 
 		committedTraceCounter++;
 		if(committedTraceCounter == IPC_TRACE_FREQUENCY){
-			double ipc = (double) IPC_TRACE_FREQUENCY / (double) (curTick - lastDumpTick);
+			Tick ticksInSample = curTick - lastDumpTick;
+			double ipc = (double) IPC_TRACE_FREQUENCY / (double) ticksInSample;
 
 			vector<RequestTraceEntry> data;
 			assert(thread == 0);
 			data.push_back(stat_com_inst[0].value());
 			data.push_back(ipc);
 			committedInstTrace.addTrace(data);
+
+			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, stallCycleTraceCounter, ticksInSample);
+			stallCycleTraceCounter = 0;
 
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;

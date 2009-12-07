@@ -102,3 +102,10 @@ RequestTrace::buildTraceName(const char* name, int id){
 	return strstream.str();
 }
 
+std::string
+RequestTrace::buildFilename(const char* name, int id){
+	stringstream strstream;
+	strstream << name << id;
+	return strstream.str();
+}
+
