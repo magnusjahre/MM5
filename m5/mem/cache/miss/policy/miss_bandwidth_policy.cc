@@ -46,7 +46,6 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 	measurementTrace = RequestTrace(_name, "MeasurementTrace", 1);
 	predictionTrace = RequestTrace(_name, "PredictionTrace", 1);
-	partialMeasurementTrace = RequestTrace(_name, "PartialMeasurementTrace", 1);
 	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", 1);
 	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace", 1);
 
@@ -70,7 +69,6 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	comInstModelTraceCummulativeInst.resize(cpuCount, 0);
 
 	initProjectionTrace(_cpuCount);
-	initPartialMeasurementTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
 	initComInstModelTrace(_cpuCount);
@@ -544,8 +542,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<cpuCount;i++) actualIPC[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
 	traceVector("Measured IPC: ", actualIPC);
 
-	tracePartialMeasurements();
-
 	if(!bestRequestProjection.empty()){
 		for(int i=0;i<cpuCount;i++){
 			if(currentMeasurements->requestsInSample[i] > requestCountThreshold){
@@ -584,6 +580,10 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	else{
 		renewMeasurementsCounter++;
 
+		if(!bestRequestProjection.empty()){
+			traceBestProjection();
+		}
+
 		vector<int> bestMHA = exhaustiveSearch();
 		if(bestMHA.size() != cpuCount){
 			DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
@@ -610,8 +610,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 				      measurements.cpuStallCycles,
 				      measurements.sharedLatencies,
 				      measurements.avgMissesWhileStalled);
-
-		traceBestProjection();
 	}
 
 	traceNumMSHRs();
@@ -624,28 +622,12 @@ MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	vector<string> headers;
 
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Num Requests", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured Num Requests", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Avg Shared Latency", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated MWS", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated IPC", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Speedup", i));
-
-	headers.push_back("Estimated Metric Value");
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured Avg Shared Latency", i));
 
 	predictionTrace.initalizeTrace(headers);
 }
-
-void
-MissBandwidthPolicy::initPartialMeasurementTrace(int cpuCount){
-	vector<string> headers;
-
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("IPC", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Avg Shared Latency", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Num Requests", i));
-
-	partialMeasurementTrace.initalizeTrace(headers);
-}
-
-
 
 void
 MissBandwidthPolicy::initNumMSHRsTrace(int cpuCount){
@@ -667,25 +649,11 @@ MissBandwidthPolicy::traceBestProjection(){
 	vector<RequestTraceEntry> data;
 
 	for(int i=0;i<cpuCount;i++) data.push_back(bestRequestProjection[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->requestsInSample[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(bestMWSProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(bestIPCProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(bestSpeedupProjection[i]);
-
-	data.push_back(maxMetricValue);
+	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->sharedLatencies[i]);
 
 	predictionTrace.addTrace(data);
-}
-
-void
-MissBandwidthPolicy::tracePartialMeasurements(){
-	vector<RequestTraceEntry> data;
-
-	for(int i=0;i<cpuCount;i++) data.push_back((double) currentMeasurements->committedInstructions[i] / (double) period);
-	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->sharedLatencies[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->requestsInSample[i]);
-
-	partialMeasurementTrace.addTrace(data);
 }
 
 std::vector<int>

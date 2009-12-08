@@ -41,7 +41,6 @@ protected:
 
 
 	RequestTrace predictionTrace;
-	RequestTrace partialMeasurementTrace;
 
 	std::vector<double> currentRequestProjection;
 	std::vector<double> currentLatencyProjection;
@@ -99,8 +98,7 @@ protected:
 	void traceBestProjection();
 	void traceNumMSHRs();
 	void initNumMSHRsTrace(int cpuCount);
-	void initPartialMeasurementTrace(int cpuCount);
-	void tracePartialMeasurements();
+
 	void initAloneIPCTrace(int cpuCount, bool policyEnforced);
 
 	void traceAloneIPC(std::vector<int> memoryRequests,

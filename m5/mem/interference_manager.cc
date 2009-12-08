@@ -544,8 +544,12 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
 
 	// get alone latency prediction
-	double avgSharedLatency = (double) instTraceLatencySum[cpuID] / (double) instTraceRequests[cpuID];
-	double avgInterferenceLatency = (double) instTraceInterferenceSum[cpuID] / (double) instTraceRequests[cpuID];
+	double avgSharedLatency = 0;
+	double avgInterferenceLatency = 0;
+	if(instTraceRequests[cpuID] > 0 ){
+		avgSharedLatency = (double) instTraceLatencySum[cpuID] / (double) instTraceRequests[cpuID];
+		avgInterferenceLatency = (double) instTraceInterferenceSum[cpuID] / (double) instTraceRequests[cpuID];
+	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
 	instTraceInterferenceSum[cpuID] = 0;
