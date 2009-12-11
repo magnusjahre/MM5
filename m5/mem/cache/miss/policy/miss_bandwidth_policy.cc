@@ -17,10 +17,15 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 									     int _cpuCount,
 									     double _busUtilThreshold,
 									     double _cutoffReqInt,
+									     RequestEstimationMethod _reqEstMethod,
+									     PerformanceEstimationMethod _perfEstMethod,
 									     bool _enforcePolicy)
 : SimObject(_name){
 
 	intManager = _intManager;
+
+	perfEstMethod = _perfEstMethod;
+	reqEstMethod = _reqEstMethod;
 
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
@@ -298,9 +303,13 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 
 		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
+				                                      mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)],
 													  currentMeasurements->sharedLatencies[i],
+													  currentMeasurements->requestsInSample[i],
 													  mostRecentMWSEstimate[i][currentMHA[i]],
-													  sharedLatencyEstimates[i]);
+													  mostRecentMLPEstimate[i][currentMHA[i]],
+													  sharedLatencyEstimates[i],
+													  currentMeasurements->requestsInSample[i]);
 
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);
@@ -348,6 +357,34 @@ MissBandwidthPolicy::computePercetages(vector<T>* values){
 }
 
 
+double
+MissBandwidthPolicy::computeRequestScalingRatio(int cpuID, int newMSHRCount){
+
+	int currentMSHRCount = caches[cpuID]->getCurrentMSHRCount(true);
+
+	if(reqEstMethod == MWS){
+
+		if(mostRecentMWSEstimate[cpuID][currentMSHRCount] == 0){
+			return 1;
+		}
+		else{
+			return mostRecentMWSEstimate[cpuID][newMSHRCount] / mostRecentMWSEstimate[cpuID][currentMSHRCount];
+		}
+
+	}
+	else if(reqEstMethod == MLP){
+
+		if(currentMeasurements->mlpEstimate[cpuID][newMSHRCount] == 0){
+			return 1;
+		}
+		else{
+			return currentMeasurements->mlpEstimate[cpuID][currentMSHRCount] / currentMeasurements->mlpEstimate[cpuID][newMSHRCount];
+		}
+	}
+	fatal("unknown request scaling ratio");
+	return 0.0;
+}
+
 void
 MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 											 vector<double>* estimatedSharedLatencies){
@@ -360,14 +397,8 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	// 1. Estimate change in request count due change in MLP
 	double freeBusSlots = 0;
 	for(int i=0;i<cpuCount;i++){
-		double mlpRatio = 0.0;
-		if(mostRecentMWSEstimate[i][currentMHA->at(i)] == 0){
-			mlpRatio = 1;
-		}
-		else{
-			assert(mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)] > 0);
-			mlpRatio = mostRecentMWSEstimate[i][currentMHA->at(i)] / mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)];
-		}
+
+		double mlpRatio = computeRequestScalingRatio(i, currentMHA->at(i));
 
 		newRequestCountEstimates[i] = (double) currentMeasurements->requestsInSample[i] * mlpRatio;
 
@@ -471,19 +502,42 @@ MissBandwidthPolicy::computeCurrentMetricValue(){
 
 double
 MissBandwidthPolicy::estimateStallCycles(double currentStallTime,
-											  double currentMWS,
-											  double currentAvgSharedLat,
-											  double newMWS,
-											  double newAvgSharedLat){
+									     double currentMWS,
+									     double currentMLP,
+									     double currentAvgSharedLat,
+									     double currentRequests,
+									     double newMWS,
+									     double newMLP,
+									     double newAvgSharedLat,
+									     double newRequests){
 
-	if(currentMWS == 0 || currentAvgSharedLat == 0 || newMWS == 0 || newAvgSharedLat == 0) return currentStallTime;
+	if(perfEstMethod == RATIO_MWS){
 
-	double currentRatio = currentAvgSharedLat / currentMWS;
-	double newRatio = newAvgSharedLat / newMWS;
+		if(currentMWS == 0 || currentAvgSharedLat == 0 || newMWS == 0 || newAvgSharedLat == 0) return currentStallTime;
 
-	double stallTimeFactor = newRatio / currentRatio;
+		double currentRatio = currentAvgSharedLat / currentMWS;
+		double newRatio = newAvgSharedLat / newMWS;
 
-	return currentStallTime * stallTimeFactor;
+		double stallTimeFactor = newRatio / currentRatio;
+
+		return currentStallTime * stallTimeFactor;
+	}
+	else if(perfEstMethod == LATENCY_MLP){
+
+		double curMLRProduct = currentMLP * currentAvgSharedLat * currentRequests;
+		double newMLRProduct = newMLP * newAvgSharedLat * newRequests;
+
+		double deltaStallCycles = newMLRProduct - curMLRProduct;
+		double newStallTime = currentStallTime + deltaStallCycles;
+
+		if(newStallTime > period) return period;
+		if(newStallTime < 0) return 0;
+
+		return newStallTime;
+	}
+
+	fatal("Unknown performance estimation method");
+	return 0.0;
 }
 
 void
@@ -491,11 +545,17 @@ MissBandwidthPolicy::updateAloneIPCEstimate(){
 	for(int i=0;i<cpuCount;i++){
 		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
 			double stallParallelism = currentMeasurements->avgMissesWhileStalled[i][maxMSHRs];
+			double curMLP = currentMeasurements->mlpEstimate[i][maxMSHRs];
+			double curReqs = currentMeasurements->requestsInSample[i];
 			double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 														  stallParallelism,
+														  curMLP,
 														  currentMeasurements->sharedLatencies[i],
+														  curReqs,
 														  stallParallelism,
-														  currentMeasurements->estimatedPrivateLatencies[i]);
+														  curMLP,
+														  currentMeasurements->estimatedPrivateLatencies[i],
+														  curReqs);
 			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
 					              i,
@@ -749,6 +809,8 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 		                                         double avgSharedLat,
 		                                         double avgPrivateLatEstimate,
 		                                         double mws,
+		                                         double mlp,
+		                                         int reqs,
 		                                         int stallCycles,
 		                                         int totalCycles,
 		                                         int committedInsts){
@@ -763,7 +825,15 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(mws);
 
 	if(cpuCount > 1){
-		double newStallEstimate = estimateStallCycles(stallCycles, mws, avgSharedLat, mws, avgPrivateLatEstimate);
+		double newStallEstimate = estimateStallCycles(stallCycles,
+				                                      mws,
+				                                      mlp,
+				                                      avgSharedLat,
+				                                      reqs,
+				                                      mws,
+				                                      mlp,
+				                                      avgPrivateLatEstimate,
+				                                      reqs);
 
 		double nonStallCycles = (double) totalCycles - (double) stallCycles;
 
@@ -784,6 +854,28 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 
 	comInstModelTraces[cpuID].addTrace(data);
 }
+
+
+MissBandwidthPolicy::RequestEstimationMethod
+MissBandwidthPolicy::parseRequestMethod(std::string methodName){
+
+	if(methodName == "MWS") return MWS;
+	if(methodName == "MLP") return MLP;
+
+	fatal("unknown request estimation method");
+	return MWS;
+}
+
+MissBandwidthPolicy::PerformanceEstimationMethod
+MissBandwidthPolicy::parsePerfrormanceMethod(std::string methodName){
+
+	if(methodName == "latency-mlp") return LATENCY_MLP;
+	if(methodName == "ratio-mws") return RATIO_MWS;
+
+	fatal("unknown performance estimation method");
+	return LATENCY_MLP;
+}
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

@@ -12,7 +12,14 @@
 
 class NoBandwidthPolicy : public MissBandwidthPolicy{
 public:
-	NoBandwidthPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt);
+	NoBandwidthPolicy(string _name,
+			          InterferenceManager* _intManager,
+			          Tick _period,
+			          int _cpuCount,
+			          double _busUtilThreshold,
+			          double _cutoffReqInt,
+			          RequestEstimationMethod _reqEstMethod,
+			          PerformanceEstimationMethod _perfEstMethod);
 
 	virtual double computeMetric(std::vector<double>* speedups);
 

@@ -543,6 +543,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 
 	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
 
+	double mlp = lastPrivateCaches[cpuID]->getInstTraceMLP();
+
 	// get alone latency prediction
 	double avgSharedLatency = 0;
 	double avgInterferenceLatency = 0;
@@ -552,17 +554,21 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
-	instTraceInterferenceSum[cpuID] = 0;
-	instTraceRequests[cpuID] = 0;
-	instTraceLatencySum[cpuID] = 0;
+
 
 	missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 			                                         avgSharedLatency,
 			                                         predictedAloneLat,
 			                                         mws,
+			                                         mlp,
+			                                         instTraceRequests[cpuID],
 			                                         stallCycles,
 			                                         ticksInSample,
 			                                         committedInstructions);
+
+	instTraceInterferenceSum[cpuID] = 0;
+	instTraceRequests[cpuID] = 0;
+	instTraceLatencySum[cpuID] = 0;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

@@ -10,8 +10,15 @@
 
 using namespace std;
 
-HmosPolicy::HmosPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt) {
+HmosPolicy::HmosPolicy(string _name,
+		               InterferenceManager* _intManager,
+		               Tick _period,
+		               int _cpuCount,
+		               double _busUtilThreshold,
+		               double _cutoffReqInt,
+		               RequestEstimationMethod _reqEstMethod,
+		               PerformanceEstimationMethod _perfEstMethod)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod) {
 
 }
 
@@ -37,6 +44,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 	Param<int> cpuCount;
 	Param<double> busUtilizationThreshold;
 	Param<double> requestCountThreshold;
+	Param<string> requestEstimationMethod;
+	Param<string> performanceEstimationMethod;
 END_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
@@ -44,17 +53,27 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 	INIT_PARAM_DFLT(interferenceManager, "The system's interference manager" , NULL),
 	INIT_PARAM(cpuCount, "The number of cpus in the system"),
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.95),
-	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001)
+	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001),
+	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
+	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations")
 END_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 
 CREATE_SIM_OBJECT(HmosPolicy)
 {
+	MissBandwidthPolicy::RequestEstimationMethod reqEstMethod =
+		MissBandwidthPolicy::parseRequestMethod(requestEstimationMethod);
+	MissBandwidthPolicy::PerformanceEstimationMethod perfEstMethod =
+		MissBandwidthPolicy::parsePerfrormanceMethod(performanceEstimationMethod);
+
+
 	return new HmosPolicy(getInstanceName(),
 							 interferenceManager,
 							 period,
 							 cpuCount,
 							 busUtilizationThreshold,
-							 requestCountThreshold);
+							 requestCountThreshold,
+							 reqEstMethod,
+							 perfEstMethod);
 }
 
 REGISTER_SIM_OBJECT("HmosPolicy", HmosPolicy)

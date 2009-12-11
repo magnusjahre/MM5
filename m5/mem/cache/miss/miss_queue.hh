@@ -453,6 +453,10 @@ class MissQueue
     double getInstTraceMWS(){
     	return mq.getInstTraceMWS();
     }
+
+    double getInstTraceMLP(){
+    	return mq.getInstTraceMLP();
+    }
 };
 
 

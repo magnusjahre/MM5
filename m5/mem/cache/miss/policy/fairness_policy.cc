@@ -3,8 +3,15 @@
 
 using namespace std;
 
-FairnessPolicy::FairnessPolicy(string _name, InterferenceManager* _intManager, Tick _period, int _cpuCount, double _busUtilThreshold, double _cutoffReqInt)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt) {
+FairnessPolicy::FairnessPolicy(string _name,
+		                       InterferenceManager* _intManager,
+		                       Tick _period,
+		                       int _cpuCount,
+		                       double _busUtilThreshold,
+		                       double _cutoffReqInt,
+		                       RequestEstimationMethod _reqEstMethod,
+		                       PerformanceEstimationMethod _perfEstMethod)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod) {
 
 }
 
@@ -47,6 +54,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 	Param<int> cpuCount;
 	Param<double> busUtilizationThreshold;
 	Param<double> requestCountThreshold;
+	Param<string> requestEstimationMethod;
+	Param<string> performanceEstimationMethod;
 END_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
@@ -54,17 +63,27 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 	INIT_PARAM_DFLT(interferenceManager, "The system's interference manager" , NULL),
 	INIT_PARAM(cpuCount, "The number of cpus in the system"),
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.95),
-	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001)
+	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001),
+	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
+	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations")
 END_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 CREATE_SIM_OBJECT(FairnessPolicy)
 {
+
+	MissBandwidthPolicy::RequestEstimationMethod reqEstMethod =
+		MissBandwidthPolicy::parseRequestMethod(requestEstimationMethod);
+	MissBandwidthPolicy::PerformanceEstimationMethod perfEstMethod =
+		MissBandwidthPolicy::parsePerfrormanceMethod(performanceEstimationMethod);
+
 	return new FairnessPolicy(getInstanceName(),
 							 interferenceManager,
 							 period,
 							 cpuCount,
 							 busUtilizationThreshold,
-							 requestCountThreshold);
+							 requestCountThreshold,
+							 reqEstMethod,
+							 perfEstMethod);
 }
 
 REGISTER_SIM_OBJECT("FairnessPolicy", FairnessPolicy)

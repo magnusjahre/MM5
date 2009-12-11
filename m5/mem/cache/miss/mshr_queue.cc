@@ -74,6 +74,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	instTraceMWSAccumulator = 0;
 	instTraceMWSCount = 0;
+
+	instTraceMLPAccumulator = 0;
+	instTraceMLPCount = 0;
 }
 
 void
@@ -671,6 +674,9 @@ MSHRQueue::handleMLPEstimationEvent(){
 			if(demandAllocated > 0){
 				double mlpcost = 1 / (double) demandAllocated;
 
+				instTraceMLPAccumulator += mlpcost;
+				instTraceMLPCount++;
+
 				i = allocatedList.begin();
 				end = allocatedList.end();
 				for (; i != end; ++i) {
@@ -774,4 +780,17 @@ MSHRQueue::getInstTraceMWS(){
 	instTraceMWSCount = 0;
 
 	return mws;
+}
+
+double
+MSHRQueue::getInstTraceMLP(){
+	double mlp = 0;
+	if(instTraceMLPCount > 0){
+		mlp = (double) instTraceMLPAccumulator / (double) instTraceMLPCount;
+	}
+	instTraceMLPAccumulator = 0;
+	instTraceMLPCount = 0;
+
+	return mlp;
+
 }

@@ -192,6 +192,16 @@ def setUpMissBwPolicy():
     missBandwidthPolicy.interferenceManager = root.interferenceManager
     missBandwidthPolicy.cpuCount = int(env["NP"])
 
+    if "MISS-BW-REQ-METHOD" in env:
+        missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]
+    else:
+        missBandwidthPolicy.requestEstimationMethod = "MWS"
+
+    if "MISS-BW-PERF-METHOD" in env:
+        missBandwidthPolicy.performanceEstimationMethod = env["MISS-BW-PERF-METHOD"]
+    else:
+        missBandwidthPolicy.performanceEstimationMethod = "ratio-mws"
+
     return missBandwidthPolicy
 
 def getCheckpointDirectory(simpoint = -1):

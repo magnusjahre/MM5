@@ -22,7 +22,22 @@ class BaseCache;
 
 class MissBandwidthPolicy : public SimObject{
 
+public:
+    typedef enum{
+        MWS,
+        MLP
+    } RequestEstimationMethod;
+
+    typedef enum{
+        LATENCY_MLP,
+        RATIO_MWS
+    } PerformanceEstimationMethod;
+
 protected:
+
+	RequestEstimationMethod reqEstMethod;
+	PerformanceEstimationMethod perfEstMethod;
+
 	InterferenceManager* intManager;
 	Tick period;
 	MissBandwidthPolicyEvent* policyEvent;
@@ -138,15 +153,28 @@ protected:
 
 	double computeSpeedup(double sharedIPCEstimate, int cpuID);
 
-	double estimateStallCycles(double currentStallTime, double currentMWS, double currentAvgSharedLat, double newMWS, double newAvgSharedLat);
+	double estimateStallCycles(double currentStallTime,
+		                       double currentMWS,
+		                       double currentMLP,
+		                       double currentAvgSharedLat,
+		                       double currentRequests,
+		                       double newMWS,
+		                       double newMLP,
+		                       double newAvgSharedLat,
+		                       double newRequests);
+
+	double computeRequestScalingRatio(int cpuID, int newMSHRCount);
 
 public:
+
 	MissBandwidthPolicy(std::string _name,
 						InterferenceManager* _intManager,
 						Tick _period,
 						int _cpuCount,
 						double _busUtilThreshold,
 						double _cutoffReqInt,
+						RequestEstimationMethod _reqEstMethod,
+						PerformanceEstimationMethod _perfEstMethod,
 						bool _enforcePolicy = true);
 
 	~MissBandwidthPolicy();
@@ -163,7 +191,18 @@ public:
 
 	virtual double computeMetric(std::vector<double>* speedups) = 0;
 
-	void doCommittedInstructionTrace(int cpuID, double avgSharedLat, double avgPrivateLatEstimate, double mws, int stallCycles, int totalCycles, int committedInsts);
+	void doCommittedInstructionTrace(int cpuID,
+				                     double avgSharedLat,
+				                     double avgPrivateLatEstimate,
+				                     double mws,
+				                     double mlp,
+				                     int reqs,
+				                     int stallCycles,
+				                     int totalCycles,
+				                     int committedInsts);
+
+	static RequestEstimationMethod parseRequestMethod(std::string methodName);
+	static PerformanceEstimationMethod parsePerfrormanceMethod(std::string methodName);
 };
 
 class MissBandwidthPolicyEvent : public Event{
