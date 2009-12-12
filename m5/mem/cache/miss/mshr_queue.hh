@@ -106,7 +106,7 @@ class MSHRQueue {
 	Tick instTraceMWSAccumulator;
 	int instTraceMWSCount;
 
-	Tick instTraceMLPAccumulator;
+	double instTraceMLPAccumulator;
 	int instTraceMLPCount;
 
   protected:
