@@ -60,12 +60,14 @@ protected:
 	std::vector<double> currentRequestProjection;
 	std::vector<double> currentLatencyProjection;
 	std::vector<double> currentMWSProjection;
+	std::vector<double> currentMLPProjection;
 	std::vector<double> currentIPCProjection;
 	std::vector<double> currentSpeedupProjection;
 
 	std::vector<double> bestRequestProjection;
 	std::vector<double> bestLatencyProjection;
 	std::vector<double> bestMWSProjection;
+	std::vector<double> bestMLPProjection;
 	std::vector<double> bestIPCProjection;
 	std::vector<double> bestSpeedupProjection;
 

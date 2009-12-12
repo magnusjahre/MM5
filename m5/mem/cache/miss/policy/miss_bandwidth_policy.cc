@@ -297,9 +297,11 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	vector<double> speedups(cpuCount, 0.0);
 	vector<double> sharedIPCEstimates(cpuCount, 0.0);
 	currentMWSProjection.resize(cpuCount, 0.0);
+	currentMLPProjection.resize(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
 
 		currentMWSProjection[i] = mostRecentMWSEstimate[i][currentMHA[i]];
+		currentMLPProjection[i] = mostRecentMLPEstimate[i][currentMHA[i]];
 
 		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
@@ -314,10 +316,12 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);
 
-		DPRINTFR(MissBWPolicyExtra, "CPU %d, estimating new stall time %f, new mws %f, current stalled %d\n",
+		DPRINTFR(MissBWPolicyExtra, "CPU %d, current stall %d, estimating new stall time %f, new mws %f, new mlp %f, current stalled %d\n",
 									i,
+									currentMeasurements->cpuStallCycles[i],
 									newStallEstimate,
 									mostRecentMWSEstimate[i][currentMHA[i]],
+									mostRecentMLPEstimate[i][currentMHA[i]],
 									currentMeasurements->cpuStallCycles[i]);
 	}
 
@@ -752,6 +756,7 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 			bestRequestProjection = currentRequestProjection;
 			bestLatencyProjection = currentLatencyProjection;
 			bestMWSProjection = currentMWSProjection;
+			bestMLPProjection = currentMLPProjection;
 			bestIPCProjection = currentIPCProjection;
 			bestSpeedupProjection = currentSpeedupProjection;
 		}
