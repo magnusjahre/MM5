@@ -13,3 +13,4 @@ class MissBandwidthPolicy(SimObject):
     requestCountThreshold = Param.Double("The request intensity (requests / tick) to assume no request increase")
     requestEstimationMethod = Param.RequestEstimationMethod("The request estimation method to use")
     performanceEstimationMethod = Param.PerformanceEstimationMethod("The method to use for performance estimations")
+    persistentAllocations = Param.Bool("Use persistent allocations")

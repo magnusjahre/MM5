@@ -19,6 +19,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 									     double _cutoffReqInt,
 									     RequestEstimationMethod _reqEstMethod,
 									     PerformanceEstimationMethod _perfEstMethod,
+									     bool _persistentAllocations,
 									     bool _enforcePolicy)
 : SimObject(_name){
 
@@ -30,10 +31,12 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
 
-	acceptanceThreshold = 0.0; // TODO: parameterize
+	acceptanceThreshold = 1.05; // TODO: parameterize
 
 	renewMeasurementsThreshold = 10; // TODO: parameterize
 	renewMeasurementsCounter = 0;
+
+	usePersistentAllocations = _persistentAllocations;
 
 	intManager->registerMissBandwidthPolicy(this);
 
@@ -593,6 +596,18 @@ MissBandwidthPolicy::updateMWSEstimates(){
 void
 MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	addTraceEntry(&measurements);
+
+
+	renewMeasurementsCounter++;
+	if(usePersistentAllocations && renewMeasurementsCounter < renewMeasurementsThreshold && renewMeasurementsCounter > 1){
+		DPRINTF(MissBWPolicy, "--- Skipping Miss Bandwidth Policy due to Persistent Allocations, counter is %d, threshold %d\n",
+							  renewMeasurementsCounter,
+							  renewMeasurementsThreshold);
+		traceNumMSHRs();
+		return;
+	}
+
+
 	assert(currentMeasurements == NULL);
 	currentMeasurements = &measurements;
 
@@ -642,7 +657,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(maxMSHRs);
 	}
 	else{
-		renewMeasurementsCounter++;
 
 		if(!bestRequestProjection.empty()){
 			traceBestProjection();

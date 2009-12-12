@@ -17,8 +17,9 @@ HmosPolicy::HmosPolicy(string _name,
 		               double _busUtilThreshold,
 		               double _cutoffReqInt,
 		               RequestEstimationMethod _reqEstMethod,
-		               PerformanceEstimationMethod _perfEstMethod)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod) {
+		               PerformanceEstimationMethod _perfEstMethod,
+		               bool _persistentAlloc)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc) {
 
 }
 
@@ -46,6 +47,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 	Param<double> requestCountThreshold;
 	Param<string> requestEstimationMethod;
 	Param<string> performanceEstimationMethod;
+	Param<bool> persistentAllocations;
 END_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
@@ -55,7 +57,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.95),
 	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001),
 	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
-	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations")
+	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations"),
+	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true)
 END_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 
 CREATE_SIM_OBJECT(HmosPolicy)
@@ -73,7 +76,8 @@ CREATE_SIM_OBJECT(HmosPolicy)
 							 busUtilizationThreshold,
 							 requestCountThreshold,
 							 reqEstMethod,
-							 perfEstMethod);
+							 perfEstMethod,
+							 persistentAllocations);
 }
 
 REGISTER_SIM_OBJECT("HmosPolicy", HmosPolicy)

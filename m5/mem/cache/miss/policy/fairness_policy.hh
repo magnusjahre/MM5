@@ -19,7 +19,8 @@ public:
 				   double _busUtilThreshold,
 				   double _cutoffReqInt,
 				   RequestEstimationMethod _reqEstMethod,
-				   PerformanceEstimationMethod _perfEstMethod);
+				   PerformanceEstimationMethod _perfEstMethod,
+				   bool _persistentAlloc);
 
 	virtual double computeMetric(std::vector<double>* speedups);
 };

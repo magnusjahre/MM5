@@ -202,6 +202,9 @@ def setUpMissBwPolicy():
     else:
         missBandwidthPolicy.performanceEstimationMethod = "ratio-mws"
 
+    if "MISS-BW-PERSISTENT" in env:
+        missBandwidthPolicy.persistentAllocations = bool(env["MISS-BW-PERSISTENT"])
+
     return missBandwidthPolicy
 
 def getCheckpointDirectory(simpoint = -1):

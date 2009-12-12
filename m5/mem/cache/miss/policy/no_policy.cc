@@ -14,8 +14,9 @@ NoBandwidthPolicy::NoBandwidthPolicy(string _name,
 		                             double _busUtilThreshold,
 		                             double _cutoffReqInt,
 		                             RequestEstimationMethod _reqEstMethod,
-		                             PerformanceEstimationMethod _perfEstMethod)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, false){
+		                             PerformanceEstimationMethod _perfEstMethod,
+		                             bool _persistentAlloc)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, false){
 
 }
 
@@ -34,6 +35,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(NoBandwidthPolicy)
 	Param<double> requestCountThreshold;
 	Param<string> requestEstimationMethod;
 	Param<string> performanceEstimationMethod;
+	Param<bool> persistentAllocations;
 END_DECLARE_SIM_OBJECT_PARAMS(NoBandwidthPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(NoBandwidthPolicy)
@@ -43,7 +45,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(NoBandwidthPolicy)
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.95),
 	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001),
 	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
-	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations")
+	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations"),
+	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true)
 END_INIT_SIM_OBJECT_PARAMS(NoBandwidthPolicy)
 
 CREATE_SIM_OBJECT(NoBandwidthPolicy)
@@ -61,7 +64,8 @@ CREATE_SIM_OBJECT(NoBandwidthPolicy)
 								 busUtilizationThreshold,
 								 requestCountThreshold,
 								 reqEstMethod,
-								 perfEstMethod);
+								 perfEstMethod,
+								 persistentAllocations);
 }
 
 REGISTER_SIM_OBJECT("NoBandwidthPolicy", NoBandwidthPolicy)

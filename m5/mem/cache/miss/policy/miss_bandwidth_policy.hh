@@ -74,6 +74,7 @@ protected:
 	std::vector<RequestTrace> comInstModelTraces;
 	std::vector<Tick> comInstModelTraceCummulativeInst;
 
+	bool usePersistentAllocations;
 
 	RequestTrace numMSHRsTrace;
 
@@ -177,6 +178,7 @@ public:
 						double _cutoffReqInt,
 						RequestEstimationMethod _reqEstMethod,
 						PerformanceEstimationMethod _perfEstMethod,
+						bool _persistentAllocations,
 						bool _enforcePolicy = true);
 
 	~MissBandwidthPolicy();
