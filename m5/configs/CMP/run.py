@@ -184,7 +184,8 @@ def setUpMissBwPolicy():
         else:
             panic("error in setUpMissBwPolicy()")
     else:
-        assert env['MISS-BW-POLICY'] == "none"
+        if env['MISS-BW-POLICY'] != "none":
+            warn("NP is 1 and MISS-BW-POLICY != none, ignoring policy argument!")
         missBandwidthPolicy = NoBandwidthPolicy()
 
     assert "MISS-BW-POLICY-PERIOD" in env
