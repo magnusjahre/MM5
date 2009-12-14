@@ -19,6 +19,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	committedInstructions.resize(cpuCount, 0);
 	requestsInSample.resize(cpuCount, 0);
+	responsesWhileStalled.resize(cpuCount, 0);
 	mlpEstimate.resize(cpuCount, vector<double>());
 	avgMissesWhileStalled.resize(cpuCount, vector<double>());
 
@@ -84,6 +85,9 @@ PerformanceMeasurement::getTraceHeader(){
 		name << "Requests CPU" << i;
 		header.push_back(name.str());
 	}
+
+	for(int i=0;i<cpuCount;i++) header.push_back(RequestTrace::buildTraceName("Requests While Stalled", i));
+
 	for(int i=0;i<cpuCount;i++){
 		stringstream name;
 		name << "Stall Cycles CPU" << i;
@@ -160,6 +164,8 @@ PerformanceMeasurement::createTraceLine(){
 	for(int i=0;i<cpuCount;i++){
 		line.push_back(requestsInSample[i]);
 	}
+
+	for(int i=0;i<cpuCount;i++) line.push_back(responsesWhileStalled[i]);
 
 	for(int i=0;i<cpuCount;i++){
 		line.push_back(cpuStallCycles[i]);

@@ -314,7 +314,8 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 													  mostRecentMWSEstimate[i][currentMHA[i]],
 													  mostRecentMLPEstimate[i][currentMHA[i]],
 													  sharedLatencyEstimates[i],
-													  currentMeasurements->requestsInSample[i]);
+													  currentMeasurements->requestsInSample[i],
+													  currentMeasurements->responsesWhileStalled[i]);
 
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);
@@ -516,7 +517,8 @@ MissBandwidthPolicy::estimateStallCycles(double currentStallTime,
 									     double newMWS,
 									     double newMLP,
 									     double newAvgSharedLat,
-									     double newRequests){
+									     double newRequests,
+									     double responsesWhileStalled){
 
 	if(perfEstMethod == RATIO_MWS){
 
@@ -537,8 +539,80 @@ MissBandwidthPolicy::estimateStallCycles(double currentStallTime,
 		double deltaStallCycles = newMLRProduct - curMLRProduct;
 		double newStallTime = currentStallTime + deltaStallCycles;
 
-		if(newStallTime > period) return period;
+//		if(newStallTime > period) return period;
 		if(newStallTime < 0) return 0;
+
+		return newStallTime;
+	}
+	else if(perfEstMethod == LATENCY_MLP_SREQ){
+
+		DPRINTF(MissBWPolicyExtra, "Running stall-request latency MLP method with %f mlp, %f avg shared lat and %f responses while stalled\n",
+				              currentMLP,
+				              currentAvgSharedLat,
+				              responsesWhileStalled);
+
+		double curMLRProduct = currentMLP * currentAvgSharedLat * responsesWhileStalled;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new values are %f mlp, %f avg shared lat and %f responses while stalled\n",
+							  newMLP,
+							  newAvgSharedLat,
+							  responsesWhileStalled);
+
+
+		double newMLRProduct = newMLP * newAvgSharedLat * responsesWhileStalled;
+
+		double deltaStallCycles = newMLRProduct - curMLRProduct;
+		double newStallTime = currentStallTime + deltaStallCycles;
+
+		DPRINTF(MissBWPolicyExtra, "Current MLR product is %f, new MLR product is %f, current stall time is %f, new stall time %f\n",
+							  curMLRProduct,
+							  newMLRProduct,
+							  currentStallTime,
+							  newStallTime);
+
+		if(newStallTime < 0){
+			DPRINTF(MissBWPolicy, "Negative stall time (%f), returning 0\n", newStallTime);
+			return 0;
+		}
+
+		DPRINTF(MissBWPolicyExtra, "Returning new stall time %f\n", newStallTime);
+		return newStallTime;
+	}
+	else if(perfEstMethod == NO_MLP){
+
+		if(currentStallTime == 0){
+			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, stall time is 0, returning 0\n");
+			return 0;
+		}
+
+		double computedConstMLP = currentStallTime / (currentAvgSharedLat * currentRequests);
+
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f and %f stall cycles\n",
+      					           currentAvgSharedLat,
+      					           currentRequests,
+      					           currentStallTime);
+
+		DPRINTF(MissBWPolicyExtra, "Estimated MLP constant to be %f\n", computedConstMLP);
+
+
+		double adjustedMLP = (computedConstMLP * newMLP) / currentMLP;
+
+		DPRINTF(MissBWPolicyExtra, "Computed adjusted MLP to be %f with current MLP %f and new MLP %f\n",
+								    adjustedMLP,
+								    currentMLP,
+								    newMLP);
+
+		double newStallTime = adjustedMLP * newAvgSharedLat * newRequests;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f and new requests %f\n",
+							        newStallTime,
+							        newAvgSharedLat,
+							        newRequests);
+
+		if(newStallTime < 0){
+			DPRINTF(MissBWPolicy, "Negative stall time (%f), returning 0\n", newStallTime);
+			return 0;
+		}
 
 		return newStallTime;
 	}
@@ -562,7 +636,8 @@ MissBandwidthPolicy::updateAloneIPCEstimate(){
 														  stallParallelism,
 														  curMLP,
 														  currentMeasurements->estimatedPrivateLatencies[i],
-														  curReqs);
+														  curReqs,
+														  currentMeasurements->responsesWhileStalled[i]);
 			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
 					              i,
@@ -803,7 +878,9 @@ MissBandwidthPolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Cummulative Committed Instructions");
 	headers.push_back("Cycles in Sample");
 	headers.push_back("Stall Cycles");
-	headers.push_back("Misses while Stalled");
+	headers.push_back("Total Requests");
+	headers.push_back("Avg Misses while Stalled");
+	headers.push_back("Responses while Stalled");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -832,16 +909,25 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 		                                         int reqs,
 		                                         int stallCycles,
 		                                         int totalCycles,
-		                                         int committedInsts){
+		                                         int committedInsts,
+		                                         int responsesWhileStalled){
 
 	vector<RequestTraceEntry> data;
+
+
+	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles since last, %d committed insts\n",
+			              cpuID,
+			              totalCycles,
+			              committedInsts);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(totalCycles);
 	data.push_back(stallCycles);
+	data.push_back(reqs);
 	data.push_back(mws);
+	data.push_back(responsesWhileStalled);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
@@ -852,7 +938,8 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 				                                      mws,
 				                                      mlp,
 				                                      avgPrivateLatEstimate,
-				                                      reqs);
+				                                      reqs,
+				                                      responsesWhileStalled);
 
 		double nonStallCycles = (double) totalCycles - (double) stallCycles;
 
@@ -890,6 +977,8 @@ MissBandwidthPolicy::parsePerfrormanceMethod(std::string methodName){
 
 	if(methodName == "latency-mlp") return LATENCY_MLP;
 	if(methodName == "ratio-mws") return RATIO_MWS;
+	if(methodName == "latency-mlp-sreq") return LATENCY_MLP_SREQ;
+	if(methodName == "no-mlp") return NO_MLP;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

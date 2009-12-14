@@ -109,6 +109,9 @@ class MSHRQueue {
 	double instTraceMLPAccumulator;
 	int instTraceMLPCount;
 
+	int responsesWhileStalled;
+	int instTraceRespWhileStalled;
+
   protected:
 
 	Stats::Scalar<> opacu_overlapped_misses;
@@ -378,6 +381,9 @@ class MSHRQueue {
     double getInstTraceMWS();
 
     double getInstTraceMLP();
+
+    int getResponsesWhileStalled();
+    int getInstTraceRespWhileStalled();
 
 };
 

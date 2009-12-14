@@ -30,7 +30,9 @@ public:
 
     typedef enum{
         LATENCY_MLP,
-        RATIO_MWS
+        LATENCY_MLP_SREQ,
+        RATIO_MWS,
+        NO_MLP
     } PerformanceEstimationMethod;
 
 protected:
@@ -164,7 +166,8 @@ protected:
 		                       double newMWS,
 		                       double newMLP,
 		                       double newAvgSharedLat,
-		                       double newRequests);
+		                       double newRequests,
+		                       double responsesWhileStalled);
 
 	double computeRequestScalingRatio(int cpuID, int newMSHRCount);
 
@@ -203,7 +206,8 @@ public:
 				                     int reqs,
 				                     int stallCycles,
 				                     int totalCycles,
-				                     int committedInsts);
+				                     int committedInsts,
+				                     int responsesWhileStalled);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerfrormanceMethod(std::string methodName);

@@ -445,6 +445,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 		currentMeasurement.mlpEstimate[i] = lastPrivateCaches[i]->getMLPEstimate();
 		currentMeasurement.avgMissesWhileStalled[i] = lastPrivateCaches[i]->getServicedMissesWhileStalledEstimate();
 		currentMeasurement.requestsInSample[i] = currentRequests[i];
+		currentMeasurement.responsesWhileStalled[i] = lastPrivateCaches[i]->getResponsesWhileStalled();
 	}
 
 	currentMeasurement.addInterferenceData(sharedLatencyAccumulator,
@@ -520,6 +521,7 @@ InterferenceManager::isStalledForMemory(int cpuID){
 void
 InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
 	assert(!cpuIsStalled[cpuID]);
+
 	cpuStalledAt[cpuID] = curTick - detectionDelay;
 	cpuIsStalled[cpuID] = true;
 }
@@ -545,6 +547,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 
 	double mlp = lastPrivateCaches[cpuID]->getInstTraceMLP();
 
+	int responsesWhileStalled  = lastPrivateCaches[cpuID]->getInstTraceRespWhileStalled();
+
 	// get alone latency prediction
 	double avgSharedLatency = 0;
 	double avgInterferenceLatency = 0;
@@ -564,7 +568,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 			                                         instTraceRequests[cpuID],
 			                                         stallCycles,
 			                                         ticksInSample,
-			                                         committedInstructions);
+			                                         committedInstructions,
+			                                         responsesWhileStalled);
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;

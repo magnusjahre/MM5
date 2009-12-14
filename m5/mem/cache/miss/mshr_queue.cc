@@ -77,6 +77,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	instTraceMLPAccumulator = 0;
 	instTraceMLPCount = 0;
+
+	responsesWhileStalled = 0;
+	instTraceRespWhileStalled = 0;
 }
 
 void
@@ -431,6 +434,14 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 		}
 		mlpAccumulatorTicks += latency;
 		mlp_active_cycles += latency;
+	}
+
+	if(isMissQueue && !cache->isShared && cache->interferenceManager != NULL){
+
+		if(cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
+			responsesWhileStalled++;
+			instTraceRespWhileStalled++;
+		}
 	}
 
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);
@@ -793,4 +804,18 @@ MSHRQueue::getInstTraceMLP(){
 
 	return mlp;
 
+}
+
+int
+MSHRQueue::getResponsesWhileStalled(){
+	int tmp = responsesWhileStalled;
+	responsesWhileStalled = 0;
+	return tmp;
+}
+
+int
+MSHRQueue::getInstTraceRespWhileStalled(){
+	int tmp = instTraceRespWhileStalled;
+	instTraceRespWhileStalled = 0;
+	return tmp;
 }

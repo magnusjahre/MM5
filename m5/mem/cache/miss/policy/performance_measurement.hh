@@ -22,6 +22,7 @@ private:
 public:
 	std::vector<int> committedInstructions;
 	std::vector<int> requestsInSample;
+	std::vector<int> responsesWhileStalled;
 
 	std::vector<int> cpuStallCycles;
 

@@ -595,6 +595,10 @@ public:
 
 	virtual double  getInstTraceMLP() = 0;
 
+	virtual int getResponsesWhileStalled() = 0;
+
+	virtual int getInstTraceRespWhileStalled() = 0;
+
 	virtual void setNumMSHRs(int newMSHRCount) = 0;
 
 	virtual RateMeasurement getMissRate() = 0;

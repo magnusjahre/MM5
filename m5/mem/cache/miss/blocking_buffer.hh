@@ -300,6 +300,15 @@ public:
     	fatal("Makes no sense");
     }
 
+    int getResponsesWhileStalled(){
+    	fatal("Makes no sense");
+    }
+
+    int getInstTraceRespWhileStalled(){
+    	fatal("Makes no sense");
+    }
+
+
     int getNumMSHRs(){
     	return 1;
     }

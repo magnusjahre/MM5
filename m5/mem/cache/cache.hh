@@ -427,6 +427,14 @@ class Cache : public BaseCache
     	return missQueue->getInstTraceMLP();
     }
 
+    virtual int getResponsesWhileStalled(){
+    	return missQueue->getResponsesWhileStalled();
+    }
+
+    virtual int getInstTraceRespWhileStalled(){
+    	return missQueue->getInstTraceRespWhileStalled();
+    }
+
     virtual void setNumMSHRs(int newMSHRCount){
     	return missQueue->setNumMSHRs(newMSHRCount);
     }

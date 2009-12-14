@@ -426,13 +426,15 @@ FullCPU::commit()
 
 			//TODO: might want to remove the detection delay
 			issueStallMessageCounter++;
-			int stallDetectionDelay = 20;
+			int stallDetectionDelay = 35;
 			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
 				stallMessageIssued = true;
 				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
+
+				stallCycleTraceCounter += stallDetectionDelay;
 			}
 
-			stallCycleTraceCounter++;
+			if(stallMessageIssued) stallCycleTraceCounter++;
 		}
 
 		//

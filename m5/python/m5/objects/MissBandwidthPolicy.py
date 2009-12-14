@@ -1,7 +1,7 @@
 from m5 import *
 
 class RequestEstimationMethod(Enum): vals = ['MWS', 'MLP']
-class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws']
+class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "latency-mlp-sreq", "no-mlp"]
 
 class MissBandwidthPolicy(SimObject):
     type = 'MissBandwidthPolicy'

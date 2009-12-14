@@ -457,6 +457,15 @@ class MissQueue
     double getInstTraceMLP(){
     	return mq.getInstTraceMLP();
     }
+
+    int getResponsesWhileStalled(){
+    	return mq.getResponsesWhileStalled();
+    }
+
+    int getInstTraceRespWhileStalled(){
+    	return mq.getInstTraceRespWhileStalled();
+    }
+
 };
 
 
