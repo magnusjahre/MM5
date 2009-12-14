@@ -32,7 +32,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	requestCountThreshold = _cutoffReqInt * _period;
 
 	dumpInitalized = false;
-	dumpSearchSpaceAt = 1000000; // set this to zero to turn off
+	dumpSearchSpaceAt = 2000000; // set this to zero to turn off
 
 	acceptanceThreshold = 1.05; // TODO: parameterize
 
@@ -589,8 +589,8 @@ MissBandwidthPolicy::estimateStallCycles(double currentStallTime,
 	}
 	else if(perfEstMethod == NO_MLP){
 
-		if(currentStallTime == 0){
-			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, stall time is 0, returning 0\n");
+		if(currentAvgSharedLat == 0 || currentRequests == 0){
+			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, latency or num requests is 0, returning 0\n");
 			return 0;
 		}
 
@@ -775,6 +775,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	traceNumMSHRs();
+
 
 	currentMeasurements = NULL;
 }
@@ -999,6 +1000,9 @@ MissBandwidthPolicy::dumpSearchSpace(std::vector<int>* mhaConfig, double metricV
 	const char* filename = "searchSpaceDump.txt";
 
 	if(!dumpInitalized){
+
+		DPRINTF(MissBWPolicy, "-- Dumping search space!\n");
+
 		ofstream initfile(filename, ios_base::out);
 		initfile << "";
 		initfile.close();
