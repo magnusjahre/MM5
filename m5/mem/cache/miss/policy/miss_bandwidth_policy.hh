@@ -56,6 +56,8 @@ protected:
 	std::vector<double> aloneIPCEstimates;
 	std::vector<double> avgLatencyAloneIPCModel;
 
+	bool dumpInitalized;
+	Tick dumpSearchSpaceAt;
 
 	RequestTrace predictionTrace;
 
@@ -170,6 +172,8 @@ protected:
 		                       double responsesWhileStalled);
 
 	double computeRequestScalingRatio(int cpuID, int newMSHRCount);
+
+	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 
 public:
 

@@ -31,6 +31,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
 
+	dumpInitalized = false;
+	dumpSearchSpaceAt = 1000000; // set this to zero to turn off
+
 	acceptanceThreshold = 1.05; // TODO: parameterize
 
 	renewMeasurementsThreshold = 10; // TODO: parameterize
@@ -282,7 +285,9 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	vector<int> currentMHA = relocateMHA(mhaConfig);
 
 	// 1. Prune search space
-	if(!doMHAEvaluation(currentMHA)) return 0.0;
+	if(!doMHAEvaluation(currentMHA)){
+		return 0.0;
+	}
 
 	traceVerboseVector("--- Evaluating MHA: ", currentMHA);
 
@@ -335,6 +340,10 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 
 	// 4. Compute metric
 	double metricValue = computeMetric(&speedups);
+
+	if(dumpSearchSpaceAt == curTick){
+		dumpSearchSpace(mhaConfig, metricValue);
+	}
 
 	DPRINTFR(MissBWPolicyExtra, "Returning metric value %f\n", metricValue);
 
@@ -984,6 +993,25 @@ MissBandwidthPolicy::parsePerfrormanceMethod(std::string methodName){
 	return LATENCY_MLP;
 }
 
+void
+MissBandwidthPolicy::dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue){
+
+	const char* filename = "searchSpaceDump.txt";
+
+	if(!dumpInitalized){
+		ofstream initfile(filename, ios_base::out);
+		initfile << "";
+		initfile.close();
+		dumpInitalized = true;
+	}
+
+	ofstream dumpfile(filename, ios_base::app);
+	for(int i=0;i<mhaConfig->size();i++){
+		dumpfile << mhaConfig->at(i)+1 << ";";
+	}
+	dumpfile << metricValue << "\n";
+	dumpfile.close();
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
