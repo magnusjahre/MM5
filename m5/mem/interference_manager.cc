@@ -559,17 +559,18 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
 
-
-	missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
-			                                         avgSharedLatency,
-			                                         predictedAloneLat,
-			                                         mws,
-			                                         mlp,
-			                                         instTraceRequests[cpuID],
-			                                         stallCycles,
-			                                         ticksInSample,
-			                                         committedInstructions,
-			                                         responsesWhileStalled);
+	if(missBandwidthPolicy != NULL){
+		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
+														 avgSharedLatency,
+														 predictedAloneLat,
+														 mws,
+														 mlp,
+														 instTraceRequests[cpuID],
+														 stallCycles,
+														 ticksInSample,
+														 committedInstructions,
+														 responsesWhileStalled);
+	}
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
