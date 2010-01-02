@@ -90,6 +90,8 @@ protected:
 	int maxMSHRs;
 	int cpuCount;
 
+	bool measurementsValid;
+
 	double requestCountThreshold;
 	double busUtilizationThreshold;
 	double acceptanceThreshold;

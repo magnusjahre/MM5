@@ -79,6 +79,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 	comInstModelTraceCummulativeInst.resize(cpuCount, 0);
 
+	bestRequestProjection.resize(cpuCount, 0.0);
+	measurementsValid = false;
+
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
@@ -681,6 +684,8 @@ void
 MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	addTraceEntry(&measurements);
 
+	assert(currentMeasurements == NULL);
+	currentMeasurements = &measurements;
 
 	renewMeasurementsCounter++;
 	if(usePersistentAllocations && renewMeasurementsCounter < renewMeasurementsThreshold && renewMeasurementsCounter > 1){
@@ -688,12 +693,19 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 							  renewMeasurementsCounter,
 							  renewMeasurementsThreshold);
 		traceNumMSHRs();
+
+		if(renewMeasurementsCounter == 2){
+			assert(!bestRequestProjection.empty());
+			traceBestProjection();
+
+			DPRINTF(MissBWPolicy, "Dumping accuracy information\n");
+			traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
+			traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
+		}
+
+		currentMeasurements = NULL;
 		return;
 	}
-
-
-	assert(currentMeasurements == NULL);
-	currentMeasurements = &measurements;
 
 	DPRINTF(MissBWPolicy, "--- Running Miss Bandwidth Policy\n");
 
@@ -705,7 +717,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<cpuCount;i++) actualIPC[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
 	traceVector("Measured IPC: ", actualIPC);
 
-	if(!bestRequestProjection.empty()){
+	if(measurementsValid){
 		for(int i=0;i<cpuCount;i++){
 			if(currentMeasurements->requestsInSample[i] > requestCountThreshold){
 				double reqError = computeError(bestRequestProjection[i], measurements.requestsInSample[i]);
@@ -742,11 +754,16 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 	else{
 
-		if(!bestRequestProjection.empty()){
+		if(measurementsValid && !usePersistentAllocations){
 			traceBestProjection();
 		}
 
+		// initalize best-storage
+		for(int i=0;i<bestRequestProjection.size();i++) bestRequestProjection[i] = (double) currentMeasurements->requestsInSample[i];
+		bestLatencyProjection = currentMeasurements->sharedLatencies;
+
 		vector<int> bestMHA = exhaustiveSearch();
+		measurementsValid = true;
 		if(bestMHA.size() != cpuCount){
 			DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
 			bestMHA.resize(cpuCount, maxMSHRs);
