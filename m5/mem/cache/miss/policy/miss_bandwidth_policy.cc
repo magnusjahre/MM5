@@ -831,7 +831,7 @@ MissBandwidthPolicy::squareRoot(double num){
 	int iterations = 10;
 
 	int digits = 0;
-	int tempnum = num;
+	int tempnum = (int) num;
 	while(tempnum != 0){
 		tempnum = tempnum >> 1;
 		digits++;
