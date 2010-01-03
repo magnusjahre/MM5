@@ -837,7 +837,7 @@ MissBandwidthPolicy::squareRoot(double num){
 		digits++;
 	}
 
-	double sqroot = pow(2, digits/2);
+	double sqroot = 1 << (digits/2);
 
 	for(int i=0;i<iterations;i++){
 		sqroot = 0.5 * (sqroot + (num / sqroot));
