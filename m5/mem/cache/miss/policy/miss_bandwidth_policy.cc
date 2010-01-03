@@ -32,11 +32,12 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	requestCountThreshold = _cutoffReqInt * _period;
 
 	dumpInitalized = false;
-	dumpSearchSpaceAt = 2000000; // set this to zero to turn off
+	dumpSearchSpaceAt = 0; // set this to zero to turn off
 
 	acceptanceThreshold = 1.05; // TODO: parameterize
-
+	requestVariationThreshold = 0.5; // TODO: parameterize
 	renewMeasurementsThreshold = 10; // TODO: parameterize
+
 	renewMeasurementsCounter = 0;
 
 	usePersistentAllocations = _persistentAllocations;
@@ -81,6 +82,11 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 	bestRequestProjection.resize(cpuCount, 0.0);
 	measurementsValid = false;
+
+	requestAccumulator.resize(cpuCount, 0.0);
+	requestSqAccumulator.resize(cpuCount, 0.0);
+	avgReqsPerSample.resize(cpuCount, 0.0);
+	reqsPerSampleStdDev.resize(cpuCount, 0.0);
 
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
@@ -272,12 +278,15 @@ MissBandwidthPolicy::tracePerformance(std::vector<double>& sharedIPCEstimate){
 }
 
 bool
-MissBandwidthPolicy::doMHAEvaluation(std::vector<int>& currentMHA){
-	for(int i=0;i<currentMHA.size();i++){
-		if(currentMHA[i] < maxMSHRs && currentMeasurements->requestsInSample[i] < requestCountThreshold){
-//			DPRINTFR(MissBWPolicyExtra, "Pruning MHA for CPU %d since number of requests %d < threshold %d\n", i, currentMeasurements->requestsInSample[i], requestCountThreshold);
-			return false;
-		}
+MissBandwidthPolicy::doMHAEvaluation(int cpuID){
+
+	if(currentMeasurements->requestsInSample[cpuID] < requestCountThreshold){
+		return false;
+	}
+
+	double relativeVariation = reqsPerSampleStdDev[cpuID] / avgReqsPerSample[cpuID];
+	if(relativeVariation > requestVariationThreshold){
+		return false;
 	}
 
 	return true;
@@ -288,8 +297,12 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	vector<int> currentMHA = relocateMHA(mhaConfig);
 
 	// 1. Prune search space
-	if(!doMHAEvaluation(currentMHA)){
-		return 0.0;
+	for(int i=0;i<currentMHA.size();i++){
+		if(currentMHA[i] < maxMSHRs){
+			if(!doMHAEvaluation(i)){
+				return 0.0;
+			}
+		}
 	}
 
 	traceVerboseVector("--- Evaluating MHA: ", currentMHA);
@@ -687,9 +700,18 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(currentMeasurements == NULL);
 	currentMeasurements = &measurements;
 
+	DPRINTF(MissBWPolicy, "--- Running Miss Bandwidth Policy\n");
+
+	for(int i=0;i<requestAccumulator.size();i++){
+		requestAccumulator[i] += currentMeasurements->requestsInSample[i];
+		requestSqAccumulator[i] += currentMeasurements->requestsInSample[i]*currentMeasurements->requestsInSample[i];
+	}
+	traceVector("Request accumulator: ", requestAccumulator);
+	traceVector("Request square accumulator: ", requestSqAccumulator);
+
 	renewMeasurementsCounter++;
 	if(usePersistentAllocations && renewMeasurementsCounter < renewMeasurementsThreshold && renewMeasurementsCounter > 1){
-		DPRINTF(MissBWPolicy, "--- Skipping Miss Bandwidth Policy due to Persistent Allocations, counter is %d, threshold %d\n",
+		DPRINTF(MissBWPolicy, "Skipping Miss Bandwidth Policy due to Persistent Allocations, counter is %d, threshold %d\n",
 							  renewMeasurementsCounter,
 							  renewMeasurementsThreshold);
 		traceNumMSHRs();
@@ -706,8 +728,6 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		currentMeasurements = NULL;
 		return;
 	}
-
-	DPRINTF(MissBWPolicy, "--- Running Miss Bandwidth Policy\n");
 
 	traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
 	traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
@@ -751,12 +771,20 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		renewMeasurementsCounter = 0;
 
 		for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(maxMSHRs);
+
+		computeRequestStatistics();
 	}
 	else{
 
 		if(measurementsValid && !usePersistentAllocations){
 			traceBestProjection();
 		}
+
+		for(int i=0;i<requestAccumulator.size();i++){
+			requestAccumulator[i] = 0;
+			requestSqAccumulator[i] = 0;
+		}
+
 
 		// initalize best-storage
 		for(int i=0;i<bestRequestProjection.size();i++) bestRequestProjection[i] = (double) currentMeasurements->requestsInSample[i];
@@ -797,6 +825,42 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	currentMeasurements = NULL;
 }
 
+double
+MissBandwidthPolicy::squareRoot(double num){
+
+	int iterations = 10;
+
+	int digits = 0;
+	int tempnum = num;
+	while(tempnum != 0){
+		tempnum = tempnum >> 1;
+		digits++;
+	}
+
+	double sqroot = pow(2, digits/2);
+
+	for(int i=0;i<iterations;i++){
+		sqroot = 0.5 * (sqroot + (num / sqroot));
+	}
+
+	return sqroot;
+}
+
+void
+MissBandwidthPolicy::computeRequestStatistics(){
+	for(int i=0;i<requestAccumulator.size();i++){
+		double mean = (double) requestAccumulator[i] / (double) (renewMeasurementsThreshold-1);
+		avgReqsPerSample[i] = mean;
+
+		double sqmean = (double) requestSqAccumulator[i] / (double) (renewMeasurementsThreshold-1);
+
+		reqsPerSampleStdDev[i] = squareRoot(sqmean - mean*mean);
+	}
+
+	traceVector("Average Reqs per Sample: ", avgReqsPerSample);
+	traceVector("Reqs per Sample standard deviation: ", reqsPerSampleStdDev);
+}
+
 void
 MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	vector<string> headers;
@@ -805,6 +869,8 @@ MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured Num Requests", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated Avg Shared Latency", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured Avg Shared Latency", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Average Requests per Sample", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Stdev Requests per Sample", i));
 
 	predictionTrace.initalizeTrace(headers);
 }
@@ -828,10 +894,25 @@ MissBandwidthPolicy::traceBestProjection(){
 
 	vector<RequestTraceEntry> data;
 
-	for(int i=0;i<cpuCount;i++) data.push_back(bestRequestProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->requestsInSample[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(bestLatencyProjection[i]);
-	for(int i=0;i<cpuCount;i++) data.push_back(currentMeasurements->sharedLatencies[i]);
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)) data.push_back(bestRequestProjection[i]);
+		else data.push_back(INT_MAX);
+	}
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)) data.push_back(currentMeasurements->requestsInSample[i]);
+		else data.push_back(INT_MAX);
+	}
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)) data.push_back(bestLatencyProjection[i]);
+		else data.push_back(INT_MAX);
+	}
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)) data.push_back(currentMeasurements->sharedLatencies[i]);
+		else data.push_back(INT_MAX);
+	}
+
+	for(int i=0;i<cpuCount;i++) data.push_back(avgReqsPerSample[i]);
+	for(int i=0;i<cpuCount;i++) data.push_back(reqsPerSampleStdDev[i]);
 
 	predictionTrace.addTrace(data);
 }

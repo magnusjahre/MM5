@@ -75,6 +75,11 @@ protected:
 	std::vector<double> bestIPCProjection;
 	std::vector<double> bestSpeedupProjection;
 
+	std::vector<double> requestAccumulator;
+	std::vector<double> requestSqAccumulator;
+	std::vector<double> avgReqsPerSample;
+	std::vector<double> reqsPerSampleStdDev;
+
 	std::vector<RequestTrace> comInstModelTraces;
 	std::vector<Tick> comInstModelTraceCummulativeInst;
 
@@ -96,6 +101,7 @@ protected:
 	double busUtilizationThreshold;
 	double acceptanceThreshold;
 	int renewMeasurementsThreshold;
+	double requestVariationThreshold;
 
 	int renewMeasurementsCounter;
 
@@ -152,7 +158,7 @@ protected:
 	void traceVector(const char* message, std::vector<double>& data);
 	void tracePerformance(std::vector<double>& sharedCycles);
 
-	bool doMHAEvaluation(std::vector<int>& currentMHA);
+	bool doMHAEvaluation(int cpuID);
 
 	double computeCurrentMetricValue();
 
@@ -176,6 +182,10 @@ protected:
 	double computeRequestScalingRatio(int cpuID, int newMSHRCount);
 
 	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
+
+	void computeRequestStatistics();
+
+	double squareRoot(double num);
 
 public:
 
