@@ -704,7 +704,9 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	for(int i=0;i<requestAccumulator.size();i++){
 		requestAccumulator[i] += currentMeasurements->requestsInSample[i];
-		requestSqAccumulator[i] += currentMeasurements->requestsInSample[i]*currentMeasurements->requestsInSample[i];
+
+		double tmpCurMes = (double) currentMeasurements->requestsInSample[i];
+		requestSqAccumulator[i] += tmpCurMes*tmpCurMes;
 	}
 	traceVector("Request accumulator: ", requestAccumulator);
 	traceVector("Request square accumulator: ", requestSqAccumulator);
@@ -784,6 +786,8 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 			requestAccumulator[i] = 0;
 			requestSqAccumulator[i] = 0;
 		}
+		traceVector("Request accumulator is now: ", requestAccumulator);
+		traceVector("Request square accumulator is now: ", requestSqAccumulator);
 
 
 		// initalize best-storage
@@ -828,10 +832,11 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 double
 MissBandwidthPolicy::squareRoot(double num){
 
-	int iterations = 10;
+	assert(num >= 0);
 
+	int iterations = 10;
 	int digits = 0;
-	int tempnum = (int) num;
+	Tick tempnum = (Tick) num;
 	while(tempnum != 0){
 		tempnum = tempnum >> 1;
 		digits++;
