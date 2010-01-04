@@ -14,3 +14,6 @@ class MissBandwidthPolicy(SimObject):
     requestEstimationMethod = Param.RequestEstimationMethod("The request estimation method to use")
     performanceEstimationMethod = Param.PerformanceEstimationMethod("The method to use for performance estimations")
     persistentAllocations = Param.Bool("Use persistent allocations")
+    acceptanceThreshold = Param.Double("The performance improvement needed to accept new MHA")
+    requestVariationThreshold = Param.Double("Maximum acceptable request variation")
+    renewMeasurementsThreshold = Param.Int("Samples to keep MHA")

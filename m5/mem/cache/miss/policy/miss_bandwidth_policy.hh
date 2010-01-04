@@ -192,6 +192,9 @@ public:
 						RequestEstimationMethod _reqEstMethod,
 						PerformanceEstimationMethod _perfEstMethod,
 						bool _persistentAllocations,
+						double _acceptanceThreshold,
+						double _reqVariationThreshold,
+						int _renewMeasurementsThreshold,
 						bool _enforcePolicy = true);
 
 	~MissBandwidthPolicy();

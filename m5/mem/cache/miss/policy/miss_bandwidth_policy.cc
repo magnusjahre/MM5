@@ -20,7 +20,10 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 									     RequestEstimationMethod _reqEstMethod,
 									     PerformanceEstimationMethod _perfEstMethod,
 									     bool _persistentAllocations,
-									     bool _enforcePolicy)
+										 double _acceptanceThreshold,
+										 double _reqVariationThreshold,
+										 int _renewMeasurementsThreshold,
+										 bool _enforcePolicy)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -34,9 +37,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	dumpInitalized = false;
 	dumpSearchSpaceAt = 0; // set this to zero to turn off
 
-	acceptanceThreshold = 1.05; // TODO: parameterize
-	requestVariationThreshold = 0.5; // TODO: parameterize
-	renewMeasurementsThreshold = 10; // TODO: parameterize
+	acceptanceThreshold = _acceptanceThreshold;
+	requestVariationThreshold = _reqVariationThreshold;
+	renewMeasurementsThreshold = _renewMeasurementsThreshold;
 
 	renewMeasurementsCounter = 0;
 

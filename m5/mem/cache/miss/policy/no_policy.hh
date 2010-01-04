@@ -20,7 +20,10 @@ public:
 			          double _cutoffReqInt,
 			          RequestEstimationMethod _reqEstMethod,
 			          PerformanceEstimationMethod _perfEstMethod,
-			          bool _persistentAlloc);
+			          bool _persistentAlloc,
+			          double _acceptanceThreshold,
+			          double _reqVariationThreshold,
+			          int _renewMeasurementsThreshold);
 
 	virtual double computeMetric(std::vector<double>* speedups);
 

@@ -11,8 +11,11 @@ FairnessPolicy::FairnessPolicy(string _name,
 		                       double _cutoffReqInt,
 		                       RequestEstimationMethod _reqEstMethod,
 		                       PerformanceEstimationMethod _perfEstMethod,
-		                       bool _persistentAlloc)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc) {
+		                       bool _persistentAlloc,
+		                       double _acceptanceThreshold,
+		                       double _reqVariationThreshold,
+		                       int _renewMeasurementsThreshold)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold) {
 
 }
 
@@ -58,6 +61,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 	Param<string> requestEstimationMethod;
 	Param<string> performanceEstimationMethod;
 	Param<bool> persistentAllocations;
+	Param<double> acceptanceThreshold;
+	Param<double> requestVariationThreshold;
+	Param<double> renewMeasurementsThreshold;
 END_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
@@ -68,7 +74,10 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 0.001),
 	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
 	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations"),
-	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true)
+	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
+	INIT_PARAM_DFLT(acceptanceThreshold, "The performance improvement needed to accept new MHA", 1.05),
+	INIT_PARAM_DFLT(requestVariationThreshold, "Maximum acceptable request variation", 0.5),
+	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 10)
 END_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 CREATE_SIM_OBJECT(FairnessPolicy)
@@ -87,7 +96,10 @@ CREATE_SIM_OBJECT(FairnessPolicy)
 							 requestCountThreshold,
 							 reqEstMethod,
 							 perfEstMethod,
-							 persistentAllocations);
+							 persistentAllocations,
+							 acceptanceThreshold,
+							 requestVariationThreshold,
+							 renewMeasurementsThreshold);
 }
 
 REGISTER_SIM_OBJECT("FairnessPolicy", FairnessPolicy)
