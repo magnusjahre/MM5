@@ -271,10 +271,11 @@ MissBandwidthPolicy::traceVector(const char* message, std::vector<double>& data)
 }
 
 void
-MissBandwidthPolicy::tracePerformance(std::vector<double>& sharedIPCEstimate){
+MissBandwidthPolicy::tracePerformance(std::vector<double>& sharedIPCEstimate,
+		                              std::vector<double>& speedups){
 	traceVerboseVector("Shared IPC Estimate: ", sharedIPCEstimate);
 	traceVerboseVector("Alone IPC Estimate: ", aloneIPCEstimates);
-	traceVerboseVector("Estimated Speedup: ", currentSpeedupProjection);
+	traceVerboseVector("Estimated Speedup: ", speedups);
 }
 
 bool
@@ -320,12 +321,8 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	// 3. Compute speedups
 	vector<double> speedups(cpuCount, 0.0);
 	vector<double> sharedIPCEstimates(cpuCount, 0.0);
-	currentMWSProjection.resize(cpuCount, 0.0);
-	currentMLPProjection.resize(cpuCount, 0.0);
-	for(int i=0;i<cpuCount;i++){
 
-		currentMWSProjection[i] = mostRecentMWSEstimate[i][currentMHA[i]];
-		currentMLPProjection[i] = mostRecentMLPEstimate[i][currentMHA[i]];
+	for(int i=0;i<cpuCount;i++){
 
 		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
@@ -351,8 +348,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	}
 
 	currentIPCProjection = sharedIPCEstimates;
-	currentSpeedupProjection = speedups;
-	tracePerformance(sharedIPCEstimates);
+	tracePerformance(sharedIPCEstimates, speedups);
 
 	// 4. Compute metric
 	double metricValue = computeMetric(&speedups);
@@ -876,6 +872,8 @@ MissBandwidthPolicy::initProjectionTrace(int cpuCount){
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured Avg Shared Latency", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Average Requests per Sample", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Stdev Requests per Sample", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Estimated IPC", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Measured IPC", i));
 
 	predictionTrace.initalizeTrace(headers);
 }
@@ -919,6 +917,19 @@ MissBandwidthPolicy::traceBestProjection(){
 	for(int i=0;i<cpuCount;i++) data.push_back(avgReqsPerSample[i]);
 	for(int i=0;i<cpuCount;i++) data.push_back(reqsPerSampleStdDev[i]);
 
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)) data.push_back(bestIPCProjection[i]);
+		else data.push_back(INT_MAX);
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		if(doMHAEvaluation(i)){
+			double ipc = (double) currentMeasurements->committedInstructions[i] / (double) period;
+			data.push_back(ipc);
+		}
+		else data.push_back(INT_MAX);
+	}
+
 	predictionTrace.addTrace(data);
 }
 
@@ -957,10 +968,7 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 
 			bestRequestProjection = currentRequestProjection;
 			bestLatencyProjection = currentLatencyProjection;
-			bestMWSProjection = currentMWSProjection;
-			bestMLPProjection = currentMLPProjection;
 			bestIPCProjection = currentIPCProjection;
-			bestSpeedupProjection = currentSpeedupProjection;
 		}
 	}
 	else{
