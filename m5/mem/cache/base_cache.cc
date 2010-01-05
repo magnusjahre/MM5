@@ -38,7 +38,7 @@
 #include "cpu/smt.hh"
 #include "cpu/base.hh"
 
-#define CACHE_CHECK_INTERVAL 100000
+#define CACHE_CHECK_INTERVAL 250000
 #define CONTENTION_DELAY 2
 
 using namespace std;
@@ -412,7 +412,7 @@ BaseCache::checkIfCacheAlive(){
         if(blockedAt < (curTick - CACHE_CHECK_INTERVAL)){
             cout << "CACHE DEADLOCK!, " << name() << " blocked at " << blockedAt << "\n";
             printBlockedState();
-            panic("%s has been blocked for 100000 clock cycles", name());
+            panic("%s has been blocked for %d clock cycles", name(), CACHE_CHECK_INTERVAL);
         }
     }
 
