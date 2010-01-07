@@ -830,6 +830,9 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 					assert(!otherBlks.empty());
 					sets[i].blks[j] = otherBlks.front();
 					otherBlks.pop_front();
+
+					// invalidate these blocks so that they don't trigger writebacks
+					sets[i].blks[j]->status = 0;
 				}
 			}
 		}

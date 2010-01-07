@@ -182,25 +182,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
 
-		if(numberOfSets == numLeaderSets){
-			if(isCacheMiss){
-
-				missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]++;
-
-				if(shadowHit){
-					interferenceMissDistanceDistribution[req->adaptiveMHASenderID].sample(missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]);
-					missesSinceLastInterferenceMiss[req->adaptiveMHASenderID] = 0;
-				}
-
-			}
-		}
-
-		if(curTick >= cache->detailedSimulationStartTick){
-
-			if(isCacheMiss){
-				sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
-			}
-		}
+		doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
 
 		if(!cache->useUniformPartitioning
 		   && curTick >= cache->detailedSimulationStartTick
@@ -216,6 +198,29 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 					tagAsInterferenceMiss(req);
 				}
 			}
+		}
+	}
+}
+
+void
+CacheInterference::doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isCacheMiss, bool isShadowHit){
+	if(numberOfSets == numLeaderSets){
+		if(isCacheMiss){
+
+			missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]++;
+
+			if(isShadowHit){
+				interferenceMissDistanceDistribution[req->adaptiveMHASenderID].sample(missesSinceLastInterferenceMiss[req->adaptiveMHASenderID]);
+				missesSinceLastInterferenceMiss[req->adaptiveMHASenderID] = 0;
+			}
+
+		}
+	}
+
+	if(curTick >= cache->detailedSimulationStartTick){
+
+		if(isCacheMiss){
+			sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
 		}
 	}
 }
@@ -271,6 +276,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		bool isShadowLeaderSet = isLeaderSet(shadowSet);
 
 		if(currentBlk == NULL){
+
 			assert(req->isShadowMiss);
 			LRU::BlkList shadow_compress_list;
 			MemReqList shadow_writebacks;
@@ -282,8 +288,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 					shadowTagWritebacks[req->adaptiveMHASenderID]++;
 
 					if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
-						issuePrivateWriteback(req->adaptiveMHASenderID,
-								shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set));
+						Addr wbAddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
+						issuePrivateWriteback(req->adaptiveMHASenderID, wbAddr);
 					}
 
 					privateWritebackDistribution[req->adaptiveMHASenderID].sample(sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]);

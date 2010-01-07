@@ -174,6 +174,8 @@ private:
 
     LRUBlk* findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID);
 
+    void doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isCacheMiss, bool isShadowHit);
+
 public:
 
 	CacheInterference(){ }
