@@ -101,7 +101,8 @@ public:
 
 		InterferenceMissProbability(bool _doInterferenceProb, int _numBits);
 
-		void update(MissCounter privateEstimate, MissCounter sharedEstimate);
+		void update(MissCounter eventOccurences, MissCounter allOccurences);
+		void updateInterference(MissCounter privateEstimate, MissCounter sharedEstimate);
 
 		FixedPointProbability get(MemCmd req);
 	};
@@ -175,6 +176,8 @@ private:
     LRUBlk* findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID);
 
     void doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isCacheMiss, bool isShadowHit);
+
+    void doShadowReplacement(MemReqPtr& req);
 
 public:
 
