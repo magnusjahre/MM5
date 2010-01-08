@@ -175,7 +175,7 @@ bool
 ControllerInterference::isPageHitOnPrivateSystem(MemReqPtr& req){
 
 	if(req->paddr == MemReq::inval_addr){
-		assert(req->sharedCacheSet != 0);
+		assert(req->sharedCacheSet != -1);
 		assert(req->cmd == VirtualPrivateWriteback);
 
 		// TODO: add page hit/page miss estimation
