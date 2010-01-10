@@ -18,6 +18,13 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	shadowTags = _shadowTags;
 	cache = _cache;
 
+	numLeaderSets = _numLeaderSets / numBanks;
+	if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
+	if(totalSetNumber % numLeaderSets  != 0){
+		fatal("The the total number for sets must be divisible by the number of leader sets");
+	}
+	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
+
 	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
 
 	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN || cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
@@ -40,13 +47,6 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	sequentialReadCount.resize(cache->cpuCount, 0);
 	sequentialWritebackCount.resize(cache->cpuCount, 0);
 
-    numLeaderSets = _numLeaderSets / numBanks;
-    if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
-
-	if(totalSetNumber % numLeaderSets  != 0){
-		fatal("The the total number for sets must be divisible by the number of leader sets");
-	}
-	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
 
 	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0));
 	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0));
@@ -177,16 +177,19 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 		req->isShadowMiss = !shadowHit;
 
 		if(shadowLeaderSet){
-			if(shadowBlk == NULL){
+			if(shadowBlk == NULL){ // shadow miss
 				if(curTick >= cache->detailedSimulationStartTick){
 					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-					if(isCacheMiss){
-						// shared cache miss and shadow hit -> need to tag reqs as interference requests
-						sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
-					}
 				}
 				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 			}
+			else{ // shadow hit
+				if(isCacheMiss && curTick >= cache->detailedSimulationStartTick){
+					// shared cache miss and shadow hit -> need to tag reqs as interference requests
+					sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
+				}
+			}
+
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
 		if(curTick >= cache->detailedSimulationStartTick){
@@ -233,6 +236,8 @@ CacheInterference::doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isC
 
 bool
 CacheInterference::addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter){
+
+	assert(numLeaderSets < totalSetNumber);
 
 	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN){
 
