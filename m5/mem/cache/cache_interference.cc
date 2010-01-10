@@ -180,11 +180,19 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 			if(shadowBlk == NULL){
 				if(curTick >= cache->detailedSimulationStartTick){
 					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-					sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
+					if(isCacheMiss){
+						// shared cache miss and shadow hit -> need to tag reqs as interference requests
+						sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
+					}
 				}
 				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 			}
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+		}
+		if(curTick >= cache->detailedSimulationStartTick){
+			if(isCacheMiss){
+				sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
+			}
 		}
 
 		doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
@@ -219,13 +227,6 @@ CacheInterference::doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isC
 				missesSinceLastInterferenceMiss[req->adaptiveMHASenderID] = 0;
 			}
 
-		}
-	}
-
-	if(curTick >= cache->detailedSimulationStartTick){
-
-		if(isCacheMiss){
-			sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
 		}
 	}
 }
