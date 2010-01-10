@@ -7,7 +7,7 @@ class DirectoryProtocol(Enum): vals = ['none', 'stenstrom']
 
 class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer', 'shadow-tags']
 
-class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private']
+class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private', 'sequential']
 
 class BaseCache(BaseMem):
     type = 'BaseCache'

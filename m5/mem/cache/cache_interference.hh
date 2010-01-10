@@ -163,6 +163,9 @@ private:
 	std::vector<int> missesSinceLastInterferenceMiss;
 	std::vector<int> sharedResponsesSinceLastPrivWriteback;
 
+	std::vector<int> sequentialReadCount;
+	std::vector<int> sequentialWritebackCount;
+
     bool isLeaderSet(int set);
 
     void issuePrivateWriteback(int cpuID, Addr addr, int cacheSet = -1);

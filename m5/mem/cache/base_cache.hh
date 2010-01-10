@@ -186,6 +186,7 @@ public:
 		IPP_FULL_RANDOM_FLOAT, // float
 		IPP_COUNTER_FIXED_INTMAN, // fixed
 		IPP_COUNTER_FIXED_PRIVATE, // fixed-private
+		IPP_SEQUENTIAL_INSERT,
 		IPP_INVALID
 	};
 

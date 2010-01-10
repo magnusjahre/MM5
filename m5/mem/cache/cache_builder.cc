@@ -561,6 +561,9 @@ CREATE_SIM_OBJECT(BaseCache)
     else if(ipp_name == "fixed-private"){
     	ipp = BaseCache::IPP_COUNTER_FIXED_PRIVATE;
     }
+    else if(ipp_name == "sequential"){
+    	ipp = BaseCache::IPP_SEQUENTIAL_INSERT;
+    }
     else{
     	fatal("Unknown interference probability policy provided");
     }

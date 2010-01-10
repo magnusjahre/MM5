@@ -18,6 +18,8 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	shadowTags = _shadowTags;
 	cache = _cache;
 
+	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
+
 	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN || cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
 		randomCounterBits = _numBits;
 		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, randomCounterBits));
@@ -28,10 +30,15 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
 		responseCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
 	}
+	else if(cache->intProbabilityPolicy == BaseCache::IPP_SEQUENTIAL_INSERT){
+		for(int i=0;i<doInterferenceInsertion.size();i++) doInterferenceInsertion[i] = true;
+	}
 	else{
 		fatal("cache interference probability policy not set");
 	}
 
+	sequentialReadCount.resize(cache->cpuCount, 0);
+	sequentialWritebackCount.resize(cache->cpuCount, 0);
 
     numLeaderSets = _numLeaderSets / numBanks;
     if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
@@ -40,8 +47,6 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 		fatal("The the total number for sets must be divisible by the number of leader sets");
 	}
 	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
-
-	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
 
 	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0));
 	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0));
@@ -175,9 +180,9 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 			if(shadowBlk == NULL){
 				if(curTick >= cache->detailedSimulationStartTick){
 					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+					sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
 				}
 				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
-
 			}
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
@@ -248,6 +253,17 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 		}
 		return false;
 	}
+	else if(cache->intProbabilityPolicy == BaseCache::IPP_SEQUENTIAL_INSERT){
+		int* counter = 0;
+		if(useRequestCounter) counter = &sequentialReadCount[cpuID];
+		else counter = &sequentialWritebackCount[cpuID];
+
+		if(*counter > 0){
+			(*counter)--;
+			return true;
+		}
+		return false;
+	}
 	else if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
 		fatal("private counter based policy interference determination not implemented");
 	}
@@ -284,6 +300,7 @@ CacheInterference::doShadowReplacement(MemReqPtr& req){
 
 			if(curTick >= cache->detailedSimulationStartTick){
 				samplePrivateWritebacks[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+				sequentialWritebackCount[req->adaptiveMHASenderID] += setsInConstituency;
 			}
 
 			shadowTagWritebacks[req->adaptiveMHASenderID] += setsInConstituency;
