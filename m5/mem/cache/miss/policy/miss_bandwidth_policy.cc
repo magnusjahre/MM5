@@ -6,6 +6,7 @@
  */
 
 #include "miss_bandwidth_policy.hh"
+#include "base/intmath.hh"
 
 #include <cmath>
 
@@ -23,6 +24,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 										 double _acceptanceThreshold,
 										 double _reqVariationThreshold,
 										 int _renewMeasurementsThreshold,
+										 SearchAlgorithm _searchAlgorithm,
+										 int _iterationLatency,
 										 bool _enforcePolicy)
 : SimObject(_name){
 
@@ -34,8 +37,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	busUtilizationThreshold = _busUtilThreshold;
 	requestCountThreshold = _cutoffReqInt * _period;
 
-	dumpInitalized = false;
-	dumpSearchSpaceAt = 0; // set this to zero to turn off
+//	dumpInitalized = false;
+//	dumpSearchSpaceAt = 0; // set this to zero to turn off
 
 	acceptanceThreshold = _acceptanceThreshold;
 	requestVariationThreshold = _reqVariationThreshold;
@@ -44,6 +47,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	renewMeasurementsCounter = 0;
 
 	usePersistentAllocations = _persistentAllocations;
+
+	iterationLatency = _iterationLatency;
+	searchAlgorithm = _searchAlgorithm;
 
 	intManager->registerMissBandwidthPolicy(this);
 
@@ -297,13 +303,13 @@ MissBandwidthPolicy::doMHAEvaluation(int cpuID){
 }
 
 double
-MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
-	vector<int> currentMHA = relocateMHA(mhaConfig);
+MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 
 	// 1. Prune search space
 	for(int i=0;i<currentMHA.size();i++){
 		if(currentMHA[i] < maxMSHRs){
 			if(!doMHAEvaluation(i)){
+				traceVerboseVector("Pruning MHA: ", currentMHA);
 				return 0.0;
 			}
 		}
@@ -356,9 +362,9 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int>* mhaConfig){
 	// 4. Compute metric
 	double metricValue = computeMetric(&speedups);
 
-	if(dumpSearchSpaceAt == curTick){
-		dumpSearchSpace(mhaConfig, metricValue);
-	}
+//	if(dumpSearchSpaceAt == curTick){
+//		dumpSearchSpace(mhaConfig, metricValue);
+//	}
 
 	DPRINTFR(MissBWPolicyExtra, "Returning metric value %f\n", metricValue);
 
@@ -793,22 +799,42 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		for(int i=0;i<bestRequestProjection.size();i++) bestRequestProjection[i] = (double) currentMeasurements->requestsInSample[i];
 		bestLatencyProjection = currentMeasurements->sharedLatencies;
 
-		vector<int> bestMHA = exhaustiveSearch();
+		vector<int> bestMHA;
+		Tick desicionLatency = 0;
+		if(searchAlgorithm == EXHAUSTIVE_SEARCH){
+			double tmpLat = pow((double) maxMSHRs, (double) cpuCount);
+			int tmpIntLat = (int) tmpLat;
+			desicionLatency = tmpIntLat * iterationLatency;
+			bestMHA = exhaustiveSearch();
+		}
+		else if(searchAlgorithm == BUS_SORTED){
+			desicionLatency = maxMSHRs * cpuCount * iterationLatency;
+			bestMHA = busSearch(false);
+		}
+		else if(searchAlgorithm == BUS_SORTED_LOG){
+			desicionLatency = FloorLog2(maxMSHRs) * cpuCount * iterationLatency;
+			bestMHA = busSearch(true);
+		}
+		else{
+			fatal("Unknown search algorithm");
+		}
+
 		measurementsValid = true;
 		if(bestMHA.size() != cpuCount){
 			DPRINTF(MissBWPolicy, "All programs have to few requests, reverting to max MSHRs configuration\n");
 			bestMHA.resize(cpuCount, maxMSHRs);
 		}
-
 		traceVector("Best MHA: ", bestMHA);
 		DPRINTF(MissBWPolicy, "Best metric value is %f\n", maxMetricValue);
-
 
 		double currentMetricValue = computeCurrentMetricValue();
 		double benefit = maxMetricValue / currentMetricValue;
 		if(benefit > acceptanceThreshold){
-			DPRINTF(MissBWPolicy, "Implementing new MHA, benefit is %d, acceptance threshold %d\n", benefit, acceptanceThreshold);
-			for(int i=0;i<caches.size();i++) caches[i]->setNumMSHRs(bestMHA[i]);
+			DPRINTF(MissBWPolicy, "Scheduling implementation of new MHA, benefit is %d, acceptance threshold %d, latency %d\n", benefit, acceptanceThreshold, desicionLatency);
+
+			MissBandwidthImplementMHAEvent* implEvent = new MissBandwidthImplementMHAEvent(this, bestMHA);
+			implEvent->schedule(curTick + desicionLatency);
+
 		}
 		else{
 			DPRINTF(MissBWPolicy, "Benefit from new best MHA is too low (%f < %f), new MHA not chosen\n", benefit, acceptanceThreshold);
@@ -826,6 +852,15 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 
 
 	currentMeasurements = NULL;
+}
+
+void
+MissBandwidthPolicy::implementMHA(std::vector<int> bestMHA){
+	DPRINTF(MissBWPolicy, "-- Implementing new MHA\n");
+	for(int i=0;i<caches.size();i++){
+		DPRINTF(MissBWPolicy, "Setting CPU%d MSHRs to %d\n", i , bestMHA[i]);
+		caches[i]->setNumMSHRs(bestMHA[i]);
+	}
 }
 
 double
@@ -937,6 +972,65 @@ MissBandwidthPolicy::traceBestProjection(){
 }
 
 std::vector<int>
+MissBandwidthPolicy::busSearch(bool onlyPowerOfTwoMSHRs){
+
+	traceVector("Bus accesses per core: ", currentMeasurements->busAccessesPerCore);
+
+	vector<int> processorIDOrder;
+	vector<bool> marked(cpuCount, false);
+	for(int i=0;i<cpuCount;i++){
+		int minval = 0;
+		int minIndex = -1;
+		for(int j=0;j<cpuCount;j++){
+			int tmpReqs = currentMeasurements->busAccessesPerCore[j];
+			if(tmpReqs >= minval && !marked[j]){
+				minval = tmpReqs;
+				minIndex = j;
+			}
+		}
+		assert(minIndex != -1);
+
+		processorIDOrder.push_back(minIndex);
+		marked[minIndex] = true;
+	}
+
+	traceVector("Search order: ", processorIDOrder);
+
+	vector<int> bestMHA(cpuCount, maxMSHRs);
+	maxMetricValue = 0.0;
+
+	for(int i=0;i<processorIDOrder.size();i++){
+		int currentTestMSHRs = 1;
+		while(currentTestMSHRs <= maxMSHRs){
+			vector<int> testMHA = bestMHA;
+			testMHA[processorIDOrder[i]] = currentTestMSHRs;
+
+			traceVector("Evaluating MHA: ", testMHA);
+			double curMetricValue = evaluateMHA(testMHA);
+			if(curMetricValue >= maxMetricValue){
+				DPRINTF(MissBWPolicy, "New best config (%f > %f)\n", curMetricValue, maxMetricValue);
+				bestMHA[processorIDOrder[i]] = currentTestMSHRs;
+				maxMetricValue = curMetricValue;
+
+				updateBestProjections();
+			}
+
+			if(onlyPowerOfTwoMSHRs) currentTestMSHRs = currentTestMSHRs << 1;
+			else currentTestMSHRs++;
+		}
+	}
+
+	return bestMHA;
+}
+
+void
+MissBandwidthPolicy::updateBestProjections(){
+	bestRequestProjection = currentRequestProjection;
+	bestLatencyProjection = currentLatencyProjection;
+	bestIPCProjection = currentIPCProjection;
+}
+
+std::vector<int>
 MissBandwidthPolicy::exhaustiveSearch(){
 
 	vector<int> value(cpuCount, 0);
@@ -961,7 +1055,7 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 	}
 
 	if(level == cpuCount){
-		double metricValue = evaluateMHA(value);
+		double metricValue = evaluateMHA(relocateMHA(value));
 		if(metricValue >= maxMetricValue){
 
 			if(metricValue > 0) DPRINTFR(MissBWPolicyExtra, "Metric value %f is larger than previous best %f, new best MHA\n", metricValue, maxMetricValue);
@@ -969,9 +1063,7 @@ MissBandwidthPolicy::recursiveExhaustiveSearch(std::vector<int>* value, int k){
 			maxMetricValue = metricValue;
 			maxMHAConfiguration = *value;
 
-			bestRequestProjection = currentRequestProjection;
-			bestLatencyProjection = currentLatencyProjection;
-			bestIPCProjection = currentIPCProjection;
+			updateBestProjections();
 		}
 	}
 	else{
@@ -1097,7 +1189,7 @@ MissBandwidthPolicy::parseRequestMethod(std::string methodName){
 }
 
 MissBandwidthPolicy::PerformanceEstimationMethod
-MissBandwidthPolicy::parsePerfrormanceMethod(std::string methodName){
+MissBandwidthPolicy::parsePerformanceMethod(std::string methodName){
 
 	if(methodName == "latency-mlp") return LATENCY_MLP;
 	if(methodName == "ratio-mws") return RATIO_MWS;
@@ -1108,28 +1200,41 @@ MissBandwidthPolicy::parsePerfrormanceMethod(std::string methodName){
 	return LATENCY_MLP;
 }
 
-void
-MissBandwidthPolicy::dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue){
 
-	const char* filename = "searchSpaceDump.txt";
 
-	if(!dumpInitalized){
+MissBandwidthPolicy::SearchAlgorithm
+MissBandwidthPolicy::parseSearchAlgorithm(std::string methodName){
+	if(methodName == "exhaustive") return EXHAUSTIVE_SEARCH;
+	if(methodName == "bus-sorted") return BUS_SORTED;
+	if(methodName == "bus-sorted-log") return BUS_SORTED_LOG;
 
-		DPRINTF(MissBWPolicy, "-- Dumping search space!\n");
-
-		ofstream initfile(filename, ios_base::out);
-		initfile << "";
-		initfile.close();
-		dumpInitalized = true;
-	}
-
-	ofstream dumpfile(filename, ios_base::app);
-	for(int i=0;i<mhaConfig->size();i++){
-		dumpfile << mhaConfig->at(i)+1 << ";";
-	}
-	dumpfile << metricValue << "\n";
-	dumpfile.close();
+	fatal("unknown search algorithm");
+	return EXHAUSTIVE_SEARCH;
 }
+
+
+//void
+//MissBandwidthPolicy::dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue){
+//
+//	const char* filename = "searchSpaceDump.txt";
+//
+//	if(!dumpInitalized){
+//
+//		DPRINTF(MissBWPolicy, "-- Dumping search space!\n");
+//
+//		ofstream initfile(filename, ios_base::out);
+//		initfile << "";
+//		initfile.close();
+//		dumpInitalized = true;
+//	}
+//
+//	ofstream dumpfile(filename, ios_base::app);
+//	for(int i=0;i<mhaConfig->size();i++){
+//		dumpfile << mhaConfig->at(i)+1 << ";";
+//	}
+//	dumpfile << metricValue << "\n";
+//	dumpfile.close();
+//}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

@@ -112,6 +112,7 @@ class Bus : public BaseHier
     Tick lastSampleTick;
     int serviceCyclesSample;
     int requestSample;
+    std::vector<int> requestPerCoreSample;
 
   public:
     /** Width of the bus in bytes. */
@@ -333,6 +334,7 @@ class Bus : public BaseHier
     void addQueueLengthSample();
 
     double getActualUtilization();
+    std::vector<int> getPerCoreBusAccesses();
 
   private:
     std::vector<int> perCPUDataBusUse;

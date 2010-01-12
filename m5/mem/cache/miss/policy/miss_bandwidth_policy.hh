@@ -35,6 +35,12 @@ public:
         NO_MLP
     } PerformanceEstimationMethod;
 
+    typedef enum{
+    	EXHAUSTIVE_SEARCH,
+    	BUS_SORTED,
+    	BUS_SORTED_LOG
+    } SearchAlgorithm;
+
 protected:
 
 	RequestEstimationMethod reqEstMethod;
@@ -48,6 +54,9 @@ protected:
 	std::vector<Addr> cummulativeMemoryRequests;
 	std::vector<Addr> cummulativeCommittedInsts;
 
+	SearchAlgorithm searchAlgorithm;
+	int iterationLatency;
+
 	RequestTrace aloneIPCTrace;
 
 	RequestTrace measurementTrace;
@@ -56,8 +65,8 @@ protected:
 	std::vector<double> aloneIPCEstimates;
 	std::vector<double> avgLatencyAloneIPCModel;
 
-	bool dumpInitalized;
-	Tick dumpSearchSpaceAt;
+//	bool dumpInitalized;
+//	Tick dumpSearchSpaceAt;
 
 	RequestTrace predictionTrace;
 
@@ -107,10 +116,11 @@ protected:
 	std::vector<int> maxMHAConfiguration;
 	std::vector<int> exhaustiveSearch();
 	void recursiveExhaustiveSearch(std::vector<int>* value, int k);
+	std::vector<int> busSearch(bool onlyPowerOfTwoMSHRs);
 
 	std::vector<int> relocateMHA(std::vector<int>* mhaConfig);
 
-	double evaluateMHA(std::vector<int>* mhaConfig);
+	double evaluateMHA(std::vector<int> mhaConfig);
 
 	template<class T>
 	T computeSum(std::vector<T>* values);
@@ -175,11 +185,13 @@ protected:
 
 	double computeRequestScalingRatio(int cpuID, int newMSHRCount);
 
-	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
+//	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 
 	void computeRequestStatistics();
 
 	double squareRoot(double num);
+
+	void updateBestProjections();
 
 public:
 
@@ -195,6 +207,8 @@ public:
 						double _acceptanceThreshold,
 						double _reqVariationThreshold,
 						int _renewMeasurementsThreshold,
+						SearchAlgorithm _searchAlgorithm,
+						int _iterationLatency,
 						bool _enforcePolicy = true);
 
 	~MissBandwidthPolicy();
@@ -223,7 +237,10 @@ public:
 				                     int responsesWhileStalled);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
-	static PerformanceEstimationMethod parsePerfrormanceMethod(std::string methodName);
+	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
+	static SearchAlgorithm parseSearchAlgorithm(std::string methodName);
+
+	void implementMHA(std::vector<int> bestMHA);
 };
 
 class MissBandwidthPolicyEvent : public Event{
@@ -266,6 +283,29 @@ public:
 		return "Miss Bandwidth Trace Event";
 	}
 
+};
+
+class MissBandwidthImplementMHAEvent : public Event{
+
+private:
+	MissBandwidthPolicy* policy;
+	std::vector<int> bestMHA;
+
+public:
+	MissBandwidthImplementMHAEvent(MissBandwidthPolicy* _policy, std::vector<int> _bestMHA):
+		Event(&mainEventQueue), policy(_policy), bestMHA(_bestMHA){
+
+	}
+
+	void process(){
+		policy->implementMHA(bestMHA);
+		assert(!scheduled());
+		delete this;
+	}
+
+	virtual const char *description() {
+		return "Miss Bandwidth Implement MHA Event";
+	}
 };
 
 

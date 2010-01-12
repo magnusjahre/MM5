@@ -23,7 +23,9 @@ public:
 				   bool _persistentAlloc,
 				   double _acceptanceThreshold,
 				   double _reqVariationThreshold,
-				   int _renewMeasurementsThreshold);
+				   int _renewMeasurementsThreshold,
+				   SearchAlgorithm _searchAlgorithm,
+				   int _iterationLatency);
 
 	virtual double computeMetric(std::vector<double>* speedups);
 };

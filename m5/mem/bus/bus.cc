@@ -96,6 +96,8 @@ Bus::Bus(const string &_name,
     requestSample = 0;
     lastSampleTick = 0;
 
+    requestPerCoreSample.resize(cpu_count, 0);
+
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     hitToMissInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -567,6 +569,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
         serviceCyclesSample += time - curTick;
         requestSample++;
+        if(req->adaptiveMHASenderID != -1){
+        	requestPerCoreSample[req->adaptiveMHASenderID]++;
+        }
     }
 
 #ifdef INJECT_TEST_REQUESTS
@@ -843,6 +848,13 @@ Bus::getActualUtilization(){
 	lastSampleTick = curTick;
 
 	return actualUtil;
+}
+
+std::vector<int>
+Bus::getPerCoreBusAccesses(){
+	vector<int> retval = requestPerCoreSample;
+	for(int i=0;i<requestPerCoreSample.size();i++) requestPerCoreSample[i] = 0;
+	return retval;
 }
 
 #ifdef INJECT_TEST_REQUESTS

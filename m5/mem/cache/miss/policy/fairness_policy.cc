@@ -14,8 +14,10 @@ FairnessPolicy::FairnessPolicy(string _name,
 		                       bool _persistentAlloc,
 		                       double _acceptanceThreshold,
 		                       double _reqVariationThreshold,
-		                       int _renewMeasurementsThreshold)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold) {
+		                       int _renewMeasurementsThreshold,
+		                       SearchAlgorithm _searchAlgorithm,
+		                       int _iterationLatency)
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold, _searchAlgorithm, _iterationLatency) {
 
 }
 
@@ -64,6 +66,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 	Param<double> acceptanceThreshold;
 	Param<double> requestVariationThreshold;
 	Param<double> renewMeasurementsThreshold;
+	Param<string> searchAlgorithm;
+	Param<int> iterationLatency;
 END_DECLARE_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
@@ -77,7 +81,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
 	INIT_PARAM_DFLT(acceptanceThreshold, "The performance improvement needed to accept new MHA", 1.05),
 	INIT_PARAM_DFLT(requestVariationThreshold, "Maximum acceptable request variation", 0.5),
-	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 10)
+	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 10),
+	INIT_PARAM_DFLT(searchAlgorithm, "The search algorithm to use", "exhaustive"),
+	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0)
 END_INIT_SIM_OBJECT_PARAMS(FairnessPolicy)
 
 CREATE_SIM_OBJECT(FairnessPolicy)
@@ -86,7 +92,9 @@ CREATE_SIM_OBJECT(FairnessPolicy)
 	MissBandwidthPolicy::RequestEstimationMethod reqEstMethod =
 		MissBandwidthPolicy::parseRequestMethod(requestEstimationMethod);
 	MissBandwidthPolicy::PerformanceEstimationMethod perfEstMethod =
-		MissBandwidthPolicy::parsePerfrormanceMethod(performanceEstimationMethod);
+		MissBandwidthPolicy::parsePerformanceMethod(performanceEstimationMethod);
+	MissBandwidthPolicy::SearchAlgorithm searchAlg =
+		MissBandwidthPolicy::parseSearchAlgorithm(searchAlgorithm);
 
 	return new FairnessPolicy(getInstanceName(),
 							 interferenceManager,
@@ -99,7 +107,9 @@ CREATE_SIM_OBJECT(FairnessPolicy)
 							 persistentAllocations,
 							 acceptanceThreshold,
 							 requestVariationThreshold,
-							 renewMeasurementsThreshold);
+							 renewMeasurementsThreshold,
+							 searchAlg,
+							 iterationLatency);
 }
 
 REGISTER_SIM_OBJECT("FairnessPolicy", FairnessPolicy)

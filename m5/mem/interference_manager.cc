@@ -457,6 +457,10 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	double utilSum = 0.0;
 	for(int i=0;i<memoryBuses.size();i++){
 		utilSum += memoryBuses[i]->getActualUtilization();
+		vector<int> tmpBusAccesses = memoryBuses[i]->getPerCoreBusAccesses();
+		for(int j=0;j<tmpBusAccesses.size();j++){
+			currentMeasurement.busAccessesPerCore[j] += tmpBusAccesses[j];
+		}
 	}
 	currentMeasurement.actualBusUtilization = utilSum / (double) memoryBuses.size();
 

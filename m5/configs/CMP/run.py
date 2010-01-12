@@ -206,6 +206,31 @@ def setUpMissBwPolicy():
     if "MISS-BW-PERSISTENT" in env:
         missBandwidthPolicy.persistentAllocations = bool(env["MISS-BW-PERSISTENT"])
 
+    if "MISS-BW-SEARCH-ALG" in env:
+        missBandwidthPolicy.searchAlgorithm = env["MISS-BW-SEARCH-ALG"]
+
+    if "MISS-BW-IT-LAT" in env:
+        missBandwidthPolicy.iterationLatency = env["MISS-BW-IT-LAT"]
+
+    if "MISS-BW-ACCEPTANCE-THRESHOLD" in env:
+        missBandwidthPolicy.acceptanceThreshold = float(env["MISS-BW-ACCEPTANCE-THRESHOLD"])
+
+    if "MISS-BW-BUS-UTIL-THRESHOLD" in env:
+        missBandwidthPolicy.busUtilizationThreshold = float(env["MISS-BW-BUS-UTIL-THRESHOLD"])
+    
+    if "MISS-BW-REQ-INTENSITY-THRESHOLD" in env:
+        missBandwidthPolicy.requestCountThreshold = float(env["MISS-BW-REQ-INTENSITY-THRESHOLD"])
+        
+    if "MISS-BW-REQ-VARIATION-THRESHOLD" in env:
+        missBandwidthPolicy.requestVariationThreshold = float(env["MISS-BW-REQ-VARIATION-THRESHOLD"])
+        
+    busUtilizationThreshold = Param.Float("The actual bus utilzation to consider the bus as full")
+    requestCountThreshold = Param.Float("The request intensity (requests / tick) to assume no request increase")
+    acceptanceThreshold = Param.Float("The performance improvement needed to accept new MHA")
+    requestVariationThreshold = Param.Float("Maximum acceptable request variation")
+
+
+
     return missBandwidthPolicy
 
 def getCheckpointDirectory(simpoint = -1):

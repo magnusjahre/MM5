@@ -32,6 +32,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	actualBusUtilization = 0.0;
 	sharedCacheMissRate = 0.0;
 
+	busAccessesPerCore.resize(cpuCount, 0);
+
 	cpuStallCycles.resize(cpuCount, 0);
 }
 

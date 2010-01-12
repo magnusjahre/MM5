@@ -37,6 +37,8 @@ public:
 	double actualBusUtilization;
 	double sharedCacheMissRate;
 
+	std::vector<int> busAccessesPerCore;
+
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 
 	void addInterferenceData(std::vector<double> sharedLatencyAccumulator,
