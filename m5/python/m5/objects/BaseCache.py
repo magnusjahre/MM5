@@ -114,3 +114,4 @@ class BaseCache(BaseMem):
     writeback_owner_policy = Param.WritebackOwnerPolicy("The policy used for providing sender IDs to shared cache writebacks")
     interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
     ipp_bits = Param.Int("The resolution of the probability (used in a subset of IPP modes)")
+    use_aggregate_mlp_estimator = Param.Bool("Use the aggregate MLP estimator (and not the per MSHR estimator)")

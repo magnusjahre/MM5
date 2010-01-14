@@ -681,6 +681,9 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])
             root.PrivateL2Cache[i].memory_address_parts = int(env['MEMORY-ADDRESS-PARTS'])
+            
+        if "AGG-MSHR-MLP-EST" in env:
+            root.PrivateL2Cache[i].use_aggregate_mlp_estimator = bool(env["AGG-MSHR-MLP-EST"])
         
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")

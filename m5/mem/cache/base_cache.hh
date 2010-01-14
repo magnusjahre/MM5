@@ -206,6 +206,7 @@ public:
 	Tick uniformPartitioningStartTick;
 	bool useMTPPartitioning;
 	bool useStaticPartInWarmup;
+	bool useAggregateMLPEstimator;
 
 	InterferenceManager* interferenceManager;
 

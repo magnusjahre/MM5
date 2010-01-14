@@ -69,6 +69,9 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	stallMissCountAccumulator.resize(maxMSHRs+1, 0.0);
 	detectedStallCycleAccumulator = 0;
 
+	aggregateMLPAccumulator.resize(maxMSHRs+1, 0.0);
+	aggregateMLPAccumulatorTicks = 0;
+
 	outstandingMissAccumulator = 0;
 	outstandingMissAccumulatorCount = 0;
 
@@ -709,6 +712,17 @@ MSHRQueue::handleMLPEstimationEvent(){
 					}
 				}
 
+				for(int j=0;j<=maxMSHRs;j++){
+					if(j<demandAllocated){
+						double estimatedCost = 1.0 / (double) j;
+						aggregateMLPAccumulator[j] += estimatedCost;
+					}
+					else{
+						aggregateMLPAccumulator[j] += mlpcost;
+					}
+				}
+				aggregateMLPAccumulatorTicks++;
+
 				if(cache->interferenceManager != NULL
 				   && cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
 					for(int k=1;k<=maxMSHRs;k++){
@@ -755,13 +769,24 @@ MSHRQueue::getMLPEstimate(){
 	vector<double> estimateSample;
 	estimateSample.resize(maxMSHRs+1, 0.0);
 
-	for(int i=0;i<estimateSample.size();i++){
-		if(mlpAccumulatorTicks > 0){
-			estimateSample[i] = currentMLPAccumulator[i] / ((double) mlpAccumulatorTicks);
+	if(cache->useAggregateMLPEstimator){
+		for(int i=0;i<estimateSample.size();i++){
+			if(aggregateMLPAccumulatorTicks > 0){
+				estimateSample[i] = aggregateMLPAccumulator[i] / ((double) aggregateMLPAccumulatorTicks);
+			}
+			aggregateMLPAccumulator[i] = 0;
 		}
-		currentMLPAccumulator[i] = 0;
+		aggregateMLPAccumulatorTicks = 0;
 	}
-	mlpAccumulatorTicks = 0;
+	else{
+		for(int i=0;i<estimateSample.size();i++){
+			if(mlpAccumulatorTicks > 0){
+				estimateSample[i] = currentMLPAccumulator[i] / ((double) mlpAccumulatorTicks);
+			}
+			currentMLPAccumulator[i] = 0;
+		}
+		mlpAccumulatorTicks = 0;
+	}
 
 	return estimateSample;
 }

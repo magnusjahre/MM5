@@ -182,6 +182,7 @@ class Cache : public BaseCache
 		  int shadowTagLeaderSets;
 		  InterferenceProbabilityPolicy ipp;
 		  int ippBits;
+		  bool useAggMLPEstimator;
 
 		  Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 				  bool do_copy, BaseCache::Params params,
@@ -190,7 +191,7 @@ class Cache : public BaseCache
 				  Interconnect* _inInterconnect, Interconnect* _outInterconnect,
 				  Prefetcher<TagStore, Buffering> *_prefetcher,
 				  bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman, MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets, InterferenceProbabilityPolicy _ipp, int _ippBits)
+				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman, MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets, InterferenceProbabilityPolicy _ipp, int _ippBits, bool _useAggMLPEstimator)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
 		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
 		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -204,7 +205,7 @@ class Cache : public BaseCache
 		  detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
 		  simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup),
 		  memoryAddressOffset(_memoryAddressOffset),
-		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy), shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits)
+		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy), shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits), useAggMLPEstimator(_useAggMLPEstimator)
 		  {
 		  }
 	  };

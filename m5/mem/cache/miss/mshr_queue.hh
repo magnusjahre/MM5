@@ -97,6 +97,10 @@ class MSHRQueue {
 	std::vector<double > currentMLPAccumulator;
 	Tick mlpAccumulatorTicks;
 
+	std::vector<double > aggregateMLPAccumulator;
+	Tick aggregateMLPAccumulatorTicks;
+
+
 	std::vector<double > stallMissCountAccumulator;
 	Tick detectedStallCycleAccumulator;
 

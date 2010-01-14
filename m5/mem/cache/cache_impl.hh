@@ -98,6 +98,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     associativity = tags->getAssoc();
 
+    useAggregateMLPEstimator = params.useAggMLPEstimator;
 
     intProbabilityPolicy = IPP_INVALID;
 
