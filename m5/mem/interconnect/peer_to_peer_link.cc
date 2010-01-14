@@ -23,7 +23,7 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                          _adaptiveMHA,
                          NULL)
 {
-    initQueues(2, 2);
+    initQueues(_cpu_count, 2);
     queueSize = 32;
 
     arbEvent = new ADIArbitrationEvent(this);
