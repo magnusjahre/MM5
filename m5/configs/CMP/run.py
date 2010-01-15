@@ -206,6 +206,9 @@ def setUpMissBwPolicy():
     if "MISS-BW-PERSISTENT" in env:
         missBandwidthPolicy.persistentAllocations = bool(env["MISS-BW-PERSISTENT"])
 
+    if "MISS-BW-RENEW-THRESHOLD" in env:
+        missBandwidthPolicy.renewMeasurementsThreshold = int(env["MISS-BW-RENEW-THRESHOLD"])
+
     if "MISS-BW-SEARCH-ALG" in env:
         missBandwidthPolicy.searchAlgorithm = env["MISS-BW-SEARCH-ALG"]
 
