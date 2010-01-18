@@ -344,7 +344,7 @@ class MemReq : public FastAlloc, public RefCounted
     interconnectTransferDelay(0),
     sharedCacheSet(-1),
     ringBaselineHops(-1),
-    ringBaselineTransLat(0),
+    ringBaselineTransLat(-1),
     isSWPrefetch(false)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);

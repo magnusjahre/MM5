@@ -77,6 +77,12 @@ class Ring : public AddressDependentIC{
 
         void setDestinationIntID(MemReqPtr& req, int fromIntID);
 
+        bool inSingleCoreMode(){
+        	return singleProcessorID != -1;
+        }
+
+        void updateDeliveryMeasurements(MemReqPtr& req, bool masterToSlave, int queueDelay);
+
     public:
         Ring(const std::string &_name,
                        int _width,

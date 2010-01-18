@@ -207,13 +207,13 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* di
     setDestinationIntID(req, fromIntID);
 
     vector<int> path;
-    int slaveIntID = allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : req->fromInterfaceID;
+    int slaveIntID = req->toInterfaceID;
     assert(slaveIntID != -1);
     int slaveID = interconnectIDToL2IDMap[slaveIntID];
     int uphops = getUphops(req->interferenceAccurateSenderID, slaveID);
     int downhops = getDownhops(req->interferenceAccurateSenderID, slaveID);
 
-    if(cpu_count > 1){
+    if(!inSingleCoreMode()){
     	int baselineUphops = getUphops(0, slaveID);
     	int baselineDownhops = getDownhops(0, slaveID);
     	req->ringBaselineHops  = (baselineUphops > baselineDownhops ? baselineDownhops: baselineUphops);
@@ -230,8 +230,8 @@ Ring::findResourceRequirements(MemReqPtr& req, int fromIntID, RING_DIRECTION* di
     for(int i=0;i<path.size();i++) pathstr << path[i] << " ";
 
     DPRINTF(Crossbar, "Ring recieved req from icID %d, to ICID %d, proc %d, path: %s, uphops %d, downhops %d, %s\n",
-            fromIntID,
-            allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : -1,
+    		allInterfaces[fromIntID]->isMaster() ? req->fromInterfaceID : req->toInterfaceID,
+            allInterfaces[fromIntID]->isMaster() ? req->toInterfaceID : req->fromInterfaceID,
             req->interferenceAccurateSenderID,
             pathstr.str().c_str(),
             uphops,
@@ -270,8 +270,8 @@ Ring::findSlavePath(MemReqPtr& req, int uphops, int downhops, RING_DIRECTION* di
 
     vector<int> path;
 
-    assert(req->fromInterfaceID != -1);
-    int slaveID = interconnectIDToL2IDMap[req->fromInterfaceID];
+    assert(req->toInterfaceID != -1);
+    int slaveID = interconnectIDToL2IDMap[req->toInterfaceID];
 
     if(uphops <= downhops){
         *direction = RING_COUNTERCLOCKWISE;
@@ -418,10 +418,14 @@ Ring::checkStateAndSend(RingRequestEntry entry, int ringID, bool toSlave){
     ADIDeliverEvent* delivery = new ADIDeliverEvent(this, entry.req, toSlave);
 
 	entry.req->interconnectTransferDelay = transferDelay * entry.resourceReq.size();
-    if(cpu_count > 0){
+    if(!inSingleCoreMode()){
     	assert(entry.req->ringBaselineHops != -1);
     	entry.req->ringBaselineTransLat = transferDelay * entry.req->ringBaselineHops;
     }
+    else{
+    	assert(entry.req->ringBaselineHops == -1);
+    }
+
     delivery->schedule(curTick + (transferDelay * entry.resourceReq.size()));
 
     totalTransferCycles += (transferDelay * entry.resourceReq.size());
@@ -582,12 +586,32 @@ Ring::arbitrateRing(std::vector<std::list<RingRequestEntry> >* queue, int startR
 }
 
 void
+Ring::updateDeliveryMeasurements(MemReqPtr& req, bool masterToSlave, int queueDelay){
+
+	InterferenceManager::LatencyType transferType = (masterToSlave ? InterferenceManager::InterconnectRequestTransfer : InterferenceManager::InterconnectResponseTransfer);
+	InterferenceManager::LatencyType queueType = (masterToSlave ? InterferenceManager::InterconnectRequestQueue : InterferenceManager::InterconnectResponseQueue);
+
+	interferenceManager->addLatency(transferType,
+									req,
+									inSingleCoreMode() ? req->interconnectTransferDelay : req->ringBaselineTransLat);
+
+	if(!inSingleCoreMode()){
+		assert(req->ringBaselineTransLat != -1);
+		int transferInterference = req->interconnectTransferDelay - req->ringBaselineTransLat;
+		interferenceManager->addInterference(transferType, req, transferInterference);
+	}
+	else{
+		assert(req->ringBaselineTransLat == -1);
+	}
+
+	interferenceManager->addLatency(queueType, req, queueDelay);
+}
+
+void
 Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
 
-
-
 	int queueDelay = (curTick - req->inserted_into_crossbar) - req->interconnectTransferDelay;
-	if(cpu_count > 1){
+	if(!inSingleCoreMode()){
 		req->latencyBreakdown[INTERCONNECT_TRANSFER_LAT] += queueDelay + req->ringBaselineTransLat;
 	}
 	else{
@@ -605,10 +629,7 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     if(allInterfaces[toID]->isMaster()){
 
     	if(req->cmd == Read){
-    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseTransfer,
-										    req,
-										    cpu_count == 1 ? req->interconnectTransferDelay : req->ringBaselineTransLat);
-    		interferenceManager->addLatency(InterferenceManager::InterconnectResponseQueue, req, queueDelay);
+    		updateDeliveryMeasurements(req, false, queueDelay);
     	}
 
         DPRINTF(Crossbar, "Delivering to master %d, req from CPU %d\n", toID, req->interferenceAccurateSenderID);
@@ -617,10 +638,7 @@ Ring::deliver(MemReqPtr& req, Tick cycle, int toID, int fromID){
     else{
 
     	if(req->cmd == Read){
-			interferenceManager->addLatency(InterferenceManager::InterconnectRequestTransfer,
-											req,
-											cpu_count == 1 ? req->interconnectTransferDelay : req->ringBaselineTransLat);
-			interferenceManager->addLatency(InterferenceManager::InterconnectRequestQueue, req, queueDelay);
+    		updateDeliveryMeasurements(req, true, queueDelay);
 		}
 
         int toSlaveID = interconnectIDToL2IDMap[toID];
