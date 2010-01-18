@@ -26,7 +26,9 @@ public:
 			   double _reqVariationThreshold,
 			   int _renewMeasurementsThreshold,
 			   SearchAlgorithm _searchAlgorithm,
-			   int _iterationLatency);
+			   int _iterationLatency,
+               bool _useBusAccessesInLatencyPrediction,
+               double _busRequestThresholdIntensity);
 
 	virtual double computeMetric(std::vector<double>* speedups);
 };

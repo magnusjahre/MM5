@@ -569,7 +569,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
         serviceCyclesSample += time - curTick;
         requestSample++;
-        if(req->adaptiveMHASenderID != -1){
+
+        assert(req->cmd == Read || req->cmd == Writeback);
+        if(req->adaptiveMHASenderID != -1 && req->cmd == Read){
         	requestPerCoreSample[req->adaptiveMHASenderID]++;
         }
     }

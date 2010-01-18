@@ -26,6 +26,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 										 int _renewMeasurementsThreshold,
 										 SearchAlgorithm _searchAlgorithm,
 										 int _iterationLatency,
+										 bool _useBusAccessesInLatencyPrediction,
+										 double _busRequestThresholdIntensity,
 										 bool _enforcePolicy)
 : SimObject(_name){
 
@@ -39,6 +41,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
+
+	useBusAccessesInLatencyPrediction = _useBusAccessesInLatencyPrediction;
+	busRequestThreshold = _busRequestThresholdIntensity * _period;
 
 	acceptanceThreshold = _acceptanceThreshold;
 	requestVariationThreshold = _reqVariationThreshold;
@@ -319,6 +324,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 
 	traceVerboseVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
 	traceVerboseVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
+	traceVerboseVector("Bus Request Measurement: ", currentMeasurements->busAccessesPerCore);
 
 	// 2. Estimate new shared memory latencies
 	vector<double> sharedLatencyEstimates(cpuCount, 0.0);
@@ -440,7 +446,16 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 
 		newRequestCountEstimates[i] = (double) currentMeasurements->requestsInSample[i] * mlpRatio;
 
-		double tmpFreeBusSlots = currentMeasurements->sharedCacheMissRate * (((double) currentMeasurements->requestsInSample[i]) - newRequestCountEstimates[i]);
+		double busRequests = 0.0;
+		if(useBusAccessesInLatencyPrediction){
+			busRequests = currentMeasurements->busAccessesPerCore[i];
+		}
+		else{
+			busRequests = currentMeasurements->sharedCacheMissRate * ((double) currentMeasurements->requestsInSample[i]);
+		}
+
+//		double tmpFreeBusSlots = currentMeasurements->sharedCacheMissRate * (((double) currentMeasurements->requestsInSample[i]) - newRequestCountEstimates[i]);
+		double tmpFreeBusSlots = busRequests * (1 - mlpRatio);
 		freeBusSlots += tmpFreeBusSlots;
 
 		DPRINTFR(MissBWPolicyExtra, "Request change for CPU %i, MLP ratio %f, request estimate %f, freed bus slots %f\n", i, mlpRatio, newRequestCountEstimates[i], tmpFreeBusSlots);
@@ -449,18 +464,31 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	// 2. Estimate the response in request demand
 	vector<double> additionalBusRequests(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
-		double busRequests = currentMeasurements->sharedCacheMissRate * (double) currentMeasurements->requestsInSample[i];
-		if(busRequests > requestCountThreshold && currentMHA->at(i) >= caches[i]->getCurrentMSHRCount(true)){
+
+		double busRequests = 0.0;
+		if(useBusAccessesInLatencyPrediction){
+			busRequests = currentMeasurements->busAccessesPerCore[i];
+		}
+		else{
+			busRequests = currentMeasurements->sharedCacheMissRate * (double) currentMeasurements->requestsInSample[i];
+		}
+
+		if(busRequests > busRequestThreshold && currentMHA->at(i) >= caches[i]->getCurrentMSHRCount(true)){
 			double queueRatio = 1.0;
 			if(currentMeasurements->privateLatencyBreakdown[i][InterferenceManager::MemoryBusQueue] > 0){
 				queueRatio = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue] / currentMeasurements->privateLatencyBreakdown[i][InterferenceManager::MemoryBusQueue];
 			}
-			double additionalRequests = queueRatio * currentMeasurements->requestsInSample[i];
-			additionalBusRequests[i] = additionalRequests * currentMeasurements->sharedCacheMissRate;
-			DPRINTFR(MissBWPolicyExtra, "CPU %d has queue ratio %f, estimating %f reqs in next sample, %f bus reqs\n", i, queueRatio, additionalRequests, additionalBusRequests[i]);
+
+			if(useBusAccessesInLatencyPrediction){
+				additionalBusRequests[i] = ((double) currentMeasurements->busAccessesPerCore[i]) * queueRatio;
+			}
+			else{
+				additionalBusRequests[i] = queueRatio * ((double) currentMeasurements->requestsInSample[i]) * currentMeasurements->sharedCacheMissRate;
+			}
+			DPRINTFR(MissBWPolicyExtra, "CPU %d has queue ratio %f, estimating %f additional bus reqs\n", i, queueRatio, additionalBusRequests[i]);
 		}
 		else{
-			DPRINTFR(MissBWPolicyExtra, "CPU %d has too few requests (%f < %i) or num MSHRs is not increased (new count %d < old count %d)\n", i, busRequests, requestCountThreshold, currentMHA->at(i), caches[i]->getCurrentMSHRCount(true));
+			DPRINTFR(MissBWPolicyExtra, "CPU %d has too few requests (%f < %i) or num MSHRs is not increased (new count %d < old count %d)\n", i, busRequests, busRequestThreshold, currentMHA->at(i), caches[i]->getCurrentMSHRCount(true));
 		}
 	}
 
@@ -484,25 +512,36 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	}
 
 	// 3. Estimate the new average request latency
-	double oldTotalRequests = 0.0;
-	double newTotalRequests = 0.0;
-	for(int i=0;i<cpuCount;i++){
-		oldTotalRequests += currentMeasurements->sharedCacheMissRate * currentMeasurements->requestsInSample[i];
-		newTotalRequests += currentMeasurements->sharedCacheMissRate * newRequestCountEstimates[i];
-	}
-
-	double requestRatio = 1.0;
-	if(oldTotalRequests != 0){
-		requestRatio = newTotalRequests / oldTotalRequests;
-	}
-
-	DPRINTFR(MissBWPolicyExtra, "New request ratio is %f, estimated new request count %f, old request count %f\n", requestRatio, newTotalRequests, oldTotalRequests);
+//	double oldTotalRequests = 0.0;
+//	double newTotalRequests = 0.0;
+//	for(int i=0;i<cpuCount;i++){
+////		oldTotalRequests += currentMeasurements->sharedCacheMissRate * currentMeasurements->requestsInSample[i];
+////		newTotalRequests += currentMeasurements->sharedCacheMissRate * newRequestCountEstimates[i];
+//		oldTotalRequests += currentMeasurements->requestsInSample[i];
+//		newTotalRequests += newRequestCountEstimates[i];
+//	}
+//
+//	double requestRatio = 1.0;
+//	if(oldTotalRequests != 0){
+//		requestRatio = newTotalRequests / oldTotalRequests;
+//	}
+//
+//	DPRINTFR(MissBWPolicyExtra, "New request ratio is %f, estimated new request count %f, old request count %f\n", requestRatio, newTotalRequests, oldTotalRequests);
+//
+//	for(int i=0;i<cpuCount;i++){
+//		double currentAvgBusLat = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue];
+//		double newAvgBusLat = requestRatio * currentAvgBusLat;
+//		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat;
+//		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, request ratio %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i), requestRatio);
+//	}
 
 	for(int i=0;i<cpuCount;i++){
 		double currentAvgBusLat = currentMeasurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue];
-		double newAvgBusLat = requestRatio * currentAvgBusLat;
+		double newRequestRatio = ((double) currentMeasurements->requestsInSample[i]) / newRequestCountEstimates[i];
+		DPRINTFR(MissBWPolicyExtra, "CPU %d: New request ratio is %f, estimated new request count %f, old request count %d\n", i, newRequestRatio, newRequestCountEstimates[i], currentMeasurements->requestsInSample[i]);
+		double newAvgBusLat = newRequestRatio * currentAvgBusLat;
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat;
-		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, request ratio %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i), requestRatio);
+		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, request ratio %f\n", i, currentAvgBusLat, newAvgBusLat, estimatedSharedLatencies->at(i), newRequestRatio);
 	}
 
 	traceVerboseVector("Request Count Projection: ", newRequestCountEstimates);
