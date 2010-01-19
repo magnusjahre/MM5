@@ -24,9 +24,8 @@ HmosPolicy::HmosPolicy(string _name,
 		               int _renewMeasurementsThreshold,
                        SearchAlgorithm _searchAlgorithm,
                        int _iterationLatency,
-                       bool _useBusAccessesInLatencyPrediction,
                        double _busRequestThresholdIntensity)
-: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold, _searchAlgorithm, _iterationLatency, _useBusAccessesInLatencyPrediction, _busRequestThresholdIntensity) {
+: MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold, _searchAlgorithm, _iterationLatency, _busRequestThresholdIntensity) {
 
 }
 
@@ -60,7 +59,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 	Param<double> renewMeasurementsThreshold;
 	Param<string> searchAlgorithm;
 	Param<int> iterationLatency;
-	Param<bool> useBusAccessInLatPred;
 	Param<double> busRequestThreshold;
 END_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 
@@ -78,7 +76,6 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 10),
 	INIT_PARAM_DFLT(searchAlgorithm, "The search algorithm to use", "exhaustive"),
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
-	INIT_PARAM_DFLT(useBusAccessInLatPred, "Use bus accesses in latency prediciton", true),
 	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 0.001)
 END_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 
@@ -106,7 +103,6 @@ CREATE_SIM_OBJECT(HmosPolicy)
 							 renewMeasurementsThreshold,
 							 searchAlg,
 							 iterationLatency,
-							 useBusAccessInLatPred,
 							 busRequestThreshold);
 }
 

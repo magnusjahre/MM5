@@ -38,6 +38,7 @@ public:
 	double sharedCacheMissRate;
 
 	std::vector<int> busAccessesPerCore;
+	std::vector<int> busReadsPerCore;
 
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 

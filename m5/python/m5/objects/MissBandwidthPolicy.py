@@ -22,5 +22,4 @@ class MissBandwidthPolicy(SimObject):
     requestCountThreshold = Param.Float("The request intensity (requests / tick) to assume no request increase")
     acceptanceThreshold = Param.Float("The performance improvement needed to accept new MHA")
     requestVariationThreshold = Param.Float("Maximum acceptable request variation")
-    useBusAccessInLatPred = Param.Bool("Use bus accesses in latency prediciton")
     busRequestThreshold = Param.Float("The bus request intensity necessary to consider request increases")

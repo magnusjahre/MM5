@@ -113,6 +113,7 @@ class Bus : public BaseHier
     int serviceCyclesSample;
     int requestSample;
     std::vector<int> requestPerCoreSample;
+    std::vector<int> readsPerCoreSample;
 
   public:
     /** Width of the bus in bytes. */
@@ -335,6 +336,7 @@ class Bus : public BaseHier
 
     double getActualUtilization();
     std::vector<int> getPerCoreBusAccesses();
+    std::vector<int> getPerCoreBusReads();
 
   private:
     std::vector<int> perCPUDataBusUse;

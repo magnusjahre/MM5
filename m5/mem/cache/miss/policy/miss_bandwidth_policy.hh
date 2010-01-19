@@ -105,7 +105,6 @@ protected:
 	double acceptanceThreshold;
 	int renewMeasurementsThreshold;
 	double requestVariationThreshold;
-	bool useBusAccessesInLatencyPrediction;
 	double busRequestThreshold;
 
 	int renewMeasurementsCounter;
@@ -211,7 +210,6 @@ public:
 						int _renewMeasurementsThreshold,
 						SearchAlgorithm _searchAlgorithm,
 						int _iterationLatency,
-						bool _useBusAccessesInLatencyPrediction,
 						double _busRequestThresholdIntensity,
 						bool _enforcePolicy = true);
 

@@ -230,9 +230,6 @@ def setUpMissBwPolicy():
     if "MISS-BW-BUS-REQ-INTENSITY-THRESHOLD" in env:
         missBandwidthPolicy.busRequestThreshold = float(env["MISS-BW-BUS-REQ-INTENSITY-THRESHOLD"])
         
-    if "MISS-BW-USE-BUS-REQS-IN-LAT-PRED" in env:
-        missBandwidthPolicy.useBusAccessInLatPred = bool(env["MISS-BW-USE-BUS-REQS-IN-LAT-PRED"])
-        
     busUtilizationThreshold = Param.Float("The actual bus utilzation to consider the bus as full")
     requestCountThreshold = Param.Float("The request intensity (requests / tick) to assume no request increase")
     acceptanceThreshold = Param.Float("The performance improvement needed to accept new MHA")

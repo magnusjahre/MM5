@@ -97,6 +97,7 @@ Bus::Bus(const string &_name,
     lastSampleTick = 0;
 
     requestPerCoreSample.resize(cpu_count, 0);
+    readsPerCoreSample.resize(cpu_count, 0);
 
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -571,8 +572,11 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         requestSample++;
 
         assert(req->cmd == Read || req->cmd == Writeback);
-        if(req->adaptiveMHASenderID != -1 && req->cmd == Read){
+        if(req->adaptiveMHASenderID != -1){
         	requestPerCoreSample[req->adaptiveMHASenderID]++;
+        	if(req->cmd == Read){
+        		readsPerCoreSample[req->adaptiveMHASenderID]++;
+        	}
         }
     }
 
@@ -856,6 +860,13 @@ std::vector<int>
 Bus::getPerCoreBusAccesses(){
 	vector<int> retval = requestPerCoreSample;
 	for(int i=0;i<requestPerCoreSample.size();i++) requestPerCoreSample[i] = 0;
+	return retval;
+}
+
+std::vector<int>
+Bus::getPerCoreBusReads(){
+	vector<int> retval = readsPerCoreSample;
+	for(int i=0;i<readsPerCoreSample.size();i++) readsPerCoreSample[i] = 0;
 	return retval;
 }
 
