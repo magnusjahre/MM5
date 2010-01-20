@@ -11,6 +11,7 @@
 #include "base_cache.hh"
 #include "mem/mem_req.hh"
 #include "mem/cache/tags/lru.hh"
+#include "mem/cache/miss/policy/performance_measurement.hh"
 #include <vector>
 #include <iostream>
 
@@ -166,6 +167,10 @@ private:
 	std::vector<int> sequentialReadCount;
 	std::vector<int> sequentialWritebackCount;
 
+	std::vector<int> missAccumulator;
+	std::vector<int> interferenceMissAccumulator;
+	std::vector<int> accessAccumulator;
+
     bool isLeaderSet(int set);
 
     void issuePrivateWriteback(int cpuID, Addr addr, int cacheSet = -1);
@@ -207,6 +212,8 @@ public:
 	}
 
 	void regStats(std::string name);
+
+	std::vector<CacheMissMeasurements> getMissMeasurementSample();
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

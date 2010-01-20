@@ -65,6 +65,11 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	missesSinceLastInterferenceMiss.resize(cache->cpuCount, 0);
 	sharedResponsesSinceLastPrivWriteback.resize(cache->cpuCount, 0);
 
+
+	missAccumulator.resize(cache->cpuCount, 0);
+	interferenceMissAccumulator.resize(cache->cpuCount, 0);
+	accessAccumulator.resize(cache->cpuCount, 0);
+
 	srand(240000);
 }
 
@@ -160,6 +165,9 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 		assert(req->adaptiveMHASenderID != -1);
 		assert(req->cmd == Writeback || req->cmd == Read);
 
+		accessAccumulator[req->adaptiveMHASenderID]++;
+		if(isCacheMiss) missAccumulator[req->adaptiveMHASenderID]++;
+
 		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID);
 		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
@@ -187,6 +195,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 				if(isCacheMiss && curTick >= cache->detailedSimulationStartTick){
 					// shared cache miss and shadow hit -> need to tag reqs as interference requests
 					sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
+					interferenceMissAccumulator[req->adaptiveMHASenderID] += setsInConstituency;
 				}
 			}
 
@@ -525,4 +534,23 @@ CacheInterference::FixedWidthCounter::inc(){
 	else{
 		value++;
 	}
+}
+
+std::vector<CacheMissMeasurements>
+CacheInterference::getMissMeasurementSample(){
+	std::vector<CacheMissMeasurements> missMeasurements;
+
+	for(int i=0;i<cache->cpuCount;i++){
+		CacheMissMeasurements tmp(missAccumulator[i],
+								  interferenceMissAccumulator[i],
+								  accessAccumulator[i]);
+
+		missAccumulator[i] = 0;
+		interferenceMissAccumulator[i] = 0;
+		accessAccumulator[i] = 0;
+
+		missMeasurements.push_back(tmp);
+	}
+
+	return missMeasurements;
 }

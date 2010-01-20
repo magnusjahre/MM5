@@ -474,6 +474,11 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 		RateMeasurement rm = sharedCaches[i]->getMissRate();
 		totalMisses += rm.nominator;
 		totalAccesses += rm.denominator;
+
+		std::vector<CacheMissMeasurements> currentCacheMeasurements
+			= sharedCaches[i]->cacheInterference->getMissMeasurementSample();
+
+		for(int j=0;j<cpuCount;j++) currentMeasurement.perCoreCacheMeasurements[j].add(currentCacheMeasurements[j]);
 	}
 	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
 

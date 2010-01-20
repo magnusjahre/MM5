@@ -36,6 +36,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	busReadsPerCore.resize(cpuCount, 0);
 
 	cpuStallCycles.resize(cpuCount, 0);
+
+	perCoreCacheMeasurements.resize(cpuCount, CacheMissMeasurements());
 }
 
 void
@@ -149,6 +151,10 @@ PerformanceMeasurement::getTraceHeader(){
 	header.push_back("Actual Bus Utilization");
 	header.push_back("Shared Cache Miss Rate");
 
+	for(int i=0;i<cpuCount;i++) header.push_back(RequestTrace::buildTraceName("Cache Misses", i));
+	for(int i=0;i<cpuCount;i++) header.push_back(RequestTrace::buildTraceName("Cache Interference Misses", i));
+	for(int i=0;i<cpuCount;i++) header.push_back(RequestTrace::buildTraceName("Cache Accesses", i));
+
 	return header;
 }
 
@@ -202,6 +208,10 @@ PerformanceMeasurement::createTraceLine(){
 
 	line.push_back(actualBusUtilization);
 	line.push_back(sharedCacheMissRate);
+
+	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].misses);
+	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].interferenceMisses);
+	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].accesses);
 
 	return line;
 }

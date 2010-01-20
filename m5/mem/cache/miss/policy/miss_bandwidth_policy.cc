@@ -324,6 +324,13 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 	traceVerboseVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
 	traceVerboseVector("Bus Request Measurement: ", currentMeasurements->busAccessesPerCore);
 	traceVerboseVector("Bus Read Measurement: ", currentMeasurements->busReadsPerCore);
+	for(int i=0;i<cpuCount;i++){
+		DPRINTFR(MissBWPolicyExtra, "CPU %d, %d cache misses, %d interference misses, %d accesses\n",
+				i,
+				currentMeasurements->perCoreCacheMeasurements[i].misses,
+				currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses,
+				currentMeasurements->perCoreCacheMeasurements[i].accesses);
+	}
 
 	// 2. Estimate new shared memory latencies
 	vector<double> sharedLatencyEstimates(cpuCount, 0.0);
@@ -722,6 +729,14 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 	traceVector("Request accumulator: ", requestAccumulator);
 	traceVector("Request square accumulator: ", requestSqAccumulator);
+	for(int i=0;i<cpuCount;i++){
+		DPRINTFR(MissBWPolicy, "CPU %d, %d cache misses, %d interference misses, %d accesses\n",
+				i,
+				currentMeasurements->perCoreCacheMeasurements[i].misses,
+				currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses,
+				currentMeasurements->perCoreCacheMeasurements[i].accesses);
+	}
+
 
 	renewMeasurementsCounter++;
 	if(usePersistentAllocations && renewMeasurementsCounter < renewMeasurementsThreshold && renewMeasurementsCounter > 1){

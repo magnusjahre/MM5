@@ -12,6 +12,28 @@
 
 #include <vector>
 
+class CacheMissMeasurements{
+public:
+	int misses;
+	int interferenceMisses;
+	int accesses;
+
+	CacheMissMeasurements()
+	: misses(0), interferenceMisses(0), accesses(0){
+	}
+
+	CacheMissMeasurements(int _misses, int _interferenceMisses, int _accesses)
+	: misses(_misses), interferenceMisses(_interferenceMisses), accesses(_accesses){
+	}
+
+	void add(CacheMissMeasurements newValues){
+		misses += newValues.misses;
+		interferenceMisses += newValues.interferenceMisses;
+		accesses += newValues.accesses;
+	}
+
+};
+
 class PerformanceMeasurement{
 private:
 	int cpuCount;
@@ -39,6 +61,8 @@ public:
 
 	std::vector<int> busAccessesPerCore;
 	std::vector<int> busReadsPerCore;
+
+	std::vector<CacheMissMeasurements> perCoreCacheMeasurements;
 
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 

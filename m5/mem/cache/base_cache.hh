@@ -146,8 +146,6 @@ protected:
 	bool simulateContention;
 	Tick nextFreeCache;
 
-	CacheInterference* cacheInterference;
-
 	struct cacheOccupancy {
 		Tick startTick;
 		Tick endTick;
@@ -171,6 +169,8 @@ protected:
 	std::vector<cacheOccupancy> occupancy;
 
 public:
+
+	CacheInterference* cacheInterference;
 
 	enum WritebackOwnerPolicy {
 		WB_POLICY_UNKNOWN,
