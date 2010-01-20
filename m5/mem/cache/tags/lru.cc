@@ -782,6 +782,11 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 			assert(contentfile.good());
 			sets[i].blks[j]->unserialize(contentfile);
 
+			if(sets[i].blks[j]->isValid()){
+				sets[i].blks[j]->isTouched = true;
+				tagsInUse++;
+			}
+
 			if(cache->cpuCount > 1){
 				int blockAddrCPUID = -1;
 				if(cache->isShared){
