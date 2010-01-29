@@ -32,11 +32,8 @@ public:
 		accesses += newValues.accesses;
 	}
 
-	double getInterferenceMissRate(){
-		double dblIntMiss = (double) interferenceMisses;
-		double dblAccesses = (double) accesses;
-		return dblIntMiss / dblAccesses;
-	}
+	double getInterferenceMissRate();
+
 };
 
 class PerformanceMeasurement{

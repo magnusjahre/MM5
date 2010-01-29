@@ -73,10 +73,12 @@ protected:
 	std::vector<double> currentRequestProjection;
 	std::vector<double> currentLatencyProjection;
 	std::vector<double> currentIPCProjection;
+	std::vector<double> currentInterferenceMissProjection;
 
 	std::vector<double> bestRequestProjection;
 	std::vector<double> bestLatencyProjection;
 	std::vector<double> bestIPCProjection;
+	std::vector<double> bestInterferenceMissProjection;
 
 	std::vector<double> requestAccumulator;
 	std::vector<double> requestSqAccumulator;

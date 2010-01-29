@@ -221,3 +221,19 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 	assert(period >= cpuStallCycles[cpuID]);
 	return period - cpuStallCycles[cpuID];
 }
+
+double
+CacheMissMeasurements::getInterferenceMissRate(){
+
+	double dblIntMiss = (double) interferenceMisses;
+	double dblAccesses = (double) accesses;
+
+	double intMissRate = -1.0;
+	if(interferenceMisses > accesses) intMissRate = 1.0;
+	else if(accesses == 0) intMissRate = 0.0;
+	else intMissRate = dblIntMiss / dblAccesses;
+
+	assert(intMissRate >= 0.0 && intMissRate <= 1.0);
+
+	return intMissRate;
+}
