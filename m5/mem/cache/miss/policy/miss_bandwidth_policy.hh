@@ -62,6 +62,8 @@ protected:
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
 
+	RequestTrace searchTrace;
+
 	std::vector<double> aloneIPCEstimates;
 	std::vector<double> avgLatencyAloneIPCModel;
 
@@ -135,6 +137,7 @@ protected:
 	void traceBestProjection();
 	void traceNumMSHRs();
 	void initNumMSHRsTrace(int cpuCount);
+	void initSearchTrace(int cpuCount, SearchAlgorithm searchAlg);
 
 	void initAloneIPCTrace(int cpuCount, bool policyEnforced);
 

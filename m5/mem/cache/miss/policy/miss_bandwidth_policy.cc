@@ -72,6 +72,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	predictionTrace = RequestTrace(_name, "PredictionTrace", 1);
 	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", 1);
 	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace", 1);
+	searchTrace = RequestTrace(_name, "SearchTrace", 1);
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, 0);
@@ -154,6 +155,8 @@ MissBandwidthPolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs)
 	assert(caches[_cpuID] == NULL);
 	caches[_cpuID] = _cache;
 	maxMSHRs = _maxMSHRs;
+
+	if(!searchTrace.isInitialized()) initSearchTrace(cpuCount, searchAlgorithm);
 }
 
 void
@@ -1097,6 +1100,8 @@ MissBandwidthPolicy::busSearch(bool onlyPowerOfTwoMSHRs){
 	}
 
 	traceVector("Search order: ", processorIDOrder);
+	vector<RequestTraceEntry> searchTraceData;
+	for(int i=0;i<processorIDOrder.size();i++) searchTraceData.push_back(processorIDOrder[i]);
 
 	vector<int> bestMHA(cpuCount, maxMSHRs);
 	maxMetricValue = 0.0;
@@ -1109,6 +1114,7 @@ MissBandwidthPolicy::busSearch(bool onlyPowerOfTwoMSHRs){
 
 			traceVector("Evaluating MHA: ", testMHA);
 			double curMetricValue = evaluateMHA(testMHA);
+			searchTraceData.push_back(curMetricValue);
 			if(curMetricValue >= maxMetricValue){
 				DPRINTF(MissBWPolicy, "New best config (%f > %f)\n", curMetricValue, maxMetricValue);
 				bestMHA[processorIDOrder[i]] = currentTestMSHRs;
@@ -1121,6 +1127,8 @@ MissBandwidthPolicy::busSearch(bool onlyPowerOfTwoMSHRs){
 			else currentTestMSHRs++;
 		}
 	}
+
+	searchTrace.addTrace(searchTraceData);
 
 	return bestMHA;
 }
@@ -1278,6 +1286,30 @@ MissBandwidthPolicy::doCommittedInstructionTrace(int cpuID,
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
+}
+
+void
+MissBandwidthPolicy::initSearchTrace(int cpuCount, SearchAlgorithm searchAlg){
+	if(searchAlg != EXHAUSTIVE_SEARCH){
+		vector<string> headers;
+
+		for(int i=0;i<cpuCount;i++){
+			headers.push_back(RequestTrace::buildTraceName("Bus Order CPUID", i));
+		}
+
+		int numMHAs = maxMSHRs;
+		if(searchAlg == BUS_SORTED_LOG) numMHAs = FloorLog2(maxMSHRs)+1;
+
+		for(int i=0;i<cpuCount;i++){
+			for(int j=0;j<numMHAs;j++){
+				stringstream strstream;
+				strstream << "Order" << i << " MHA" << j;
+				headers.push_back(strstream.str());
+			}
+		}
+
+		searchTrace.initalizeTrace(headers);
+	}
 }
 
 
