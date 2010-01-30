@@ -32,8 +32,7 @@ public:
 		accesses += newValues.accesses;
 	}
 
-	double getInterferenceMissRate();
-
+        double getInterferenceMissesPerMiss();  
 };
 
 class PerformanceMeasurement{
@@ -57,6 +56,8 @@ public:
 	std::vector<double> estimatedPrivateLatencies;
 	std::vector<std::vector<double> > latencyBreakdown;
 	std::vector<std::vector<double> > privateLatencyBreakdown;
+
+        std::vector<double> cacheInterferenceLatency;
 
 	double actualBusUtilization;
 	double sharedCacheMissRate;

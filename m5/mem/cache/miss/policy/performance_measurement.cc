@@ -28,6 +28,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	latencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
 	privateLatencyBreakdown.resize(cpuCount, vector<double>(numIntTypes, 0.0));
+	cacheInterferenceLatency.resize(cpuCount, 0.0);
 
 	actualBusUtilization = 0.0;
 	sharedCacheMissRate = 0.0;
@@ -59,14 +60,17 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 				double tmpPrivateBreakdownEstimate = sharedLatencyBreakdownAccumulator[i][j] - interferenceBreakdownAccumulator[i][j];
 				privateLatencyBreakdown[i][j] = tmpPrivateBreakdownEstimate / (double) localRequests[i];
 			}
+
+			cacheInterferenceLatency[i] = interferenceBreakdownAccumulator[i][InterferenceManager::CacheCapacity];
 		}
 		else{
 			sharedLatencies[i] = 0;
 			estimatedPrivateLatencies[i] = 0;
 			for(int j=0;j<numIntTypes;j++){
 				latencyBreakdown[i][j] = 0;
-				privateLatencyBreakdown[i][j] = 0;
+				privateLatencyBreakdown[i][j] = 0;				
 			}
+			cacheInterferenceLatency[i] = 0.0;
 		}
 
 	}
@@ -223,15 +227,15 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 }
 
 double
-CacheMissMeasurements::getInterferenceMissRate(){
+CacheMissMeasurements::getInterferenceMissesPerMiss(){
 
 	double dblIntMiss = (double) interferenceMisses;
-	double dblAccesses = (double) accesses;
+	double dblMisses = (double) misses;
 
 	double intMissRate = -1.0;
-	if(interferenceMisses > accesses) intMissRate = 1.0;
-	else if(accesses == 0) intMissRate = 0.0;
-	else intMissRate = dblIntMiss / dblAccesses;
+	if(interferenceMisses > misses) intMissRate = 1.0;
+	else if(misses == 0) intMissRate = 0.0;
+	else intMissRate = dblIntMiss / dblMisses;
 
 	assert(intMissRate >= 0.0 && intMissRate <= 1.0);
 
