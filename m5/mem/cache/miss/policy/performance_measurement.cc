@@ -241,3 +241,14 @@ CacheMissMeasurements::getInterferenceMissesPerMiss(){
 
 	return intMissRate;
 }
+
+double
+CacheMissMeasurements::getMissRate(){
+	double dblAccesses = (double) accesses;
+	double dblMisses = (double) misses;
+
+	double missRate = dblMisses / dblAccesses;
+
+	assert(missRate >= 0 && missRate <= 1.0);
+	return missRate;
+}

@@ -473,33 +473,33 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 
 	double accessFrequencyReduction = 1.0;
 	if(oldReqSum != 0.0 && newReqSum != 0.0){
-	  accessFrequencyReduction = newReqSum / oldReqSum;
-	  DPRINTFR(MissBWPolicyExtra, "Computing access frequency reduction to %f, request sum with reduction is %f, old sum was %f\n",
-		   accessFrequencyReduction,
-		   newReqSum,
-		   oldReqSum);
+		accessFrequencyReduction = newReqSum / oldReqSum;
+		DPRINTFR(MissBWPolicyExtra, "Computing access frequency reduction to %f, request sum with reduction is %f, old sum was %f\n",
+				accessFrequencyReduction,
+				newReqSum,
+				oldReqSum);
 	}
 	assert(accessFrequencyReduction >= 0.0 && accessFrequencyReduction <= 1.0);
 
 	vector<double> cacheHitLatencyReduction(cpuCount, 0.0);
 	vector<double> interferenceMissProjection(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
-	  if(currentMHA->at(i) == maxMSHRs && currentMeasurements->requestsInSample[i] > 0){
-	    double numIntMisses = (double) currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
-	    interferenceMissProjection[i] = numIntMisses * accessFrequencyReduction;
+		if(currentMHA->at(i) == maxMSHRs && currentMeasurements->requestsInSample[i] > 0){
+			double numIntMisses = (double) currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
+			interferenceMissProjection[i] = numIntMisses * accessFrequencyReduction;
 
-	    double sumCacheIntLatency = currentMeasurements->cacheInterferenceLatency[i];
-	    cacheHitLatencyReduction[i] = (sumCacheIntLatency * (1 - accessFrequencyReduction)) / (double) currentMeasurements->requestsInSample[i];
+			double sumCacheIntLatency = currentMeasurements->cacheInterferenceLatency[i];
+			cacheHitLatencyReduction[i] = (sumCacheIntLatency * (1 - accessFrequencyReduction)) / (double) currentMeasurements->requestsInSample[i];
 
-	    DPRINTFR(MissBWPolicyExtra, "Cache analysis for CPU %i, frequency reduction %f, sum cache interference %f, expected latency reduction is %f\n",
-		     i,
-		     accessFrequencyReduction,
-		     sumCacheIntLatency,
-		     cacheHitLatencyReduction[i]);
-	  }
-	  else{
-	    interferenceMissProjection[i] = (double) currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
-	  }
+			DPRINTFR(MissBWPolicyExtra, "Cache analysis for CPU %i, frequency reduction %f, sum cache interference %f, expected latency reduction is %f\n",
+					i,
+					accessFrequencyReduction,
+					sumCacheIntLatency,
+					cacheHitLatencyReduction[i]);
+		}
+		else{
+			interferenceMissProjection[i] = (double) currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
+		}
 
 	}
 	currentInterferenceMissProjection = interferenceMissProjection;
@@ -562,17 +562,24 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
         if(currentMeasurements->requestsInSample[i] > 0 && newRequestCountEstimates[i] > 0){
             newRequestRatio = ((double) currentMeasurements->requestsInSample[i]) / newRequestCountEstimates[i];
         }
-		DPRINTFR(MissBWPolicyExtra, "CPU %d: New request ratio is %f, estimated new request count %f, old request count %d\n", i, newRequestRatio, newRequestCountEstimates[i], currentMeasurements->requestsInSample[i]);
+
+        double cacheMissRate = currentMeasurements->perCoreCacheMeasurements[i].getMissRate();
 		
-        double newAvgBusLat = newRequestRatio * currentAvgBusLat;
+        DPRINTFR(MissBWPolicyExtra, "CPU %d: New request ratio is %f, estimated new request count %f, old request count %d, miss rate %f\n",
+									i,
+									newRequestRatio,
+									newRequestCountEstimates[i],
+									currentMeasurements->requestsInSample[i],
+									cacheMissRate);
+
+        double newAvgBusLat = newRequestRatio * currentAvgBusLat * cacheMissRate;
         
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat - cacheHitLatencyReduction[i];
-		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, request ratio %f, cache hit latency reduction %f\n",
+		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, cache hit latency reduction %f\n",
 				                    i,
 				                    currentAvgBusLat,
 				                    newAvgBusLat,
 				                    estimatedSharedLatencies->at(i),
-				                    newRequestRatio,
 				                    cacheHitLatencyReduction[i]);
 
         assert(estimatedSharedLatencies->at(i) >= 0);
