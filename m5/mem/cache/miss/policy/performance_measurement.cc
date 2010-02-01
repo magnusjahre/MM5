@@ -247,8 +247,12 @@ CacheMissMeasurements::getMissRate(){
 	double dblAccesses = (double) accesses;
 	double dblMisses = (double) misses;
 
-	double missRate = dblMisses / dblAccesses;
+	if(accesses == 0){
+		assert(misses == 0);
+		return 0.0;
+	}
 
-	assert(missRate >= 0 && missRate <= 1.0);
+	double missRate = dblMisses / dblAccesses;
+	assert(missRate >= 0.0 && missRate <= 1.0);
 	return missRate;
 }
