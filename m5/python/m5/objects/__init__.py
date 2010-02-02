@@ -2,6 +2,7 @@ import m5
 
 # specify base part of all object file names
 file_bases = ['AdaptiveMHA',
+              'AggregateIPCPolicy',
               'AlphaConsole',
               'AlphaFullCPU',
               'AlphaTLB',
@@ -69,6 +70,7 @@ file_bases = ['AdaptiveMHA',
               'SimpleDisk',
               'SplitTransBus',
               'Statistics',
+              'STPPolicy',
               'System',
               'TimingMemoryController',
               'Trace',

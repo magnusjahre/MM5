@@ -29,7 +29,7 @@ public:
 			   int _iterationLatency,
                double _busRequestThresholdIntensity);
 
-	virtual double computeMetric(std::vector<double>* speedups);
+	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
 };
 
 #endif /* HMOS_POLICY_HH_ */

@@ -20,7 +20,7 @@ all_protocols = ['none', 'msi', 'mesi', 'mosi', 'moesi', 'stenstrom']
 snoop_protocols = ['msi', 'mesi', 'mosi', 'moesi']
 directory_protocols = ['stenstrom']
 
-miss_bw_policies = ["fairness", "hmos", "none"]
+miss_bw_policies = ["fairness", "hmos", "none", "stp", "aggregateIPC"]
 
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
@@ -181,6 +181,10 @@ def setUpMissBwPolicy():
             missBandwidthPolicy = HmosPolicy()
         elif env['MISS-BW-POLICY'] == "none":
             missBandwidthPolicy = NoBandwidthPolicy()
+        elif env['MISS-BW-POLICY'] == "stp":
+            missBandwidthPolicy = STPPolicy()
+        elif env['MISS-BW-POLICY'] == "aggregateIPC":
+            missBandwidthPolicy = AggregateIPCPolicy()
         else:
             panic("error in setUpMissBwPolicy()")
     else:

@@ -27,7 +27,7 @@ NoBandwidthPolicy::NoBandwidthPolicy(string _name,
 }
 
 double
-NoBandwidthPolicy::computeMetric(std::vector<double>* speedups){
+NoBandwidthPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs){
 	fatal("computeMetric should not be called on NoBandwidthPolicy objects");
 }
 

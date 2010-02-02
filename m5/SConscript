@@ -212,6 +212,8 @@ base_sources = Split('''
 	mem/cache/miss/policy/performance_measurement.cc
 	mem/cache/miss/policy/no_policy.cc
 	mem/cache/miss/policy/hmos_policy.cc
+	mem/cache/miss/policy/stp_policy.cc
+	mem/cache/miss/policy/aggregate_ipc_policy.cc
     mem/cache/prefetch/base_prefetcher.cc
     mem/cache/prefetch/prefetcher.cc
     mem/cache/prefetch/tagged_prefetcher.cc

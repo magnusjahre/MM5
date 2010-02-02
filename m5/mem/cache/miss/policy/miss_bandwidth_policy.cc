@@ -375,7 +375,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 	tracePerformance(sharedIPCEstimates, speedups);
 
 	// 4. Compute metric
-	double metricValue = computeMetric(&speedups);
+	double metricValue = computeMetric(&speedups, &sharedIPCEstimates);
 
 //	if(dumpSearchSpaceAt == curTick){
 //		dumpSearchSpace(mhaConfig, metricValue);
@@ -602,14 +602,16 @@ double
 MissBandwidthPolicy::computeCurrentMetricValue(){
 
 	vector<double> speedups(cpuCount, 0.0);
+	vector<double> sharedIPCs(cpuCount, 0.0);
 
 	for(int i=0;i<cpuCount;i++){
-		double currentSharedIPC = (double) currentMeasurements->committedInstructions[i] / (double) period;
-		speedups[i] = computeSpeedup(currentSharedIPC, i);
+		sharedIPCs[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
+		speedups[i] = computeSpeedup(sharedIPCs[i], i);
 	}
 	traceVector("Estimated Current Speedups: ", speedups);
+	traceVector("Estimated Current Shared IPCs: ", sharedIPCs);
 
-	double metricValue = computeMetric(&speedups);
+	double metricValue = computeMetric(&speedups, &sharedIPCs);
 	DPRINTF(MissBWPolicy, "Estimated current metric value to be %f\n", metricValue);
 	return metricValue;
 }

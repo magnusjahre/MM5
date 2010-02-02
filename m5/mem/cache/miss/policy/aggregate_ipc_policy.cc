@@ -1,51 +1,39 @@
-/*
- * hmos_policy.cc
- *
- *  Created on: Nov 19, 2009
- *      Author: jahre
- */
 
-
-#include "hmos_policy.hh"
+#include "aggregate_ipc_policy.hh"
 
 using namespace std;
 
-HmosPolicy::HmosPolicy(string _name,
-		               InterferenceManager* _intManager,
-		               Tick _period,
-		               int _cpuCount,
-		               double _busUtilThreshold,
-		               double _cutoffReqInt,
-		               RequestEstimationMethod _reqEstMethod,
-		               PerformanceEstimationMethod _perfEstMethod,
-		               bool _persistentAlloc,
-		               double _acceptanceThreshold,
-		               double _reqVariationThreshold,
-		               int _renewMeasurementsThreshold,
-                       SearchAlgorithm _searchAlgorithm,
-                       int _iterationLatency,
-                       double _busRequestThresholdIntensity)
+AggregateIPCPolicy::AggregateIPCPolicy(string _name,
+									   InterferenceManager* _intManager,
+									   Tick _period,
+									   int _cpuCount,
+									   double _busUtilThreshold,
+									   double _cutoffReqInt,
+									   RequestEstimationMethod _reqEstMethod,
+									   PerformanceEstimationMethod _perfEstMethod,
+									   bool _persistentAlloc,
+									   double _acceptanceThreshold,
+									   double _reqVariationThreshold,
+									   int _renewMeasurementsThreshold,
+									   SearchAlgorithm _searchAlgorithm,
+									   int _iterationLatency,
+									   double _busRequestThresholdIntensity)
 : MissBandwidthPolicy(_name, _intManager, _period, _cpuCount, _busUtilThreshold, _cutoffReqInt, _reqEstMethod, _perfEstMethod, _persistentAlloc, _acceptanceThreshold, _reqVariationThreshold, _renewMeasurementsThreshold, _searchAlgorithm, _iterationLatency, _busRequestThresholdIntensity) {
 
 }
 
 double
-HmosPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs){
-
-	int n = speedups->size();
-
-	double denominator = 0.0;
-
-	for(int i=0;i<speedups->size();i++){
-		denominator += 1 / speedups->at(i);
+AggregateIPCPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs){
+	double sum = 0.0;
+	for(int i=0;i<sharedIPCs->size();i++){
+		sum += sharedIPCs->at(i);
 	}
-
-	return n / denominator;
+	return sum;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
-BEGIN_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(AggregateIPCPolicy)
 	Param<Tick> period;
 	SimObjectParam<InterferenceManager* > interferenceManager;
 	Param<int> cpuCount;
@@ -60,9 +48,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
 	Param<string> searchAlgorithm;
 	Param<int> iterationLatency;
 	Param<double> busRequestThreshold;
-END_DECLARE_SIM_OBJECT_PARAMS(HmosPolicy)
+END_DECLARE_SIM_OBJECT_PARAMS(AggregateIPCPolicy)
 
-BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
+BEGIN_INIT_SIM_OBJECT_PARAMS(AggregateIPCPolicy)
 	INIT_PARAM_DFLT(period, "The number of clock cycles between each decision", 1000000),
 	INIT_PARAM_DFLT(interferenceManager, "The system's interference manager" , NULL),
 	INIT_PARAM(cpuCount, "The number of cpus in the system"),
@@ -77,37 +65,35 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
 	INIT_PARAM_DFLT(searchAlgorithm, "The search algorithm to use", "exhaustive"),
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 0.001)
-END_INIT_SIM_OBJECT_PARAMS(HmosPolicy)
+END_INIT_SIM_OBJECT_PARAMS(AggregateIPCPolicy)
 
-CREATE_SIM_OBJECT(HmosPolicy)
+CREATE_SIM_OBJECT(AggregateIPCPolicy)
 {
+
 	MissBandwidthPolicy::RequestEstimationMethod reqEstMethod =
 		MissBandwidthPolicy::parseRequestMethod(requestEstimationMethod);
 	MissBandwidthPolicy::PerformanceEstimationMethod perfEstMethod =
 		MissBandwidthPolicy::parsePerformanceMethod(performanceEstimationMethod);
 	MissBandwidthPolicy::SearchAlgorithm searchAlg =
-			MissBandwidthPolicy::parseSearchAlgorithm(searchAlgorithm);
+		MissBandwidthPolicy::parseSearchAlgorithm(searchAlgorithm);
 
-
-	return new HmosPolicy(getInstanceName(),
-							 interferenceManager,
-							 period,
-							 cpuCount,
-							 busUtilizationThreshold,
-							 requestCountThreshold,
-							 reqEstMethod,
-							 perfEstMethod,
-							 persistentAllocations,
-							 acceptanceThreshold,
-							 requestVariationThreshold,
-							 renewMeasurementsThreshold,
-							 searchAlg,
-							 iterationLatency,
-							 busRequestThreshold);
+	return new AggregateIPCPolicy(getInstanceName(),
+							      interferenceManager,
+							      period,
+							      cpuCount,
+							      busUtilizationThreshold,
+							      requestCountThreshold,
+							      reqEstMethod,
+							      perfEstMethod,
+							      persistentAllocations,
+							      acceptanceThreshold,
+							      requestVariationThreshold,
+							      renewMeasurementsThreshold,
+							      searchAlg,
+							      iterationLatency,
+							      busRequestThreshold);
 }
 
-REGISTER_SIM_OBJECT("HmosPolicy", HmosPolicy)
+REGISTER_SIM_OBJECT("AggregateIPCPolicy", AggregateIPCPolicy)
 
 #endif //DOXYGEN_SHOULD_SKIP_THIS
-
-

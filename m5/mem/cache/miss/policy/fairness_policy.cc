@@ -45,7 +45,7 @@ FairnessPolicy::findMinValue(std::vector<double>* data){
 }
 
 double
-FairnessPolicy::computeMetric(std::vector<double>* speedups){
+FairnessPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs){
 
 	double max = findMaxValue(speedups);
 	double min = findMinValue(speedups);
