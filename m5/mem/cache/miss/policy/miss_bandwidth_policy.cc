@@ -465,10 +465,9 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 	double newReqSum = 0.0;
 	double oldReqSum = 0.0;
 	for(int i=0;i<cpuCount;i++){
-	  if(currentMHA->at(i) < maxMSHRs){
-	    newReqSum += newRequestCountEstimates[i];
-	    oldReqSum += (double) currentMeasurements->requestsInSample[i];
-	  }
+		newReqSum += newRequestCountEstimates[i];
+		oldReqSum += (double) currentMeasurements->requestsInSample[i];
+		if(currentMHA->at(i) == maxMSHRs) assert((int) newRequestCountEstimates[i] == currentMeasurements->requestsInSample[i]);
 	}
 
 	double accessFrequencyReduction = 1.0;
@@ -563,16 +562,13 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
             newRequestRatio = ((double) currentMeasurements->requestsInSample[i]) / newRequestCountEstimates[i];
         }
 
-        double cacheMissRate = currentMeasurements->perCoreCacheMeasurements[i].getMissRate();
-		
         DPRINTFR(MissBWPolicyExtra, "CPU %d: New request ratio is %f, estimated new request count %f, old request count %d, miss rate %f\n",
 									i,
 									newRequestRatio,
 									newRequestCountEstimates[i],
-									currentMeasurements->requestsInSample[i],
-									cacheMissRate);
+									currentMeasurements->requestsInSample[i]);
 
-        double newAvgBusLat = newRequestRatio * currentAvgBusLat * cacheMissRate;
+        double newAvgBusLat = newRequestRatio * currentAvgBusLat;
         
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat - cacheHitLatencyReduction[i];
 		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, cache hit latency reduction %f\n",
