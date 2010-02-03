@@ -767,7 +767,7 @@ MissBandwidthPolicy::updateAloneIPCEstimate(){
 			double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
 			double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
 			double visibleIntCycles = mostRecentMLPEstimate[i][maxMSHRs] * totalInterferenceCycles;
-			avgLatencyAloneIPCModel[i]= (float) currentMeasurements->committedInstructions[i] / (period - visibleIntCycles);
+			avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
 		}
 	}
 }
