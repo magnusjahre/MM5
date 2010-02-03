@@ -36,12 +36,20 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 	reqEstMethod = _reqEstMethod;
 
 	busUtilizationThreshold = _busUtilThreshold;
-	requestCountThreshold = _cutoffReqInt * _period;
+
+	requestCountThreshold = _cutoffReqInt;
+	busRequestThreshold = _busRequestThresholdIntensity;
+
+	if(_cutoffReqInt < 1){
+		fatal("The request threshold unit is number of requests, a value less than 1 does not make sense");
+	}
+
+	if(_busRequestThresholdIntensity < 1){
+		fatal("The bus request threshold unit is number of requests, a value less than 1 does not make sense");
+	}
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
-
-	busRequestThreshold = _busRequestThresholdIntensity * _period;
 
 	acceptanceThreshold = _acceptanceThreshold;
 	requestVariationThreshold = _reqVariationThreshold;
@@ -296,6 +304,7 @@ MissBandwidthPolicy::tracePerformance(std::vector<double>& sharedIPCEstimate,
 bool
 MissBandwidthPolicy::doMHAEvaluation(int cpuID){
 
+	DPRINTFR(MissBWPolicyExtra, "Checking if cpu %d is should be searched with threshold %f\n", cpuID, requestCountThreshold);
 	if(currentMeasurements->requestsInSample[cpuID] < requestCountThreshold){
 		return false;
 	}
