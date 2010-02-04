@@ -907,7 +907,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 			bestMHA = busSearch(false);
 		}
 		else if(searchAlgorithm == BUS_SORTED_LOG){
-			desicionLatency = FloorLog2(maxMSHRs) * cpuCount * iterationLatency;
+			desicionLatency = (FloorLog2(maxMSHRs)+1) * cpuCount * iterationLatency;
 			bestMHA = busSearch(true);
 		}
 		else{
