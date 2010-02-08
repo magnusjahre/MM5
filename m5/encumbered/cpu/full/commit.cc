@@ -60,7 +60,7 @@ using namespace std;
 
 
 /*  Number of cycles we are allowed to go without committing an instruction  */
-#define CRASH_COUNT 100000
+#define CRASH_COUNT 500000
 
 #define MEM_BLOCKED_TRACE_FREQUENCY 100000
 
@@ -153,11 +153,11 @@ FullCPU::commit()
 		ccprintf(cerr, "DEADLOCK at CPU %s\n", name());
 
 		//FIXME: uncomment these lines
-		// 	dumpIQ();
+		dumpIQ();
 		//         cout << "iq dump fin\n";
-		// 	LSQ->dump();
+		LSQ->dump();
 		//         cout << "lsq dump fin\n";
-		// 	ROB.dump();
+		ROB.dump();
 		//         cout << "rob dump fin\n";
 		panic("We stopped committing instructions!!!");
 	}

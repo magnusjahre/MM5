@@ -549,6 +549,12 @@ void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
 
+	DPRINTF(Cache, "Response recieved: %s %x blk_addr: %x pc %x\n",
+			req->cmd.toString(),
+			req->paddr & (((ULL(1))<<48)-1),
+			req->paddr & ~((Addr)blkSize - 1),
+			req->pc);
+
 	if(isDirectoryAndL1DataCache()){
 
 		if(directoryProtocol->handleDirectoryResponse(req, tags)){

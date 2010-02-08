@@ -140,7 +140,7 @@ class MemInterface : public BaseInterface
 
     virtual void clearBlocked()
     {
-	DPRINTF(Cache,"Blocking CPU->Mem interface\n");
+	DPRINTF(Cache,"Unblocking CPU->Mem interface\n");
 	blocked = false;
     }
 
