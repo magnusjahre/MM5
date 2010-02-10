@@ -218,10 +218,12 @@ Process::open_fd(int sim_fd, FileParameters params)
     return free_fd;
 }
 
-void
+bool
 Process::close_fd(int tgt_fd){
-	tgtFDFileParams.erase(tgt_fd);
-	assert(tgtFDFileParams.find(tgt_fd) == tgtFDFileParams.end());
+  tgtFDFileParams.erase(tgt_fd);
+  assert(tgtFDFileParams.find(tgt_fd) == tgtFDFileParams.end());
+  
+  return tgt_fd != fd_map[STDOUT_FILENO] && tgt_fd != fd_map[STDERR_FILENO];
 }
 
 

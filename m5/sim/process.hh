@@ -171,7 +171,7 @@ class Process : public SimObject
     // generate new target fd for sim_fd
     int open_fd(int sim_fd, FileParameters params);
 
-    void close_fd(int tgt_fd);
+    bool close_fd(int tgt_fd);
 
     // look up simulator fd for given target fd
     int sim_fd(int tgt_fd);

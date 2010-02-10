@@ -563,8 +563,18 @@ if "USE-SIMPOINT" in env:
         
         if env["NP"] > 1:
             fatal("CMP checkpoints are generated from individual benchmark checkpoints")
+        
+        if useCheckpointPath != "":
             
-        fwticks, simulateCycles = setGenerateCheckpointParams(simpoints.simpoints[env["BENCHMARK"]][simpointNum][simpoints.FWKEY], simpointNum)
+            warn("Using simpoint checkpoint to generate different checkpoint, ignoring simpoint settings!")
+            
+            cptdir = useCheckpointPath+"/"+getCheckpointDirectory(simpointNum)
+            copyCheckpointFiles(cptdir)
+            root.checkpoint = cptdir
+            
+            fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
+        else:
+            fwticks, simulateCycles = setGenerateCheckpointParams(simpoints.simpoints[env["BENCHMARK"]][simpointNum][simpoints.FWKEY], simpointNum)
     else:
         
         fwticks = 1
@@ -594,9 +604,8 @@ else:
         panic("Specfying both a max tick count and a max inst count does not make sense")
     
     if generateCheckpoint:
-        assert simInsts != -1
+        assert simInsts != -1            
         fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
-    
     else:
         if useCheckpointPath != "":
             

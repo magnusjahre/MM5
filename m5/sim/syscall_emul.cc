@@ -90,6 +90,8 @@ SyscallReturn
 exitFunc(SyscallDesc *desc, int callnum, Process *process,
 	 ExecContext *xc)
 {
+
+    DPRINTFR(SyscallVerbose, "%s: Creating sim exit event\n", xc->cpu->name());
     new SimExitEvent("syscall caused exit", xc->getSyscallArg(0) & 0xff);
 
     return 1;
@@ -120,10 +122,15 @@ obreakFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 SyscallReturn
 closeFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
-	int tgt_fd = xc->getSyscallArg(0);
-	int fd = p->sim_fd(tgt_fd);
-    p->close_fd(tgt_fd);
-    return close(fd);
+  int tgt_fd = xc->getSyscallArg(0);
+  int fd = p->sim_fd(tgt_fd);
+  bool closeFile = p->close_fd(tgt_fd);
+
+  int retval = 0;
+  if(closeFile){
+    retval = close(fd);
+  }
+  return retval;
 }
 
 
