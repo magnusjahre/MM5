@@ -362,24 +362,14 @@ openFunc(SyscallDesc *desc, int callnum, Process *process, ExecContext *xc)
 	DPRINTF(SyscallVerbose, "opening file %s\n", path.c_str());
 
 	// open the file
-//	int fd = -1;
-//	if(path.find("fort.11") != std::string::npos){
-//
-//		// HACK: This file needs to be on a local filesystem for performance
-//		assert((hostFlags & O_RDWR) != 0);
-//		assert((hostFlags & O_CREAT) != 0);
-//		hostFlags |= O_TRUNC;
-//
-//		std::stringstream name;
-//		name << "/tmp/fort.11." << getpid() << "." << time(NULL) << ".tmp";
-//
-//		fd = open(name.str().c_str() , hostFlags, mode);
-//	}
-//	else{
-//		fd = open(path.c_str(), hostFlags, mode);
-//	}
-
 	int fd = open(path.c_str(), hostFlags, mode);
+
+	// fallback mode for when the process uses an obsolete pathename due to checkpointing
+	if(fd == -1){
+		char* basen = basename((char*) path.c_str());
+		std::cout << "Could not open file " << path << ", trying basename " << basen << "\n";
+		fd = open(basen, hostFlags, mode);
+	}
 
 	Process::FileParameters params = Process::FileParameters(path, hostFlags, mode);
 
