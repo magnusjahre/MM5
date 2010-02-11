@@ -203,6 +203,9 @@ class ExecContext
     void serialize(std::ostream &os);
     void unserialize(Checkpoint *cp, const std::string &section);
 
+    Checkpoint* currentCheckpoint;
+    void restartProcess();
+
 #if FULL_SYSTEM
     bool validInstAddr(Addr addr) { return true; }
     bool validDataAddr(Addr addr) { return true; }

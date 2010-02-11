@@ -129,8 +129,14 @@ FullCPU::execute_instruction(DynInst *fetched_inst, int thread_number)
     xc->regs.npc = xc->regs.pc + sizeof(MachInst);
 
     // perform functional execution
-    if (!(fetched_inst->isNonSpeculative() && xc->spec_mode))
-	fault = fetched_inst->execute();
+    if (!(fetched_inst->isNonSpeculative() && xc->spec_mode)){
+    	fault = fetched_inst->execute();
+    }
+    if(fault == Process_Halt_Fault){
+    	registerProcessHalt();
+    	fault = No_Fault;
+    }
+
 
 #if FULL_SYSTEM
     if (!xc->misspeculating() && xc->fnbin)

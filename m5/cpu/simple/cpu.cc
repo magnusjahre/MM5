@@ -824,6 +824,10 @@ SimpleCPU::tick()
 		xc->func_exe_inst++;
 
 		fault = curStaticInst->execute(this, traceData);
+	    if(fault == Process_Halt_Fault){
+	    	registerProcessHalt();
+	    	fault = No_Fault;
+	    }
 
 #if FULL_SYSTEM
 		if (xc->fnbin)
@@ -887,6 +891,10 @@ SimpleCPU::tick()
 		tickEvent.schedule(curTick + cycles(1));
 }
 
+void
+SimpleCPU::registerProcessHalt(){
+	new SimExitEvent("syscall or halt instruction caused exit");
+}
 
 ////////////////////////////////////////////////////////////////////////
 //

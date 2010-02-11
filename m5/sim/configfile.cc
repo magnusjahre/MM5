@@ -258,8 +258,11 @@ ConfigHierarchy::dump(ostream &stream, const Node *n, int l) const
 void
 ConfigHierarchy::unserializeSimObjects()
 {
-	Checkpoint* cpt = root->unserialize(NULL, "");
-	delete cpt;
+	root->unserialize(NULL, "");
+
+	// keep checkpoint in memory so that processes can be restarted
+	//	Checkpoint* cpt = root->unserialize(NULL, "");
+	//	delete cpt;
 }
 
 // Walks tree in a pre-order traversal and unserializes any

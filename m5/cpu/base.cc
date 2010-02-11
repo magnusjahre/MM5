@@ -332,5 +332,9 @@ BaseCPU::traceFunctionsInternal(Addr pc)
     }
 }
 
+void
+BaseCPU::registerProcessHalt(){
+	fatal("process halt handled by BaseCPU");
+}
 
 DEFINE_SIM_OBJECT_CLASS_NAME("BaseCPU", BaseCPU)

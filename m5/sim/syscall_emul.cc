@@ -91,8 +91,11 @@ exitFunc(SyscallDesc *desc, int callnum, Process *process,
 	 ExecContext *xc)
 {
 
-    DPRINTFR(SyscallVerbose, "%s: Creating sim exit event\n", xc->cpu->name());
-    new SimExitEvent("syscall caused exit", xc->getSyscallArg(0) & 0xff);
+//    DPRINTFR(SyscallVerbose, "%s: Creating sim exit event\n", xc->cpu->name());
+//    new SimExitEvent("syscall caused exit", xc->getSyscallArg(0) & 0xff);
+
+	DPRINTFR(SyscallVerbose, "%s: processing exit syscall\n", xc->cpu->name());
+	xc->cpu->registerProcessHalt();
 
     return 1;
 }

@@ -95,6 +95,8 @@ class BaseCPU : public SimObject
 
   public:
 
+    virtual void registerProcessHalt();
+
     /// Notify the CPU that the indicated context is now active.  The
     /// delay parameter indicates the number of ticks to wait before
     /// executing (typically 0 or 1).

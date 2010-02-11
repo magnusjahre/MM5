@@ -70,6 +70,7 @@ ExecContext::ExecContext(BaseCPU *_cpu, int _thread_num,
     hasBeenStarted = false;
     isSuspended = false;
     memset(&regs, 0, sizeof(RegFile));
+    currentCheckpoint = NULL;
 }
 
 ExecContext::ExecContext(BaseCPU *_cpu, int _thread_num,
@@ -148,11 +149,25 @@ ExecContext::serialize(ostream &os)
 #endif
 }
 
+void
+ExecContext::restartProcess(){
+	cout << "RESTART: Unserializing the execution context...\n";
+	unserialize(currentCheckpoint, "simpleCPU0.xc");
+	cout << "RESTART: Unserializing the process and functional memory...\n";
+	process->unserialize(NULL, "simpleCPU0.workload0");
+	cout << "RESTART: Done!\n";
+}
 
 void
 ExecContext::unserialize(Checkpoint *cp, const std::string &section)
 {
-    UNSERIALIZE_ENUM(_status);
+
+    if(currentCheckpoint == NULL){
+    	currentCheckpoint = cp;
+    }
+    assert(cp != NULL);
+
+	UNSERIALIZE_ENUM(_status);
     regs.unserialize(cp, section);
     // thread_num and cpu_id are deterministic from the config
     UNSERIALIZE_SCALAR(func_exe_inst);
@@ -237,3 +252,4 @@ ExecContext::trap(Fault fault)
     fatal("fault (%d) detected @ PC 0x%08p", fault, readPC());
 #endif
 }
+

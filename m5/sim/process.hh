@@ -126,6 +126,8 @@ class Process : public SimObject
 
     };
 
+    Checkpoint* currentCheckpoint;
+
   protected:
     // constructor
     Process(const std::string &nm,
@@ -149,6 +151,8 @@ class Process : public SimObject
     std::map<int, FileParameters> tgtFDFileParams;
 
     std::string generateFileStateName(const char* prefix, int tgt_fd);
+
+    void cleanFileState(Checkpoint *cp, const std::string &section);
 
   public:
     // static helper functions to generate file descriptors for constructor

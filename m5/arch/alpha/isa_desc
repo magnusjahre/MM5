@@ -2628,7 +2628,8 @@ decode OPCODE default Unknown::unknown() {
     0x00: decode PALFUNC {
 	format EmulatedCallPal {
 	    0x00: halt ({{
-		SimExit(curTick, "halt instruction encountered");
+		// SimExit(curTick, "halt instruction encountered");
+		fault = Process_Halt_Fault;
 	    }}, IsNonSpeculative);
 	    0x83: callsys({{ 
 		xc->syscall();

@@ -271,10 +271,12 @@ def setGenerateCheckpointParams(checkpointAt, simpoint = -1):
 
 def copyCheckpointFiles(directory):
     checkpointfiles = os.listdir(directory)
+    
     for name in checkpointfiles:
         if name != "m5.cpt" and name != "m5.cpt.old":
             print >> sys.stderr, "Copying file "+name+" to current directory"
             shutil.copy(directory+"/"+name, ".")
+            shutil.copy(directory+"/"+name, name+".clean")
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message

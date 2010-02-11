@@ -694,6 +694,9 @@ FullCPU::FullCPU(Params *p,
 	headers.push_back("Committed Instructions");
 	headers.push_back("IPC");
 	committedInstTrace.initalizeTrace(headers);
+
+	restartEvent = NULL;
+	restartHaltedProcesses = true; // TODO: parameterize
 }
 
 
@@ -775,6 +778,8 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
         else{
             fatal("Unimplemented execution status transfer (by Magnus)");
         }
+
+        execContexts[i]->currentCheckpoint = oldCPU->execContexts[i]->currentCheckpoint;
     }
 }
 
@@ -1102,6 +1107,32 @@ BranchPred *
 FullCPU::getBranchPred()
 {
     return branch_pred;
+}
+
+void
+FullCPU::registerProcessHalt(){
+	if(!restartHaltedProcesses){
+		new SimExitEvent("FullCPU: process halt registered");
+	}
+	else{
+		if(restartEvent == NULL){
+			cout << curTick << " " << name() << ": process is finished, scheduling process restart\n";
+			restartEvent = new ProcessRestartEvent(this);
+			restartEvent->schedule(curTick);
+		}
+		else{
+			cout << curTick << " " << name() << ": ignoring duplicate restart message\n";
+		}
+	}
+}
+
+void
+FullCPU::restartProcess(){
+	restartEvent = NULL;
+	assert(number_of_threads == 1);
+	thread[0]->restartProcess();
+
+	cout << curTick << " " << name() << ": restart procedure finished\n";
 }
 
 

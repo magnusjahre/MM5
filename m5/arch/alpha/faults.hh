@@ -51,6 +51,7 @@ enum Fault {
     Pal_Fault,			// call_pal S/W interrupt
     Integer_Overflow_Fault,
     Fake_Mem_Fault,
+    Process_Halt_Fault, // hack to enable restart of processes
     Num_Faults			// number of faults
 };
 

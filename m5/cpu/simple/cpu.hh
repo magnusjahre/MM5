@@ -149,6 +149,9 @@ private:
 			Process *process;
 #endif
 		};
+
+		void registerProcessHalt();
+
 		SimpleCPU(Params *params);
 		virtual ~SimpleCPU();
 

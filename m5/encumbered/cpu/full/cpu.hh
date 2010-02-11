@@ -183,6 +183,9 @@ public:
 	{
 	};
 
+	void registerProcessHalt();
+	void restartProcess();
+
 	FullCPU(FullCPU::Params *params,
 #if FULL_SYSTEM
 			AlphaITB *itb, AlphaDTB *dtb, FunctionalMemory *mem,
@@ -812,6 +815,27 @@ public:
 		};
 
 		TickEvent tickEvent;
+
+		class ProcessRestartEvent : public Event
+		{
+		private:
+			FullCPU *cpu;
+
+		public:
+			ProcessRestartEvent(FullCPU *c)
+			: Event(&mainEventQueue, Sim_Exit_Pri), cpu(c) { }
+
+			void process() {
+				cpu->restartProcess();
+				delete this;
+			}
+
+			virtual const char *description() { return "process restart event"; }
+		};
+
+		bool restartHaltedProcesses;
+		ProcessRestartEvent* restartEvent;
+
 
 		// PC Sampling Profile
 		class PCSampleEvent : public Event
