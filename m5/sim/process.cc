@@ -292,6 +292,29 @@ Process::serialize(std::ostream &os){
 }
 
 void
+Process::copyFile(std::string fromPath, std::string toPath){
+	cout << "Copying " << fromPath << " " << toPath << "\n";
+
+	FILE *from = NULL;
+	FILE *to = NULL;
+	char ch = '0';
+
+	if((from = fopen(fromPath.c_str(), "rb")) ==NULL) fatal("Cannot open source file %s", fromPath);
+	if((to = fopen(toPath.c_str(), "wb"))==NULL) fatal("Cannot open destination file %s", toPath);
+
+	/* copy the file */
+	while(!feof(from)) {
+		ch = fgetc(from);
+		if(ferror(from)) fatal("Error reading source file %s", fromPath);
+		if(!feof(from)) fputc(ch, to);
+		if(ferror(to)) fatal("Error writing destination file %s", toPath);
+	}
+
+	fclose(from);
+	fclose(to);
+}
+
+void
 Process::cleanFileState(Checkpoint *cp, const std::string &section){
 
 	cout << "RESTART: Cleaning file state\n";
@@ -299,36 +322,22 @@ Process::cleanFileState(Checkpoint *cp, const std::string &section){
 	// close open files and clean FD map
 	for(int i=3;i<MAX_FD+1;i++){
 		if(fd_map[i] != -1){
-			cout << "RESTART: closing open file descriptor " << fd_map[i] << "\n";
+			cout << "RESTART: Closing open file descriptor " << fd_map[i] << "\n";
 			close(fd_map[i]);
 			fd_map[i] = -1;
 		}
 	}
 
 	// restore files to their original state
-	// NOTE: this only handles the files that are visible in the checkpoint
-	//       since we don't know anything about the others we can't do anything
-	for(int i=3;i<MAX_FD+1;i++){
-		string pathName = generateFileStateName("path", i);
-		string path;
+	map<int, FileParameters>::iterator it = tgtFDFileParams.begin();
+	for( ; it != tgtFDFileParams.end(); it++){
+		FileParameters params = it->second;
 
-		if(cp->find(section, pathName, path)){
-			char* filename = NULL;
-			if(path.at(0) == '/'){
-				filename = basename((char*) path.c_str());
-				cout << "RESTART: absolute path, using basename " << filename << "\n";
-			}
-			else{
-				filename = (char*) path.c_str();
-				cout << "RESTART: relative path, using original path " << filename << "\n";
-			}
-			stringstream cleanName;
-			cleanName << filename << ".clean";
+		stringstream cleanName;
+		cleanName << params.path << ".clean";
 
-			assert(filename != NULL);
-			cout << "RESTART: executing command cp " << cleanName << " " << filename << "\n";
-			execl("cp", cleanName.str().c_str(), filename, (char*) NULL);
-		}
+		cout << "RESTART: Restoring possibly touched file " << params.path << " with clean file " << cleanName.str() << "\n";
+		copyFile(cleanName.str(), params.path);
 	}
 }
 
@@ -426,6 +435,9 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 			assert(newPos == pos);
 
 			fd_map[i] = sim_fd;
+
+			FileParameters fparams(filename, hostFlags, mode);
+			tgtFDFileParams[i] = fparams;
 		}
 	}
 }

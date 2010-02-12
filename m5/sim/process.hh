@@ -154,6 +154,8 @@ class Process : public SimObject
 
     void cleanFileState(Checkpoint *cp, const std::string &section);
 
+    void copyFile(std::string fromPath, std::string toPath);
+
   public:
     // static helper functions to generate file descriptors for constructor
     static int openInputFile(const std::string &filename);

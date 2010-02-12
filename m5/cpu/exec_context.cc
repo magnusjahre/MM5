@@ -164,7 +164,7 @@ ExecContext::restartProcess(int cpuID, int cpuCount){
 	cout << "RESTART: Unserializing the execution context section " << xcName.str() << "...\n";
 	unserialize(currentCheckpoint, xcName.str());
 	cout << "RESTART: Unserializing the process and functional memory " << wlName.str() << "...\n";
-	process->unserialize(NULL, "simpleCPU0.workload0");
+	process->unserialize(NULL, wlName.str());
 	cout << "RESTART: Done!\n";
 }
 

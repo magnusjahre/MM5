@@ -369,6 +369,7 @@ openFunc(SyscallDesc *desc, int callnum, Process *process, ExecContext *xc)
 		char* basen = basename((char*) path.c_str());
 		std::cout << "Could not open file " << path << ", trying basename " << basen << "\n";
 		fd = open(basen, hostFlags, mode);
+		path = basen;
 	}
 
 	Process::FileParameters params = Process::FileParameters(path, hostFlags, mode);
