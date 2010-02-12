@@ -225,7 +225,7 @@ Process::close_fd(int tgt_fd){
   tgtFDFileParams.erase(tgt_fd);
   assert(tgtFDFileParams.find(tgt_fd) == tgtFDFileParams.end());
   
-  return tgt_fd != fd_map[STDOUT_FILENO] && tgt_fd != fd_map[STDERR_FILENO];
+  return tgt_fd != fd_map[STDOUT_FILENO] && tgt_fd != fd_map[STDERR_FILENO] && tgt_fd != fd_map[STDIN_FILENO];
 }
 
 
