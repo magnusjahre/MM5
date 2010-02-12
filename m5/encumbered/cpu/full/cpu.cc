@@ -1130,7 +1130,7 @@ void
 FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
-	thread[0]->restartProcess();
+	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 
 	cout << curTick << " " << name() << ": restart procedure finished\n";
 }
