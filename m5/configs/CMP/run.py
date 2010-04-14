@@ -66,6 +66,9 @@ def createMemBus(bankcnt):
             
         root.membus[i].adaptive_mha = root.adaptiveMHA
         root.membus[i].interference_manager = root.interferenceManager
+        
+        if "MEMORY-BUS-MAX-UTIL" in env:
+            root.membus[i].utilization_limit = float(env["MEMORY-BUS-MAX-UTIL"])
     
     if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
         root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]

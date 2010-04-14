@@ -13,4 +13,5 @@ class Bus(BaseHier):
     memory_controller = Param.TimingMemoryController("Memory Controller Object")
     infinite_bw = Param.Bool("Infinite bandwidth and only page hits")
     interference_manager = Param.InterferenceManager("Interference manager")
+    utilization_limit = Param.Float("Data bus utilization limit (single core only)")
 

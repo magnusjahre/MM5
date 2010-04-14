@@ -115,6 +115,8 @@ class Bus : public BaseHier
     std::vector<int> requestPerCoreSample;
     std::vector<int> readsPerCoreSample;
 
+    double utilizationLimit;
+
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -138,6 +140,8 @@ class Bus : public BaseHier
 
     AdaptiveMHA* adaptiveMHA;
     InterferenceManager* interferenceManager;
+
+    int getOtherProcUseTime(MemReqPtr& req);
 
   protected:
 
@@ -188,7 +192,8 @@ class Bus : public BaseHier
         TimingMemoryController* _fwController,
         TimingMemoryController* _memoryController,
         bool _infiniteBW,
-        InterferenceManager* intman);
+        InterferenceManager* intman,
+        double _utilizationLimit);
 
     /** Frees locally allocated memory. */
     ~Bus();

@@ -80,7 +80,8 @@ Bus::Bus(const string &_name,
          TimingMemoryController* _fwController,
          TimingMemoryController* _memoryController,
          bool _infiniteBW,
-         InterferenceManager* intman)
+         InterferenceManager* intman,
+         double _utilizationLimit)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -164,6 +165,11 @@ Bus::Bus(const string &_name,
 
     MemoryBusQueuedReqEvent* qrm = new MemoryBusQueuedReqEvent(this);
     qrm->schedule(curTick+1);
+
+    if(_utilizationLimit > 0 && cpu_count != 1) fatal("Utilization limit only makes sense for single core experiments");
+    if(_utilizationLimit > 1.0) fatal("The utilization limit cannot be larger than 1.0");
+    utilizationLimit = _utilizationLimit;
+
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -488,6 +494,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 void
 Bus::handleMemoryController(bool isShadow, int ctrlID)
 {
+
     if (memoryController->hasMoreRequests()) {
 
         MemReqPtr request = memoryController->getRequest();
@@ -529,14 +536,31 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
     }
 }
 
+int
+Bus::getOtherProcUseTime(MemReqPtr& req){
+
+	if(utilizationLimit == 0.0 || req->cmd == Activate || req->cmd == Close){
+		return 0;
+	}
+
+	assert(cpu_count == 1);
+
+	int delayPeriod = slaveInterfaces[0]->getDataTransTime() / utilizationLimit;
+	int otherProcUseTime = delayPeriod - slaveInterfaces[0]->getDataTransTime();
+
+	return otherProcUseTime;
+}
+
 /* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 {
 
+	int simulatedContention = getOtherProcUseTime(req);
+
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
-    memoryControllerEvent->schedule(time);
-    nextfree = time;
+    memoryControllerEvent->schedule(time + simulatedContention);
+    nextfree = time + simulatedContention;
 
     DPRINTF(Bus,
             "latency calculated req %s, addr %x, latency %d\n",
@@ -1157,6 +1181,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     SimObjectParam<TimingMemoryController *> memory_controller;
     Param<bool> infinite_bw;
     SimObjectParam<InterferenceManager* > interference_manager;
+    Param<double> utilization_limit;
 
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
@@ -1175,7 +1200,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(fast_forward_controller, "Memory controller object used in fastforward", NULL),
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
     INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false),
-    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
+    INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
+    INIT_PARAM_DFLT(utilization_limit, "Data bus utilization limit (single core only)", 0.0)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1193,7 +1219,8 @@ CREATE_SIM_OBJECT(Bus)
                    fast_forward_controller,
                    memory_controller,
                    infinite_bw,
-                   interference_manager);
+                   interference_manager,
+                   utilization_limit);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)
