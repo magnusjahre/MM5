@@ -45,6 +45,7 @@
 #include "mem/cache/tags/base_tags.hh"
 
 class BaseCache;
+class LRU;
 
 /**
  * LRU cache block.
@@ -67,15 +68,17 @@ public:
 	/** Cache blocks in this set, maintained in LRU order 0 = MRU. */
 	LRUBlk **blks;
 
+	LRU* lruTags;
+
 	/**
 	 * Find a block matching the tag in this set.
 	 * @param asid The address space ID.
 	 * @param tag The Tag to find.
 	 * @return Pointer to the block if found.
 	 */
-	LRUBlk* findBlk(int asid, Addr tag) const;
+	LRUBlk* findBlk(int asid, Addr tag, int maxUseSets);
 
-	LRUBlk* findBlk(int asid, Addr tag, int* hitIndex);
+	LRUBlk* findBlk(int asid, Addr tag, int* hitIndex, int maxUseSets);
 
 	/**
 	 * Move the given block to the head of the list.
@@ -107,6 +110,8 @@ protected:
 	const int numBanks;
 
 	const bool isShadow;
+
+	int maxUseWays;
 
 	/** The cache sets. */
 	CacheSet *sets;
@@ -145,7 +150,15 @@ public:
 	 * @param _assoc The associativity of the cache.
 	 * @param _hit_latency The latency in cycles for a hit.
 	 */
-	LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor, int _shadowID = -1);
+	LRU(int _numSets,
+		int _blkSize,
+		int _assoc,
+		int _hit_latency,
+		int _bank_count,
+		bool _isShadow,
+		int _divFactor,
+		int _maxUseWays,
+		int _shadowID = -1);
 
 	/**
 	 * Destructor

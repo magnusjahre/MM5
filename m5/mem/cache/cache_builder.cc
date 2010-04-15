@@ -200,6 +200,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<string> interference_probability_policy;
     Param<int> ipp_bits;
     Param<bool> use_aggregate_mlp_estimator;
+    Param<int> max_use_ways;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -303,7 +304,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner"),
     INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
     INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
-    INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true)
+    INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),
+    INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -452,7 +454,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #if defined(USE_CACHE_LRU)
 #define BUILD_LRU_CACHE(b, c) do {				\
-        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count, false, static_partitioning_div_factor);	\
+        LRU *tags = new LRU(numSets, block_size, assoc, latency, bank_count, false, static_partitioning_div_factor, max_use_ways);	\
 	BUILD_COMPRESSED_CACHE(LRU, tags, b, c);			\
     } while (0)
 #else

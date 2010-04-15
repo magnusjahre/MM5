@@ -146,6 +146,12 @@ def initSharedCache(bankcnt):
         for bank in root.SharedCache:
             bank.ipp_bits = env["IPP-BITS"]
    
+    if "MAX-CACHE-WAYS" in env:
+        if int(env["NP"]) != 1:
+            panic("-EMAX-CACHE-WAYS only makes sense for single core experiments")
+        for b in root.SharedCache:
+            b.max_use_ways = int(env["MAX-CACHE-WAYS"])
+   
     for bank in root.SharedCache:
         bank.interference_manager = root.interferenceManager
    

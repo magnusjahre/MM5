@@ -46,21 +46,24 @@
 using namespace std;
 
 LRUBlk*
-CacheSet::findBlk(int asid, Addr tag) const
+CacheSet::findBlk(int asid, Addr tag, int maxUseSets)
 {
-	for (int i = 0; i < assoc; ++i) {
-		if (blks[i]->tag == tag && blks[i]->isValid()) {
-			return blks[i];
-		}
-	}
-	return 0;
+	int hitIndex = -1;
+	return findBlk(asid, tag, &hitIndex, maxUseSets);
 }
 
 LRUBlk*
-CacheSet::findBlk(int asid, Addr tag, int* hitIndex)
+CacheSet::findBlk(int asid, Addr tag, int* hitIndex, int maxUseSets)
 {
 	for (int i = 0; i < assoc; ++i) {
 		if (blks[i]->tag == tag && blks[i]->isValid()) {
+
+			if(i >= maxUseSets){
+				assert(lruTags->cache->isShared);
+				assert(lruTags->cache->cpuCount == 1);
+				return NULL;
+			}
+
 			*hitIndex = i;
 			return blks[i];
 		}
@@ -103,7 +106,7 @@ CacheSet::moveToHead(LRUBlk *blk)
 
 // create and initialize a LRU/MRU cache structure
 //block size is configured in bytes
-LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor, int _shadowID) :
+LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_count, bool _isShadow, int _divFactor, int _maxUseWays, int _shadowID) :
 	numSets(_numSets), blkSize(_blkSize), assoc(_assoc), hitLatency(_hit_latency),numBanks(_bank_count),isShadow(_isShadow),divFactor(_divFactor)
 	{
 
@@ -154,6 +157,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	blkIndex = 0;	// index into blks array
 	for (i = 0; i < numSets; ++i) {
 		sets[i].assoc = assoc;
+		sets[i].lruTags = this;
 
 		sets[i].blks = new LRUBlk*[assoc];
 
@@ -185,10 +189,18 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 		perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
 	}
 
+	if(_maxUseWays != -1){
+		if(isShadow) fatal("Maximum use ways does not make sense for shadow tags");
+		if(_maxUseWays < 1 || _maxUseWays > assoc) fatal("Max use ways must be a number between 1 and the cache associativity");
+		maxUseWays = _maxUseWays;
+	}
+	else{
+		maxUseWays = assoc;
+	}
 
 	accesses = 0;
 	useMTPPartitioning = false;
-	}
+}
 
 LRU::~LRU()
 {
@@ -216,7 +228,7 @@ LRU::probe(int asid, Addr addr) const
 	Addr tag = extractTag(addr);
 	unsigned myset = extractSet(addr);
 
-	LRUBlk *blk = sets[myset].findBlk(asid, tag);
+	LRUBlk *blk = sets[myset].findBlk(asid, tag, maxUseWays);
 
 	return (blk != NULL);	// true if in cache
 }
@@ -224,10 +236,12 @@ LRU::probe(int asid, Addr addr) const
 LRUBlk*
 LRU::findBlock(Addr addr, int asid, int &lat)
 {
+
 	Addr tag = extractTag(addr);
 	unsigned set = extractSet(addr);
 
-	LRUBlk *blk = sets[set].findBlk(asid, tag);
+	int hitIndex = -1;
+	LRUBlk *blk = sets[set].findBlk(asid, tag, &hitIndex, maxUseWays);
 
 	lat = hitLatency;
 	if (blk != NULL) {
@@ -260,11 +274,11 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 	Addr tag = extractTag(addr);
 	unsigned set = extractSet(addr);
 
-	LRUBlk *blk = NULL;
+	int hitIndex = -1;
+	LRUBlk *blk = sets[set].findBlk(asid, tag, &hitIndex, maxUseWays);
+
 	if(isShadow){
 		accesses++;
-		int hitIndex = -1;
-		blk = sets[set].findBlk(asid, tag, &hitIndex);
 		if(blk != NULL){
 			assert(hitIndex >= 0 && hitIndex < assoc);
 			perSetHitCounters[set][hitIndex]++;
@@ -273,9 +287,6 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 		else{
 			assert(hitIndex == -1);
 		}
-	}
-	else{
-		blk = sets[set].findBlk(asid, tag);
 	}
 
 	lat = hitLatency;
@@ -309,7 +320,7 @@ LRU::updateSetHitStats(MemReqPtr& req){
 	int hitIndex = -1;
 	Addr tag = extractTag(req->paddr);
 	unsigned set = extractSet(req->paddr);
-	LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex);
+	LRUBlk* tmpBlk = sets[set].findBlk(req->asid, tag, &hitIndex, maxUseWays);
 	if(tmpBlk == NULL) return; // cache miss, no hit statistics :-)
 
 	assert(req->adaptiveMHASenderID != -1);
@@ -356,7 +367,7 @@ LRU::findBlock(Addr addr, int asid) const
 {
 	Addr tag = extractTag(addr);
 	unsigned set = extractSet(addr);
-	LRUBlk *blk = sets[set].findBlk(asid, tag);
+	LRUBlk *blk = sets[set].findBlk(asid, tag, maxUseWays);
 	return blk;
 }
 

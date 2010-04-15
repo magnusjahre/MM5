@@ -50,10 +50,12 @@ class BaseCache;
  */
 class BaseTags
 {
-  protected:
+
+public:
     /** Pointer to the parent cache. */
     BaseCache *cache;
 
+protected:
     int bankID;
 
     /** Local copy of the parent cache name. Used for DPRINTF. */

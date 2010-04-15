@@ -114,7 +114,8 @@ Cache(const std::string &_name, HierParams *hier_params,
                                     hitLatency,
                                     params.bankCount,
                                     true,
-                                    -1,
+                                    -1, // division factor
+                                    -1, // max use ways
                                     i);
 
             shadowTags[i]->setCache(this, false);

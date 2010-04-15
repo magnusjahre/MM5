@@ -115,3 +115,4 @@ class BaseCache(BaseMem):
     interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
     ipp_bits = Param.Int("The resolution of the probability (used in a subset of IPP modes)")
     use_aggregate_mlp_estimator = Param.Bool("Use the aggregate MLP estimator (and not the per MSHR estimator)")
+    max_use_ways = Param.Int("Maximum number of ways available (Only for shared caches and single core)")
