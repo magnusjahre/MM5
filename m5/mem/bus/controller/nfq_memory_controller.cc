@@ -16,8 +16,7 @@ NFQMemoryController::NFQMemoryController(std::string _name,
                                          int _wrQueueLength,
                                          int _spt,
                                          int _numCPUs,
-                                         int _processorPriority,
-                                         int _writePriority,
+                                         vector<double> _priorities,
                                          bool _infWriteBW)
     : TimingMemoryController(_name) {
 
@@ -26,17 +25,6 @@ NFQMemoryController::NFQMemoryController(std::string _name,
     starvationPreventionThreshold = _spt;
 
     nfqNumCPUs = _numCPUs;
-    processorPriority = _processorPriority;
-    writebackPriority = _writePriority;
-
-    if(processorPriority < writebackPriority){
-        processorInc = writebackPriority / processorPriority;
-        writebackInc = 1;
-    }
-    else{
-        processorInc = 1;
-        writebackInc = processorPriority / writebackPriority;
-    }
 
     virtualFinishTimes.resize(nfqNumCPUs+1, 0);
     requests.resize(nfqNumCPUs+1);
@@ -50,9 +38,30 @@ NFQMemoryController::NFQMemoryController(std::string _name,
     starvationCounter = 0;
 
     infiniteWriteBW = _infWriteBW;
+
+    setUpWeights(_priorities);
 }
 
 NFQMemoryController::~NFQMemoryController(){
+}
+
+void
+NFQMemoryController::setUpWeights(std::vector<double> priorities){
+
+    double max = 0.0;
+    double min = 2.0;
+    for(int i=0; i< priorities.size(); i++){
+    	if(priorities[i] > max) max = priorities[i];
+    	if(priorities[i] < min) min = priorities[i];
+    }
+
+    processorIncrements.resize(nfqNumCPUs, 0);
+    for(int i=0; i<priorities.size(); i++){
+    	processorIncrements[i] = (int) (max / priorities[i]);
+    }
+
+    // writebacks has the same priority as the lowest-priority processor
+    writebackIncrement = (int) (1.0 * (max/min));
 }
 
 int
@@ -79,19 +88,21 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     // assign start time and update virtual clock
     req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
     if(req->adaptiveMHASenderID >= 0){
-        virtualFinishTimes[req->adaptiveMHASenderID] = req->virtualStartTime + processorInc;
+        virtualFinishTimes[req->adaptiveMHASenderID] = req->virtualStartTime + processorIncrements[req->adaptiveMHASenderID];
     }
     else{
         assert(req->cmd == Writeback);
-        virtualFinishTimes[nfqNumCPUs] = req->virtualStartTime + writebackInc;
+        virtualFinishTimes[nfqNumCPUs] = req->virtualStartTime + writebackIncrement;
     }
 
     DPRINTF(MemoryController,
-            "Inserting request from cpu %d, addr %d, start time is %d, minimum time is %d\n",
+            "Inserting request from cpu %d, addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
             req->adaptiveMHASenderID,
             req->paddr,
             req->virtualStartTime,
-            minTag);
+            minTag,
+            (req->cmd == Writeback ? virtualFinishTimes[nfqNumCPUs] : virtualFinishTimes[req->adaptiveMHASenderID]),
+            (req->cmd == Writeback ? writebackIncrement : processorIncrements[req->adaptiveMHASenderID]));
 
     if(req->adaptiveMHASenderID >= 0){
         assert(req->adaptiveMHASenderID < nfqNumCPUs);
@@ -412,8 +423,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(NFQMemoryController)
     Param<int> wr_queue_size;
     Param<int> starvation_prevention_thres;
     Param<int> num_cpus;
-    Param<int> processor_priority;
-    Param<int> writeback_priority;
+    VectorParam<double> priorities;
     Param<bool> inf_write_bw;
 END_DECLARE_SIM_OBJECT_PARAMS(NFQMemoryController)
 
@@ -423,8 +433,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
     INIT_PARAM_DFLT(wr_queue_size, "Max write queue size", 64),
     INIT_PARAM_DFLT(starvation_prevention_thres, "Starvation Prevention Threshold", 1),
     INIT_PARAM_DFLT(num_cpus, "Number of CPUs", -1),
-    INIT_PARAM_DFLT(processor_priority, "The priority given to writeback requests", -1),
-    INIT_PARAM_DFLT(writeback_priority, "The priority given to writeback requests", -1),
+    INIT_PARAM(priorities, "The per thread priorities"),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false)
 
 END_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
@@ -437,8 +446,7 @@ CREATE_SIM_OBJECT(NFQMemoryController)
                                    wr_queue_size,
                                    starvation_prevention_thres,
                                    num_cpus,
-                                   processor_priority,
-                                   writeback_priority,
+                                   priorities,
                                    inf_write_bw);
 }
 

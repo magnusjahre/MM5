@@ -30,6 +30,30 @@ SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
 # Convenience Methods
 ###############################################################################
 
+def setNFQParams(useTrafficGenerator, controllerID):
+    if useTrafficGenerator:
+        length = int(env["NP"])+1
+    else:
+        length = int(env["NP"])
+        
+    root.membus[controllerID].memory_controller.num_cpus = length
+        
+    priorities = [1.0 / float(length) for i in range(length)]
+    
+    if "NFQ-PRIORITIES" in env:
+        pris = env["NFQ-PRIORITIES"].split(",")
+        
+        if len(pris) != int(env["NP"])+1:
+            fatal("You need to provide NFQ priorites for both all cores (and the traffic generator if available)")
+            
+        for i in range(length):
+            priorities[i] = float(pris[i])
+        
+    if sum(priorities) != 1.0:
+        fatal("The provided NFQ priorities must add up to 1")
+         
+    root.membus[controllerID].memory_controller.priorities = priorities
+
 def createMemBus(bankcnt):
     assert 'MEMORY-BUS-CHANNELS' in env
     
@@ -58,17 +82,11 @@ def createMemBus(bankcnt):
         
         elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
             root.membus[i].memory_controller = ThroughputNFQMemoryController()
-            if useTrafficGenerator:
-                root.membus[i].memory_controller.num_cpus = int(env["NP"])+1
-            else:
-                root.membus[i].memory_controller.num_cpus = int(env["NP"])
+            setNFQParams(useTrafficGenerator, i)
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
             root.membus[i].memory_controller = FairNFQMemoryController()
-            if useTrafficGenerator:
-                root.membus[i].memory_controller.num_cpus = int(env["NP"])+1
-            else:
-                root.membus[i].memory_controller.num_cpus = int(env["NP"])
+            setNFQParams(useTrafficGenerator, i)
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
             root.membus[i].memory_controller = InOrderMemoryController()

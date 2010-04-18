@@ -18,10 +18,8 @@ class NFQMemoryController : public TimingMemoryController
         int starvationPreventionThreshold;
         int nfqNumCPUs;
 
-        int processorPriority;
-        int processorInc;
-        int writebackPriority;
-        int writebackInc;
+        std::vector<int> processorIncrements;
+        int writebackIncrement;
 
         std::vector<Tick> virtualFinishTimes;
         std::vector<std::vector<MemReqPtr> > requests;
@@ -54,6 +52,8 @@ class NFQMemoryController : public TimingMemoryController
 
         void printRequestQueue(Tick fromTick);
 
+        void setUpWeights(std::vector<double> priorities);
+
     public:
 
         /** Constructs a Memory Controller object. */
@@ -62,8 +62,7 @@ class NFQMemoryController : public TimingMemoryController
                             int _wrQueueLength,
                             int _spt,
                             int _numCPUs,
-                            int _processorPriority,
-                            int _writePriority,
+                            std::vector<double> priorities,
                             bool _infiniteWriteBW);
 
         /** Frees locally allocated memory. */
