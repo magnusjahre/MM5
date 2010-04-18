@@ -58,6 +58,7 @@
 #include "mem/timing/simple_mem_bank.hh"
 
 #include "mem/bus/slave_interface.hh"
+#include "mem/bus/controller/traffic_generator.hh"
 
 //NOTE: these should _never_ be defined when running experiments!
 // #define DO_BUS_TRACE 1
@@ -116,6 +117,8 @@ class Bus : public BaseHier
     std::vector<int> readsPerCoreSample;
 
     double utilizationLimit;
+
+    TrafficGenerator* trafficGenerator;
 
   public:
     /** Width of the bus in bytes. */
@@ -342,6 +345,9 @@ class Bus : public BaseHier
     double getActualUtilization();
     std::vector<int> getPerCoreBusAccesses();
     std::vector<int> getPerCoreBusReads();
+
+    void registerTrafficGenerator(TrafficGenerator* _trafGen);
+    void sendGeneratedRequest(MemReqPtr& req);
 
   private:
     std::vector<int> perCPUDataBusUse;

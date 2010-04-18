@@ -297,7 +297,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
     }
 
-    if(req->adaptiveMHASenderID != -1) perCPURequests[req->adaptiveMHASenderID]++;
+    if(req->adaptiveMHASenderID > -1 && req->adaptiveMHASenderID < bmCPUCount) perCPURequests[req->adaptiveMHASenderID]++;
 
     assert(req->cmd == Writeback || req->cmd == Read);
     if (curTick < readyTime[bank]) {
@@ -308,10 +308,12 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         number_of_non_overlap_activate++;
     }
 
+    if(req->adaptiveMHASenderID > -1 && req->adaptiveMHASenderID < bmCPUCount){
 #ifdef DO_HIT_TRACE
     bool isConfict =
 #endif
     	updateLatencyDistribution(isHit, latency, bank, req);
+    }
 
     bankInConflict[bank] = false;
 

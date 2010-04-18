@@ -357,7 +357,6 @@ class FairNFQMemoryController(NFQMemoryController):
     rd_queue_size = 64
     wr_queue_size = 64
     starvation_prevention_thres = 0
-    num_cpus = int(env["NP"])
     processor_priority = 1
     writeback_priority = 1
     
@@ -365,7 +364,6 @@ class ThroughputNFQMemoryController(NFQMemoryController):
     rd_queue_size = 64
     wr_queue_size = 64
     starvation_prevention_thres = 3
-    num_cpus = int(env["NP"])
     processor_priority = 1
     writeback_priority = 1
     

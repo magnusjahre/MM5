@@ -87,7 +87,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     DPRINTF(MemoryController,
-            "Inserting request from cpu %d, addr %x, start time is %d, minimum time is %d\n",
+            "Inserting request from cpu %d, addr %d, start time is %d, minimum time is %d\n",
             req->adaptiveMHASenderID,
             req->paddr,
             req->virtualStartTime,
@@ -285,7 +285,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             activePages.erase(activePages.begin()+i);
 
             DPRINTF(MemoryController,
-                    "Closing page %x request addr %x because it has no pending requests\n",
+                    "Closing page %d request addr %d because it has no pending requests\n",
                     getPage(req),
                     req->paddr);
 
@@ -305,7 +305,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         req = createCloseReq(activePages[hitIndex]);
         activePages.erase(activePages.begin()+hitIndex);
         DPRINTF(MemoryController,
-                "Closing page %x, request addr %x due to page conflict with addr %x\n",
+                "Closing page %d, request addr %d due to page conflict with addr %d\n",
                 getPage(req),
                 req->paddr,
                 oldestReq->paddr);
@@ -316,7 +316,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         req = createCloseReq(activePages[0]);
         activePages.erase(activePages.begin());
         DPRINTF(MemoryController,
-                "Closing page %x, request addr %x to issue oldest request\n",
+                "Closing page %d, request addr %d to issue oldest request\n",
                 getPage(req),
                 req->paddr);
 
@@ -325,7 +325,7 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
         req = createActivateReq(oldestReq);
         activePages.push_back(getPage(oldestReq));
         DPRINTF(MemoryController,
-                "Activating page, req addr %x, page addr %x, %d pages are currently active\n",
+                "Activating page, req addr %d, page addr %d, %d pages are currently active\n",
                 req->paddr,
                 getPage(req),
                 activePages.size());
@@ -363,7 +363,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
     }
 
     DPRINTF(MemoryController,
-            "Returning column request, start time %d, addr %x, cpu %d\n",
+            "Returning column request, start time %d, addr %d, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
             req->adaptiveMHASenderID);

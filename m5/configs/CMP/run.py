@@ -38,9 +38,13 @@ def createMemBus(bankcnt):
     assert bankcnt >= channels
     banksPerBus = bankcnt / channels
     
-    
     root.membus = [ConventionalMemBus() for i in range(channels)]
     root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(channels)]
+    
+    useTrafficGenerator = False
+    if "GENERATE-BACKGROUND-TRAFFIC" in env:
+        useTrafficGenerator = True
+        root.trafficGenerators = [TrafficGenerator(membus=root.membus[i],use_id=int(env["NP"])) for i in range(channels)]
     
     for i in range(channels):
         
@@ -54,9 +58,17 @@ def createMemBus(bankcnt):
         
         elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
             root.membus[i].memory_controller = ThroughputNFQMemoryController()
+            if useTrafficGenerator:
+                root.membus[i].memory_controller.num_cpus = int(env["NP"])+1
+            else:
+                root.membus[i].memory_controller.num_cpus = int(env["NP"])
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
             root.membus[i].memory_controller = FairNFQMemoryController()
+            if useTrafficGenerator:
+                root.membus[i].memory_controller.num_cpus = int(env["NP"])+1
+            else:
+                root.membus[i].memory_controller.num_cpus = int(env["NP"])
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
             root.membus[i].memory_controller = InOrderMemoryController()

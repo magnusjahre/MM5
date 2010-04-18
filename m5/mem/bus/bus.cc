@@ -170,6 +170,7 @@ Bus::Bus(const string &_name,
     if(_utilizationLimit > 1.0) fatal("The utilization limit cannot be larger than 1.0");
     utilizationLimit = _utilizationLimit;
 
+    trafficGenerator = NULL;
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -427,7 +428,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     	else writesPerCPU[req->adaptiveMHASenderID]++;
     }
 
-    DPRINTF(Bus, "issuing req %s addr %x from id %d, name %s\n",
+    DPRINTF(Bus, "issuing req %s addr %d from id %d, name %s\n",
 	    req->cmd.toString(), req->paddr,
 	    req->busId, interfaces[req->busId]->name());
 
@@ -499,7 +500,7 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 
         MemReqPtr request = memoryController->getRequest();
 
-        DPRINTF(Bus, "sending req %s addr %x \n", request->cmd.toString(), request->paddr);
+        DPRINTF(Bus, "sending req %s addr %d \n", request->cmd.toString(), request->paddr);
 
 #ifdef INJECT_TEST_REQUESTS
         if(!request->isDDRTestReq && (request->cmd == Read || request->cmd == Writeback)){
@@ -518,10 +519,11 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 #endif
 
         if(request->cmd != Activate && request->cmd != Close){
-            assert(request->inserted_into_memory_controller > 0);
+
+            assert(request->inserted_into_memory_controller >= 0);
             int queue_lat = (curTick - request->inserted_into_memory_controller) + request->memBusBlockedWaitCycles;
             totalQueueCycles += queue_lat;
-            if(request->adaptiveMHASenderID != -1){
+            if(request->adaptiveMHASenderID >= 0 && request->adaptiveMHASenderID < cpu_count){
                 perCPUQueueCycles[request->adaptiveMHASenderID] += queue_lat;
                 perCPURequests[request->adaptiveMHASenderID] += 1;
                 int sum = 0;
@@ -563,10 +565,18 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     nextfree = time + simulatedContention;
 
     DPRINTF(Bus,
-            "latency calculated req %s, addr %x, latency %d\n",
+            "latency calculated req %s, addr %d, latency %d\n",
             req->cmd.toString(),
             req->paddr,
             time - curTick);
+
+    if(req->adaptiveMHASenderID == cpu_count){
+    	DPRINTF(Bus, "Generated request for addr %d finished, informing generator\n", req->paddr);
+    	assert(trafficGenerator != NULL);
+    	trafficGenerator->requestCompleted(time);
+    	return;
+    }
+
 
 #ifdef DO_BUS_TRACE
     assert(slaveInterfaces.size() == 1);
@@ -893,6 +903,22 @@ Bus::getPerCoreBusReads(){
 	for(int i=0;i<readsPerCoreSample.size();i++) readsPerCoreSample[i] = 0;
 	return retval;
 }
+
+void
+Bus::registerTrafficGenerator(TrafficGenerator* _trafGen){
+	trafficGenerator = _trafGen;
+}
+
+void
+Bus::sendGeneratedRequest(MemReqPtr& req){
+    DPRINTF(Bus, "Inserting generated request for addr %d\n", req->paddr);
+	memoryController->insertRequest(req);
+
+	if (!memoryControllerEvent->scheduled()) {
+		memoryControllerEvent->schedule(curTick);
+	}
+}
+
 
 #ifdef INJECT_TEST_REQUESTS
 void

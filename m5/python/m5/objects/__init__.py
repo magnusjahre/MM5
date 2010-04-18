@@ -74,6 +74,7 @@ file_bases = ['AdaptiveMHA',
               'System',
               'TimingMemoryController',
               'Trace',
+              'TrafficGenerator',
               'Tru64System',
               'Tsunami',
               'Uart']
