@@ -348,6 +348,7 @@ class Bus : public BaseHier
 
     void registerTrafficGenerator(TrafficGenerator* _trafGen);
     void sendGeneratedRequest(MemReqPtr& req);
+    int getCPUCount();
 
   private:
     std::vector<int> perCPUDataBusUse;

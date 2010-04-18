@@ -23,6 +23,8 @@ private:
 	int useID;
 	int concurrentRequestLoad;
 
+	Addr nextRequestAddr;
+
 public:
 
 	TrafficGenerator(std::string _name,

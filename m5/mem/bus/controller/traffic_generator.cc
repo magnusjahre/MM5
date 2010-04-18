@@ -24,6 +24,8 @@ TrafficGenerator::TrafficGenerator(string _name,
 	for(int i=0;i<concurrentRequestLoad;i++){
 		requestCompleted(curTick+1);
 	}
+
+	nextRequestAddr = membus->relocateAddrForCPU(useID, 0, membus->getCPUCount()+1);
 }
 
 void
@@ -31,10 +33,12 @@ TrafficGenerator::sendGeneratedRequest(){
 	MemReqPtr req = new MemReq();
 
 	req->cmd = Read;
-	req->paddr = 42; // TODO: fix address generation
+	req->paddr = nextRequestAddr;
 	req->adaptiveMHASenderID = useID;
 
 	membus->sendGeneratedRequest(req);
+
+	nextRequestAddr += 64;
 }
 
 void

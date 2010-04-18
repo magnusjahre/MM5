@@ -919,6 +919,10 @@ Bus::sendGeneratedRequest(MemReqPtr& req){
 	}
 }
 
+int
+Bus::getCPUCount(){
+	return cpu_count;
+}
 
 #ifdef INJECT_TEST_REQUESTS
 void
