@@ -547,7 +547,7 @@ Bus::getOtherProcUseTime(MemReqPtr& req){
 
 	assert(cpu_count == 1);
 
-	int delayPeriod = slaveInterfaces[0]->getDataTransTime() / utilizationLimit;
+	int delayPeriod = (int) ((double) slaveInterfaces[0]->getDataTransTime() / utilizationLimit);
 	int otherProcUseTime = delayPeriod - slaveInterfaces[0]->getDataTransTime();
 
 	return otherProcUseTime;
