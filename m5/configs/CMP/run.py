@@ -9,7 +9,10 @@ import single_core_fw as single_core
 import simpoints
 import os
 import shutil
+import pickle
 from DetailedConfig import *
+
+from resourcePartition import ResourcePartition
 
 ###############################################################################
 # Constants
@@ -30,31 +33,36 @@ SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
 # Convenience Methods
 ###############################################################################
 
-def setNFQParams(useTrafficGenerator, controllerID):
+def setNFQParams(useTrafficGenerator, controllerID, optPart):
     if useTrafficGenerator:
         length = int(env["NP"])+1
     else:
         length = int(env["NP"])
         
     root.membus[controllerID].memory_controller.num_cpus = length
-        
+    
     priorities = [1.0 / float(length) for i in range(length)]
     
-    if "NFQ-PRIORITIES" in env:
-        pris = env["NFQ-PRIORITIES"].split(",")
-        
-        if len(pris) != int(env["NP"])+1:
-            fatal("You need to provide NFQ priorites for both all cores (and the traffic generator if available)")
+    if optPart != None:
+        if len(optPart.utils) != length:
+            panic("The number of partitions does not match the number of CPUs")
+        priorities = optPart.utils
+    else:
+        if "NFQ-PRIORITIES" in env:
+            pris = env["NFQ-PRIORITIES"].split(",")
             
-        for i in range(length):
-            priorities[i] = float(pris[i])
+            if len(pris) != int(env["NP"])+1:
+                fatal("You need to provide NFQ priorities for both all cores (and the traffic generator if available)")
+                
+            for i in range(length):
+                priorities[i] = float(pris[i])
         
     if sum(priorities) != 1.0:
         fatal("The provided NFQ priorities must add up to 1")
-         
+    
     root.membus[controllerID].memory_controller.priorities = priorities
 
-def createMemBus(bankcnt):
+def createMemBus(bankcnt, optPart):
     assert 'MEMORY-BUS-CHANNELS' in env
     
     channels = int(env['MEMORY-BUS-CHANNELS'])
@@ -82,11 +90,11 @@ def createMemBus(bankcnt):
         
         elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
             root.membus[i].memory_controller = ThroughputNFQMemoryController()
-            setNFQParams(useTrafficGenerator, i)
+            setNFQParams(useTrafficGenerator, i, optPart)
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FNFQ":
             root.membus[i].memory_controller = FairNFQMemoryController()
-            setNFQParams(useTrafficGenerator, i)
+            setNFQParams(useTrafficGenerator, i, optPart)
             
         elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
             root.membus[i].memory_controller = InOrderMemoryController()
@@ -127,7 +135,10 @@ def createMemBus(bankcnt):
         
                 
 
-def initSharedCache(bankcnt):
+def initSharedCache(bankcnt, optPart):
+    
+    warn("Optimal partition handling not implemented for shared caches")
+    
     if int(env['NP']) == 4:
         root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
     elif int(env['NP']) == 8:
@@ -316,6 +327,29 @@ def copyCheckpointFiles(directory):
             print >> sys.stderr, "Copying file "+name+" to current directory"
             shutil.copy(directory+"/"+name, ".")
             shutil.copy(directory+"/"+name, name+".clean")
+
+def readOptimalPartition():
+    
+    if int(env["NP"]) == 1:
+        warn("Resource partitioning does not make sense for single cores, assuming baseline")
+        return None
+    
+    if not os.path.exists(env['OPTIMAL-PARTITION-FILE']):
+        panic("File "+env['OPTIMAL-PARTITION-FILE']+" not found")
+    pklfile = open(env['OPTIMAL-PARTITION-FILE'])
+    tmpData = pickle.load(pklfile)
+    
+    optPartMetricOptName = "OPTIMAL-PARTITION-METRIC"
+    if optPartMetricOptName not in env:
+        panic("-E"+optPartMetricOptName+" is needed for optimal partitions")
+        
+    if env[optPartMetricOptName] not in tmpData:
+        panic("Provided partitioning file does not contain partitions for metric "+env[optPartMetricOptName])
+    
+    if env["BENCHMARK"] not in tmpData[env[optPartMetricOptName]]:
+        panic("There is no data for workload "+env["BENCHMARK"]+" and metric "+env[optPartMetricOptName]+" in the provided partition file")
+        
+    return tmpData[env[optPartMetricOptName]][env["BENCHMARK"]]
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message
@@ -689,14 +723,20 @@ fixedRoundtripLatency = -1
 if 'FIXED-ROUNDTRIP-LATENCY' in env:
     fixedRoundtripLatency = int(env['FIXED-ROUNDTRIP-LATENCY'])
 
+optPartData = None
+if 'OPTIMAL-PARTITION-FILE' in env:
+    optPartData = readOptimalPartition()
+
+print >> sys.stderr, optPartData
+
 if env['MEMORY-SYSTEM'] == "Legacy":
     panic("Legacy memory system no longer supported")
 
 elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 
     bankcnt = 4
-    createMemBus(bankcnt)
-    initSharedCache(bankcnt)
+    createMemBus(bankcnt, optPartData)
+    initSharedCache(bankcnt, optPartData)
 
     root.interconnect = InterconnectCrossbar()
     root.interconnect.cpu_count = int(env['NP'])
@@ -712,8 +752,8 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 elif env['MEMORY-SYSTEM'] == "RingBased":
 
     bankcnt = 4
-    createMemBus(bankcnt)
-    initSharedCache(bankcnt)
+    createMemBus(bankcnt, optPartData)
+    initSharedCache(bankcnt, optPartData)
 
     for link in root.PointToPointLink:
         link.detailed_sim_start_tick = cacheProfileStart
