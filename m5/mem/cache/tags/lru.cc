@@ -199,7 +199,11 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	}
 
 	accesses = 0;
-	useMTPPartitioning = false;
+	doPartitioning = false;
+
+	if(isShadow && doPartitioning){
+		fatal("Partitioning does not make sense for shadow tags");
+	}
 }
 
 LRU::~LRU()
@@ -379,75 +383,8 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 
 	// grab a replacement candidate
 	LRUBlk *blk = NULL;
-	if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
-			|| (useMTPPartitioning && !isShadow)
-			|| (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick)){
-
-		if(curTick > cache->uniformPartitioningStartTick) assert(!isShadow);
-
-		int fromProc = req->adaptiveMHASenderID;
-		assert(fromProc >= 0 && fromProc < cache->cpuCount);
-
-		// we know that assoc is a power of two, checked in the constructor
-		int maxBlks = -1;
-		if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
-			if(cache->cpuCount == 1){
-				maxBlks = (int) ((double) assoc / (double) divFactor);
-			}
-			else{
-				maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-			}
-		}
-		else{
-			maxBlks = currentMTPPartition[fromProc];
-		}
-		assert(maxBlks >= 1);
-
-		vector<int> blkCnt(cache->cpuCount, 0);
-		for(int i=0;i<assoc;i++){
-			int tmpID = sets[set].blks[i]->origRequestingCpuID;
-			if(tmpID >= 0){
-				assert(tmpID >= 0 && tmpID < cache->cpuCount);
-				blkCnt[tmpID]++;
-			}
-		}
-
-		bool found = false;
-		if(blkCnt[fromProc] < maxBlks){
-			blk = sets[set].blks[assoc-1];
-			if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !useMTPPartitioning){
-				// not using all blocks
-				found = true;
-				assert(!blk->isTouched);
-			}
-			else{
-				if(!blk->isTouched) found = true;
-				else{
-
-					// using MTP partitioning, evict the LRU block from a cache that is using more than its quota
-					for(int i = assoc-1;i>=0;i--){
-						blk = sets[set].blks[i];
-						assert(blk->origRequestingCpuID != -1);
-						if(blkCnt[blk->origRequestingCpuID] > currentMTPPartition[blk->origRequestingCpuID]){
-							found = true;
-							break;
-						}
-					}
-				}
-			}
-		}
-		else{
-
-			// replace the LRU block belonging to this cache
-			for(int i = assoc-1;i>=0;i--){
-				blk = sets[set].blks[i];
-				if(blk->origRequestingCpuID == fromProc){
-					found = true;
-					break;
-				}
-			}
-		}
-		assert(found);
+	if(doPartitioning){
+		fatal("partitioning not implemented");
 	}
 	else{
 		blk = sets[set].blks[assoc-1];
@@ -477,6 +414,113 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 	}
 	return blk;
 }
+
+//LRUBlk*
+//LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
+//		BlkList &compress_blocks)
+//{
+//	unsigned set = extractSet(req->paddr);
+//
+//	// grab a replacement candidate
+//	LRUBlk *blk = NULL;
+//	if((cache->useUniformPartitioning && curTick > cache->uniformPartitioningStartTick && !isShadow)
+//			|| (doPartitioning && !isShadow)
+//			|| (cache->useStaticPartInWarmup && curTick <= cache->uniformPartitioningStartTick)){
+//
+//		if(curTick > cache->uniformPartitioningStartTick) assert(!isShadow);
+//
+//		int fromProc = req->adaptiveMHASenderID;
+//		assert(fromProc >= 0 && fromProc < cache->cpuCount);
+//
+//		// we know that assoc is a power of two, checked in the constructor
+//		int maxBlks = -1;
+//		if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !doPartitioning){
+//			if(cache->cpuCount == 1){
+//				maxBlks = (int) ((double) assoc / (double) divFactor);
+//			}
+//			else{
+//				maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+//			}
+//		}
+//		else{
+//			maxBlks = currentPartition[fromProc];
+//		}
+//		assert(maxBlks >= 1);
+//
+//		vector<int> blkCnt(cache->cpuCount, 0);
+//		for(int i=0;i<assoc;i++){
+//			int tmpID = sets[set].blks[i]->origRequestingCpuID;
+//			if(tmpID >= 0){
+//				assert(tmpID >= 0 && tmpID < cache->cpuCount);
+//				blkCnt[tmpID]++;
+//			}
+//		}
+//
+//		bool found = false;
+//		if(blkCnt[fromProc] < maxBlks){
+//			blk = sets[set].blks[assoc-1];
+//			if((cache->useUniformPartitioning || cache->useStaticPartInWarmup) && !doPartitioning){
+//				// not using all blocks
+//				found = true;
+//				assert(!blk->isTouched);
+//			}
+//			else{
+//				if(!blk->isTouched) found = true;
+//				else{
+//
+//					// using MTP partitioning, evict the LRU block from a cache that is using more than its quota
+//					for(int i = assoc-1;i>=0;i--){
+//						blk = sets[set].blks[i];
+//						assert(blk->origRequestingCpuID != -1);
+//						if(blkCnt[blk->origRequestingCpuID] > currentPartition[blk->origRequestingCpuID]){
+//							found = true;
+//							break;
+//						}
+//					}
+//				}
+//			}
+//		}
+//		else{
+//
+//			// replace the LRU block belonging to this cache
+//			for(int i = assoc-1;i>=0;i--){
+//				blk = sets[set].blks[i];
+//				if(blk->origRequestingCpuID == fromProc){
+//					found = true;
+//					break;
+//				}
+//			}
+//		}
+//		assert(found);
+//	}
+//	else{
+//		blk = sets[set].blks[assoc-1];
+//	}
+//	assert(blk != NULL);
+//
+//	//estimate interference
+//	if(blk->origRequestingCpuID != req->adaptiveMHASenderID && blk->origRequestingCpuID != -1 && !isShadow){
+//		assert(req->adaptiveMHASenderID != -1);
+//		cache->addCapacityInterference(blk->origRequestingCpuID, req->adaptiveMHASenderID);
+//	}
+//
+//	sets[set].moveToHead(blk);
+//	if (blk->isValid()) {
+//		int thread_num = (blk->xc) ? blk->xc->thread_num : 0;
+//		replacements[thread_num]++;
+//		totalRefs += blk->refCount;
+//		++sampledRefs;
+//		blk->refCount = 0;
+//	} else if (!blk->isTouched) {
+//		tagsInUse++;
+//		blk->isTouched = true;
+//		if (!warmedUp && tagsInUse.value() >= warmupBound) {
+//			warmedUp = true;
+//			warmupCycle = curTick;
+//		}
+//	}
+//	return blk;
+//}
 
 void
 LRU::invalidateBlk(int asid, Addr addr)
@@ -712,7 +756,13 @@ LRU::getTouchedRatio(){
 }
 
 void
-LRU::setMTPPartition(std::vector<int> setQuotas){
+LRU::enablePartitioning(){
+	if(isShadow) fatal("Cache partitioning does not make sense for shadow tags");
+	assert(!doPartitioning);
+	doPartitioning = true;
+}
+void
+LRU::setCachePartition(std::vector<int> setQuotas){
 
 	int setcnt = 0;
 	for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
@@ -725,9 +775,8 @@ LRU::setMTPPartition(std::vector<int> setQuotas){
 
 	assert(setcnt == assoc);
 
-	useMTPPartitioning = true;
 	assert(setQuotas.size() == cache->cpuCount);
-	currentMTPPartition = setQuotas;
+	currentPartition = setQuotas;
 }
 
 string

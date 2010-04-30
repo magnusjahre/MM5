@@ -116,3 +116,5 @@ class BaseCache(BaseMem):
     ipp_bits = Param.Int("The resolution of the probability (used in a subset of IPP modes)")
     use_aggregate_mlp_estimator = Param.Bool("Use the aggregate MLP estimator (and not the per MSHR estimator)")
     max_use_ways = Param.Int("Maximum number of ways available (Only for shared caches and single core)")
+
+    static_cache_quotas = VectorParam.Int("The per core cache quota in ways")

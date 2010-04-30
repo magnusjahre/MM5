@@ -80,7 +80,7 @@ MultipleTimeSharingParititions::handleRepartitioningEvent(){
                 int equalQuota = associativity / cache->cpuCount;
                 vector<int> staticPartition(cache->cpuCount, equalQuota);
 
-                cache->setMTPPartition(staticPartition);
+                cache->setCachePartition(staticPartition);
                 curMTPPartition = -1;
 
                 return;
@@ -99,7 +99,7 @@ MultipleTimeSharingParititions::handleRepartitioningEvent(){
 
             // enforce the first MTP partition
             curMTPPartition = 0;
-            cache->setMTPPartition(mtpPartitions[curMTPPartition]);
+            cache->setCachePartition(mtpPartitions[curMTPPartition]);
 
             // reset hitprofiles and curCPU
             for(int i=0;i<cache->cpuCount;i++){
@@ -114,7 +114,7 @@ MultipleTimeSharingParititions::handleRepartitioningEvent(){
             // switch to next partitioning
             curMTPPartition = (curMTPPartition + 1) % mtpPartitions.size();
             assert(curMTPPartition >= 0 && curMTPPartition < mtpPartitions.size());
-            cache->setMTPPartition(mtpPartitions[curMTPPartition]);
+            cache->setCachePartition(mtpPartitions[curMTPPartition]);
             break;
         }
         default:{

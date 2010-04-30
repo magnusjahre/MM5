@@ -154,8 +154,11 @@ protected:
     virtual void handleSwitchEvent(){
     }
 
-    virtual void setMTPPartition(std::vector<int> setQuotas){
+    virtual void setCachePartition(std::vector<int> setQuotas){
     }
+
+    virtual void enablePartitioning(){
+	}
 
     virtual void updateSetHitStats(MemReqPtr& req){
     }

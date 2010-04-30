@@ -134,8 +134,8 @@ protected:
 
 	std::vector<std::vector<int> > perSetHitCounters;
 	int accesses;
-	std::vector<int> currentMTPPartition;
-	bool useMTPPartitioning;
+	std::vector<int> currentPartition;
+	bool doPartitioning;
 
 	std::vector<std::vector<std::vector<int> > > perCPUperSetHitCounters;
 
@@ -378,7 +378,8 @@ public:
 
 	double getTouchedRatio();
 
-	virtual void setMTPPartition(std::vector<int> setQuotas);
+	void enablePartitioning();
+	virtual void setCachePartition(std::vector<int> setQuotas);
 
 	virtual void updateSetHitStats(MemReqPtr& req);
 

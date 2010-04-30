@@ -559,7 +559,7 @@ public:
 	void resetCapacityInterferenceStats();
 	void addCapacityInterference(int victimID, int interfererID);
 
-	virtual void setMTPPartition(std::vector<int> setQuotas) = 0;
+	virtual void setCachePartition(std::vector<int> setQuotas) = 0;
 
 	virtual void handleProfileEvent() = 0;
 

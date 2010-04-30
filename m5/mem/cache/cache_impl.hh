@@ -238,6 +238,12 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     accessSample = 0;
     missSample = 0;
+
+    if(!params.staticQuotas.empty()){
+    	if(!isShared) fatal("Cache partitioning only makes sense for shared caches");
+    	tags->setCachePartition(params.staticQuotas);
+    	tags->enablePartitioning();
+    }
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -1547,8 +1553,8 @@ Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
 
 template<class TagStore, class Buffering, class Coherence>
 void
-Cache<TagStore,Buffering,Coherence>::setMTPPartition(std::vector<int> setQuotas){
-    tags->setMTPPartition(setQuotas);
+Cache<TagStore,Buffering,Coherence>::setCachePartition(std::vector<int> setQuotas){
+    tags->setCachePartition(setQuotas);
 }
 
 template<class TagStore, class Buffering, class Coherence>

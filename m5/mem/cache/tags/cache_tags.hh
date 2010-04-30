@@ -342,8 +342,12 @@ class CacheTags
         return ct->getAssoc();
     }
 
-    void setMTPPartition(std::vector<int> setQuotas){
-        ct->setMTPPartition(setQuotas);
+    void setCachePartition(std::vector<int> setQuotas){
+        ct->setCachePartition(setQuotas);
+    }
+
+    void enablePartitioning(){
+    	ct->enablePartitioning();
     }
 
     void updateSetHitStats(MemReqPtr& req){

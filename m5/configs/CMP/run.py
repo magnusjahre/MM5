@@ -136,9 +136,7 @@ def createMemBus(bankcnt, optPart):
                 
 
 def initSharedCache(bankcnt, optPart):
-    
-    warn("Optimal partition handling not implemented for shared caches")
-    
+        
     if int(env['NP']) == 4:
         root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
     elif int(env['NP']) == 8:
@@ -158,19 +156,20 @@ def initSharedCache(bankcnt, optPart):
     else:
         panic("No cache defined for selected CPU count")
         
-    if env["CACHE-PARTITIONING"] == "StaticUniform":
+    
+    if optPart != None:
         for bank in root.SharedCache:
-            bank.use_static_partitioning = True
-            bank.static_part_start_tick = uniformPartStart
-        
-    if env["CACHE-PARTITIONING"] == "MTP":
-        for bank in root.SharedCache:
-            bank.use_mtp_partitioning = True
-            bank.use_static_partitioning = True
-            bank.static_part_start_tick = uniformPartStart
-            if "MTP-EPOCH-SIZE" in env:
-                bank.mtp_epoch_size = int(env["MTP-EPOCH-SIZE"])
+            bank.static_cache_quotas = optPart.ways
+    else:
+        if env["CACHE-PARTITIONING"] == "StaticUniform":
+            panic("Static partitining support is deprecated")            
             
+        if env["CACHE-PARTITIONING"] == "MTP":
+            panic("MTP partitioning support is deprecated")
+            #for bank in root.SharedCache:
+                #if "MTP-EPOCH-SIZE" in env:
+                #    bank.mtp_epoch_size = int(env["MTP-EPOCH-SIZE"])
+                
     if "WRITEBACK-OWNER-POLICY" in env:
         for bank in root.SharedCache:
             bank.writeback_owner_policy = env["WRITEBACK-OWNER-POLICY"]
@@ -726,8 +725,6 @@ if 'FIXED-ROUNDTRIP-LATENCY' in env:
 optPartData = None
 if 'OPTIMAL-PARTITION-FILE' in env:
     optPartData = readOptimalPartition()
-
-print >> sys.stderr, optPartData
 
 if env['MEMORY-SYSTEM'] == "Legacy":
     panic("Legacy memory system no longer supported")

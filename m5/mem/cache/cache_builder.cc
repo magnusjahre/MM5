@@ -201,6 +201,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<int> ipp_bits;
     Param<bool> use_aggregate_mlp_estimator;
     Param<int> max_use_ways;
+    VectorParam<int> static_cache_quotas;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -305,7 +306,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
     INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
     INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),
-    INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1)
+    INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1),
+    INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>())
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -361,7 +363,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
                                                        use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits, use_aggregate_mlp_estimator); \
+            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits, use_aggregate_mlp_estimator, static_cache_quotas); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
