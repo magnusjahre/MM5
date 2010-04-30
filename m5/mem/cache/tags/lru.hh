@@ -142,6 +142,10 @@ protected:
 	int divFactor;
 	int shadowID;
 
+	std::vector<int> getUsedBlocksPerCore(unsigned int set);
+	LRUBlk* findLRUBlkForCPU(int cpuID, unsigned int set);
+	LRUBlk* findLRUOverQuotaBlk(std::vector<int> blocksInUse, unsigned int set);
+
 public:
 	/**
 	 * Construct and initialize this tag store.
