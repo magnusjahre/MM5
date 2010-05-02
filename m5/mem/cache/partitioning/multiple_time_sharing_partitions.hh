@@ -12,6 +12,9 @@ class MultipleTimeSharingPartitions : public CachePartitioning{
     int mtpPhase;
     int curMTPPartition;
 
+    void schedulePartitionEvent();
+    void setEqualShare();
+
   public:
     MultipleTimeSharingPartitions(std::string _name,
                                   int _associativity,

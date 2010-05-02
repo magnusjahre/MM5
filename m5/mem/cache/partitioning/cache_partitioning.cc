@@ -7,6 +7,8 @@
 
 #include "mem/cache/partitioning/cache_partitioning.hh"
 
+using namespace std;
+
 CachePartitioning::CachePartitioning(std::string _name,
 									 int _associativity,
 									 Tick _epochSize,
@@ -36,6 +38,13 @@ CachePartitioning::registerCache(BaseCache* _cache, std::vector<LRU*> _shadowTag
 
 	assert(shadowTags.empty());
 	shadowTags = _shadowTags;
+}
+
+void
+CachePartitioning::debugPrintPartition(std::vector<int>& partition, const char* message){
+	DPRINTF(CachePartitioning, message);
+	for(int i=0;i<partition.size();i++) DPRINTFR(CachePartitioning, "%d:%d ", i , partition[i]);
+	DPRINTFR(CachePartitioning, "\n");
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

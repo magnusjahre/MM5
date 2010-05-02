@@ -155,7 +155,7 @@ def setUpCachePartitioning():
             bank.partitioning.np = int(env["NP"])
             
             if "CACHE-PARTITIONING-EPOCH-SIZE" in env:
-                bank.partioning.epoch_size = int(env["MTP-EPOCH-SIZE"])
+                bank.partitioning.epoch_size = int(env["CACHE-PARTITIONING-EPOCH-SIZE"])
 
 
 def initSharedCache(bankcnt, optPart):

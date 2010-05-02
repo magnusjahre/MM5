@@ -14,41 +14,43 @@ MultipleTimeSharingPartitions::MultipleTimeSharingPartitions(std::string _name,
 }
 
 void
+MultipleTimeSharingPartitions::setEqualShare(){
+	vector<int> initialPartition = vector<int>(partitioningCpuCount, associativity / partitioningCpuCount);
+
+	debugPrintPartition(initialPartition, "Initializing sharing with partition: ");
+
+	cache->setCachePartition(initialPartition);
+}
+
+void
 MultipleTimeSharingPartitions::handleRepartitioningEvent(){
+
+	DPRINTF(CachePartitioning, "Running MTP partitioning\n");
 
     switch(mtpPhase){
 
         case -1:{
             mtpPhase = 0; //enter measuring phase
+            setEqualShare();
+            cache->enablePartitioning();
             break;
         }
         case 0:{
-
-            string filename = cache->name()+"MTPTrace.txt";
-            ofstream mtptracefile(filename.c_str());
 
             // measurement phase finished
             for(int i=0;i<shadowTags.size();i++){
                 vector<double> missRateProfile = shadowTags[i]->getMissRates();
                 misscurves[i] = missRateProfile;
-                mtptracefile << "Warmup stats for CPU" << i << " shadow tags: " << shadowTags[i]->getTouchedRatio() << "\n";
             }
 
-            mtptracefile << "Measured miss rate curves\n";
-            DPRINTF(MTP, "Miss rate curves:\n");
+            DPRINTF(CachePartitioning, "Miss rate curves:\n");
             for(int i=0;i<cache->cpuCount;i++){
-                mtptracefile << "CPU" << i << ":";
-                DPRINTFR(MTP, "CPU %d:", i);
+                DPRINTFR(CachePartitioning, "CPU %d:", i);
                 for(int j=0;j<misscurves[i].size();j++){
-                    DPRINTFR(MTP, " %d:%f", j, misscurves[i][j]);
-                    mtptracefile << " " << misscurves[i][j];
+                    DPRINTFR(CachePartitioning, " %d:%f", j, misscurves[i][j]);
                 }
-                DPRINTFR(MTP, "\n");
-                mtptracefile << "\n";
+                DPRINTFR(CachePartitioning, "\n");
             }
-
-            // exit measurement phase
-            mtpPhase = 1;
 
             // Calculate partitions
             bool partitioningNeeded = calculatePartitions();
@@ -56,10 +58,7 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
             // If all threads are suppliers, no partitioning is needed
             // Use static uniform partitioning
             if(!partitioningNeeded){
-                DPRINTF(MTP, "No partitioning found\n");
-                mtptracefile << "No partitioning found, reverting to static uniform partitioning\n";
-                mtptracefile.flush();
-                mtptracefile.close();
+                DPRINTF(CachePartitioning, "No partitioning found\n");
 
                 // enforce static partitioning
                 int equalQuota = associativity / cache->cpuCount;
@@ -68,38 +67,35 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
                 cache->setCachePartition(staticPartition);
                 curMTPPartition = -1;
 
-                return;
+            }
+            else{
+
+				// exit measurement phase
+				mtpPhase = 1;
+
+				// enforce the first MTP partition
+				curMTPPartition = 0;
+				cache->setCachePartition(mtpPartitions[curMTPPartition]);
+
+				debugPrintPartition(mtpPartitions[curMTPPartition], "Partition found, enforcing first partition: ");
             }
 
-            for(int i=0;i<mtpPartitions.size();i++){
-                mtptracefile << "Partition " << i << ":";
-                for(int j=0;j<mtpPartitions[i].size();j++){
-                    mtptracefile << " CPU" << j << "=" << mtpPartitions[i][j];
-                }
-                mtptracefile << "\n";
-            }
-
-            mtptracefile.flush();
-            mtptracefile.close();
-
-            // enforce the first MTP partition
-            curMTPPartition = 0;
-            cache->setCachePartition(mtpPartitions[curMTPPartition]);
-
-            // reset hitprofiles and curCPU
-            for(int i=0;i<cache->cpuCount;i++){
-                for(int j=0;j<associativity;j++){
-                    misscurves[i][j] = 0;
-                }
-            }
             break;
         }
         case 1:{
 
             // switch to next partitioning
-            curMTPPartition = (curMTPPartition + 1) % mtpPartitions.size();
-            assert(curMTPPartition >= 0 && curMTPPartition < mtpPartitions.size());
-            cache->setCachePartition(mtpPartitions[curMTPPartition]);
+            curMTPPartition = curMTPPartition + 1;
+            if(curMTPPartition < mtpPartitions.size()){
+            	debugPrintPartition(mtpPartitions[curMTPPartition], "Updating partition, setting partition to: ");
+				assert(curMTPPartition >= 0 && curMTPPartition < mtpPartitions.size());
+				cache->setCachePartition(mtpPartitions[curMTPPartition]);
+            }
+            else{
+            	DPRINTF(CachePartitioning, "Partitioning finished, returning to equal share\n");
+            	setEqualShare();
+            	mtpPhase = 0;
+            }
             break;
         }
         default:{
@@ -107,10 +103,17 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
         }
     }
 
-    // reset counters and reschedule event
-    for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
-    assert(repartEvent != NULL);
-    repartEvent->schedule(curTick + epochSize);
+    schedulePartitionEvent();
+}
+
+void
+MultipleTimeSharingPartitions::schedulePartitionEvent(){
+	// reset counters and reschedule event
+	for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
+	assert(repartEvent != NULL);
+	repartEvent->schedule(curTick + epochSize);
+
+	DPRINTF(CachePartitioning, "Scheduling next event for %d\n", curTick+epochSize);
 }
 
 /**
@@ -139,11 +142,11 @@ MultipleTimeSharingPartitions::calculatePartitions(){
         c_expand[i] = minIndex;
     }
 
-    DPRINTF(MTP, "Initial c_expand:");
+    DPRINTF(CachePartitioning, "Initial c_expand:");
     for(int i=0;i<cache->cpuCount;i++){
-        DPRINTFR(MTP, " P%d=%d", i, c_expand[i]);
+        DPRINTFR(CachePartitioning, " P%d=%d", i, c_expand[i]);
     }
-    DPRINTFR(MTP, "\n");
+    DPRINTFR(CachePartitioning, "\n");
 
     vector<int> c_shrink = vector<int>(cache->cpuCount, 0);
     for(int i=0;i<cache->cpuCount;i++){
@@ -157,11 +160,11 @@ MultipleTimeSharingPartitions::calculatePartitions(){
         }
     }
 
-    DPRINTF(MTP, "Initial c_shrink:");
+    DPRINTF(CachePartitioning, "Initial c_shrink:");
     for(int i=0;i<cache->cpuCount;i++){
-        DPRINTFR(MTP, " P%d=%d", i, c_shrink[i]);
+        DPRINTFR(CachePartitioning, " P%d=%d", i, c_shrink[i]);
     }
-    DPRINTFR(MTP, "\n");
+    DPRINTFR(CachePartitioning, "\n");
 
 
     // Step 1 - Remove supplier threads
@@ -257,13 +260,13 @@ MultipleTimeSharingPartitions::calculatePartitions(){
         }
     }
 
-    DPRINTF(MTP, "Analysis resulted in the following partitions:\n");
+    DPRINTF(CachePartitioning, "Analysis resulted in the following partitions:\n");
     for(int p=0;p<mtpPartitions.size();p++){
-        DPRINTFR(MTP, "P%d:", p);
+        DPRINTFR(CachePartitioning, "P%d:", p);
         for(int i=0;i<mtpPartitions[p].size();i++){
-            DPRINTFR(MTP, " %d:%d", i, mtpPartitions[p][i]);
+            DPRINTFR(CachePartitioning, " %d:%d", i, mtpPartitions[p][i]);
         }
-        DPRINTFR(MTP, "\n");
+        DPRINTFR(CachePartitioning, "\n");
     }
 
     return true;

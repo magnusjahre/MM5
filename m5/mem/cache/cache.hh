@@ -367,6 +367,7 @@ class Cache : public BaseCache
     std::map<int,int> assignBlockingBlame();
 
     virtual void setCachePartition(std::vector<int> setQuotas);
+    virtual void enablePartitioning();
 
     virtual void handleProfileEvent();
 

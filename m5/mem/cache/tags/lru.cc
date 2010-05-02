@@ -702,11 +702,11 @@ LRU::setCachePartition(std::vector<int> setQuotas){
 	int setcnt = 0;
 	for(int i=0;i<setQuotas.size();i++) setcnt += setQuotas[i];
 
-	DPRINTF(MTP, "Enforcing set quotas:");
+	DPRINTF(CachePartitioning, "Enforcing set quotas:");
 	for(int i=0;i<setQuotas.size();i++){
-		DPRINTFR(MTP, " %d:%d", i, setQuotas[i]);
+		DPRINTFR(CachePartitioning, " %d:%d", i, setQuotas[i]);
 	}
-	DPRINTFR(MTP, "\n");
+	DPRINTFR(CachePartitioning, "\n");
 
 	assert(setcnt == assoc);
 

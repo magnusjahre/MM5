@@ -1564,6 +1564,12 @@ Cache<TagStore,Buffering,Coherence>::setCachePartition(std::vector<int> setQuota
 }
 
 template<class TagStore, class Buffering, class Coherence>
+void
+Cache<TagStore,Buffering,Coherence>::enablePartitioning(){
+    tags->enablePartitioning();
+}
+
+template<class TagStore, class Buffering, class Coherence>
 std::map<int,int>
 Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
     assert(isShared);

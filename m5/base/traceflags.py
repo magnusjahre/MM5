@@ -151,7 +151,7 @@ baseFlags = [
     'MemoryController',
     'DRAM',
     'Blocking',
-    'MTP',
+    'CachePartitioning',
     'Crossbar',
     'MemoryControllerInterference',
     'MissBWPolicy',

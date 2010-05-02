@@ -24,6 +24,8 @@ protected:
 	int partitioningCpuCount;
 
 	CacheRepartitioningEvent* repartEvent;
+
+	void debugPrintPartition(std::vector<int>& partitions, const char* message);
 public:
 
 	CachePartitioning(std::string _name,
