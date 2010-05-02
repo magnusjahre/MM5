@@ -69,7 +69,7 @@ template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::
 Cache(const std::string &_name, HierParams *hier_params,
       Cache<TagStore,Buffering,Coherence>::Params &params)
-    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly, params.useUniformPartitioning, params.uniformPartitioningStart, params.useMTPPartitioning),
+    : BaseCache(_name, hier_params, params.baseParams, params.isShared, params.directoryCoherence != NULL, params.isReadOnly),
       prefetchAccess(params.prefetchAccess),
       tags(params.tags), missQueue(params.missQueue),
       coherence(params.coherence), prefetcher(params.prefetcher),
@@ -87,7 +87,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     memoryAddressParts = params.memoryAddressParts;
 
     simulateContention = params.simulateContention;
-    useStaticPartInWarmup = params.useStaticPartInWarmup;
+//    useStaticPartInWarmup = params.useStaticPartInWarmup;
 
     doModuloAddressing = params.doModuloBankAddr;
     bankID = params.bankID;
@@ -132,15 +132,21 @@ Cache(const std::string &_name, HierParams *hier_params,
     cacheInterference = NULL;
 #endif
 
-    if(params.useMTPPartitioning)
-    {
-        assert(isShared);
-        assert(params.useUniformPartitioning);
-        assert(!shadowTags.empty());
+//    if(params.useMTPPartitioning)
+//    {
+//        assert(isShared);
+//        assert(params.useUniformPartitioning);
+//        assert(!shadowTags.empty());
+//
+//        mtp = new MultipleTimeSharingParititions(this, tags->getAssoc(), params.mtpEpochSize, shadowTags, params.detailedSimStartTick);
+//    }
+//    else mtp = NULL;
 
-        mtp = new MultipleTimeSharingParititions(this, tags->getAssoc(), params.mtpEpochSize, shadowTags, params.detailedSimStartTick);
+    if(params.partitioning != NULL){
+    	assert(isShared);
+    	assert(!shadowTags.empty());
+    	params.partitioning->registerCache(this, shadowTags);
     }
-    else mtp = NULL;
 
     if(params.isShared){
         profileFileName = name() + "CapacityProfile.txt";
@@ -249,7 +255,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::~Cache(){
    for(int i=0;i<shadowTags.size();i++) delete shadowTags[i];
-   delete mtp;
+//   delete mtp;
    delete cacheInterference;
 }
 
@@ -1544,12 +1550,12 @@ Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
     profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 
-template<class TagStore, class Buffering, class Coherence>
-void
-Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
-    assert(mtp != NULL);
-    mtp->handleRepartitioningEvent();
-}
+//template<class TagStore, class Buffering, class Coherence>
+//void
+//Cache<TagStore,Buffering,Coherence>::handleRepartitioningEvent(){
+//    assert(mtp != NULL);
+//    mtp->handleRepartitioningEvent();
+//}
 
 template<class TagStore, class Buffering, class Coherence>
 void

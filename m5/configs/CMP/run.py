@@ -25,6 +25,8 @@ directory_protocols = ['stenstrom']
 
 miss_bw_policies = ["fairness", "hmos", "none", "stp", "aggregateIPC"]
 
+partitioningSchemes = ["Conventional", "StaticUniform", "MTP"]
+
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
 SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
@@ -133,7 +135,28 @@ def createMemBus(bankcnt, optPart):
     for i in range(channels):
         root.controllerInterference[i].cpu_count = int(env['NP'])
         
-                
+def setUpCachePartitioning():
+    
+    if env["CACHE-PARTITIONING"] not in partitioningSchemes:
+        panic("Cache partitioning scheme can be "+str(partitioningSchemes))
+    
+    for bank in root.SharedCache:
+        
+        if env["CACHE-PARTITIONING"] == "StaticUniform":
+            bank.static_cache_quotas = [bank.assoc / int(env["NP"]) for i in range(int(env["NP"]))]            
+            
+        else:
+            if env["CACHE-PARTITIONING"] == "MTP":
+                bank.partitioning = MultipleTimeSharingPartitions()
+            else:
+                panic("Unknown cache partitioning scheme")
+            
+            bank.partitioning.associativity = bank.assoc
+            bank.partitioning.np = int(env["NP"])
+            
+            if "CACHE-PARTITIONING-EPOCH-SIZE" in env:
+                bank.partioning.epoch_size = int(env["MTP-EPOCH-SIZE"])
+
 
 def initSharedCache(bankcnt, optPart):
         
@@ -161,14 +184,8 @@ def initSharedCache(bankcnt, optPart):
         for bank in root.SharedCache:
             bank.static_cache_quotas = optPart.ways
     else:
-        if env["CACHE-PARTITIONING"] == "StaticUniform":
-            panic("Static partitining support is deprecated")            
-            
-        if env["CACHE-PARTITIONING"] == "MTP":
-            panic("MTP partitioning support is deprecated")
-            #for bank in root.SharedCache:
-                #if "MTP-EPOCH-SIZE" in env:
-                #    bank.mtp_epoch_size = int(env["MTP-EPOCH-SIZE"])
+        if "CACHE-PARTITIONING" in env:
+            setUpCachePartitioning()
                 
     if "WRITEBACK-OWNER-POLICY" in env:
         for bank in root.SharedCache:
@@ -206,8 +223,6 @@ def setUpSharedCache(bankcnt, detailedStartTick):
     for i in range(bankcnt):
         root.SharedCache[i].in_interconnect = root.interconnect
         root.SharedCache[i].out_bus = root.membus[curbus]
-        root.SharedCache[i].use_static_partitioning_for_warmup = True
-        root.SharedCache[i].static_part_start_tick = detailedStartTick
         root.SharedCache[i].bank_count = bankcnt
         root.SharedCache[i].bank_id = i
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
@@ -423,14 +438,6 @@ if "USE-FAIR-AMHA" in env:
     #if 'FAIR-MIN-IP-ALLOWED' not in env:
         #panic("A minimum IP value must be given (-EFAIR-MIN-IP-ALLOWED)")
     useFairAdaptiveMHA = True
-
-if "CACHE-PARTITIONING" in env:
-    if env["CACHE-PARTITIONING"] == "Conventional" \
-    or env["CACHE-PARTITIONING"] == "StaticUniform" \
-    or env["CACHE-PARTITIONING"] == "MTP":
-        pass
-    else:
-        panic("Only Conventional and StaticUniform cache partitioning are available")
 
 if "MEMORY-BUS-SCHEDULER" in env:
     if env["MEMORY-BUS-SCHEDULER"] == "FCFS" \

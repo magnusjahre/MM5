@@ -146,12 +146,12 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> is_shared;
     Param<bool> is_read_only;
 
-    Param<bool> use_static_partitioning;
-    Param<bool> use_mtp_partitioning;
-    Param<Tick> mtp_epoch_size;
-    Param<Tick> static_part_start_tick;
+//    Param<bool> use_static_partitioning;
+//    Param<bool> use_mtp_partitioning;
+//    Param<Tick> mtp_epoch_size;
+//    Param<Tick> static_part_start_tick;
     Param<Tick> detailed_sim_start_tick;
-    Param<bool> use_static_partitioning_for_warmup;
+//    Param<bool> use_static_partitioning_for_warmup;
     Param<int> static_partitioning_div_factor;
     Param<int> shadow_tag_leader_sets;
 
@@ -203,6 +203,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<int> max_use_ways;
     VectorParam<int> static_cache_quotas;
 
+    SimObjectParam<CachePartitioning *> partitioning;
+
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
 
@@ -239,12 +241,12 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
     INIT_PARAM_DFLT(is_shared, "is this a shared cache?", false),
     INIT_PARAM_DFLT(is_read_only, "is this an instruction cache?", false),
-    INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
-    INIT_PARAM_DFLT(use_mtp_partitioning, "does this cache use Multiple Time Sharing Partitions?", false),
-    INIT_PARAM_DFLT(mtp_epoch_size, "the size of the MTP epoch", 20000000),
-    INIT_PARAM_DFLT(static_part_start_tick, "the tick where cache part. enforcement will start", -1),
+//    INIT_PARAM_DFLT(use_static_partitioning, "does this cache use static capacity partitioning?", false),
+//    INIT_PARAM_DFLT(use_mtp_partitioning, "does this cache use Multiple Time Sharing Partitions?", false),
+//    INIT_PARAM_DFLT(mtp_epoch_size, "the size of the MTP epoch", 20000000),
+//    INIT_PARAM_DFLT(static_part_start_tick, "the tick where cache part. enforcement will start", -1),
     INIT_PARAM_DFLT(detailed_sim_start_tick, "the tick where detailed simulation (and profiling) starts", -1),
-    INIT_PARAM_DFLT(use_static_partitioning_for_warmup, "if true, static partitioning is used in the warm up phase", false),
+//    INIT_PARAM_DFLT(use_static_partitioning_for_warmup, "if true, static partitioning is used in the warm up phase", false),
     INIT_PARAM_DFLT(static_partitioning_div_factor, "factor to divide cache space during fw by when there is 1 cpu core", -1),
     INIT_PARAM_DFLT(shadow_tag_leader_sets, "number of leader sets to use in shadow tags (0 is full-map)", 0),
 
@@ -307,7 +309,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
     INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),
     INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1),
-    INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>())
+    INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>()),
+    INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -362,8 +365,9 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        multiprog_workload, is_shared, is_read_only,\
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
-                                                       use_static_partitioning, use_mtp_partitioning, static_part_start_tick,\
-            detailed_sim_start_tick, mtp_epoch_size, simulate_contention, use_static_partitioning_for_warmup, memory_address_offset, memory_address_parts, interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits, use_aggregate_mlp_estimator, static_cache_quotas); \
+            detailed_sim_start_tick, simulate_contention, memory_address_offset, memory_address_parts,\
+            interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits,\
+            use_aggregate_mlp_estimator, static_cache_quotas, partitioning); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

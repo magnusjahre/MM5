@@ -49,11 +49,11 @@ BaseTags::setCache(BaseCache *_cache, bool useSwitchEvent)
     objName = cache->name();
     bankID = _cache->bankID;
     
-    if(cache->useUniformPartitioning && useSwitchEvent){
-        assert(cache->uniformPartitioningStartTick >= 0);
-        BaseTagsSwitchEvent* event = new BaseTagsSwitchEvent(this);
-        event->schedule(cache->uniformPartitioningStartTick);
-    }
+//    if(cache->useUniformPartitioning && useSwitchEvent){
+//        assert(cache->uniformPartitioningStartTick >= 0);
+//        BaseTagsSwitchEvent* event = new BaseTagsSwitchEvent(this);
+//        event->schedule(cache->uniformPartitioningStartTick);
+//    }
     
     initializeCounters(_cache->cpuCount);
 }

@@ -372,7 +372,7 @@ public:
 
 	virtual std::vector<int> perCoreOccupancy();
 
-	virtual void handleSwitchEvent();
+//	virtual void handleSwitchEvent();
 
 	void resetHitCounters();
 

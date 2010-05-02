@@ -202,10 +202,10 @@ public:
 	bool isReadOnly;
 	bool useAdaptiveMHA;
 	AdaptiveMHA* adaptiveMHA;
-	bool useUniformPartitioning;
-	Tick uniformPartitioningStartTick;
-	bool useMTPPartitioning;
-	bool useStaticPartInWarmup;
+//	bool useUniformPartitioning;
+//	Tick uniformPartitioningStartTick;
+//	bool useMTPPartitioning;
+//	bool useStaticPartInWarmup;
 	bool useAggregateMLPEstimator;
 
 	InterferenceManager* interferenceManager;
@@ -346,9 +346,7 @@ public:
 	 * @param params The parameter object for this BaseCache.
 	 */
 	BaseCache(const std::string &name, HierParams *hier_params, Params &params,
-			bool _isShared, bool _useDirectory, bool _isReadOnly,
-			bool _useUniformPartitioning, Tick _uniformPartitioningStart,
-			bool _useMTPPartitioning);
+			bool _isShared, bool _useDirectory, bool _isReadOnly);
 
 	/**
 	 * Set the master interface for this cache to the one provided.
@@ -563,7 +561,7 @@ public:
 
 	virtual void handleProfileEvent() = 0;
 
-	virtual void handleRepartitioningEvent() = 0;
+//	virtual void handleRepartitioningEvent() = 0;
 
 	//     virtual DirectoryProtocol* getDirectoryProtocol() = 0;
 
@@ -649,23 +647,5 @@ public:
 	}
 };
 
-class CacheRepartitioningEvent: public Event {
-
-public:
-
-	BaseCache* cache;
-
-	CacheRepartitioningEvent(BaseCache* _cache) :
-		Event(&mainEventQueue), cache(_cache) {
-	}
-
-	void process() {
-		cache->handleRepartitioningEvent();
-	}
-
-	virtual const char *description() {
-		return "Cache Repartitioning Event";
-	}
-};
 
 #endif //__BASE_CACHE_HH__

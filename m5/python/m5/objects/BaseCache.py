@@ -85,12 +85,12 @@ class BaseCache(BaseMem):
     is_shared = Param.Bool("True if this cache is shared by more than one core") # Magnus
     is_read_only = Param.Bool("True if this cache is an instruction cache") # Magnus
     
-    use_static_partitioning = Param.Bool("True if this cache uses static uniform capacity partitioning") # Magnus
-    use_mtp_partitioning = Param.Bool("True if this cache uses MTP partitioning") # Magnus
-    mtp_epoch_size = Param.Tick("the size of the MTP epoch")
-    static_part_start_tick = Param.Tick("The clock cycle to start enforcing a static cache share")
+#    use_static_partitioning = Param.Bool("True if this cache uses static uniform capacity partitioning") # Magnus
+#    use_mtp_partitioning = Param.Bool("True if this cache uses MTP partitioning") # Magnus
+#    mtp_epoch_size = Param.Tick("the size of the MTP epoch")
+#    static_part_start_tick = Param.Tick("The clock cycle to start enforcing a static cache share")
     detailed_sim_start_tick = Param.Tick("The tick where detailed simulation (and profiling) starts")
-    use_static_partitioning_for_warmup = Param.Bool("if true, static partitioning is used in the warm up phase")
+#    use_static_partitioning_for_warmup = Param.Bool("if true, static partitioning is used in the warm up phase")
     static_partitioning_div_factor = Param.Int("factor to divide cache space during fw by when there is 1 cpu core")
 
     shadow_tag_leader_sets = Param.Int("number of leader sets to use in shadow tags (0 is full-map")
@@ -118,3 +118,4 @@ class BaseCache(BaseMem):
     max_use_ways = Param.Int("Maximum number of ways available (Only for shared caches and single core)")
 
     static_cache_quotas = VectorParam.Int("The per core cache quota in ways")
+    partitioning = Param.CachePartitioning("Object responsible for doing cache partitioning")

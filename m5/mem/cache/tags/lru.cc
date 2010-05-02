@@ -218,7 +218,7 @@ LRU::initializeCounters(int cpuCount){
 	if(!isShadow && numBanks > 0){ // only L2, real tags
 		perCPUperSetHitCounters.resize(cpuCount, vector<vector<int> >(numSets, vector<int>(assoc, 0)));
 
-		if(cpuCount == 1 && divFactor < 1 && cache->useStaticPartInWarmup){
+		if(cpuCount == 1 && divFactor < 1){
 			fatal("A division factor must be given for single CPU static partitioning");
 		}
 	}
@@ -251,13 +251,6 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 	if (blk != NULL) {
 		// move this block to head of the MRU list
 		sets[set].moveToHead(blk);
-
-		if(cache->useUniformPartitioning){
-			DPRINTF(UniformPartitioning, "Set %d: Hit in block (1), retrieved by processor %d, replaced block addr is %x\n",
-					set,
-					blk->origRequestingCpuID,
-					regenerateBlkAddr(blk->tag,blk->set));
-		}
 
 		if (blk->whenReady > curTick
 				&& blk->whenReady - curTick > hitLatency) {
@@ -297,13 +290,6 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 	if (blk != NULL) {
 		// move this block to head of the MRU list
 		sets[set].moveToHead(blk);
-
-		if(cache->useUniformPartitioning){
-			DPRINTF(UniformPartitioning, "Set %d: Hit in block (2), retrieved by processor %d, replaced block addr is %x\n",
-					set,
-					blk->origRequestingCpuID,
-					regenerateBlkAddr(blk->tag,blk->set));
-		}
 
 		if (blk->whenReady > curTick
 				&& blk->whenReady - curTick > hitLatency) {
@@ -568,76 +554,76 @@ LRU::perCoreOccupancy(){
 	return ret;
 }
 
-void
-LRU::handleSwitchEvent(){
-	assert(cache->useUniformPartitioning);
-	assert(!isShadow);
-
-	for(int i=0;i<numSets;i++){
-		for(int j=0;j<cache->cpuCount;j++){
-
-			int cnt = 0;
-			for(int k=0;k<assoc;k++){
-				LRUBlk* blk = sets[i].blks[k];
-				if(blk->origRequestingCpuID == j) cnt++;
-			}
-
-			int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-			assert(maxBlks >= 1);
-
-			if(cnt > maxBlks){
-				int invalidated = 0;
-				int removeCnt = cnt - maxBlks;
-				for(int k=assoc-1;k>=0;k--){
-					LRUBlk* blk = sets[i].blks[k];
-					if(blk->origRequestingCpuID == j){
-						// invalidating the block
-						blk->status = 0;
-						blk->isTouched = false;
-						blk->origRequestingCpuID = -1;
-						tagsInUse--;
-						invalidated++;
-					}
-					if(invalidated == removeCnt) break;
-				}
-			}
-		}
-
-		// put all invalid blocks in LRU position
-		int invalidIndex = 0;
-		int passedCnt = 0;
-		for(int k=0;k<assoc;k++){
-			LRUBlk* blk = sets[i].blks[k];
-			if(!blk->isValid()){
-				invalidIndex = k;
-				break;
-			}
-		}
-
-		for(int k=invalidIndex+1;k<assoc;k++){
-			LRUBlk* blk = sets[i].blks[k];
-			if(blk->isValid()){
-				// swap invalid with valid block
-				LRUBlk* tmp = sets[i].blks[invalidIndex];
-				sets[i].blks[invalidIndex] = blk;
-				sets[i].blks[k] = tmp;
-				invalidIndex = k - passedCnt;
-			}
-			else{
-				passedCnt++;
-			}
-		}
-
-		// verify that all invalid blocks are at the most LRU positions
-		LRUBlk* prevBlk = sets[i].blks[0];
-		for(int k=1;k<assoc;k++){
-
-			LRUBlk* blk = sets[i].blks[k];
-			if(!prevBlk->isValid()) assert(!blk->isValid());
-			prevBlk = blk;
-		}
-	}
-}
+//void
+//LRU::handleSwitchEvent(){
+//	assert(cache->useUniformPartitioning);
+//	assert(!isShadow);
+//
+//	for(int i=0;i<numSets;i++){
+//		for(int j=0;j<cache->cpuCount;j++){
+//
+//			int cnt = 0;
+//			for(int k=0;k<assoc;k++){
+//				LRUBlk* blk = sets[i].blks[k];
+//				if(blk->origRequestingCpuID == j) cnt++;
+//			}
+//
+//			int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
+//			assert(maxBlks >= 1);
+//
+//			if(cnt > maxBlks){
+//				int invalidated = 0;
+//				int removeCnt = cnt - maxBlks;
+//				for(int k=assoc-1;k>=0;k--){
+//					LRUBlk* blk = sets[i].blks[k];
+//					if(blk->origRequestingCpuID == j){
+//						// invalidating the block
+//						blk->status = 0;
+//						blk->isTouched = false;
+//						blk->origRequestingCpuID = -1;
+//						tagsInUse--;
+//						invalidated++;
+//					}
+//					if(invalidated == removeCnt) break;
+//				}
+//			}
+//		}
+//
+//		// put all invalid blocks in LRU position
+//		int invalidIndex = 0;
+//		int passedCnt = 0;
+//		for(int k=0;k<assoc;k++){
+//			LRUBlk* blk = sets[i].blks[k];
+//			if(!blk->isValid()){
+//				invalidIndex = k;
+//				break;
+//			}
+//		}
+//
+//		for(int k=invalidIndex+1;k<assoc;k++){
+//			LRUBlk* blk = sets[i].blks[k];
+//			if(blk->isValid()){
+//				// swap invalid with valid block
+//				LRUBlk* tmp = sets[i].blks[invalidIndex];
+//				sets[i].blks[invalidIndex] = blk;
+//				sets[i].blks[k] = tmp;
+//				invalidIndex = k - passedCnt;
+//			}
+//			else{
+//				passedCnt++;
+//			}
+//		}
+//
+//		// verify that all invalid blocks are at the most LRU positions
+//		LRUBlk* prevBlk = sets[i].blks[0];
+//		for(int k=1;k<assoc;k++){
+//
+//			LRUBlk* blk = sets[i].blks[k];
+//			if(!prevBlk->isValid()) assert(!blk->isValid());
+//			prevBlk = blk;
+//		}
+//	}
+//}
 
 void
 LRU::resetHitCounters(){
@@ -742,7 +728,6 @@ LRU::serialize(std::ostream &os){
 
 	int dumpSets = assoc;
 	if(cache->isShared){
-		assert(cache->useStaticPartInWarmup);
 		dumpSets = assoc / divFactor;
 	}
 

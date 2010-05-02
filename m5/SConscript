@@ -197,7 +197,6 @@ base_sources = Split('''
 	mem/cache/base_cache.cc
 	mem/cache/cache.cc
 	mem/cache/cache_builder.cc
-	mem/cache/multiple_time_sharing_partitions.cc
 	mem/cache/cache_interference.cc
 	mem/cache/coherence/coherence_protocol.cc
 	mem/cache/coherence/directory.cc
@@ -215,6 +214,8 @@ base_sources = Split('''
 	mem/cache/miss/policy/hmos_policy.cc
 	mem/cache/miss/policy/stp_policy.cc
 	mem/cache/miss/policy/aggregate_ipc_policy.cc
+	mem/cache/partitioning/cache_partitioning.cc
+	mem/cache/partitioning/multiple_time_sharing_partitions.cc
     mem/cache/prefetch/base_prefetcher.cc
     mem/cache/prefetch/prefetcher.cc
     mem/cache/prefetch/tagged_prefetcher.cc

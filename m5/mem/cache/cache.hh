@@ -49,7 +49,7 @@
 #include "mem/cache/tags/lru.hh"
 #include "mem/config/cache.hh"
 
-#include "mem/cache/multiple_time_sharing_partitions.hh"
+#include "mem/cache/partitioning/cache_partitioning.hh"
 
 // forward declarations
 class Bus;
@@ -69,7 +69,7 @@ class Cache : public BaseCache
     bool idIsSet;
     std::string profileFileName;
 
-    MultipleTimeSharingParititions* mtp;
+//    MultipleTimeSharingParititions* mtp;
 
     int accessSample;
     int missSample;
@@ -167,13 +167,13 @@ class Cache : public BaseCache
 		  int bankID;
 		  int bankCount;
 		  AdaptiveMHA* adaptiveMHA;
-		  bool useUniformPartitioning;
-		  bool useMTPPartitioning;
-		  Tick uniformPartitioningStart;
+//		  bool useUniformPartitioning;
+//		  bool useMTPPartitioning;
+//		  Tick uniformPartitioningStart;
 		  Tick detailedSimStartTick;
-		  Tick mtpEpochSize;
+//		  Tick mtpEpochSize;
 		  bool simulateContention;
-		  bool useStaticPartInWarmup;
+//		  bool useStaticPartInWarmup;
 		  int memoryAddressOffset;
 		  int memoryAddressParts;
 		  InterferenceManager* interferenceManager;
@@ -184,6 +184,7 @@ class Cache : public BaseCache
 		  int ippBits;
 		  bool useAggMLPEstimator;
 		  std::vector<int> staticQuotas;
+		  CachePartitioning* partitioning;
 
 		  Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 				  bool do_copy, BaseCache::Params params,
@@ -192,7 +193,12 @@ class Cache : public BaseCache
 				  Interconnect* _inInterconnect, Interconnect* _outInterconnect,
 				  Prefetcher<TagStore, Buffering> *_prefetcher,
 				  bool prefetch_access, int _cpu_count, int _cpu_id, bool _multiprog_workload,
-				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount, AdaptiveMHA* _adaptiveMHA, bool _useUniformPartitioning, bool _useMTPPartitioning, Tick _uniformPartitioningStart, Tick _detailedSimStartTick, Tick _mtpEpochSize, bool _simulateContention, bool _useStaticPartInWarmup, int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman, MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets, InterferenceProbabilityPolicy _ipp, int _ippBits, bool _useAggMLPEstimator, std::vector<int> _staticQuotas)
+				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount,
+				  AdaptiveMHA* _adaptiveMHA, Tick _detailedSimStartTick, bool _simulateContention,
+				  int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman,
+				  MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets,
+				  InterferenceProbabilityPolicy _ipp, int _ippBits, bool _useAggMLPEstimator,
+				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
 		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
 		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -200,13 +206,11 @@ class Cache : public BaseCache
 		  cpu_count(_cpu_count), cpu_id(_cpu_id), multiprog_workload(_multiprog_workload),
 		  isShared(_isShared), isReadOnly(_isReadOnly),
 		  doModuloBankAddr(_doModAddr), bankID(_bankID), bankCount(_bankCount),
-		  adaptiveMHA(_adaptiveMHA), useUniformPartitioning(_useUniformPartitioning),
-		  useMTPPartitioning(_useMTPPartitioning),
-		  uniformPartitioningStart(_uniformPartitioningStart),
-		  detailedSimStartTick(_detailedSimStartTick), mtpEpochSize(_mtpEpochSize),
-		  simulateContention(_simulateContention), useStaticPartInWarmup(_useStaticPartInWarmup),
-		  memoryAddressOffset(_memoryAddressOffset),
-		  memoryAddressParts(_memoryAddressParts), interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy), shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits), useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas)
+		  adaptiveMHA(_adaptiveMHA), detailedSimStartTick(_detailedSimStartTick), simulateContention(_simulateContention),
+		  memoryAddressOffset(_memoryAddressOffset), memoryAddressParts(_memoryAddressParts),
+		  interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy),
+		  shadowTagLeaderSets(_shadowLeaderSets), ipp(_ipp), ippBits(_ippBits),
+		  useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas), partitioning(_partitioning)
 		  {
 		  }
 	  };
@@ -366,7 +370,7 @@ class Cache : public BaseCache
 
     virtual void handleProfileEvent();
 
-    virtual void handleRepartitioningEvent();
+//    virtual void handleRepartitioningEvent();
 
     virtual int getCacheCPUid(){
         return cacheCpuID;

@@ -1,35 +1,20 @@
 
-#include "mem/cache/multiple_time_sharing_partitions.hh"
+#include "mem/cache/partitioning/multiple_time_sharing_partitions.hh"
 
 using namespace std;
 
-MultipleTimeSharingParititions::MultipleTimeSharingParititions(BaseCache* _cache,
-                                                               int _associativity,
-                                                               Tick _epochSize,
-                                                               std::vector<LRU*> _shadowTags,
-                                                               Tick _uniformPartitioningStart){
+MultipleTimeSharingPartitions::MultipleTimeSharingPartitions(std::string _name,
+                                                             int _associativity,
+                                                             Tick _epochSize,
+                                                             int _np)
+: CachePartitioning(_name, _associativity, _epochSize, _np){
 
-    cache = _cache;
-    associativity = _associativity;
-    shadowTags = _shadowTags;
-
-    misscurves.resize(_cache->cpuCount, vector<double>(_associativity, 0));
+    misscurves.resize(_np, vector<double>(_associativity, 0));
     mtpPhase = -1;
-    mtpEpochSize = _epochSize;
-    assert(mtpEpochSize > 0);
-    assert(!shadowTags.empty());
-
-    repartEvent = new CacheRepartitioningEvent(_cache);
-    repartEvent->schedule(_uniformPartitioningStart);
-}
-
-MultipleTimeSharingParititions::~MultipleTimeSharingParititions(){
-	assert(!repartEvent->scheduled());
-	delete repartEvent;
 }
 
 void
-MultipleTimeSharingParititions::handleRepartitioningEvent(){
+MultipleTimeSharingPartitions::handleRepartitioningEvent(){
 
     switch(mtpPhase){
 
@@ -125,14 +110,14 @@ MultipleTimeSharingParititions::handleRepartitioningEvent(){
     // reset counters and reschedule event
     for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
     assert(repartEvent != NULL);
-    repartEvent->schedule(curTick + mtpEpochSize);
+    repartEvent->schedule(curTick + epochSize);
 }
 
 /**
 * This method implements Chang and Sohi's MTP allocation algorithm
 */
 bool
-MultipleTimeSharingParititions::calculatePartitions(){
+MultipleTimeSharingPartitions::calculatePartitions(){
 
     // Initialization
     vector<vector<int> > partitions;
@@ -283,4 +268,32 @@ MultipleTimeSharingParititions::calculatePartitions(){
 
     return true;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
+    Param<int> associativity;
+    Param<int> epoch_size;
+    Param<int> np;
+END_DECLARE_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
+
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
+    INIT_PARAM(associativity, "Cache associativity"),
+    INIT_PARAM_DFLT(epoch_size, "Size of an epoch", 10000000),
+	INIT_PARAM(np, "Number of cores")
+END_INIT_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
+
+
+CREATE_SIM_OBJECT(MultipleTimeSharingPartitions)
+{
+    return new MultipleTimeSharingPartitions(getInstanceName(),
+											 associativity,
+											 epoch_size,
+											 np);
+}
+
+REGISTER_SIM_OBJECT("MultipleTimeSharingPartitions", MultipleTimeSharingPartitions)
+
+#endif //DOXYGEN_SHOULD_SKIP_THIS
 

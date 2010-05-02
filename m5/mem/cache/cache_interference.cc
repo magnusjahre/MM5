@@ -209,8 +209,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 		doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
 
-		if(!cache->useUniformPartitioning
-		   && curTick >= cache->detailedSimulationStartTick
+		if(curTick >= cache->detailedSimulationStartTick
 		   && doInterferenceInsertion[req->adaptiveMHASenderID]){
 
 			if(numberOfSets == numLeaderSets){
@@ -353,7 +352,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		}
 
 		// Compute cache capacity interference penalty and inform the InterferenceManager
-		if(req->interferenceMissAt > 0 && !cache->useUniformPartitioning){
+		if(req->interferenceMissAt > 0){
 
 			int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
 			req->cacheCapacityInterference += extraDelay;
@@ -367,7 +366,6 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		if(doInterferenceInsertion[req->adaptiveMHASenderID]
 		   && numLeaderSets < totalSetNumber
 		   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
-		   && !cache->useUniformPartitioning
 		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read), req->adaptiveMHASenderID, false)){
 
 			int set = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
