@@ -169,9 +169,12 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 		if(isCacheMiss) missAccumulator[req->adaptiveMHASenderID]++;
 
 		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
-		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID);
+
 		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 		shadowLeaderSet = isLeaderSet(shadowSet);
+
+		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID, shadowLeaderSet);
+
 
 		if(shadowBlk != NULL){
 			shadowHit = true;
@@ -424,9 +427,9 @@ CacheInterference::isLeaderSet(int set){
 }
 
 LRUBlk*
-CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID){
+CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet){
 	int hitLat = cache->getHitLatency();
-	return shadowTags[cpuID]->findBlock(req, hitLat);
+	return shadowTags[cpuID]->findBlock(req, hitLat, isLeaderSet);
 }
 
 LRUBlk*

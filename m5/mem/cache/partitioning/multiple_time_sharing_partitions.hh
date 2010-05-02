@@ -12,8 +12,9 @@ class MultipleTimeSharingPartitions : public CachePartitioning{
     int mtpPhase;
     int curMTPPartition;
 
-    void schedulePartitionEvent();
     void setEqualShare();
+
+    bool calculatePartitions();
 
   public:
     MultipleTimeSharingPartitions(std::string _name,
@@ -23,7 +24,6 @@ class MultipleTimeSharingPartitions : public CachePartitioning{
 
     void handleRepartitioningEvent();
 
-    bool calculatePartitions();
 };
 
 #endif //__MTP_HH__

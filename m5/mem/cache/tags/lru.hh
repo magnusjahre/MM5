@@ -132,8 +132,8 @@ protected:
 
 	int bankShift;
 
-	std::vector<std::vector<int> > perSetHitCounters;
-	int accesses;
+	std::vector<int> leaderSetHitDistribution;
+	int leaderSetAccesses;
 	std::vector<int> currentPartition;
 	bool doPartitioning;
 
@@ -218,7 +218,7 @@ public:
 	 * @param lat The access latency.
 	 * @return Pointer to the cache block if found.
 	 */
-	LRUBlk* findBlock(MemReqPtr &req, int &lat);
+	LRUBlk* findBlock(MemReqPtr &req, int &lat, bool isLeaderSet = false);
 
 	/**
 	 * Finds the given address in the cache and update replacement data.
@@ -376,9 +376,8 @@ public:
 
 	void resetHitCounters();
 
-	void dumpHitCounters();
-
 	std::vector<double> getMissRates();
+	std::vector<int> getHitDistribution();
 
 	double getTouchedRatio();
 

@@ -26,6 +26,9 @@ protected:
 	CacheRepartitioningEvent* repartEvent;
 
 	void debugPrintPartition(std::vector<int>& partitions, const char* message);
+
+	void schedulePartitionEvent();
+
 public:
 
 	CachePartitioning(std::string _name,
@@ -35,11 +38,11 @@ public:
 
 	~CachePartitioning();
 
+	void registerCache(BaseCache* _cache, std::vector<LRU*> _shadowTags);
+
 	virtual void handleRepartitioningEvent() = 0;
 
-	virtual bool calculatePartitions() = 0;
 
-	void registerCache(BaseCache* _cache, std::vector<LRU*> _shadowTags);
 };
 
 class CacheRepartitioningEvent: public Event {

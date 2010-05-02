@@ -79,7 +79,8 @@ file_bases = ['AdaptiveMHA',
               'TrafficGenerator',
               'Tru64System',
               'Tsunami',
-              'Uart']
+              'Uart',
+              'UtilityBasedPartitioning']
 
 if m5.build_env['ALPHA_TLASER']:
     file_bases += [ 'DmaEngine' ]

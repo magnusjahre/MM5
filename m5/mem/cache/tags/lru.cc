@@ -186,7 +186,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	}
 
 	if(isShadow){
-		perSetHitCounters.resize(numSets, vector<int>(assoc, 0));
+		leaderSetHitDistribution.resize(assoc, 0);
 	}
 
 	if(_maxUseWays != -1){
@@ -198,7 +198,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 		maxUseWays = assoc;
 	}
 
-	accesses = 0;
+	leaderSetAccesses = 0;
 	doPartitioning = false;
 
 	if(isShadow && doPartitioning){
@@ -263,7 +263,7 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 }
 
 LRUBlk*
-LRU::findBlock(MemReqPtr &req, int &lat)
+LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet)
 {
 	Addr addr = req->paddr;
 	int asid = req->asid;
@@ -275,15 +275,18 @@ LRU::findBlock(MemReqPtr &req, int &lat)
 	LRUBlk *blk = sets[set].findBlk(asid, tag, &hitIndex, maxUseWays);
 
 	if(isShadow){
-		accesses++;
+		if(isLeaderSet) leaderSetAccesses++;
+
 		if(blk != NULL){
 			assert(hitIndex >= 0 && hitIndex < assoc);
-			perSetHitCounters[set][hitIndex]++;
-
+			if(isLeaderSet) leaderSetHitDistribution[hitIndex]++;
 		}
 		else{
 			assert(hitIndex == -1);
 		}
+	}
+	else{
+		assert(!isLeaderSet);
 	}
 
 	lat = hitLatency;
@@ -554,97 +557,26 @@ LRU::perCoreOccupancy(){
 	return ret;
 }
 
-//void
-//LRU::handleSwitchEvent(){
-//	assert(cache->useUniformPartitioning);
-//	assert(!isShadow);
-//
-//	for(int i=0;i<numSets;i++){
-//		for(int j=0;j<cache->cpuCount;j++){
-//
-//			int cnt = 0;
-//			for(int k=0;k<assoc;k++){
-//				LRUBlk* blk = sets[i].blks[k];
-//				if(blk->origRequestingCpuID == j) cnt++;
-//			}
-//
-//			int maxBlks = (int) ((double) assoc / (double) cache->cpuCount);
-//			assert(maxBlks >= 1);
-//
-//			if(cnt > maxBlks){
-//				int invalidated = 0;
-//				int removeCnt = cnt - maxBlks;
-//				for(int k=assoc-1;k>=0;k--){
-//					LRUBlk* blk = sets[i].blks[k];
-//					if(blk->origRequestingCpuID == j){
-//						// invalidating the block
-//						blk->status = 0;
-//						blk->isTouched = false;
-//						blk->origRequestingCpuID = -1;
-//						tagsInUse--;
-//						invalidated++;
-//					}
-//					if(invalidated == removeCnt) break;
-//				}
-//			}
-//		}
-//
-//		// put all invalid blocks in LRU position
-//		int invalidIndex = 0;
-//		int passedCnt = 0;
-//		for(int k=0;k<assoc;k++){
-//			LRUBlk* blk = sets[i].blks[k];
-//			if(!blk->isValid()){
-//				invalidIndex = k;
-//				break;
-//			}
-//		}
-//
-//		for(int k=invalidIndex+1;k<assoc;k++){
-//			LRUBlk* blk = sets[i].blks[k];
-//			if(blk->isValid()){
-//				// swap invalid with valid block
-//				LRUBlk* tmp = sets[i].blks[invalidIndex];
-//				sets[i].blks[invalidIndex] = blk;
-//				sets[i].blks[k] = tmp;
-//				invalidIndex = k - passedCnt;
-//			}
-//			else{
-//				passedCnt++;
-//			}
-//		}
-//
-//		// verify that all invalid blocks are at the most LRU positions
-//		LRUBlk* prevBlk = sets[i].blks[0];
-//		for(int k=1;k<assoc;k++){
-//
-//			LRUBlk* blk = sets[i].blks[k];
-//			if(!prevBlk->isValid()) assert(!blk->isValid());
-//			prevBlk = blk;
-//		}
-//	}
-//}
-
 void
 LRU::resetHitCounters(){
-	accesses = 0;
-	for(int i=0;i<numSets;i++){
-		for(int j=0;j<assoc;j++){
-			perSetHitCounters[i][j] = 0;
-		}
+	leaderSetAccesses = 0;
+	for(int j=0;j<assoc;j++){
+		leaderSetHitDistribution[j] = 0;
 	}
 }
-void
-LRU::dumpHitCounters(){
+
+std::vector<int>
+LRU::getHitDistribution(){
 	assert(isShadow);
-	cout << "Hit counters for cache " << cache->name() << " @ " << curTick << "\n";
-	for(int i=0;i<numSets;i++){
-		cout << "Set " << i << ":";
-		for(int j=0;j<assoc;j++){
-			cout << " (" << j << ", " << perSetHitCounters[i][j] << ")";
-		}
-		cout << "\n";
+
+	vector<int> hits = leaderSetHitDistribution;
+
+	// transform to cumulative representation
+	for(int i=1;i<hits.size();i++){
+		hits[i] = hits[i] + hits[i-1];
 	}
+
+	return hits;
 }
 
 std::vector<double>
@@ -652,23 +584,15 @@ LRU::getMissRates(){
 
 	assert(isShadow);
 
-	vector<int> hits(assoc, 0);
-	for(int i=0;i<numSets;i++){
-		for(int j=0;j<assoc;j++){
-			hits[j] += perSetHitCounters[i][j];
-		}
-	}
-
-	// transform to cumulative representation
-	for(int i=1;i<hits.size();i++){
-		hits[i] = hits[i] + hits[i-1];
-	}
+	vector<int> hits = getHitDistribution();
 
 	// compute miss rates
 	vector<double> missrates(assoc, 0);
 	assert(missrates.size() == hits.size());
-	for(int i=0;i<missrates.size();i++){
-		missrates[i] = (double) (((double) accesses - (double) hits[i]) / (double) accesses);
+	if(leaderSetAccesses > 0){
+		for(int i=0;i<missrates.size();i++){
+			missrates[i] = (double) (((double) leaderSetAccesses - (double) hits[i]) / (double) leaderSetAccesses);
+		}
 	}
 
 	return missrates;
@@ -693,7 +617,6 @@ LRU::getTouchedRatio(){
 void
 LRU::enablePartitioning(){
 	if(isShadow) fatal("Cache partitioning does not make sense for shadow tags");
-	assert(!doPartitioning);
 	doPartitioning = true;
 }
 void

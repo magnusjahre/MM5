@@ -179,7 +179,7 @@ private:
 
     bool addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter);
 
-    LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID);
+    LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet);
 
     LRUBlk* findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID);
 

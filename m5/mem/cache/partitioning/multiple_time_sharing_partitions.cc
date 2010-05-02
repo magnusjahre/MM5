@@ -106,16 +106,6 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
     schedulePartitionEvent();
 }
 
-void
-MultipleTimeSharingPartitions::schedulePartitionEvent(){
-	// reset counters and reschedule event
-	for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
-	assert(repartEvent != NULL);
-	repartEvent->schedule(curTick + epochSize);
-
-	DPRINTF(CachePartitioning, "Scheduling next event for %d\n", curTick+epochSize);
-}
-
 /**
 * This method implements Chang and Sohi's MTP allocation algorithm
 */

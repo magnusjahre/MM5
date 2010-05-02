@@ -47,6 +47,16 @@ CachePartitioning::debugPrintPartition(std::vector<int>& partition, const char* 
 	DPRINTFR(CachePartitioning, "\n");
 }
 
+void
+CachePartitioning::schedulePartitionEvent(){
+	// reset counters and reschedule event
+	for(int i=0;i<shadowTags.size();i++) shadowTags[i]->resetHitCounters();
+	assert(repartEvent != NULL);
+	repartEvent->schedule(curTick + epochSize);
+
+	DPRINTF(CachePartitioning, "Scheduling next event for %d\n", curTick+epochSize);
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 DEFINE_SIM_OBJECT_CLASS_NAME("CachePartitioning", CachePartitioning);

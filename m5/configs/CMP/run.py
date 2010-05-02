@@ -25,7 +25,7 @@ directory_protocols = ['stenstrom']
 
 miss_bw_policies = ["fairness", "hmos", "none", "stp", "aggregateIPC"]
 
-partitioningSchemes = ["Conventional", "StaticUniform", "MTP"]
+partitioningSchemes = ["Conventional", "StaticUniform", "MTP", "UCP"]
 
 FW_NOT_USED_SIZE = 100*10**12
 SIM_TICKS_NOT_USED_SIZE = 20*10**9
@@ -140,6 +140,9 @@ def setUpCachePartitioning():
     if env["CACHE-PARTITIONING"] not in partitioningSchemes:
         panic("Cache partitioning scheme can be "+str(partitioningSchemes))
     
+    if env["CACHE-PARTITIONING"] == "Conventional":
+        return
+    
     for bank in root.SharedCache:
         
         if env["CACHE-PARTITIONING"] == "StaticUniform":
@@ -148,6 +151,8 @@ def setUpCachePartitioning():
         else:
             if env["CACHE-PARTITIONING"] == "MTP":
                 bank.partitioning = MultipleTimeSharingPartitions()
+            elif env["CACHE-PARTITIONING"] == "UCP":
+                bank.partitioning = UtilityBasedPartitioning()
             else:
                 panic("Unknown cache partitioning scheme")
             
