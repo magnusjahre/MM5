@@ -34,7 +34,7 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 	}
 
 	bestHits = 0;
-	bestAllocation = vector<int>(partitioningCpuCount, 0);
+	bestAllocation = vector<int>(partitioningCpuCount, associativity / partitioningCpuCount);
 	enumerateAllocations(vector<int>());
 
 	debugPrintPartition(bestAllocation, "Implementing best partition: ");
