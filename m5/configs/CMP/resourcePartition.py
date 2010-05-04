@@ -6,13 +6,15 @@ class ResourcePartition:
         self.ways = []
         self.utils = []
         self.metricValue = 0
+        self.predictedIPCs = {}
         
         self.initialized = False
         
-    def setPartition(self, ways, utils, metricValue):
+    def setPartition(self, ways, utils, metricValue, predictedIPCs):
         self.ways = ways
         self.utils = utils
         self.metricValue = metricValue
+        self.predictedIPCs = predictedIPCs
         
         self.initialized = True
         
