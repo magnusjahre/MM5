@@ -26,8 +26,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
 
     nfqNumCPUs = _numCPUs;
 
-    virtualFinishTimes.resize(nfqNumCPUs+1, 0);
-    requests.resize(nfqNumCPUs+1);
+    virtualFinishTimes.resize(nfqNumCPUs, 0);
+    requests.resize(nfqNumCPUs);
 
     pageCmd = new MemReq();
     pageCmd->cmd = Activate;
@@ -59,9 +59,6 @@ NFQMemoryController::setUpWeights(std::vector<double> priorities){
     for(int i=0; i<priorities.size(); i++){
     	processorIncrements[i] = (int) (max / priorities[i]);
     }
-
-    // writebacks has the same priority as the lowest-priority processor
-    writebackIncrement = (int) (1.0 * (max/min));
 }
 
 int
@@ -75,43 +72,27 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     req->cmd == Read ? queuedReads++ : queuedWrites++;
+    int curCPUID = (req->adaptiveMHASenderID >= 0 ? req->adaptiveMHASenderID : req->nfqWBID);
+    assert(curCPUID >= 0 && curCPUID < nfqNumCPUs);
 
     Tick minTag = getMinStartTag();
     Tick curFinTag = -1;
-    if(req->adaptiveMHASenderID >= 0){
-        curFinTag = virtualFinishTimes[req->adaptiveMHASenderID];
-    }
-    else{
-        curFinTag = virtualFinishTimes[nfqNumCPUs];
-    }
+	curFinTag = virtualFinishTimes[curCPUID];
 
     // assign start time and update virtual clock
     req->virtualStartTime = (minTag > curFinTag ? minTag : curFinTag);
-    if(req->adaptiveMHASenderID >= 0){
-        virtualFinishTimes[req->adaptiveMHASenderID] = req->virtualStartTime + processorIncrements[req->adaptiveMHASenderID];
-    }
-    else{
-        assert(req->cmd == Writeback);
-        virtualFinishTimes[nfqNumCPUs] = req->virtualStartTime + writebackIncrement;
-    }
+    virtualFinishTimes[curCPUID] = req->virtualStartTime + processorIncrements[curCPUID];
 
     DPRINTF(MemoryController,
             "Inserting request from cpu %d, addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
-            req->adaptiveMHASenderID,
+            curCPUID,
             req->paddr,
             req->virtualStartTime,
             minTag,
-            (req->cmd == Writeback ? virtualFinishTimes[nfqNumCPUs] : virtualFinishTimes[req->adaptiveMHASenderID]),
-            (req->cmd == Writeback ? writebackIncrement : processorIncrements[req->adaptiveMHASenderID]));
+            virtualFinishTimes[curCPUID],
+            processorIncrements[curCPUID]);
 
-    if(req->adaptiveMHASenderID >= 0){
-        assert(req->adaptiveMHASenderID < nfqNumCPUs);
-        requests[req->adaptiveMHASenderID].push_back(req);
-
-    }
-    else{
-        requests[nfqNumCPUs].push_back(req);
-    }
+    requests[curCPUID].push_back(req);
 
     if((queuedReads >= readQueueLength || queuedWrites >= writeQueueLenght) && !isBlocked() ){
         DPRINTF(MemoryController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
@@ -377,7 +358,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
             "Returning column request, start time %d, addr %d, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
-            req->adaptiveMHASenderID);
+            (req->adaptiveMHASenderID >=0 ? req->adaptiveMHASenderID : req->nfqWBID));
 
     return req;
 }

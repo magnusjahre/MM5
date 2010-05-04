@@ -19,7 +19,6 @@ class NFQMemoryController : public TimingMemoryController
         int nfqNumCPUs;
 
         std::vector<int> processorIncrements;
-        int writebackIncrement;
 
         std::vector<Tick> virtualFinishTimes;
         std::vector<std::vector<MemReqPtr> > requests;

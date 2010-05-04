@@ -263,6 +263,7 @@ class MemReq : public FastAlloc, public RefCounted
     int ringBaselineTransLat;
 
     bool isSWPrefetch;
+    int nfqWBID;
 
     /**
      * Contruct and initialize a memory request.
@@ -345,7 +346,8 @@ class MemReq : public FastAlloc, public RefCounted
     sharedCacheSet(-1),
     ringBaselineHops(-1),
     ringBaselineTransLat(-1),
-    isSWPrefetch(false)
+    isSWPrefetch(false),
+    nfqWBID(-1)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -429,6 +431,7 @@ class MemReq : public FastAlloc, public RefCounted
         ringBaselineHops = r.ringBaselineHops;
         ringBaselineTransLat = r.ringBaselineTransLat;
         isSWPrefetch = r.isSWPrefetch;
+        nfqWBID = r.nfqWBID;
     }
 
     /**
