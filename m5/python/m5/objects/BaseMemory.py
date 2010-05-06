@@ -15,6 +15,9 @@ class BaseMemory(BaseMem):
     CAS_latency = Param.Int(4, "CAS latency (bus cycles)")
     precharge_latency = Param.Int(4, "precharge latency (bus cycles)")
     min_activate_to_precharge_latency = Param.Int(12, "Minimum activate to precharge time (bus cycles)")
+    
+    static_memory_latency = Param.Bool("Return the same latency for all data transfers")
+    
     if build_env['FULL_SYSTEM']:
         func_mem = Param.FunctionalMemory(Parent.physmem,
                                "corresponding functional memory object")

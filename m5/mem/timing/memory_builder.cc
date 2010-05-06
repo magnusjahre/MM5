@@ -76,6 +76,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     Param<int> CAS_latency;
     Param<int> precharge_latency;
     Param<int> min_activate_to_precharge_latency;
+    Param<bool> static_memory_latency;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
 
@@ -99,7 +100,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
     INIT_PARAM_DFLT(RAS_latency, "RAS-to-CAS latency (bus cycles)", 4),
     INIT_PARAM_DFLT(CAS_latency, "CAS latency (bus cycles)", 4),
     INIT_PARAM_DFLT(precharge_latency, "precharge latency (bus cycles)", 4),
-    INIT_PARAM_DFLT(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)", 12)
+    INIT_PARAM_DFLT(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)", 12),
+    INIT_PARAM_DFLT(static_memory_latency, "Return the same latency for all data transfers", false)
 
 END_INIT_SIM_OBJECT_PARAMS(BaseMemory)
 
@@ -120,7 +122,9 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.CAS_latency = CAS_latency;
     params.precharge_latency = precharge_latency;
     params.min_activate_to_precharge_latency = min_activate_to_precharge_latency;
-    
+
+    params.static_memory_latency = static_memory_latency;
+
     if (compressed) {
 #if defined(USE_LZSS_COMPRESSION)
 	SimpleMemBank<LZSSCompression> *retval =
@@ -136,7 +140,7 @@ CREATE_SIM_OBJECT(BaseMemory)
 	panic("compressed memory not compiled into M5");
 #endif
     } else {
-	SimpleMemBank<NullCompression> *retval = 
+	SimpleMemBank<NullCompression> *retval =
 	    new SimpleMemBank<NullCompression>(getInstanceName(), hier,
 					       params);
 	if (in_bus == NULL) {

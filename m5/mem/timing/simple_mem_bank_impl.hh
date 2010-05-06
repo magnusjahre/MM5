@@ -52,6 +52,7 @@
 #include "sim/builder.hh"
 
 //#define DO_HIT_TRACE
+#define STATIC_LATENCY 120
 
 using namespace std;
 
@@ -67,6 +68,8 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     CAS_latency = params.CAS_latency;
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
+
+    returnStaticLatencies = params.static_memory_latency;
 
     /* Constants */
     write_recovery_time = 6;
@@ -131,6 +134,15 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
 {
     // Sanity checks
     assert (req->cmd == Read || req->cmd == Writeback || req->cmd == Close || req->cmd == Activate);
+
+    if(returnStaticLatencies){
+    	if(req->cmd == Read || req->cmd == Writeback){
+    		return STATIC_LATENCY;
+    	}
+
+    	assert(req->cmd == Close || req->cmd == Activate);
+    	return 0;
+    }
 
     int bank = getMemoryBankID(req->paddr);
     Addr page = (req->paddr >> pagesize);

@@ -86,6 +86,8 @@ class SimpleMemBank : public BaseMemory
 
     RequestTrace pageTrace;
 
+    bool returnStaticLatencies;
+
     bool updateLatencyDistribution(bool isHit, int latency, int bank, MemReqPtr& req);
 
   protected:

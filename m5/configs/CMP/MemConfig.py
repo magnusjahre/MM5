@@ -367,3 +367,8 @@ class SDRAM(BaseMemory):
     CAS_latency = 4
     precharge_latency = 4
     min_activate_to_precharge_latency = 12
+    
+    if "STATIC-MEMORY-LATENCY" in env:
+        static_memory_latency = True
+    else:
+        static_memory_latency = False

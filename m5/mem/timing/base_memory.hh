@@ -76,10 +76,10 @@ class BaseMemory : public BaseMem
      * True if this memory should copy data into functional memory.
      */
     const bool doWrites;
-    
+
     int num_banks; // needs to be here for statistics allocation
     int bmCPUCount;
-    
+
     // statistics
     /**
      * @addtogroup MemoryStatistics Memory Statistics
@@ -99,9 +99,9 @@ class BaseMemory : public BaseMem
     Stats::Formula read_hit_rate;
     /** Write hit rate */
     Stats::Formula write_hit_rate;
-    
+
     Stats::Formula overall_hit_rate;
-    
+
     /** Total latency */
     Stats::Scalar<> total_latency;
     /** Average latency */
@@ -114,35 +114,35 @@ class BaseMemory : public BaseMem
 
     /* Non-overlapping activates */
     Stats::Scalar<> number_of_non_overlap_activate;
-    
+
     Stats::Vector<> accessesPerBank;
 
     Stats::Vector<> pageConflicts;
     Stats::Vector<> pageMisses;
     Stats::Vector<> pageHits;
-    
+
     Stats::Vector<> pageConflictLatency;
     Stats::Vector<> pageMissLatency;
     Stats::Vector<> pageHitLatency;
-    
+
     Stats::Formula avgPageConflictLatency;
     Stats::Formula avgPageMissLatency;
     Stats::Formula avgPageHitLatency;
-    
+
     Stats::VectorDistribution<> pageConflictLatencyDistribution;
     Stats::VectorDistribution<> pageMissLatencyDistribution;
-    
+
     Stats::Vector<> perCPUPageConflicts;
     Stats::Vector<> perCPUPageMisses;
     Stats::Vector<> perCPUPageHits;
     Stats::Vector<> perCPURequests;
-    
+
     Stats::Formula perCPUConflictRate;
     Stats::Formula perCPUMissRate;
     Stats::Formula perCPUHitRate;
-    
+
   public:
-    
+
     /**
      * Collection of parameters for a BaseMemory.
      */
@@ -173,8 +173,10 @@ class BaseMemory : public BaseMem
     int precharge_latency;
     int min_activate_to_precharge_latency;
 
+    bool static_memory_latency;
+
     };
-    
+
     /**
      * Creates and initializes this memory.
      * @param name The name of this memory.
@@ -187,7 +189,7 @@ class BaseMemory : public BaseMem
      * Register statistics
      */
     void regStats();
-    
+
     /**
      * Dummy implementation.
      */
@@ -234,7 +236,7 @@ class BaseMemory : public BaseMem
     {
 	return false;
     }
-    
+
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req){
         fatal("BaseMemory removePendingRequest() should never be called!");
