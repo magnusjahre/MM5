@@ -54,13 +54,13 @@ def setNFQParams(useTrafficGenerator, controllerID, optPart):
             pris = env["NFQ-PRIORITIES"].split(",")
             
             if len(pris) != int(env["NP"])+1:
-                fatal("You need to provide NFQ priorities for both all cores (and the traffic generator if available)")
+                panic("You need to provide NFQ priorities for both all cores (and the traffic generator if available)")
                 
             for i in range(length):
                 priorities[i] = float(pris[i])
         
     if sum(priorities) != 1.0:
-        fatal("The provided NFQ priorities must add up to 1")
+        panic("The provided NFQ priorities must add up to 1")
     
     root.membus[controllerID].memory_controller.priorities = priorities
 
