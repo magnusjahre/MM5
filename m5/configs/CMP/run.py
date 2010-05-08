@@ -238,6 +238,26 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         if buscnt % banksPerBus == 0:
             curbus += 1
 
+def setUpPerfDirPolicy():
+    perfDirPolicy = PerformanceDirectedPolicy()
+    optionName = 'PERFORMANCE-DIR-POLICY' 
+    if env["NP"] > 1:
+        if env[optionName] == "none":
+            perfDirPolicy.enforcePolicy = False
+        else:
+            perfDirPolicy.optimizationMetric = env[optionName]
+            perfDirPolicy.enforcePolicy = True 
+    else:
+        perfDirPolicy.enforcePolicy = False
+
+    assert "PERFORMANCE-DIR-POLICY-PERIOD" in env
+    perfDirPolicy.period = int(env["PERFORMANCE-DIR-POLICY-PERIOD"])        
+    perfDirPolicy.interferenceManager = root.interferenceManager
+    perfDirPolicy.cpuCount = int(env["NP"])
+    perfDirPolicy.performanceEstimationMethod = "no-mlp"
+    
+    return perfDirPolicy
+
 def setUpMissBwPolicy():
     if env['MISS-BW-POLICY'] not in miss_bw_policies:
         panic("Miss bandwidth policy "+str(env['MISS-BW-POLICY'])+" is invalid. Available policies: "+str(miss_bw_policies))
@@ -536,9 +556,12 @@ if "INTERFERENCE-MANAGER-SAMPLE-SIZE" in env:
 
 useMissBWPolicy = False
 if 'MISS-BW-POLICY' in env:
-    root.missBandwidthPolicy = setUpMissBwPolicy()
+    root.globalPolicy = setUpMissBwPolicy()
     useMissBWPolicy = True
 
+if 'PERFORMANCE-DIR-POLICY' in env:
+    root.globalPolicy = setUpPerfDirPolicy()
+    
 
 ###############################################################################
 #  CPUs and L1 caches
@@ -560,7 +583,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
     for l1 in root.L1dcaches:
         l1.adaptive_mha = root.adaptiveMHA
         l1.interference_manager = root.interferenceManager
-        l1.miss_bandwidth_policy = root.missBandwidthPolicy
+        l1.miss_bandwidth_policy = root.globalPolicy
         
     for l1 in root.L1icaches:
         l1.adaptive_mha = root.adaptiveMHA
@@ -771,7 +794,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].interference_manager = root.interferenceManager
         
         if useMissBWPolicy:
-            root.PrivateL2Cache[i].miss_bandwidth_policy = root.missBandwidthPolicy
+            root.PrivateL2Cache[i].miss_bandwidth_policy = root.globalPolicy
 
         if int(env['NP']) == 1:
             root.PrivateL2Cache[i].memory_address_offset = int(env['MEMORY-ADDRESS-OFFSET'])

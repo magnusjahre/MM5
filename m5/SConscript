@@ -211,6 +211,7 @@ base_sources = Split('''
 	mem/cache/miss/policy/base_policy.cc
 	mem/cache/miss/policy/miss_bandwidth_policy.cc
 	mem/cache/miss/policy/performance_measurement.cc
+	mem/cache/miss/policy/performance_directed.cc
 	mem/cache/miss/policy/metrics/metric.cc
 	mem/cache/miss/policy/metrics/hmos_policy.cc
     mem/cache/miss/policy/metrics/stp_policy.cc
