@@ -242,24 +242,17 @@ def setUpMissBwPolicy():
     if env['MISS-BW-POLICY'] not in miss_bw_policies:
         panic("Miss bandwidth policy "+str(env['MISS-BW-POLICY'])+" is invalid. Available policies: "+str(miss_bw_policies))
     
-    missBandwidthPolicy = None
+    missBandwidthPolicy = MissBandwidthPolicy()
     if env["NP"] > 1:
-        if env['MISS-BW-POLICY'] == "fairness":
-            missBandwidthPolicy = FairnessPolicy()
-        elif env['MISS-BW-POLICY'] == "hmos":
-            missBandwidthPolicy = HmosPolicy()
-        elif env['MISS-BW-POLICY'] == "none":
-            missBandwidthPolicy = NoBandwidthPolicy()
-        elif env['MISS-BW-POLICY'] == "stp":
-            missBandwidthPolicy = STPPolicy()
-        elif env['MISS-BW-POLICY'] == "aggregateIPC":
-            missBandwidthPolicy = AggregateIPCPolicy()
+        if env['MISS-BW-POLICY'] == "none":
+            missBandwidthPolicy.enforcePolicy = False
         else:
-            panic("error in setUpMissBwPolicy()")
+            missBandwidthPolicy.optimizationMetric = env['MISS-BW-POLICY']
+            missBandwidthPolicy.enforcePolicy = True 
     else:
         if env['MISS-BW-POLICY'] != "none":
             warn("NP is 1 and MISS-BW-POLICY != none, ignoring policy argument!")
-        missBandwidthPolicy = NoBandwidthPolicy()
+        missBandwidthPolicy.enforcePolicy = False
 
     assert "MISS-BW-POLICY-PERIOD" in env
     missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])        
@@ -302,14 +295,7 @@ def setUpMissBwPolicy():
     
     if "MISS-BW-BUS-REQ-INTENSITY-THRESHOLD" in env:
         missBandwidthPolicy.busRequestThreshold = float(env["MISS-BW-BUS-REQ-INTENSITY-THRESHOLD"])
-        
-    busUtilizationThreshold = Param.Float("The actual bus utilzation to consider the bus as full")
-    requestCountThreshold = Param.Float("The request intensity (requests / tick) to assume no request increase")
-    acceptanceThreshold = Param.Float("The performance improvement needed to accept new MHA")
-    requestVariationThreshold = Param.Float("Maximum acceptable request variation")
-
-
-
+    
     return missBandwidthPolicy
 
 def getCheckpointDirectory(simpoint = -1):

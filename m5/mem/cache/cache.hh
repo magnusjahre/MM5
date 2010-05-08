@@ -177,7 +177,7 @@ class Cache : public BaseCache
 		  int memoryAddressOffset;
 		  int memoryAddressParts;
 		  InterferenceManager* interferenceManager;
-		  MissBandwidthPolicy* missBandwidthPolicy;
+		  BasePolicy* missBandwidthPolicy;
 		  WritebackOwnerPolicy wbPolicy;
 		  int shadowTagLeaderSets;
 		  InterferenceProbabilityPolicy ipp;
@@ -196,7 +196,7 @@ class Cache : public BaseCache
 				  bool _isShared, bool _isReadOnly, bool _doModAddr, int _bankID, int _bankCount,
 				  AdaptiveMHA* _adaptiveMHA, Tick _detailedSimStartTick, bool _simulateContention,
 				  int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman,
-				  MissBandwidthPolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets,
+				  BasePolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets,
 				  InterferenceProbabilityPolicy _ipp, int _ippBits, bool _useAggMLPEstimator,
 				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)

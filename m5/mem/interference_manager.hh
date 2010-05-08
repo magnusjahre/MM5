@@ -8,14 +8,14 @@
 #include "base/statistics.hh"
 #include "requesttrace.hh"
 #include "mem/cache/cache_interference.hh"
-#include "mem/cache/miss/policy/miss_bandwidth_policy.hh"
+#include "mem/cache/miss/policy/base_policy.hh"
 #include "encumbered/cpu/full/cpu.hh"
 #include "cache/base_cache.hh"
 #include "mem/bus/bus.hh"
 #include "mem/cache/miss/policy/performance_measurement.hh"
 
 class CacheInterference;
-class MissBandwidthPolicy;
+class BasePolicy;
 class BaseCache;
 class Bus;
 
@@ -43,7 +43,7 @@ private:
 	int cpuCount;
 	int maxMSHRs;
 
-	MissBandwidthPolicy* missBandwidthPolicy;
+	BasePolicy* missBandwidthPolicy;
 	std::vector<FullCPU*> fullCPUs;
 	std::vector<BaseCache*> lastPrivateCaches;
 	std::vector<Bus*> memoryBuses;
@@ -166,7 +166,7 @@ public:
 
 	PerformanceMeasurement buildInterferenceMeasurement(int period);
 
-	void registerMissBandwidthPolicy(MissBandwidthPolicy* policy);
+	void registerMissBandwidthPolicy(BasePolicy* policy);
 
 	void registerLastLevelPrivateCache(BaseCache* cache, int cpuID, int maxMSHRs);
 	void registerSharedCache(BaseCache* cache);

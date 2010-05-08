@@ -194,7 +194,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     SimObjectParam<InterferenceManager *> interference_manager;
-    SimObjectParam<MissBandwidthPolicy *> miss_bandwidth_policy;
+    SimObjectParam<BasePolicy *> miss_bandwidth_policy;
 
     Param<string> writeback_owner_policy;
     Param<string> interference_probability_policy;

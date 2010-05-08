@@ -510,7 +510,7 @@ InterferenceManager::registerCacheInterferenceObj(CacheInterference* ci){
 }
 
 void
-InterferenceManager::registerMissBandwidthPolicy(MissBandwidthPolicy* policy){
+InterferenceManager::registerMissBandwidthPolicy(BasePolicy* policy){
 	assert(missBandwidthPolicy == NULL);
 	missBandwidthPolicy = policy;
 }

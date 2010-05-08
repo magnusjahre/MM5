@@ -84,7 +84,7 @@ enum RequestCause {
 
 class InterferenceManager;
 class RateMeasurement;
-class MissBandwidthPolicy;
+class BasePolicy;
 class AdaptiveMHA;
 
 /**
