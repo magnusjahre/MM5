@@ -27,6 +27,7 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 										 SearchAlgorithm _searchAlgorithm,
 										 int _iterationLatency,
 										 double _busRequestThresholdIntensity,
+										 Metric _performanceMetric,
 										 bool _enforcePolicy)
 : SimObject(_name){
 
@@ -39,6 +40,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(string _name,
 
 	requestCountThreshold = _cutoffReqInt;
 	busRequestThreshold = _busRequestThresholdIntensity;
+
+	performanceMetric = _performanceMetric;
 
 	if(_cutoffReqInt < 1){
 		fatal("The request threshold unit is number of requests, a value less than 1 does not make sense");
@@ -384,7 +387,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 	tracePerformance(sharedIPCEstimates, speedups);
 
 	// 4. Compute metric
-	double metricValue = computeMetric(&speedups, &sharedIPCEstimates);
+	double metricValue =  performanceMetric.computeMetric(&speedups, &sharedIPCEstimates);
 
 //	if(dumpSearchSpaceAt == curTick){
 //		dumpSearchSpace(mhaConfig, metricValue);
@@ -578,7 +581,7 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 									currentMeasurements->requestsInSample[i]);
 
         double newAvgBusLat = newRequestRatio * currentAvgBusLat;
-        
+
 		(*estimatedSharedLatencies)[i] = (currentMeasurements->sharedLatencies[i] - currentAvgBusLat) + newAvgBusLat - cacheHitLatencyReduction[i];
 		DPRINTFR(MissBWPolicyExtra, "CPU %i, estimating bus lat to %f, new bus lat %f, new avg lat %f, cache hit latency reduction %f\n",
 				                    i,
@@ -620,7 +623,7 @@ MissBandwidthPolicy::computeCurrentMetricValue(){
 	traceVector("Estimated Current Speedups: ", speedups);
 	traceVector("Estimated Current Shared IPCs: ", sharedIPCs);
 
-	double metricValue = computeMetric(&speedups, &sharedIPCs);
+	double metricValue = performanceMetric.computeMetric(&speedups, &sharedIPCs);
 	DPRINTF(MissBWPolicy, "Estimated current metric value to be %f\n", metricValue);
 	return metricValue;
 }
@@ -1347,33 +1350,89 @@ MissBandwidthPolicy::parseSearchAlgorithm(std::string methodName){
 	return EXHAUSTIVE_SEARCH;
 }
 
+Metric
+MissBandwidthPolicy::parseOptimizationMetric(std::string metricName){
+	if(metricName == "hmos") return HmosPolicy();
+	if(metricName == "stp") return STPPolicy();
+	if(metricName == "fairness") return FairnessPolicy();
+	if(metricName == "aggregateIPC") return AggregateIPCPolicy();
 
-//void
-//MissBandwidthPolicy::dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue){
-//
-//	const char* filename = "searchSpaceDump.txt";
-//
-//	if(!dumpInitalized){
-//
-//		DPRINTF(MissBWPolicy, "-- Dumping search space!\n");
-//
-//		ofstream initfile(filename, ios_base::out);
-//		initfile << "";
-//		initfile.close();
-//		dumpInitalized = true;
-//	}
-//
-//	ofstream dumpfile(filename, ios_base::app);
-//	for(int i=0;i<mhaConfig->size();i++){
-//		dumpfile << mhaConfig->at(i)+1 << ";";
-//	}
-//	dumpfile << metricValue << "\n";
-//	dumpfile.close();
-//}
+	fatal("unknown optimization metric");
+	return HmosPolicy();
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
-DEFINE_SIM_OBJECT_CLASS_NAME("MissBandwidthPolicy", MissBandwidthPolicy);
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
+	Param<Tick> period;
+	SimObjectParam<InterferenceManager* > interferenceManager;
+	Param<int> cpuCount;
+	Param<double> busUtilizationThreshold;
+	Param<double> requestCountThreshold;
+	Param<string> requestEstimationMethod;
+	Param<string> performanceEstimationMethod;
+	Param<bool> persistentAllocations;
+	Param<double> acceptanceThreshold;
+	Param<double> requestVariationThreshold;
+	Param<double> renewMeasurementsThreshold;
+	Param<string> searchAlgorithm;
+	Param<int> iterationLatency;
+	Param<double> busRequestThreshold;
+	Param<string> optimizationMetric;
+	Param<bool> enforcePolicy;
+END_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
-#endif
+BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
+	INIT_PARAM_DFLT(period, "The number of clock cycles between each decision", 1048576),
+	INIT_PARAM_DFLT(interferenceManager, "The system's interference manager" , NULL),
+	INIT_PARAM(cpuCount, "The number of cpus in the system"),
+	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.9375),
+	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 512),
+	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
+	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations"),
+	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
+	INIT_PARAM_DFLT(acceptanceThreshold, "The performance improvement needed to accept new MHA", 1.0),
+	INIT_PARAM_DFLT(requestVariationThreshold, "Maximum acceptable request variation", 0.1),
+	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 32),
+	INIT_PARAM_DFLT(searchAlgorithm, "The search algorithm to use", "exhaustive"),
+	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
+	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 256),
+	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
+	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true)
+END_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
+
+CREATE_SIM_OBJECT(MissBandwidthPolicy)
+{
+	MissBandwidthPolicy::RequestEstimationMethod reqEstMethod =
+		MissBandwidthPolicy::parseRequestMethod(requestEstimationMethod);
+	MissBandwidthPolicy::PerformanceEstimationMethod perfEstMethod =
+		MissBandwidthPolicy::parsePerformanceMethod(performanceEstimationMethod);
+	MissBandwidthPolicy::SearchAlgorithm searchAlg =
+			MissBandwidthPolicy::parseSearchAlgorithm(searchAlgorithm);
+
+	Metric performanceMetric = MissBandwidthPolicy::parseOptimizationMetric(optimizationMetric);
+
+	return new MissBandwidthPolicy(getInstanceName(),
+							       interferenceManager,
+							       period,
+							       cpuCount,
+							       busUtilizationThreshold,
+							       requestCountThreshold,
+							       reqEstMethod,
+							       perfEstMethod,
+							       persistentAllocations,
+							       acceptanceThreshold,
+							       requestVariationThreshold,
+							       renewMeasurementsThreshold,
+							       searchAlg,
+							       iterationLatency,
+							       busRequestThreshold,
+							       performanceMetric,
+							       enforcePolicy);
+}
+
+REGISTER_SIM_OBJECT("MissBandwidthPolicy", MissBandwidthPolicy)
+
+#endif //DOXYGEN_SHOULD_SKIP_THIS
+
 

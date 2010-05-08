@@ -12,6 +12,12 @@
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/policy/performance_measurement.hh"
 
+#include "mem/cache/miss/policy/metrics/metric.hh"
+#include "mem/cache/miss/policy/metrics/hmos_policy.hh"
+#include "mem/cache/miss/policy/metrics/fairness_policy.hh"
+#include "mem/cache/miss/policy/metrics/stp_policy.hh"
+#include "mem/cache/miss/policy/metrics/aggregate_ipc_policy.hh"
+
 #ifndef MISS_BANDWIDTH_POLICY_HH_
 #define MISS_BANDWIDTH_POLICY_HH_
 
@@ -42,6 +48,8 @@ public:
     } SearchAlgorithm;
 
 protected:
+
+	Metric performanceMetric;
 
 	RequestEstimationMethod reqEstMethod;
 	PerformanceEstimationMethod perfEstMethod;
@@ -216,7 +224,8 @@ public:
 						SearchAlgorithm _searchAlgorithm,
 						int _iterationLatency,
 						double _busRequestThresholdIntensity,
-						bool _enforcePolicy = true);
+						Metric _performanceMetric,
+						bool _enforcePolicy);
 
 	~MissBandwidthPolicy();
 
@@ -229,8 +238,6 @@ public:
 	void addTraceEntry(PerformanceMeasurement* measurement);
 
 	void runPolicy(PerformanceMeasurement measurements);
-
-	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs) = 0;
 
 	void doCommittedInstructionTrace(int cpuID,
 				                     double avgSharedLat,
@@ -246,6 +253,7 @@ public:
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
 	static SearchAlgorithm parseSearchAlgorithm(std::string methodName);
+	static Metric parseOptimizationMetric(std::string metricName);
 
 	void implementMHA(std::vector<int> bestMHA);
 };
