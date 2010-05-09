@@ -18,7 +18,7 @@ private:
 	int cacheResolution;
 	int numCacheSets;
 
-	int bestMetricValue;
+	double bestMetricValue;
 	std::vector<int> bestCacheSets;
 	std::vector<double> bestBWAllocs;
 

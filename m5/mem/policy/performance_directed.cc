@@ -22,7 +22,8 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 	bandwidthResolution = 4.0; // FIXME: Parameterize
 
 	numCacheSets = 16; //FIXME: get this value from the caches
-
+	
+	bestMetricValue = 0.0;
 }
 
 void

@@ -12,8 +12,11 @@
 #include "base/misc.hh"
 
 class Metric {
+
 public:
 	Metric();
+
+        virtual ~Metric(){ } 
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
 };
