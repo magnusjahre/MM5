@@ -12,6 +12,23 @@
 
 class PerformanceDirectedPolicy : public BasePolicy{
 
+private:
+
+	double bandwidthResolution;
+	int cacheResolution;
+	int numCacheSets;
+
+	int bestMetricValue;
+	std::vector<int> bestCacheSets;
+	std::vector<double> bestBWAllocs;
+
+	template<class T>
+	T computeSum(std::vector<T>* values);
+
+	void exhaustiveSearch(int level, std::vector<double> bandwidthAllocations, std::vector<int> cacheSets);
+
+	double evaluateAllocation(std::vector<double> bandwidthAllocations, std::vector<int> cacheSets);
+
 public:
 	PerformanceDirectedPolicy(std::string _name,
 			                  InterferenceManager* _intManager,

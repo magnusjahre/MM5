@@ -18,18 +18,93 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 			                                          bool _enforcePolicy)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
-	cout << "created performance directed policy\n";
+	cacheResolution = 4; // FIXME: Parameterize
+	bandwidthResolution = 4.0; // FIXME: Parameterize
+
+	numCacheSets = 16; //FIXME: get this value from the caches
+
 }
 
+void
+PerformanceDirectedPolicy::exhaustiveSearch(int level,
+											std::vector<double> bandwidthAllocations,
+											std::vector<int> cacheSets){
+
+	if(level < cpuCount){
+		int cacheAllocUnit = numCacheSets / cacheResolution;
+		double bwAllocUnit = 1.0 / bandwidthResolution;
+		for(int i=1;i<cacheResolution;i++){
+			for(int j=1;j<bandwidthResolution;j++){
+				vector<int> newCacheSets = cacheSets;
+				newCacheSets.push_back(i*cacheAllocUnit);
+
+				vector<double> newBWAlloc = bandwidthAllocations;
+				newBWAlloc.push_back(j*bwAllocUnit);
+
+				exhaustiveSearch(level+1, newBWAlloc, newCacheSets);
+			}
+		}
+	}
+	else{
+		assert(bandwidthAllocations.size() == cpuCount);
+		assert(cacheSets.size() == cpuCount);
+		if(computeSum(&bandwidthAllocations) != 1.0) return;
+		if(computeSum(&cacheSets) != numCacheSets) return;
+
+		DPRINTF(MissBWPolicyVerbose, "Possible resource allocation found:\n");
+		traceVerboseVector("Evaluating cache allocation: ", cacheSets);
+		traceVerboseVector("Evaluating bandwidth allocation: ", bandwidthAllocations);
+
+		double metval = evaluateAllocation(bandwidthAllocations, cacheSets);
+		if(metval > bestMetricValue){
+			bestMetricValue = metval;
+			bestCacheSets = cacheSets;
+			bestBWAllocs = bandwidthAllocations;
+		}
+	}
+}
+
+double
+PerformanceDirectedPolicy::evaluateAllocation(std::vector<double> bandwidthAllocations,
+											  std::vector<int> cacheSets){
+
+	warn("Evaluation not implemented");
+	return 1.0;
+}
 
 void
 PerformanceDirectedPolicy::runPolicy(PerformanceMeasurement measurements){
-	fatal("Not implemented");
+
+	DPRINTF(MissBWPolicy, "--- Running performance directed policy\n");
+
+	bestBWAllocs.clear();
+	bestCacheSets.clear();
+	bestMetricValue = 0.0;
+
+	exhaustiveSearch(0, vector<double>(), vector<int>());
+
+	assert(bestBWAllocs.size() == cpuCount && bestCacheSets.size() == cpuCount);
+
+	DPRINTF(MissBWPolicy, "Got metric value %d, best allocation is:\n", bestMetricValue);
+	traceVector("Cache sets:", bestCacheSets);
+	traceVector("Best BW alloc:", bestBWAllocs);
+
+	fatal("Stop her for now");
 }
 
 bool
 PerformanceDirectedPolicy::doEvaluation(int cpuID){
-	fatal("Not implemented");
+	return true;
+}
+
+template <class T>
+T
+PerformanceDirectedPolicy::computeSum(vector<T>* values){
+	T sum = 0;
+	for(int i=0;i<cpuCount;i++){
+		sum += values->at(i);
+	}
+	return sum;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
