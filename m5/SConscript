@@ -208,15 +208,15 @@ base_sources = Split('''
 	mem/cache/miss/mshr_queue.cc
 	mem/cache/miss/adaptive_mha.cc
 	
-	mem/cache/miss/policy/base_policy.cc
-	mem/cache/miss/policy/miss_bandwidth_policy.cc
-	mem/cache/miss/policy/performance_measurement.cc
-	mem/cache/miss/policy/performance_directed.cc
-	mem/cache/miss/policy/metrics/metric.cc
-	mem/cache/miss/policy/metrics/hmos_policy.cc
-    mem/cache/miss/policy/metrics/stp_policy.cc
-    mem/cache/miss/policy/metrics/aggregate_ipc_policy.cc
-    mem/cache/miss/policy/metrics/fairness_policy.cc
+	mem/policy/base_policy.cc
+	mem/policy/miss_bandwidth_policy.cc
+	mem/policy/performance_measurement.cc
+	mem/policy/performance_directed.cc
+	mem/policy/metrics/metric.cc
+	mem/policy/metrics/hmos_policy.cc
+    mem/policy/metrics/stp_policy.cc
+    mem/policy/metrics/aggregate_ipc_policy.cc
+    mem/policy/metrics/fairness_policy.cc
 	
 	mem/cache/partitioning/cache_partitioning.cc
 	mem/cache/partitioning/multiple_time_sharing_partitions.cc

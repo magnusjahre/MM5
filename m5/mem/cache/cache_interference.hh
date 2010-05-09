@@ -11,7 +11,7 @@
 #include "base_cache.hh"
 #include "mem/mem_req.hh"
 #include "mem/cache/tags/lru.hh"
-#include "mem/cache/miss/policy/performance_measurement.hh"
+#include "mem/policy/performance_measurement.hh"
 #include <vector>
 #include <iostream>
 

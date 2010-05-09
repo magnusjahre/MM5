@@ -10,13 +10,13 @@
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/cache/base_cache.hh"
-#include "mem/cache/miss/policy/performance_measurement.hh"
+#include "mem/policy/performance_measurement.hh"
 
-#include "mem/cache/miss/policy/metrics/metric.hh"
-#include "mem/cache/miss/policy/metrics/hmos_policy.hh"
-#include "mem/cache/miss/policy/metrics/fairness_policy.hh"
-#include "mem/cache/miss/policy/metrics/stp_policy.hh"
-#include "mem/cache/miss/policy/metrics/aggregate_ipc_policy.hh"
+#include "mem/policy/metrics/metric.hh"
+#include "mem/policy/metrics/hmos_policy.hh"
+#include "mem/policy/metrics/fairness_policy.hh"
+#include "mem/policy/metrics/stp_policy.hh"
+#include "mem/policy/metrics/aggregate_ipc_policy.hh"
 
 #ifndef BASE_POLICY_HH_
 #define BASE_POLICY_HH_

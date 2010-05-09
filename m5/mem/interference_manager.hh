@@ -8,11 +8,11 @@
 #include "base/statistics.hh"
 #include "requesttrace.hh"
 #include "mem/cache/cache_interference.hh"
-#include "mem/cache/miss/policy/base_policy.hh"
+#include "mem/policy/base_policy.hh"
 #include "encumbered/cpu/full/cpu.hh"
 #include "cache/base_cache.hh"
 #include "mem/bus/bus.hh"
-#include "mem/cache/miss/policy/performance_measurement.hh"
+#include "mem/policy/performance_measurement.hh"
 
 class CacheInterference;
 class BasePolicy;
