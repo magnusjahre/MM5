@@ -22,8 +22,9 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 	bandwidthResolution = 4.0; // FIXME: Parameterize
 
 	numCacheSets = 16; //FIXME: get this value from the caches
-	
+
 	bestMetricValue = 0.0;
+	currentMeasurements = NULL;
 }
 
 void
@@ -65,9 +66,25 @@ PerformanceDirectedPolicy::exhaustiveSearch(int level,
 	}
 }
 
+vector<double>
+PerformanceDirectedPolicy::getBusLatencies(std::vector<double> bandwidthAllocations){
+	return vector<double>();
+}
+
+vector<double>
+PerformanceDirectedPolicy::getMissRates(std::vector<int> cacheSets){
+	return vector<double>();
+}
+
 double
 PerformanceDirectedPolicy::evaluateAllocation(std::vector<double> bandwidthAllocations,
 											  std::vector<int> cacheSets){
+
+	vector<double> expectedBusQueueLatecies = getBusLatencies(bandwidthAllocations);
+	traceVerboseVector("Expected bus queue latencies: ", expectedBusQueueLatecies);
+
+	vector<double> expectedCacheMissRates = getMissRates(cacheSets);
+	traceVerboseVector("Expected cache miss rates: ", expectedCacheMissRates);
 
 	warn("Evaluation not implemented");
 	return 1.0;
@@ -77,6 +94,9 @@ void
 PerformanceDirectedPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	DPRINTF(MissBWPolicy, "--- Running performance directed policy\n");
+
+	assert(currentMeasurements == NULL);
+	currentMeasurements = &measurements;
 
 	bestBWAllocs.clear();
 	bestCacheSets.clear();
@@ -90,6 +110,9 @@ PerformanceDirectedPolicy::runPolicy(PerformanceMeasurement measurements){
 	traceVector("Cache sets:", bestCacheSets);
 	traceVector("Best BW alloc:", bestBWAllocs);
 
+	currentMeasurements = NULL;
+
+	//TODO: implement allocations
 	fatal("Stop her for now");
 }
 

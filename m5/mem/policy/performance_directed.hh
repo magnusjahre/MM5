@@ -22,12 +22,17 @@ private:
 	std::vector<int> bestCacheSets;
 	std::vector<double> bestBWAllocs;
 
+	PerformanceMeasurement* currentMeasurements;
+
 	template<class T>
 	T computeSum(std::vector<T>* values);
 
 	void exhaustiveSearch(int level, std::vector<double> bandwidthAllocations, std::vector<int> cacheSets);
 
 	double evaluateAllocation(std::vector<double> bandwidthAllocations, std::vector<int> cacheSets);
+
+	std::vector<double> getBusLatencies(std::vector<double> bandwidthAllocations);
+	std::vector<double> getMissRates(std::vector<int> cacheSets);
 
 public:
 	PerformanceDirectedPolicy(std::string _name,
