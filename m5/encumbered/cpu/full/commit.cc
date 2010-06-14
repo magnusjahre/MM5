@@ -404,7 +404,7 @@ FullCPU::commit()
 			break;
 		case COMMIT_DMISS:
 			commit_total_mem_stall_time++;
-			noCommitCycles++;
+
 			tmpBlockedCycles++;
 
 			//HACK: the hit latency should be retrived from the L1 cache
@@ -420,21 +420,19 @@ FullCPU::commit()
 		}
 		floss_state.commit_end_cause[0] = reason;
 
-		ROBStation* oldestStation = ROB.head();
-		assert(oldestStation != NULL);
-		if(oldestStation->inst->isLoad()){
+		issueStallMessageCounter++;
+		int stallDetectionDelay = 35;
+		if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
+			stallMessageIssued = true;
+			interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
 
-			//TODO: might want to remove the detection delay
-			issueStallMessageCounter++;
-			int stallDetectionDelay = 35;
-			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
-				stallMessageIssued = true;
-				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
+			stallCycleTraceCounter += stallDetectionDelay;
+			noCommitCycles++;
+		}
 
-				stallCycleTraceCounter += stallDetectionDelay;
-			}
-
-			if(stallMessageIssued) stallCycleTraceCounter++;
+		if(stallMessageIssued){
+			stallCycleTraceCounter++;
+			noCommitCycles++;
 		}
 
 		//
