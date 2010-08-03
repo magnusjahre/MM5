@@ -311,3 +311,20 @@ accessFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
     int result = access(path.c_str(), mode);
     return (result == -1) ? -errno : result;
 }
+
+SyscallReturn
+getcwdFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
+{
+
+    int path_len = xc->getSyscallArg(1);
+    char* pathname = (char*) malloc(path_len*sizeof(char));
+    char* retval = getcwd(pathname, path_len);
+    assert(retval != NULL);
+
+    BufferArg path(xc->getSyscallArg(0), path_len);
+    strncpy((char *)path.bufferPtr(), pathname, path_len);
+
+    path.copyOut(xc->mem);
+
+    return 0;
+}

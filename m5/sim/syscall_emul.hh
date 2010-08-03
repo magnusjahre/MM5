@@ -260,7 +260,7 @@ struct OpenFlagTransTable {
     int hostFlag;	//!< Corresponding host system flag value.
 };
 
-
+SyscallReturn getcwdFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc);
 
 /// A readable name for 1,000,000, for converting microseconds to seconds.
 const int one_million = 1000000;

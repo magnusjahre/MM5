@@ -1,6 +1,7 @@
 from m5 import *
 import TestPrograms
 import Spec2000
+import Spec2006
 import workloads
 import hog_workloads
 import bw_workloads
@@ -820,8 +821,11 @@ if env['BENCHMARK'].startswith("fair"):
 elif env['BENCHMARK'] in single_core.configuration:
     prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
 
+elif env['BENCHMARK'].startswith("s6"):
+    prog = Spec2006.createWorkload([env['BENCHMARK']])
+
 elif env['BENCHMARK'] == "hello":
-    prog = [TestPrograms.HelloWorld() for i in range(int(env["NP"]))]
+    prog = [TestPrograms.HelloWorld(cpuID=i) for i in range(int(env["NP"]))]
 
 else:
     panic("The BENCHMARK environment variable was set to something improper\n")

@@ -850,7 +850,7 @@ SyscallDesc Linux::syscallDescs[] = {
     /* 364 */ SyscallDesc("getrusage", getrusageFunc<Linux>),
     /* 365 */ SyscallDesc("wait4", unimplementedFunc),
     /* 366 */ SyscallDesc("adjtimex", unimplementedFunc),
-    /* 367 */ SyscallDesc("getcwd", unimplementedFunc),
+    /* 367 */ SyscallDesc("getcwd", getcwdFunc),
     /* 368 */ SyscallDesc("capget", unimplementedFunc),
     /* 369 */ SyscallDesc("capset", unimplementedFunc),
     /* 370 */ SyscallDesc("sendfile", unimplementedFunc),
