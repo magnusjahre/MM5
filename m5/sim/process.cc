@@ -224,7 +224,7 @@ bool
 Process::close_fd(int tgt_fd){
   tgtFDFileParams.erase(tgt_fd);
   assert(tgtFDFileParams.find(tgt_fd) == tgtFDFileParams.end());
-  
+
   return tgt_fd != fd_map[STDOUT_FILENO] && tgt_fd != fd_map[STDERR_FILENO] && tgt_fd != fd_map[STDIN_FILENO];
 }
 
@@ -487,19 +487,14 @@ LiveProcess::LiveProcess(const string &nm, ObjectFile *objFile,
     data_size = objFile->dataSize() + objFile->bssSize();
     brk_point = RoundUp<uint64_t>(data_base + data_size, VMPageSize);
 
-    // load object file into target memory
-    objFile->loadSections(memory);
-
-    // load up symbols, if any... these may be used for debugging or
-    // profiling.
     if (!debugSymbolTable) {
-	debugSymbolTable = new SymbolTable();
-	if (!objFile->loadGlobalSymbols(debugSymbolTable) ||
-	    !objFile->loadLocalSymbols(debugSymbolTable)) {
-	    // didn't load any symbols
-	    delete debugSymbolTable;
-	    debugSymbolTable = NULL;
-	}
+    	debugSymbolTable = new SymbolTable();
+    	if (!objFile->loadGlobalSymbols(debugSymbolTable) ||
+    			!objFile->loadLocalSymbols(debugSymbolTable)) {
+    		// didn't load any symbols
+    		delete debugSymbolTable;
+    		debugSymbolTable = NULL;
+    	}
     }
 
     // Set up stack.  On Alpha, stack goes below text section.  This
@@ -513,42 +508,80 @@ LiveProcess::LiveProcess(const string &nm, ObjectFile *objFile,
     // Set pointer for next thread stack.  Reserve 8M for main stack.
     next_thread_stack_base = stack_base - (8 * 1024 * 1024);
 
-    // Calculate how much space we need for arg & env arrays.
-    int argv_array_size = sizeof(Addr) * (argv.size() + 1);
-    int envp_array_size = sizeof(Addr) * (envp.size() + 1);
+    // load object file into target memory
+    objFile->loadSections(memory);
+
+    std::vector<AuxVector>  auxv;
+
+    int intSize = 8;
+
+    auxv.push_back(AuxVector(M5_AT_PAGESZ, AlphaISA::VMPageSize));
+    auxv.push_back(AuxVector(M5_AT_CLKTCK, 100));
+    auxv.push_back(AuxVector(M5_AT_PHDR, objFile->getHeaderTable()));
+    DPRINTF(Loader, "auxv at PHDR %08p\n", objFile->getHeaderTable());
+    auxv.push_back(AuxVector(M5_AT_PHNUM, objFile->getHeaderCount()));
+    auxv.push_back(AuxVector(M5_AT_ENTRY, objFile->entryPoint()));
+    auxv.push_back(AuxVector(M5_AT_UID, 100));
+    auxv.push_back(AuxVector(M5_AT_EUID, 100));
+    auxv.push_back(AuxVector(M5_AT_GID, 100));
+    auxv.push_back(AuxVector(M5_AT_EGID, 100));
+
+    // Calculate how much space we need for arg & env & auxv arrays.
+    int argv_array_size = intSize * (argv.size() + 1);
+    int envp_array_size = intSize * (envp.size() + 1);
+    int auxv_array_size = intSize * 2 * (auxv.size() + 1);
+
     int arg_data_size = 0;
-    for (int i = 0; i < argv.size(); ++i) {
-	arg_data_size += argv[i].size() + 1;
+    for (vector<string>::size_type i = 0; i < argv.size(); ++i) {
+    	arg_data_size += argv[i].size() + 1;
     }
     int env_data_size = 0;
-    for (int i = 0; i < envp.size(); ++i) {
-	env_data_size += envp[i].size() + 1;
+    for (vector<string>::size_type i = 0; i < envp.size(); ++i) {
+    	env_data_size += envp[i].size() + 1;
     }
 
     int space_needed =
-	argv_array_size + envp_array_size + arg_data_size + env_data_size;
-    // for SimpleScalar compatibility
-    if (space_needed < 16384)
-	space_needed = 16384;
+    	argv_array_size +
+    	envp_array_size +
+    	auxv_array_size +
+    	arg_data_size +
+    	env_data_size;
+
+    if (space_needed < 32*1024)
+    	space_needed = 32*1024;
 
     // set bottom of stack
     stack_min = stack_base - space_needed;
     // align it
-    stack_min &= ~7;
+    stack_min = RoundDown<uint64_t>(stack_min, VMPageSize);
     stack_size = stack_base - stack_min;
 
     // map out initial stack contents
-    Addr argv_array_base = stack_min + sizeof(uint64_t); // room for argc
+    Addr argv_array_base = stack_min + intSize; // room for argc
     Addr envp_array_base = argv_array_base + argv_array_size;
-    Addr arg_data_base = envp_array_base + envp_array_size;
+    Addr auxv_array_base = envp_array_base + envp_array_size;
+    Addr arg_data_base = auxv_array_base + auxv_array_size;
     Addr env_data_base = arg_data_base + arg_data_size;
 
     // write contents to stack
     uint64_t argc = argv.size();
-    memory->access(Write, stack_min, &argc, sizeof(uint64_t));
+    if (intSize == 8)
+    	argc = htog((uint64_t)argc);
+    else if (intSize == 4)
+    	argc = htog((uint32_t)argc);
+    else
+    	panic("Unknown int size");
+
+    memory->access(Write, stack_min, (uint8_t*) &argc, intSize);
 
     copyStringArray(argv, argv_array_base, arg_data_base, memory);
     copyStringArray(envp, envp_array_base, env_data_base, memory);
+
+    //Copy the aux stuff
+    for (vector<AuxVector>::size_type x = 0; x < auxv.size(); x++) {
+    	memory->access(Write, auxv_array_base + x * 2 * intSize, (uint8_t*)&(auxv[x].a_type), intSize);
+    	memory->access(Write, auxv_array_base + (x * 2 + 1) * intSize, (uint8_t*)&(auxv[x].a_val), intSize);
+    }
 
     init_regs->intRegFile[ArgumentReg0] = argc;
     init_regs->intRegFile[ArgumentReg1] = argv_array_base;

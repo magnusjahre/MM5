@@ -92,6 +92,10 @@ class ObjectFile
     Section data;
     Section bss;
 
+    Addr _programHeaderTable;
+    uint16_t _programHeaderSize;
+    uint16_t _programHeaderCount;
+
   public:
     Addr entryPoint() const { return entry; }
     Addr globalPointer() const { return globalPtr; }
@@ -103,6 +107,14 @@ class ObjectFile
     size_t textSize() const { return text.size; }
     size_t dataSize() const { return data.size; }
     size_t bssSize() const { return bss.size; }
+
+    Addr getHeaderTable(){
+    	return _programHeaderTable;
+    }
+
+    uint16_t getHeaderCount(){
+    	return _programHeaderCount;
+    }
 };
 
 ObjectFile *createObjectFile(const std::string &fname);

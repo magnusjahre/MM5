@@ -51,6 +51,51 @@
 
 class ExecContext;
 class FunctionalMemory;
+
+struct AuxVector
+{
+    uint64_t a_type;
+    uint64_t a_val;
+
+    AuxVector()
+    {}
+
+    AuxVector(uint64_t type, uint64_t val){
+    	a_type = type;
+    	a_val = val;
+    }
+};
+
+enum AuxiliaryVectorType {
+    M5_AT_NULL = 0,
+    M5_AT_IGNORE = 1,
+    M5_AT_EXECFD = 2,
+    M5_AT_PHDR = 3,
+    M5_AT_PHENT = 4,
+    M5_AT_PHNUM = 5,
+    M5_AT_PAGESZ = 6,
+    M5_AT_BASE = 7,
+    M5_AT_FLAGS = 8,
+    M5_AT_ENTRY = 9,
+    M5_AT_NOTELF = 10,
+    M5_AT_UID = 11,
+    M5_AT_EUID = 12,
+    M5_AT_GID = 13,
+    M5_AT_EGID = 14,
+    // The following may be specific to Linux
+    M5_AT_PLATFORM = 15,
+    M5_AT_HWCAP = 16,
+    M5_AT_CLKTCK = 17,
+
+    M5_AT_SECURE = 23,
+    M5_BASE_PLATFORM = 24,
+    M5_AT_RANDOM = 25,
+
+    M5_AT_EXECFN = 31,
+
+    M5_AT_VECTOR_SIZE = 44
+};
+
 class Process : public SimObject
 {
   public:

@@ -78,15 +78,45 @@ ElfObject::tryFile(const string &fname, int fd, size_t len, uint8_t *data)
     else {
         if (ehdr.e_ident[EI_CLASS] == ELFCLASS32)
             panic("32 bit ELF Binary, Not Supported");
-        /* @todo this emachine value isn't offical yet. 
+        /* @todo this emachine value isn't offical yet.
          *       so we probably shouldn't check it. */
 //        if (ehdr.e_machine != EM_ALPHA)
 //            panic("Non Alpha Binary, Not Supported");
 
+        ElfObject* result = new ElfObject(fname, fd, len, data, ObjectFile::Alpha, ObjectFile::Linux);
+
+        //The number of headers in the file
+        result->_programHeaderCount = ehdr.e_phnum;
+
+        //Record the size of each entry
+        result->_programHeaderSize = ehdr.e_phentsize;
+        if(result->_programHeaderCount) //If there is a program header table
+        {
+            //Figure out the virtual address of the header table in the
+            //final memory image. We use the program headers themselves
+            //to translate from a file offset to the address in the image.
+            GElf_Phdr phdr;
+            uint64_t e_phoff = ehdr.e_phoff;
+            result->_programHeaderTable = 0;
+            for(int hdrnum = 0; hdrnum < result->_programHeaderCount; hdrnum++)
+            {
+                gelf_getphdr(elf, hdrnum, &phdr);
+                //Check if we've found the segment with the headers in it
+                if(phdr.p_offset <= e_phoff &&
+                        phdr.p_offset + phdr.p_filesz > e_phoff)
+                {
+                    result->_programHeaderTable = phdr.p_paddr + e_phoff;
+                    break;
+                }
+            }
+        }
+        else{
+            result->_programHeaderTable = 0;
+        }
+
         elf_end(elf);
-	
-        return new ElfObject(fname, fd, len, data,
-			     ObjectFile::Alpha, ObjectFile::Linux);
+
+        return result;
     }
 }
 
@@ -97,78 +127,78 @@ ElfObject::ElfObject(const string &_filename, int _fd,
     : ObjectFile(_filename, _fd, _len, _data, _arch, _opSys)
 
 {
-    Elf *elf;
-    GElf_Ehdr ehdr;
+	Elf *elf;
+	GElf_Ehdr ehdr;
 
-    // check that header matches library version
-    if (elf_version(EV_CURRENT) == EV_NONE)
-        panic("wrong elf version number!");
+	// check that header matches library version
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		panic("wrong elf version number!");
 
-    // get a pointer to elf structure
-    elf = elf_memory((char*)fileData,len);
-    // will only fail if fd is invalid
-    assert(elf != NULL);
+	// get a pointer to elf structure
+	elf = elf_memory((char*)fileData,len);
+	// will only fail if fd is invalid
+	assert(elf != NULL);
 
-    // Check that we actually have a elf file
-    if (gelf_getehdr(elf, &ehdr) ==0) {
-        panic("Not ELF, shouldn't be here");
-    }
-
-    entry = ehdr.e_entry;
-
-    // initialize segment sizes to 0 in case they're not present
-    text.size = data.size = bss.size = 0;
-
-    for (int i = 0; i < ehdr.e_phnum; ++i) {
-	GElf_Phdr phdr;
-	if (gelf_getphdr(elf, i, &phdr) == 0) {
-	    panic("gelf_getphdr failed for section %d", i);
+	// Check that we actually have a elf file
+	if (gelf_getehdr(elf, &ehdr) ==0) {
+		panic("Not ELF, shouldn't be here");
 	}
 
-	// for now we don't care about non-loadable segments
-	if (!(phdr.p_type & PT_LOAD))
-	    continue;
+	entry = ehdr.e_entry;
 
-	// the headers don't explicitly distinguish text from data,
-	// but empirically the text segment comes first.
-	if (text.size == 0) {  // haven't seen text segment yet
-	    text.baseAddr = phdr.p_vaddr;
-	    text.size = phdr.p_filesz;
-	    // remember where the data is for loadSections()
-	    fileTextBits = fileData + phdr.p_offset;
-	    // if there's any padding at the end that's not in the
-	    // file, call it the bss.  This happens in the "text"
-	    // segment if there's only one loadable segment (as for
-	    // kernel images).
-	    bss.size = phdr.p_memsz - phdr.p_filesz;
-	    bss.baseAddr = phdr.p_vaddr + phdr.p_filesz;
+	// initialize segment sizes to 0 in case they're not present
+	text.size = data.size = bss.size = 0;
+
+	for (int i = 0; i < ehdr.e_phnum; ++i) {
+		GElf_Phdr phdr;
+		if (gelf_getphdr(elf, i, &phdr) == 0) {
+			panic("gelf_getphdr failed for section %d", i);
+		}
+
+		// for now we don't care about non-loadable segments
+		if (!(phdr.p_type & PT_LOAD))
+			continue;
+
+		// the headers don't explicitly distinguish text from data,
+		// but empirically the text segment comes first.
+		if (text.size == 0) {  // haven't seen text segment yet
+			text.baseAddr = phdr.p_vaddr;
+			text.size = phdr.p_filesz;
+			// remember where the data is for loadSections()
+			fileTextBits = fileData + phdr.p_offset;
+			// if there's any padding at the end that's not in the
+			// file, call it the bss.  This happens in the "text"
+			// segment if there's only one loadable segment (as for
+			// kernel images).
+			bss.size = phdr.p_memsz - phdr.p_filesz;
+			bss.baseAddr = phdr.p_vaddr + phdr.p_filesz;
+		}
+		else if (data.size == 0) { // have text, this must be data
+			data.baseAddr = phdr.p_vaddr;
+			data.size = phdr.p_filesz;
+			// remember where the data is for loadSections()
+			fileDataBits = fileData + phdr.p_offset;
+			// if there's any padding at the end that's not in the
+			// file, call it the bss.  Warn if this happens for both
+			// the text & data segments (should only have one bss).
+			if (phdr.p_memsz - phdr.p_filesz > 0 && bss.size != 0) {
+				warn("Two implied bss segments in file!\n");
+			}
+			bss.size = phdr.p_memsz - phdr.p_filesz;
+			bss.baseAddr = phdr.p_vaddr + phdr.p_filesz;
+		}
 	}
-	else if (data.size == 0) { // have text, this must be data
-	    data.baseAddr = phdr.p_vaddr;
-	    data.size = phdr.p_filesz;
-	    // remember where the data is for loadSections()
-	    fileDataBits = fileData + phdr.p_offset;
-	    // if there's any padding at the end that's not in the
-	    // file, call it the bss.  Warn if this happens for both
-	    // the text & data segments (should only have one bss).
-	    if (phdr.p_memsz - phdr.p_filesz > 0 && bss.size != 0) {
-		warn("Two implied bss segments in file!\n");
-	    }
- 	    bss.size = phdr.p_memsz - phdr.p_filesz;
-	    bss.baseAddr = phdr.p_vaddr + phdr.p_filesz;
-	}
-    }
 
-    // should have found at least one loadable segment
-    assert(text.size != 0);
+	// should have found at least one loadable segment
+	assert(text.size != 0);
 
-    DPRINTFR(Loader, "text: 0x%x %d\ndata: 0x%x %d\nbss: 0x%x %d\n",
-	     text.baseAddr, text.size, data.baseAddr, data.size,
-	     bss.baseAddr, bss.size);
+	DPRINTFR(Loader, "text: 0x%x %d\ndata: 0x%x %d\nbss: 0x%x %d\n",
+			text.baseAddr, text.size, data.baseAddr, data.size,
+			bss.baseAddr, bss.size);
 
-    elf_end(elf);
+	elf_end(elf);
 
-    // We will actually read the sections when we need to load them
+	// We will actually read the sections when we need to load them
 }
 
 
