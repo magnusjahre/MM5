@@ -300,18 +300,18 @@ class Linux {
     /// Target uname() handler.
     static SyscallReturn
     unameFunc(SyscallDesc *desc, int callnum, Process *process,
-	      ExecContext *xc)
+    		ExecContext *xc)
     {
-	TypedBufferArg<Linux::utsname> name(xc->getSyscallArg(0));
+    	TypedBufferArg<Linux::utsname> name(xc->getSyscallArg(0));
 
-	strcpy(name->sysname, "Linux");
-	strcpy(name->nodename, hostname);
-	strcpy(name->release, "2.4.20");
-	strcpy(name->version, "#1 Mon Aug 18 11:32:15 EDT 2003");
-	strcpy(name->machine, "alpha");
+        strcpy(name->sysname, "Linux");
+        strcpy(name->nodename, hostname);
+        strcpy(name->release, "2.6.26");
+        strcpy(name->version, "#1 Mon Aug 18 11:32:15 EDT 2003");
+        strcpy(name->machine, "alpha");
 
-	name.copyOut(xc->mem);
-	return 0;
+    	name.copyOut(xc->mem);
+    	return 0;
     }
 
     /// Target osf_getsysyinfo() handler.  Even though this call is
