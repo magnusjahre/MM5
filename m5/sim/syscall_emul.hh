@@ -299,7 +299,7 @@ ioctlFunc(SyscallDesc *desc, int callnum, Process *process,
     int fd = xc->getSyscallArg(0);
     unsigned req = xc->getSyscallArg(1);
 
-    // DPRINTFR(SyscallVerbose, "ioctl(%d, 0x%x, ...)\n", fd, req);
+    DPRINTF(SyscallVerbose, "ioctl(%d, 0x%x, ...)\n", fd, req);
 
     if (fd < 0 || process->sim_fd(fd) < 0) {
 	// doesn't map to any simulator fd: not a valid target fd

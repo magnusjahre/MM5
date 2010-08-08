@@ -141,12 +141,13 @@ SyscallReturn
 readFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
     int fd = p->sim_fd(xc->getSyscallArg(0));
+    Addr bufPtr = xc->getSyscallArg(1);
     int nbytes = xc->getSyscallArg(2);
-    BufferArg bufArg(xc->getSyscallArg(1), nbytes);
+    BufferArg bufArg(bufPtr, nbytes);
 
     int bytes_read = read(fd, bufArg.bufferPtr(), nbytes);
 
-    if (bytes_read != -1) bufArg.copyOut(xc->mem);
+    if (bytes_read != -1 ) bufArg.copyOut(xc->mem);
 
     return bytes_read;
 }
@@ -325,6 +326,7 @@ getcwdFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
     strncpy((char *)path.bufferPtr(), pathname, path_len);
 
     path.copyOut(xc->mem);
+    int actualPathLen = strlen(pathname);
 
-    return 0;
+    return actualPathLen;
 }
