@@ -818,4 +818,42 @@ getrusageFunc(SyscallDesc *desc, int callnum, Process *process,
     return 0;
 }
 
+//A simple implementation
+template <class OS>
+SyscallReturn
+mremapFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
+{
+    Addr start = xc->getSyscallArg(0);
+    uint64_t length_old = xc->getSyscallArg(1);
+    uint64_t length_new = xc->getSyscallArg(2);
+
+    if ((start  % TheISA::VMPageSize) != 0 ||
+        (length_new % TheISA::VMPageSize) != 0) {
+        warn("mremap failing: arguments not page-aligned: "
+             "start 0x%x length 0x%x",
+             start, length_new);
+        return -EINVAL;
+    }
+
+    if (start != 0) {
+        warn("mremap: ignoring suggested map address 0x%x, using 0x%x",
+             start, p->mmap_end);
+    }
+
+    // pick next address from our "mmap region"
+    if(length_old < length_new){
+       warn("mremap size  0x%x  %d -> %d",start,length_old,length_new);
+       start = p->mmap_end;
+       //FIXME: might need to implement some form of allocation...
+//       p->pTable->allocate(start, length_new-length_old);
+       p->mmap_end += (length_new-length_old);
+       start = xc->getSyscallArg(0);
+
+    }else{
+       warn("mremap size  0x%x  %d -> %d",start,length_old,length_new);
+    }
+
+    return start;
+}
+
 #endif // __SIM_SYSCALL_EMUL_HH__
