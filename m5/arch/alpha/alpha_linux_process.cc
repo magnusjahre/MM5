@@ -610,7 +610,7 @@ SyscallDesc Linux::syscallDescs[] = {
     /* 127 */ SyscallDesc("setregid", unimplementedFunc),
     /* 128 */ SyscallDesc("rename", renameFunc),
     /* 129 */ SyscallDesc("truncate", unimplementedFunc),
-    /* 130 */ SyscallDesc("ftruncate", unimplementedFunc),
+    /* 130 */ SyscallDesc("ftruncate", ftruncateFunc),
     /* 131 */ SyscallDesc("flock", unimplementedFunc),
     /* 132 */ SyscallDesc("setgid", unimplementedFunc),
     /* 133 */ SyscallDesc("sendto", unimplementedFunc),
