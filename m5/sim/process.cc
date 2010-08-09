@@ -480,6 +480,12 @@ LiveProcess::LiveProcess(const string &nm, ObjectFile *objFile,
 {
     prog_fname = argv[0];
 
+    if (objFile->isDynamic()){
+    	fatal("Object file is a dynamic executable however only static "
+    			"executables are supported!\n       Please recompile your "
+    			"executable as a static binary and try again.\n");
+    }
+
     prog_entry = objFile->entryPoint();
     text_base = objFile->textBase();
     text_size = objFile->textSize();

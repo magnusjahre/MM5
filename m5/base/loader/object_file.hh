@@ -78,6 +78,8 @@ class ObjectFile
     Arch  getArch()  const { return arch; }
     OpSys getOpSys() const { return opSys; }
 
+    virtual bool isDynamic() { return false; }
+
   protected:
 
     struct Section {
