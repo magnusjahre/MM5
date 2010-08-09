@@ -9,11 +9,10 @@ if rootdir == None:
 spec_root = rootdir+'/spec2006/input'
 spec_bin  = rootdir+'/spec2006/'
 
-def copysym(fra, til):
-  os.system("cp " + fra + " " + til) #+" 2> /dev/null")
-
-def copysymtree(fra, til):
-  os.system("cp -r " + fra + " " + til)# +" 2> /dev/null")
+def copyInputFiles(dirname):
+    fra = os.path.join(spec_root, dirname+'/*') 
+    til = '.'
+    os.system("cp -r " + fra + " " + til)# +" 2> /dev/null")
 
 def createWorkload(benchmarkStrings):
     returnArray = []
@@ -21,12 +20,8 @@ def createWorkload(benchmarkStrings):
     for string in benchmarkStrings:
         if string == 's6-bzip2':
             returnArray.append(Bzip2Source())
-#        elif string == 's6-bzip2-chicken':
-#            returnArray.append(Bzip2Chicken())
-#        elif string == 's6-bzip2-liberty':
-#            returnArray.append(Bzip2Liberty())
-#        elif string == 's6-bzip2-text':
-#            returnArray.append(Bzip2Text())
+        elif string == 's6-perlbench':
+            panic("SPEC2006 perlbench did not compile")
         elif string == 's6-gcc':
             returnArray.append(GccScilab())
         elif string == 's6-mcf':
@@ -80,7 +75,9 @@ def createWorkload(benchmarkStrings):
         elif string == 's6-tonto':
             returnArray.append(Tonto())
         elif string == 's6-wrf':
-            returnArray.append(Wrf())               
+            returnArray.append(Wrf())
+        elif string == 's6-xalancbmk':
+            panic('SPEC2006 xalancbmk did not compile')               
         else:
             panic("Unknown benchmark "+str(string)+" is part of workload")
     
@@ -93,39 +90,15 @@ def createWorkload(benchmarkStrings):
 
 class Bzip2Source(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '401.bzip2/*') , '.')
+        copyInputFiles('401.bzip2')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'bzip2')
     cmd = 'bzip2 input.source 280'
-
-class Bzip2Chicken(LiveProcess):
-    def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '401.bzip2/*') , '.')
-        LiveProcess.__init__(self)
-    
-    executable = os.path.join(spec_bin, 'bzip2')
-    cmd = 'bzip2 chicken.jpg 30'
-    
-class Bzip2Liberty(LiveProcess):
-    def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '401.bzip2/*') , '.')
-        LiveProcess.__init__(self)
-    
-    executable = os.path.join(spec_bin, 'bzip2')
-    cmd = 'bzip2 liberty.jpg 30'
-    
-class Bzip2Text(LiveProcess):
-    def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '401.bzip2/*') , '.')
-        LiveProcess.__init__(self)
-    
-    executable = os.path.join(spec_bin, 'bzip2')
-    cmd = 'bzip2 text.html 280'
     
 class GccScilab(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '403.gcc/scilab.i') , '.')
+        copyInputFiles("403.gcc")
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'gcc')
@@ -133,7 +106,7 @@ class GccScilab(LiveProcess):
     
 class Mcf(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '429.mcf/inp.in') , '.')
+        copyInputFiles('429.mcf')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'mcf')
@@ -141,7 +114,7 @@ class Mcf(LiveProcess):
 
 class GobmkTrevord(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '445.gobmk/trevord.tst') , '.')
+        copyInputFiles('445.gobmk')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'gobmk')
@@ -150,8 +123,7 @@ class GobmkTrevord(LiveProcess):
     
 class HmmerNph(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '456.hmmer/nph3.hmm') , '.')
-        copysym(os.path.join(spec_root, '456.hmmer/swiss41') , '.')
+        copyInputFiles('456.hmmer')
         LiveProcess.__init__(self)
         
     executable = os.path.join(spec_bin, 'hmmer')
@@ -159,7 +131,7 @@ class HmmerNph(LiveProcess):
 
 class Sjeng(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '458.sjeng/ref.txt') , '.')
+        copyInputFiles('458.sjeng')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'sjeng')
@@ -173,8 +145,7 @@ class Libquantum(LiveProcess):
 
 class H264refSss(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '464.h264ref/sss_encoder_main.cfg') , '.')
-        copysym(os.path.join(spec_root, '464.h264ref/sss.yuv') , '.')
+        copyInputFiles('464.h264ref')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'h264ref')
@@ -182,7 +153,7 @@ class H264refSss(LiveProcess):
 
 class Omnetpp(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '471.omnetpp/omnetpp.ini') , '.')
+        copyInputFiles('471.omnetpp')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'omnetpp')
@@ -190,8 +161,7 @@ class Omnetpp(LiveProcess):
 
 class AstarBigLakes(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '473.astar/BigLakes2048.cfg') , '.')
-        copysym(os.path.join(spec_root, '473.astar/BigLakes2048.bin') , '.')
+        copyInputFiles('473.astar')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'astar')
@@ -204,7 +174,7 @@ class Specrand(LiveProcess):
 
 class Namd(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '444.namd/namd.input') , '.')
+        copyInputFiles('444.namd')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'namd')
@@ -212,7 +182,7 @@ class Namd(LiveProcess):
 
 class DealII(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '447.dealII/*') , '.')
+        copyInputFiles('447.dealII')
         LiveProcess.__init__(self)
         
     executable = os.path.join(spec_bin, 'dealII')
@@ -220,17 +190,15 @@ class DealII(LiveProcess):
     
 class SoplexRef(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '450.soplex/ref.mps') , '.')
-        #copysym(os.path.join(spec_root, '450.soplex/pds-50.mps') , '.')
+        copyInputFiles('450.soplex')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'soplex')
     cmd = 'soplex -m3500 ref.mps'
-    #cmd = 'soplex -s1 -e -m45000 pds-50.mps'
 
 class Povray(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '453.povray/*') , '.')
+        copyInputFiles('453.povray')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'povray')
@@ -238,7 +206,7 @@ class Povray(LiveProcess):
 
 class Lbm(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysym(os.path.join(spec_root, '470.lbm/100_100_130_ldc.of') , '.')
+        copyInputFiles('470.lbm')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'lbm')
@@ -246,7 +214,7 @@ class Lbm(LiveProcess):
 
 class Sphinx3(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '482.sphinx3/*') , '.')
+        copyInputFiles('482.sphinx3')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'sphinx_livepretend')
@@ -254,7 +222,7 @@ class Sphinx3(LiveProcess):
     
 class Bwaves(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '410.bwaves/*') , '.')
+        copyInputFiles('410.bwaves')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'bwaves')
@@ -262,7 +230,7 @@ class Bwaves(LiveProcess):
     
 class GamessCytosine(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '416.gamess/*') , '.')
+        copyInputFiles('416.gamess')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'gamess')
@@ -271,7 +239,7 @@ class GamessCytosine(LiveProcess):
 
 class Milc(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '433.milc/*') , '.')
+        copyInputFiles('433.milc')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'milc')
@@ -280,7 +248,7 @@ class Milc(LiveProcess):
 
 class Zeusmp(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '434.zeusmp/*') , '.')
+        copyInputFiles('434.zeusmp')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'zeusmp')
@@ -288,7 +256,7 @@ class Zeusmp(LiveProcess):
 
 class Gromacs(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '435.gromacs/*') , '.')
+        copyInputFiles('435.gromacs')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'gromacs')
@@ -296,7 +264,7 @@ class Gromacs(LiveProcess):
     
 class CactusADM(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '436.cactusADM/*') , '.')
+        copyInputFiles('436.cactusADM')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'cactusADM')
@@ -304,7 +272,7 @@ class CactusADM(LiveProcess):
 
 class Leslie3d(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '437.leslie3d/*') , '.')
+        copyInputFiles('437.leslie3d')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'leslie3d')
@@ -313,7 +281,7 @@ class Leslie3d(LiveProcess):
 
 class Calculix(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '454.calculix/*') , '.')
+        copyInputFiles('454.calculix')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'calculix')
@@ -321,7 +289,7 @@ class Calculix(LiveProcess):
     
 class GemsFDTD(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '459.GemsFDTD/*') , '.')
+        copyInputFiles('459.GemsFDTD')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'GemsFDTD')
@@ -329,7 +297,7 @@ class GemsFDTD(LiveProcess):
 
 class Tonto(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '465.tonto/*') , '.')
+        copyInputFiles('465.tonto')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'tonto')
@@ -337,7 +305,7 @@ class Tonto(LiveProcess):
     
 class Wrf(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        copysymtree(os.path.join(spec_root, '481.wrf/*') , '.')
+        copyInputFiles('481.wrf')
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'wrf')
