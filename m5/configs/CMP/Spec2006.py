@@ -139,8 +139,9 @@ class Sjeng(LiveProcess):
     
 class Libquantum(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
-        executable = os.path.join(spec_bin, 'libquantum')
+        LiveProcess.__init__(self)
     
+    executable = os.path.join(spec_bin, 'libquantum')
     cmd = 'libquantum 1397 8'
 
 class H264refSss(LiveProcess):
