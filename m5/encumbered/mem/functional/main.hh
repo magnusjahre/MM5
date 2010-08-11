@@ -215,6 +215,7 @@ protected:
 	Addr offset(Addr addr);
 	Addr ptab_set(Addr addr);
 	Addr ptab_tag(Addr addr);
+	Addr page_addr(Addr tag, Addr set);
 
 	uint8_t *page(Addr addr);
 	uint8_t *translate(Addr addr);
@@ -278,6 +279,8 @@ public:
 	virtual Fault write(MemReqPtr &req, uint32_t data);
 	virtual Fault write(MemReqPtr &req, uint64_t data);
 
+	virtual void remap(Addr vaddr, int64_t size, Addr new_vaddr);
+
 public:
 	virtual void regStats();
 	virtual void regFormulas();
@@ -301,6 +304,15 @@ MainMemory::ptab_set(Addr addr)
 inline Addr
 MainMemory::ptab_tag(Addr addr)
 { return addr >> (LogVMPageSize + memPageTabSizeLog2); }
+
+inline Addr
+MainMemory::page_addr(Addr tag, Addr set)
+{
+	Addr tmp = 0;
+	tmp = tag << (LogVMPageSize + memPageTabSizeLog2);
+	tmp = tmp | (set << LogVMPageSize);
+	return tmp;
+}
 
 inline Fault
 MainMemory::page_read(Addr addr, uint8_t *data, int size)

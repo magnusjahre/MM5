@@ -92,6 +92,10 @@ class FunctionalMemory : public SimObject
     // read null-terminated string from 'addr' into 'str'.
     Fault readString(std::string &str, Addr addr);
 
+    virtual void remap(Addr vaddr, int64_t size, Addr new_vaddr){
+    	fatal("remap not implemented");
+    }
+
 #if FULL_SYSTEM
   public:
     virtual bool badaddr(Addr paddr) const { return false; }
@@ -112,7 +116,7 @@ class FunctionalMemory : public SimObject
     void
     mem_block_test(Addr addr) const
     {
-	if (break_addr && (addr & ~(sizeof(uint64_t) - 1)) == 
+	if (break_addr && (addr & ~(sizeof(uint64_t) - 1)) ==
 	    (break_addr & ~(sizeof(uint64_t) - 1)))
 	    mem_break();
     }
@@ -134,7 +138,7 @@ class FunctionalMemory : public SimObject
     void
     mem_block_test(Addr addr, const void *data) const
     {
-	if (break_addr && (addr & ~(sizeof(uint64_t) - 1)) == 
+	if (break_addr && (addr & ~(sizeof(uint64_t) - 1)) ==
 	    (break_addr & ~(sizeof(uint64_t) - 1)))
 	    mem_break(data);
     }
@@ -158,17 +162,17 @@ class FunctionalMemory : public SimObject
 
 inline Fault
 FunctionalMemory::read(MemReqPtr &req, uint8_t &data)
-{ Fault ft; req->size = 1; ft = read(req, (uint8_t *)&data); 
+{ Fault ft; req->size = 1; ft = read(req, (uint8_t *)&data);
   data = gtoh(data); return ft; }
 
 inline Fault
 FunctionalMemory::read(MemReqPtr &req, uint16_t &data)
-{ Fault ft; req->size = 2; ft = read(req, (uint8_t *)&data); 
+{ Fault ft; req->size = 2; ft = read(req, (uint8_t *)&data);
   data = gtoh(data); return ft; }
 
 inline Fault
 FunctionalMemory::read(MemReqPtr &req, uint32_t &data)
-{ Fault ft; req->size = 4; ft = read(req, (uint8_t *)&data); 
+{ Fault ft; req->size = 4; ft = read(req, (uint8_t *)&data);
   data = gtoh(data); return ft; }
 
 inline Fault

@@ -254,6 +254,8 @@ class Process : public SimObject
     virtual void serialize(std::ostream &os);
 
     virtual void unserialize(Checkpoint *cp, const std::string &section);
+
+    void remap(Addr vaddr, int64_t size, Addr new_vaddr);
 };
 
 //

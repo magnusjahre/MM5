@@ -247,6 +247,11 @@ Process::generateFileStateName(const char* prefix, int tgt_fd){
 }
 
 void
+Process::remap(Addr vaddr, int64_t size, Addr new_vaddr){
+	memory->remap(vaddr, size, new_vaddr);
+}
+
+void
 Process::serialize(std::ostream &os){
 
 	// serialize members

@@ -113,8 +113,9 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 
 	ptab = new entry*[memPageTabSize];
 
-	for (int i = 0; i < memPageTabSize; ++i)
+	for (int i = 0; i < memPageTabSize; ++i){
 		ptab[i] = NULL;
+	}
 
 	break_address = 0;
 	break_thread = 1;
@@ -313,6 +314,38 @@ MainMemory::page(Addr addr)
 		misses++;
 		return translate(addr);
 	}
+}
+
+void
+MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
+	assert(vaddr % TheISA::VMPageSize == 0);
+	assert(new_vaddr % TheISA::VMPageSize == 0);
+
+	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
+
+	int movedPages = 0;
+
+	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
+		entry* e = ptab[ptab_set(vaddr)];
+		entry* prev = NULL;
+		while(e != NULL){
+			if(e->tag == ptab_tag(vaddr)){
+
+				if(prev == NULL) ptab[ptab_set(vaddr)] = e->next;
+				else prev->next = e->next;
+
+				e->tag = ptab_tag(new_vaddr);
+				e->next = ptab[ptab_set(new_vaddr)];
+				ptab[ptab_set(new_vaddr)] = e;
+
+				movedPages++;
+			}
+			prev = e;
+			e = e->next;
+		}
+	}
+
+	DPRINTF(SyscallVerbose, "moved %d pages to new addresses\n", movedPages);
 }
 
 void

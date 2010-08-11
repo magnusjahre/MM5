@@ -821,39 +821,49 @@ getrusageFunc(SyscallDesc *desc, int callnum, Process *process,
 //A simple implementation
 template <class OS>
 SyscallReturn
-mremapFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
+mremapFunc(SyscallDesc *desc, int num, Process *process, ExecContext *xc)
 {
     Addr start = xc->getSyscallArg(0);
-    uint64_t length_old = xc->getSyscallArg(1);
-    uint64_t length_new = xc->getSyscallArg(2);
+    uint64_t old_length = xc->getSyscallArg(1);
+    uint64_t new_length = xc->getSyscallArg(2);
+    uint64_t flags = xc->getSyscallArg(3);
 
-    if ((start  % TheISA::VMPageSize) != 0 ||
-        (length_new % TheISA::VMPageSize) != 0) {
-        warn("mremap failing: arguments not page-aligned: "
-             "start 0x%x length 0x%x",
-             start, length_new);
-        return -EINVAL;
+    DPRINTF(SyscallVerbose, "Mremap start=%08p, old_length=%d, new_length=%d, flags=%d\n",
+    		start,
+    		old_length,
+    		new_length,
+    		flags);
+
+    if ((start % TheISA::VMPageSize != 0) ||
+    		(new_length % TheISA::VMPageSize != 0)) {
+    	warn("mremap failing: arguments not page aligned");
+    	return -EINVAL;
     }
 
-    if (start != 0) {
-        warn("mremap: ignoring suggested map address 0x%x, using 0x%x",
-             start, p->mmap_end);
+    if (new_length > old_length) {
+        if ((start + old_length) == process->mmap_end) {
+            uint64_t diff = new_length - old_length;
+            process->mmap_end += diff;
+            return start;
+        } else {
+            // sys/mman.h defined MREMAP_MAYMOVE
+            if (!(flags & 1)) {
+                warn("can't remap here and MREMAP_MAYMOVE flag not set\n");
+                return -ENOMEM;
+            } else {
+            	process->remap(start, old_length, process->mmap_end);
+                warn("mremapping to totally new vaddr %08p-%08p, adding %d\n",
+                        process->mmap_end, process->mmap_end + new_length, new_length);
+                start = process->mmap_end;
+                // add on the remaining unallocated pages
+                process->mmap_end += new_length;
+                warn("returning %08p as start\n", start);
+                return start;
+            }
+        }
+    } else {
+        return start;
     }
-
-    // pick next address from our "mmap region"
-    if(length_old < length_new){
-       warn("mremap size  0x%x  %d -> %d",start,length_old,length_new);
-       start = p->mmap_end;
-       //FIXME: might need to implement some form of allocation...
-//       p->pTable->allocate(start, length_new-length_old);
-       p->mmap_end += (length_new-length_old);
-       start = xc->getSyscallArg(0);
-
-    }else{
-       warn("mremap size  0x%x  %d -> %d",start,length_old,length_new);
-    }
-
-    return start;
 }
 
 #endif // __SIM_SYSCALL_EMUL_HH__
