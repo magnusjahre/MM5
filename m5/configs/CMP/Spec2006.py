@@ -75,6 +75,7 @@ def createWorkload(benchmarkStrings):
         elif string == 's6-tonto':
             returnArray.append(Tonto())
         elif string == 's6-wrf':
+            panic("SPEC2006 wrf fails while reading input files, no need to start it")
             returnArray.append(Wrf())
         elif string == 's6-xalancbmk':
             panic('SPEC2006 xalancbmk did not compile')               
@@ -95,7 +96,7 @@ class Bzip2Source(LiveProcess):
     
     executable = os.path.join(spec_bin, 'bzip2')
     cmd = 'bzip2 input.source 280'
-    output = 'bzip2.out'
+    output = 'bzip2-bmout.out'
     
 class GccScilab(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -104,7 +105,7 @@ class GccScilab(LiveProcess):
     
     executable = os.path.join(spec_bin, 'gcc')
     cmd = 'gcc scilab.i -o scilab.s'
-    output = 'gcc.out'
+    output = 'gcc-bmout.out'
     
 class Mcf(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -113,7 +114,7 @@ class Mcf(LiveProcess):
     
     executable = os.path.join(spec_bin, 'mcf')
     cmd = 'mcf inp.in'
-    output = 'mcf.out'
+    output = 'mcf-bmout.out'
 
 class GobmkTrevord(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -123,7 +124,7 @@ class GobmkTrevord(LiveProcess):
     executable = os.path.join(spec_bin, 'gobmk')
     input = "trevord.tst"
     cmd = 'gobmk --quiet --mode gtp'
-    output = 'gobmk.out'
+    output = 'gobmk-bmout.out'
     
 class HmmerNph(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -132,7 +133,7 @@ class HmmerNph(LiveProcess):
         
     executable = os.path.join(spec_bin, 'hmmer')
     cmd = 'hmmer nph3.hmm swiss41'
-    output = 'hmmer.out'    
+    output = 'hmmer-bmout.out'    
 
 class Sjeng(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -141,7 +142,7 @@ class Sjeng(LiveProcess):
     
     executable = os.path.join(spec_bin, 'sjeng')
     cmd = 'sjeng ref.txt' 
-    output = 'sjeng.out'
+    output = 'sjeng-bmout.out'
     
 class Libquantum(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -149,7 +150,7 @@ class Libquantum(LiveProcess):
     
     executable = os.path.join(spec_bin, 'libquantum')
     cmd = 'libquantum 1397 8'
-    output = 'libquantum.out'
+    output = 'libquantum-bmout.out'
 
 class H264refSss(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -158,7 +159,7 @@ class H264refSss(LiveProcess):
     
     executable = os.path.join(spec_bin, 'h264ref')
     cmd = 'h264ref -d sss_encoder_main.cfg'
-    output = 'h264ref.out'
+    output = 'h264ref-bmout.out'
 
 class Omnetpp(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -167,7 +168,7 @@ class Omnetpp(LiveProcess):
     
     executable = os.path.join(spec_bin, 'omnetpp')
     cmd = 'omnetpp omnetpp.ini'
-    output = 'omnetpp.out'
+    output = 'omnetpp-bmout.out'
 
 class AstarBigLakes(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -176,12 +177,12 @@ class AstarBigLakes(LiveProcess):
     
     executable = os.path.join(spec_bin, 'astar')
     cmd = 'astar BigLakes2048.cfg'
-    output = 'astar.out'
+    output = 'astar-bmout.out'
     
 class Specrand(LiveProcess):    
     executable = os.path.join(spec_bin, 'specrand')
     cmd = 'specrand 1255432124 234923'
-    output = 'specrand.out'
+    output = 'specrand-bmout.out'
 
 class Namd(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -189,8 +190,8 @@ class Namd(LiveProcess):
         LiveProcess.__init__(self)
     
     executable = os.path.join(spec_bin, 'namd')
-    cmd = 'namd --input namd.input --iterations 38 --output namd.out'
-    output = 'namdbm.out'
+    cmd = 'namd --input namd.input --iterations 38 --output namd-bmout.out'
+    output = 'namdbm-bmout.out'
 
 class DealII(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -199,7 +200,7 @@ class DealII(LiveProcess):
         
     executable = os.path.join(spec_bin, 'dealII')
     cmd = 'dealII 23'
-    output = 'dealII.out'
+    output = 'dealII-bmout.out'
     
 class SoplexRef(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -208,7 +209,7 @@ class SoplexRef(LiveProcess):
     
     executable = os.path.join(spec_bin, 'soplex')
     cmd = 'soplex -m3500 ref.mps'
-    output = 'soplex.out'
+    output = 'soplex-bmout.out'
 
 class Povray(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -217,7 +218,7 @@ class Povray(LiveProcess):
     
     executable = os.path.join(spec_bin, 'povray')
     cmd = 'povray SPEC-benchmark-ref.ini'
-    output = 'povray.out'
+    output = 'povray-bmout.out'
 
 class Lbm(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -226,7 +227,7 @@ class Lbm(LiveProcess):
     
     executable = os.path.join(spec_bin, 'lbm')
     cmd = 'lbm 3000 reference.dat 0 0 100_100_130_ldc.of'
-    output = 'lbm.out'
+    output = 'lbm-bmout.out'
 
 class Sphinx3(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -235,7 +236,7 @@ class Sphinx3(LiveProcess):
     
     executable = os.path.join(spec_bin, 'sphinx_livepretend')
     cmd = 'sphinx_livepretend ctlfile . args.an4'
-    output = 'sphinx.out'
+    output = 'sphinx-bmout.out'
     
 class Bwaves(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -244,7 +245,7 @@ class Bwaves(LiveProcess):
     
     executable = os.path.join(spec_bin, 'bwaves')
     cmd = 'bwaves'
-    output = 'bwaves.out'
+    output = 'bwaves-bmout.out'
     
 class GamessCytosine(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -254,7 +255,7 @@ class GamessCytosine(LiveProcess):
     executable = os.path.join(spec_bin, 'gamess')
     cmd = 'gamess'
     input = 'cytosine.2.config'
-    output = 'gamess.out'
+    output = 'gamess-bmout.out'
 
 class Milc(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -264,7 +265,7 @@ class Milc(LiveProcess):
     executable = os.path.join(spec_bin, 'milc')
     cmd = 'milc'
     input = 'su3imp.in'
-    output = 'milc.out'
+    output = 'milc-bmout.out'
 
 class Zeusmp(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -273,7 +274,7 @@ class Zeusmp(LiveProcess):
     
     executable = os.path.join(spec_bin, 'zeusmp')
     cmd = 'zeusmp'
-    output = 'zeusmp.out'
+    output = 'zeusmp-bmout.out'
 
 class Gromacs(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -282,7 +283,7 @@ class Gromacs(LiveProcess):
     
     executable = os.path.join(spec_bin, 'gromacs')
     cmd = 'gromacs -silent -deffnm gromacs -nice 0'
-    output = 'gromacs.out'
+    output = 'gromacs-bmout.out'
     
 class CactusADM(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -291,7 +292,7 @@ class CactusADM(LiveProcess):
     
     executable = os.path.join(spec_bin, 'cactusADM')
     cmd = 'cactusADM benchADM.par'
-    output = 'cactusADM.out'    
+    output = 'cactusADM-bmout.out'    
 
 class Leslie3d(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -301,7 +302,7 @@ class Leslie3d(LiveProcess):
     executable = os.path.join(spec_bin, 'leslie3d')
     cmd = 'leslie3d'
     input = 'leslie3d.in'  
-    output = 'leslie3d.out'   
+    output = 'leslie3d-bmout.out'   
 
 class Calculix(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -310,7 +311,7 @@ class Calculix(LiveProcess):
     
     executable = os.path.join(spec_bin, 'calculix')
     cmd = 'calculix -i  hyperviscoplastic'
-    output = 'calculix.out'
+    output = 'calculix-bmout.out'
     
 class GemsFDTD(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -319,7 +320,7 @@ class GemsFDTD(LiveProcess):
     
     executable = os.path.join(spec_bin, 'GemsFDTD')
     cmd = 'GemsFDTD'
-    output = 'GemsFDTD.out'
+    output = 'GemsFDTD-bmout.out'
 
 class Tonto(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -328,7 +329,7 @@ class Tonto(LiveProcess):
     
     executable = os.path.join(spec_bin, 'tonto')
     cmd = 'tonto'
-    output = 'tonto.out'
+    output = 'tonto-bmout.out'
     
 class Wrf(LiveProcess):
     def __init__(self, _value_parent = None, **kwargs):
@@ -337,4 +338,4 @@ class Wrf(LiveProcess):
     
     executable = os.path.join(spec_bin, 'wrf')
     cmd = 'wrf'
-    output = 'wrf.out'
+    output = 'wrf-bmout.out'
