@@ -41,6 +41,7 @@ def createWorkload(benchmarkStrings):
         elif string == 's6-astar':
             returnArray.append(AstarBigLakes())
         elif string == 's6-specrand':
+            # benchmark is too short to be useful
             returnArray.append(Specrand())
         elif string == 's6-milc':
             returnArray.append(Milc())
