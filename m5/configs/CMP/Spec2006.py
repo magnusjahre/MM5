@@ -75,6 +75,8 @@ def createWorkload(benchmarkStrings):
             returnArray.append(GemsFDTD())
         elif string == 's6-tonto':
             returnArray.append(Tonto())
+	elif string == 's6-test':
+            returnArray.append(Test())
         elif string == 's6-wrf':
             panic("SPEC2006 wrf fails while reading input files, no need to start it")
             returnArray.append(Wrf())
@@ -340,3 +342,11 @@ class Wrf(LiveProcess):
     executable = os.path.join(spec_bin, 'wrf')
     cmd = 'wrf'
     output = 'wrf-bmout.txt'
+
+class Test(LiveProcess):
+    def __init__(self, _value_parent = None, **kwargs):
+        LiveProcess.__init__(self)
+    
+    executable = 'test'
+    cmd = 'test'
+    output = 'test-bmout.txt'
