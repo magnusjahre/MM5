@@ -618,39 +618,46 @@ fstatfsFunc(SyscallDesc *desc, int callnum, Process *process,
 template <class OS>
 SyscallReturn
 writevFunc(SyscallDesc *desc, int callnum, Process *process,
-	   ExecContext *xc)
+		ExecContext *xc)
 {
-    int fd = xc->getSyscallArg(0);
-    if (fd < 0 || process->sim_fd(fd) < 0) {
-	// doesn't map to any simulator fd: not a valid target fd
-	return -EBADF;
-    }
 
-    uint64_t tiov_base = xc->getSyscallArg(1);
-    size_t count = xc->getSyscallArg(2);
-    struct iovec hiov[count];
-    for (int i = 0; i < count; ++i)
-    {
-	typename OS::tgt_iovec tiov;
-	xc->mem->access(Read, tiov_base + i*sizeof(typename OS::tgt_iovec),
-			&tiov, sizeof(typename OS::tgt_iovec));
-	hiov[i].iov_len = tiov.iov_len;
-	hiov[i].iov_base = new char [hiov[i].iov_len];
-	xc->mem->access(Read, tiov.iov_base,
-			hiov[i].iov_base, hiov[i].iov_len);
-    }
+	int fd = xc->getSyscallArg(0);
+	if (fd < 0 || process->sim_fd(fd) < 0) {
+		// doesn't map to any simulator fd: not a valid target fd
+		return -EBADF;
+	}
 
-    int result = writev(process->sim_fd(fd), hiov, count);
+	uint64_t tiov_base = xc->getSyscallArg(1);
+	size_t count = xc->getSyscallArg(2);
+	struct iovec hiov[count];
 
-    for (int i = 0; i < count; ++i)
-    {
-	delete [] (char *)hiov[i].iov_base;
-    }
+	DPRINTF(SyscallVerbose, "writev writing %d buffers to sim fd %d, host fd %d\n",
+			count,
+			fd,
+			process->sim_fd(fd));
 
-    if (result < 0)
-	return -errno;
+	for (int i = 0; i < count; ++i)
+	{
+		typename OS::tgt_iovec tiov;
+		xc->mem->access(Read, tiov_base + i*sizeof(typename OS::tgt_iovec),
+				&tiov, sizeof(typename OS::tgt_iovec));
+		hiov[i].iov_len = tiov.iov_len;
+		hiov[i].iov_base = new char [hiov[i].iov_len];
+		xc->mem->access(Read, tiov.iov_base,
+				hiov[i].iov_base, hiov[i].iov_len);
+	}
 
-    return 0;
+	int result = writev(process->sim_fd(fd), hiov, count);
+
+	for (int i = 0; i < count; ++i)
+	{
+		delete [] (char *)hiov[i].iov_base;
+	}
+
+	if (result < 0)
+		return -errno;
+
+	return result;
 }
 
 
@@ -670,29 +677,31 @@ template <class OS>
 SyscallReturn
 mmapFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
-    Addr start = xc->getSyscallArg(0);
-    uint64_t length = xc->getSyscallArg(1);
-    // int prot = xc->getSyscallArg(2);
-    int flags = xc->getSyscallArg(3);
-    // int fd = p->sim_fd(xc->getSyscallArg(4));
-    // int offset = xc->getSyscallArg(5);
+	Addr start = xc->getSyscallArg(0);
+	uint64_t length = xc->getSyscallArg(1);
+	// int prot = xc->getSyscallArg(2);
+	int flags = xc->getSyscallArg(3);
+	// int fd = p->sim_fd(xc->getSyscallArg(4));
+	// int offset = xc->getSyscallArg(5);
 
-    if (start == 0) {
-	// user didn't give an address... pick one from our "mmap region"
-	start = p->mmap_end;
-	p->mmap_end += RoundUp<Addr>(length, VMPageSize);
-	if (p->nxm_start != 0) {
-	    //If we have an nxm space, make sure we haven't colided
-	    assert(p->mmap_end < p->nxm_start);
+	if (start == 0) {
+		// user didn't give an address... pick one from our "mmap region"
+		start = p->mmap_end;
+		p->mmap_end += RoundUp<Addr>(length, VMPageSize);
+		if (p->nxm_start != 0) {
+			//If we have an nxm space, make sure we haven't colided
+			assert(p->mmap_end < p->nxm_start);
+		}
 	}
-    }
 
-    if (!(flags & OS::TGT_MAP_ANONYMOUS)) {
-	DPRINTF(SyscallWarnings, "Warning: allowing mmap of file @ fd %d.  "
-		"This will break if not /dev/zero.", xc->getSyscallArg(4));
-    }
+	if (!(flags & OS::TGT_MAP_ANONYMOUS)) {
+		DPRINTF(SyscallWarnings, "Warning: allowing mmap of file @ fd %d.  "
+				"This will break if not /dev/zero.", xc->getSyscallArg(4));
+	}
 
-    return start;
+	warn("Adding address range %x -> %x to mmap", start, start+length);
+
+	return start;
 }
 
 /// Target getrlimit() handler.
