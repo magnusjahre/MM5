@@ -78,7 +78,6 @@ def createWorkload(benchmarkStrings):
 	elif string == 's6-test':
             returnArray.append(Test())
         elif string == 's6-wrf':
-            panic("SPEC2006 wrf fails while reading input files, no need to start it")
             returnArray.append(Wrf())
         elif string == 's6-xalancbmk':
             panic('SPEC2006 xalancbmk did not compile')               
