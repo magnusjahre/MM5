@@ -140,12 +140,20 @@ closeFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 SyscallReturn
 readFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
-    int fd = p->sim_fd(xc->getSyscallArg(0));
+    int sim_fd = xc->getSyscallArg(0);
     Addr bufPtr = xc->getSyscallArg(1);
     int nbytes = xc->getSyscallArg(2);
     BufferArg bufArg(bufPtr, nbytes);
 
+    int fd = p->sim_fd(sim_fd);
+
     int bytes_read = read(fd, bufArg.bufferPtr(), nbytes);
+
+    DPRINTF(SyscallVerbose, "Read %d bytes of requested %d bytes from sim fd %d (host fd %d)\n",
+    		nbytes,
+    		bytes_read,
+    		sim_fd,
+    		fd);
 
     if (bytes_read != -1 ) bufArg.copyOut(xc->mem);
 
