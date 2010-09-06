@@ -349,6 +349,17 @@ MainMemory::getNumMemPages(){
 }
 
 void
+MainMemory::printList(int set){
+	cout << "Set " << set << " status @ " << curTick << ": ";
+	entry* e = ptab[set];
+	while(e != NULL){
+		cout << e->tag << "(" << e << ") --> ";
+		e = e->next;
+	}
+	cout << "NULL\n";
+}
+
+void
 MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 	assert(vaddr % TheISA::VMPageSize == 0);
 	assert(new_vaddr % TheISA::VMPageSize == 0);
@@ -372,14 +383,13 @@ MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 			if(e->tag == ptab_tag(vaddr)){
 
 				entry* elementToMove = e;
+
 				if(prev == NULL){
 					ptab[ptab_set(vaddr)] = e->next;
 					prev = NULL;
 				}
 				else{
 					prev->next = e->next;
-					prev = prev;
-
 				}
 				e = e->next;
 
@@ -392,8 +402,8 @@ MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 				movedPages++;
 			}
 			else{
-				e = e->next;
 				prev = e;
+				e = e->next;
 			}
 		}
 	}
