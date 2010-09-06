@@ -125,13 +125,13 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 	::memset(buffer, 0, VMPageSize);
 	currentFileEndPos = 0;
 
-//	stringstream filename;
-//	filename << "pagefile" << _cpuID << ".bin";
-//	pagefileName = filename.str();
-//	ofstream pagefile(pagefileName.c_str(), ios::binary);
-//	pagefile << "";
-//	pagefile.flush();
-//	pagefile.close();
+	//	stringstream filename;
+	//	filename << "pagefile" << _cpuID << ".bin";
+	//	pagefileName = filename.str();
+	//	ofstream pagefile(pagefileName.c_str(), ios::binary);
+	//	pagefile << "";
+	//	pagefile.flush();
+	//	pagefile.close();
 }
 
 MainMemory::~MainMemory()
@@ -220,9 +220,9 @@ MainMemory::translate(Addr addr)
 		if (pte->tag == ptab_tag(addr)) {
 
 			assert(pte->inMemory);
-//			assert(!pte->inMemory);
-//			swapEntries(ptab[ptab_set(addr)], pte);
-//			assert(pte->inMemory && pte->page != NULL);
+			//			assert(!pte->inMemory);
+			//			swapEntries(ptab[ptab_set(addr)], pte);
+			//			assert(pte->inMemory && pte->page != NULL);
 
 			// move this PTE to head of the bucket list
 			if (prev) {
@@ -246,33 +246,33 @@ MainMemory::newpage(Addr addr)
 	uint8_t *page;
 	entry *pte;
 
-//	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
-//		page = writeEntryToFile(ptab[ptab_set(addr)]);
-//		assert(page != NULL);
-//
-//		pte = new entry(ptab_tag(addr), page);
-//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
-//
-//		assert(ptab[ptab_set(addr)]->page == NULL);
-//		pte->next = ptab[ptab_set(addr)];
-//		ptab[ptab_set(addr)] = pte;
-//	}
-//	else{
-//	// see misc.c for details on the getcore() function
-//		assert(ptab[ptab_set(addr)] == NULL);
-//
-//		allocations++;
-//		page = new uint8_t[VMPageSize];
-//		if (!page) fatal("MainMemory::newpage: out of virtual memory");
-//
-//		::memset(page, 0, VMPageSize);
-//
-//		// generate a new PTE
-//		pte = new entry(ptab_tag(addr), page);
-//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
-//
-//		ptab[ptab_set(addr)] = pte;
-//	}
+	//	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
+	//		page = writeEntryToFile(ptab[ptab_set(addr)]);
+	//		assert(page != NULL);
+	//
+	//		pte = new entry(ptab_tag(addr), page);
+	//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
+	//
+	//		assert(ptab[ptab_set(addr)]->page == NULL);
+	//		pte->next = ptab[ptab_set(addr)];
+	//		ptab[ptab_set(addr)] = pte;
+	//	}
+	//	else{
+	//	// see misc.c for details on the getcore() function
+	//		assert(ptab[ptab_set(addr)] == NULL);
+	//
+	//		allocations++;
+	//		page = new uint8_t[VMPageSize];
+	//		if (!page) fatal("MainMemory::newpage: out of virtual memory");
+	//
+	//		::memset(page, 0, VMPageSize);
+	//
+	//		// generate a new PTE
+	//		pte = new entry(ptab_tag(addr), page);
+	//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
+	//
+	//		ptab[ptab_set(addr)] = pte;
+	//	}
 
 	page = new uint8_t[VMPageSize];
 	if (!page) fatal("MainMemory::newpage: out of virtual memory");
@@ -316,6 +316,38 @@ MainMemory::page(Addr addr)
 	}
 }
 
+int
+MainMemory::countPages(Addr vaddr, int64_t size, Addr new_vaddr){
+
+	int pagesToMove = 0;
+	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
+		entry* e = ptab[ptab_set(vaddr)];
+		bool found = false;
+		while(e != NULL){
+			if(e->tag == ptab_tag(vaddr)){
+				assert(!found);
+				pagesToMove++;
+				found = true;
+			}
+			e = e->next;
+		}
+	}
+	return pagesToMove;
+}
+
+int
+MainMemory::getNumMemPages(){
+	int mempages = 0;
+	for(int i = 0; i< memPageTabSize; i++){
+		entry* e = ptab[i];
+		while(e != NULL){
+			mempages++;
+			e = e->next;
+		}
+	}
+	return mempages;
+}
+
 void
 MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 	assert(vaddr % TheISA::VMPageSize == 0);
@@ -323,29 +355,58 @@ MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 
 	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
 
-	int movedPages = 0;
+	int prevMemPages = getNumMemPages();
 
+	DPRINTF(SyscallVerbose, "There are %d pages in memory\n", prevMemPages);
+
+	int pagesToMove = countPages(vaddr, size, new_vaddr);
+
+	DPRINTF(SyscallVerbose, "%d pages are in the range to be moved\n", pagesToMove);
+
+	int movedPages = 0;
 	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
 		entry* e = ptab[ptab_set(vaddr)];
 		entry* prev = NULL;
+		bool found = false;
 		while(e != NULL){
 			if(e->tag == ptab_tag(vaddr)){
 
-				if(prev == NULL) ptab[ptab_set(vaddr)] = e->next;
-				else prev->next = e->next;
+				entry* elementToMove = e;
+				if(prev == NULL){
+					ptab[ptab_set(vaddr)] = e->next;
+					prev = NULL;
+				}
+				else{
+					prev->next = e->next;
+					prev = prev;
 
-				e->tag = ptab_tag(new_vaddr);
-				e->next = ptab[ptab_set(new_vaddr)];
-				ptab[ptab_set(new_vaddr)] = e;
+				}
+				e = e->next;
+
+				assert(!found);
+				found = true;
+				elementToMove->tag = ptab_tag(new_vaddr);
+				elementToMove->next = ptab[ptab_set(new_vaddr)];
+				ptab[ptab_set(new_vaddr)] = elementToMove;
 
 				movedPages++;
 			}
-			prev = e;
-			e = e->next;
+			else{
+				e = e->next;
+				prev = e;
+			}
 		}
 	}
 
-	DPRINTF(SyscallVerbose, "moved %d pages to new addresses\n", movedPages);
+	DPRINTF(SyscallVerbose, "moved %d pages to new addresses, should move %d pages\n", movedPages, pagesToMove);
+	assert(pagesToMove == movedPages);
+
+
+	int postMemPages = getNumMemPages();
+
+	DPRINTF(SyscallVerbose, "%d pages in memory at start, %d pages at end\n", prevMemPages, postMemPages);
+	assert(prevMemPages == postMemPages);
+
 }
 
 void
@@ -540,9 +601,9 @@ MainMemory::checkLockedAddrList(MemReqPtr &req)
 						// the xc pointer value to distinguish
 						// different contexts
 						cerr << "Warning: " << req->xc->storeCondFailures
-						<< " consecutive store conditional failures "
-						<< "on execution context " << req->xc
-						<< endl;
+								<< " consecutive store conditional failures "
+								<< "on execution context " << req->xc
+								<< endl;
 					}
 				}
 			}
@@ -588,33 +649,33 @@ void MainMemory::regStats()
 	.desc("total page table accessess")
 	;
 
-    accesses
-        .name(name() + ".accesses")
-        .desc("Number of page table accesses (simulator performance stat)")
-        ;
+	accesses
+	.name(name() + ".accesses")
+	.desc("Number of page table accesses (simulator performance stat)")
+	;
 
-    misses
-		.name(name() + ".misses")
-		.desc("Number of page table misses (simulator performance stat)")
-		;
+	misses
+	.name(name() + ".misses")
+	.desc("Number of page table misses (simulator performance stat)")
+	;
 
-    missRate
-		.name(name() + ".miss_rate")
-		.desc("Number page table miss rate (simulator performance stat)")
-		;
-    missRate = accesses / misses;
+	missRate
+	.name(name() + ".miss_rate")
+	.desc("Number page table miss rate (simulator performance stat)")
+	;
+	missRate = accesses / misses;
 
-    allocations
-		.name(name() + ".page_allocations")
-		.desc("Number of memory pages allocated (simulator performance stat)")
-		;
+	allocations
+	.name(name() + ".page_allocations")
+	.desc("Number of memory pages allocated (simulator performance stat)")
+	;
 
-    allocationPercentage
-		.name(name() + ".page_allocation_percentage")
-		.desc("Precenttage of memory pages allocated out of the maximum count (simulator performance stat)")
-		;
+	allocationPercentage
+	.name(name() + ".page_allocation_percentage")
+	.desc("Precenttage of memory pages allocated out of the maximum count (simulator performance stat)")
+	;
 
-    allocationPercentage = allocations / memPageTabSize;
+	allocationPercentage = allocations / memPageTabSize;
 }
 
 void MainMemory::regFormulas()

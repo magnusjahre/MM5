@@ -187,8 +187,9 @@ protected:
 	std::fstream::pos_type currentFileEndPos;
 	uint8_t* writeEntryToFile(entry* entry);
 	void swapEntries(entry* curHead, entry* newHead);
-
-	entry** ptab;	// inverted page table
+        int countPages(Addr vaddr, int64_t size, Addr new_vaddr);
+        int getNumMemPages();
+        entry** ptab;	// inverted page table
 
 #ifdef DO_SERIALIZE_VALIDATION
 	void dumpPages(bool onSerialize);
