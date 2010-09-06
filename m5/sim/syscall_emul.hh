@@ -699,7 +699,7 @@ mmapFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 				"This will break if not /dev/zero.", xc->getSyscallArg(4));
 	}
 
-	warn("Adding address range %x -> %x to mmap", start, start+length);
+	warn("Adding address range %x -> %x to mmap at tick %ull", start, start+length, curTick);
 
 	return start;
 }
@@ -861,8 +861,13 @@ mremapFunc(SyscallDesc *desc, int num, Process *process, ExecContext *xc)
                 return -ENOMEM;
             } else {
             	process->remap(start, old_length, process->mmap_end);
-                warn("mremapping to totally new vaddr %08p-%08p, adding %d\n",
-                        process->mmap_end, process->mmap_end + new_length, new_length);
+                warn("mremapping from %08p-%08p to totally new vaddr %08p-%08p, adding %d at tick %d\n",
+                		start,
+                		start + old_length,
+                        process->mmap_end,
+                        process->mmap_end + new_length,
+                        new_length,
+                        curTick);
                 start = process->mmap_end;
                 // add on the remaining unallocated pages
                 process->mmap_end += new_length;
