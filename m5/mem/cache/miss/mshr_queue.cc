@@ -62,7 +62,8 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	ROBSize = 128; // TODO: this is a hack, fix
 
 	mlpEstEvent = new MLPEstimationEvent(this);
-	mlpEstEvent->schedule(curTick+1);
+	//FIXME: write a better performance mlp estimation procedure!
+//	mlpEstEvent->schedule(curTick+1);
 
 	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
 	mlpAccumulatorTicks = 0;
