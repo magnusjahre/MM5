@@ -256,6 +256,8 @@ class Process : public SimObject
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 
     void remap(Addr vaddr, int64_t size, Addr new_vaddr);
+
+    void clearMemory(Addr fromAddr, Addr toAddr);
 };
 
 //

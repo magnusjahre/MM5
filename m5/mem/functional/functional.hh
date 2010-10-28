@@ -96,6 +96,10 @@ class FunctionalMemory : public SimObject
     	fatal("remap not implemented");
     }
 
+    virtual void clearMemory(Addr fromAddr, Addr toAddr){
+    	fatal("clearMemory not implemented");
+    }
+
 #if FULL_SYSTEM
   public:
     virtual bool badaddr(Addr paddr) const { return false; }

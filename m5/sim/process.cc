@@ -252,6 +252,11 @@ Process::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 }
 
 void
+Process::clearMemory(Addr fromAddr, Addr toAddr){
+	memory->clearMemory(fromAddr, toAddr);
+}
+
+void
 Process::serialize(std::ostream &os){
 
 	// serialize members

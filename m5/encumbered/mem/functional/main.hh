@@ -282,6 +282,7 @@ public:
 	virtual Fault write(MemReqPtr &req, uint64_t data);
 
 	virtual void remap(Addr vaddr, int64_t size, Addr new_vaddr);
+	virtual void clearMemory(Addr fromAddr, Addr toAddr);
 
 public:
 	virtual void regStats();

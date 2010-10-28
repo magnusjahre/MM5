@@ -111,14 +111,22 @@ getpagesizeFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 SyscallReturn
 obreakFunc(SyscallDesc *desc, int num, Process *p, ExecContext *xc)
 {
-    // change brk addr to first arg
-    Addr new_brk = xc->getSyscallArg(0);
-    if (new_brk != 0)
-    {
-	p->brk_point = xc->getSyscallArg(0);
-    }
-    DPRINTF(SyscallVerbose, "Break Point changed to: %#X\n", p->brk_point);
-    return p->brk_point;
+	// change brk addr to first arg
+	Addr new_brk = xc->getSyscallArg(0);
+	Addr old_brk = p->brk_point;
+
+	if (new_brk != 0)
+	{
+
+		if(new_brk < old_brk){
+			warn("Reducing stack size!\n");
+			p->clearMemory(new_brk, old_brk);
+		}
+
+		p->brk_point = xc->getSyscallArg(0);
+	}
+	DPRINTF(SyscallVerbose, "Break Point changed to: %#X, was %#X, new_brk=%#X\n", p->brk_point, old_brk, new_brk);
+	return p->brk_point;
 }
 
 

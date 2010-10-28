@@ -420,6 +420,19 @@ MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
 }
 
 void
+MainMemory::clearMemory(Addr fromAddr, Addr toAddr){
+
+	DPRINTF(SyscallVerbose, "Clearing addresses from %#X to %#X\n", fromAddr, toAddr);
+
+	assert(fromAddr < toAddr);
+	for(Addr i=fromAddr;i<=toAddr;i++){
+		page_set(i, 0, 1);
+	}
+
+	DPRINTF(SyscallVerbose, "Done clearing addresses\n");
+}
+
+void
 MainMemory::prot_read(Addr addr, uint8_t *p, int size)
 {
 	int count = min((Addr)size,
