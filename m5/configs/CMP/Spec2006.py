@@ -12,7 +12,8 @@ spec_bin  = rootdir+'/spec2006/'
 def copyInputFiles(dirname):
     fra = os.path.join(spec_root, dirname+'/*') 
     til = '.'
-    os.system("cp -r " + fra + " " + til)# +" 2> /dev/null")
+    #os.system("cp -r " + fra + " " + til)# +" 2> /dev/null")
+    os.system("ln -s " + fra + " " + til +" 2> /dev/null")
 
 def createWorkload(benchmarkStrings):
     returnArray = []
