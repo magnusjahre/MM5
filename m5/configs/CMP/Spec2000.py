@@ -40,65 +40,71 @@ benchmarknames= ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbm
 
 # String to benchmark mappings
 
+def parseBenchmarkString(string):
+    if string == 'gzip':
+        return GzipSource() 
+    elif string == 'vpr':
+        return VprPlace() 
+    elif string == 'gcc':
+        return Gcc166() 
+    elif string == 'mcf':
+        return Mcf() 
+    elif string == 'crafty':
+        return Crafty() 
+    elif string == 'parser':
+        return Parser() 
+    elif string == 'eon':
+        return Eon1() 
+    elif string == 'perlbmk':
+        return Perlbmk1() 
+    elif string == 'gap':
+        return Gap() 
+    elif string == 'vortex1':
+        return Vortex1() 
+    elif string == 'bzip':
+        return Bzip2Source() 
+    elif string == 'twolf':
+        return Twolf() 
+    elif string == 'wupwise':
+        return Wupwise() 
+    elif string == 'swim':
+        return Swim() 
+    elif string == 'mgrid':
+        return Mgrid() 
+    elif string == 'applu':
+        return Applu() 
+    elif string == 'mesa':
+        return Mesa() 
+    elif string == 'galgel':
+        return Galgel() 
+    elif string == 'art':
+        return Art1() 
+    elif string == 'equake':
+        return Equake() 
+    elif string == 'facerec':
+        return Facerec() 
+    elif string == 'ammp':
+        return Ammp() 
+    elif string == 'lucas':
+        return Lucas() 
+    elif string == 'fma3d':
+        return Fma3d() 
+    elif string == 'sixtrack':
+        return Sixtrack() 
+    elif string == 'apsi':
+        return Apsi() 
+    
+    return None
+
 def createWorkload(benchmarkStrings):
     returnArray = []
     
     for string in benchmarkStrings:
-        if string == 'gzip':
-            returnArray.append(GzipSource())
-        elif string == 'vpr':
-            returnArray.append(VprPlace())
-        elif string == 'gcc':
-            returnArray.append(Gcc166())
-        elif string == 'mcf':
-            returnArray.append(Mcf())
-        elif string == 'crafty':
-            returnArray.append(Crafty())
-        elif string == 'parser':
-            returnArray.append(Parser())
-        elif string == 'eon':
-            returnArray.append(Eon1())
-        elif string == 'perlbmk':
-            returnArray.append(Perlbmk1())
-        elif string == 'gap':
-            returnArray.append(Gap())
-        elif string == 'vortex1':
-            returnArray.append(Vortex1())
-        elif string == 'bzip':
-            returnArray.append(Bzip2Source())
-        elif string == 'twolf':
-            returnArray.append(Twolf())
-        elif string == 'wupwise':
-            returnArray.append(Wupwise())
-        elif string == 'swim':
-            returnArray.append(Swim())
-        elif string == 'mgrid':
-            returnArray.append(Mgrid())
-        elif string == 'applu':
-            returnArray.append(Applu())
-        elif string == 'mesa':
-            returnArray.append(Mesa())
-        elif string == 'galgel':
-            returnArray.append(Galgel())
-        elif string == 'art':
-            returnArray.append(Art1())
-        elif string == 'equake':
-            returnArray.append(Equake())
-        elif string == 'facerec':
-            returnArray.append(Facerec())
-        elif string == 'ammp':
-            returnArray.append(Ammp())
-        elif string == 'lucas':
-            returnArray.append(Lucas())
-        elif string == 'fma3d':
-            returnArray.append(Fma3d())
-        elif string == 'sixtrack':
-            returnArray.append(Sixtrack())
-        elif string == 'apsi':
-            returnArray.append(Apsi())
-        else:
+        bm = parseBenchmarkString(string)
+        if bm == None:
             panic("Unknown benchmark is part of workload")
-    
+        returnArray.append(bm)
+        
     idcnt = 0
     for process in returnArray:
         process.cpuID = idcnt

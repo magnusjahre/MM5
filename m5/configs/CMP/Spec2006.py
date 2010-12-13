@@ -3,8 +3,7 @@ from m5 import *
 
 rootdir = os.getenv("BMROOT")
 if rootdir == None:
-  print "Envirionment variable BMROOT not set. Quitting..."
-  sys.exit(-1)
+  panic("Envirionment variable BMROOT not set. Quitting..")
 
 spec_root = rootdir+'/spec2006/input'
 spec_bin  = rootdir+'/spec2006/'
@@ -15,75 +14,81 @@ def copyInputFiles(dirname):
     #os.system("cp -r " + fra + " " + til)# +" 2> /dev/null")
     os.system("ln -s " + fra + " " + til +" 2> /dev/null")
 
+def parseBenchmarkString(string):
+    if string == 's6-bzip2':
+        return Bzip2Source()
+    elif string == 's6-perlbench':
+        panic("SPEC2006 perlbench did not compile")
+    elif string == 's6-gcc':
+        return GccScilab()
+    elif string == 's6-mcf':
+        return Mcf()
+    elif string == 's6-gobmk':
+        return GobmkTrevord()
+    elif string == 's6-hmmer':
+        return HmmerNph()
+    elif string == 's6-sjeng':
+        return Sjeng()
+    elif string == 's6-libquantum':
+        return Libquantum()
+    elif string == 's6-h264ref':
+        return H264refSss()
+    elif string == 's6-omnetpp':
+        return Omnetpp()
+    elif string == 's6-astar':
+        return AstarBigLakes()
+    elif string == 's6-specrand':
+        # benchmark is too short to be useful
+        return Specrand()
+    elif string == 's6-milc':
+        return Milc()
+    elif string == 's6-namd':
+        return Namd()
+    elif string == 's6-dealII':
+        return DealII()
+    elif string == 's6-soplex':
+        return SoplexRef()
+    elif string == 's6-povray':
+        return Povray()
+    elif string == 's6-lbm':
+        return Lbm()
+    elif string == 's6-sphinx3':
+        return Sphinx3()
+    elif string == 's6-bwaves':
+        return Bwaves()
+    elif string == 's6-gamess':
+        return GamessCytosine()
+    elif string == 's6-zeusmp':
+        return Zeusmp()
+    elif string == 's6-gromacs':
+        return Gromacs()
+    elif string == 's6-cactusADM':
+        return CactusADM() 
+    elif string == 's6-leslie3d':
+        return Leslie3d()                  
+    elif string == 's6-calculix':
+        return Calculix()
+    elif string == 's6-gemsFDTD':
+        return GemsFDTD()
+    elif string == 's6-tonto':
+        return Tonto()
+    elif string == 's6-test':
+        return Test()
+    elif string == 's6-wrf':
+        return Wrf()
+    elif string == 's6-xalancbmk':
+        panic('SPEC2006 xalancbmk did not compile')               
+    
+    return None
+
 def createWorkload(benchmarkStrings):
     returnArray = []
     
     for string in benchmarkStrings:
-        if string == 's6-bzip2':
-            returnArray.append(Bzip2Source())
-        elif string == 's6-perlbench':
-            panic("SPEC2006 perlbench did not compile")
-        elif string == 's6-gcc':
-            returnArray.append(GccScilab())
-        elif string == 's6-mcf':
-            returnArray.append(Mcf())
-        elif string == 's6-gobmk':
-            returnArray.append(GobmkTrevord())
-        elif string == 's6-hmmer':
-            returnArray.append(HmmerNph())
-        elif string == 's6-sjeng':
-            returnArray.append(Sjeng())
-        elif string == 's6-libquantum':
-            returnArray.append(Libquantum())
-        elif string == 's6-h264ref':
-            returnArray.append(H264refSss())
-        elif string == 's6-omnetpp':
-            returnArray.append(Omnetpp())
-        elif string == 's6-astar':
-            returnArray.append(AstarBigLakes())
-        elif string == 's6-specrand':
-            # benchmark is too short to be useful
-            returnArray.append(Specrand())
-        elif string == 's6-milc':
-            returnArray.append(Milc())
-        elif string == 's6-namd':
-            returnArray.append(Namd())
-        elif string == 's6-dealII':
-            returnArray.append(DealII())
-        elif string == 's6-soplex':
-            returnArray.append(SoplexRef())
-        elif string == 's6-povray':
-            returnArray.append(Povray())
-        elif string == 's6-lbm':
-            returnArray.append(Lbm())
-        elif string == 's6-sphinx3':
-            returnArray.append(Sphinx3())
-        elif string == 's6-bwaves':
-            returnArray.append(Bwaves())
-        elif string == 's6-gamess':
-            returnArray.append(GamessCytosine())
-        elif string == 's6-zeusmp':
-            returnArray.append(Zeusmp())
-        elif string == 's6-gromacs':
-            returnArray.append(Gromacs())
-        elif string == 's6-cactusADM':
-            returnArray.append(CactusADM()) 
-        elif string == 's6-leslie3d':
-            returnArray.append(Leslie3d())                  
-        elif string == 's6-calculix':
-            returnArray.append(Calculix())
-        elif string == 's6-gemsFDTD':
-            returnArray.append(GemsFDTD())
-        elif string == 's6-tonto':
-            returnArray.append(Tonto())
-	elif string == 's6-test':
-            returnArray.append(Test())
-        elif string == 's6-wrf':
-            returnArray.append(Wrf())
-        elif string == 's6-xalancbmk':
-            panic('SPEC2006 xalancbmk did not compile')               
-        else:
+        bm = parseBenchmarkString(string)
+        if bm == None:
             panic("Unknown benchmark "+str(string)+" is part of workload")
+        returnArray.append(bm)
     
     idcnt = 0
     for process in returnArray:

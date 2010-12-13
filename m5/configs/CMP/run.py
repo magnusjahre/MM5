@@ -14,6 +14,11 @@ import pickle
 from DetailedConfig import *
 
 from resourcePartition import ResourcePartition
+from workloadcls import Workload
+
+simrootdir = os.getenv("SIMROOT")
+if simrootdir == None:
+  panic("Envirionment variable SIMROOT not set. Quitting..")
 
 ###############################################################################
 # Constants
@@ -35,6 +40,50 @@ SIM_TICKS_NOT_USED_SIZE_SMALL = 1000
 ###############################################################################
 # Convenience Methods
 ###############################################################################
+
+def initTypedWorkload(name):
+    infile = open(simrootdir+"/m5/configs/CMP/typewls.pkl")
+    typedwls = pickle.load(infile)
+    infile.close()
+    
+    np = int(env["NP"])
+    
+    if np not in typedwls.keys():
+        panic("No typed workloads for requested CPU count "+str(np))
+    
+    bmname = env['BENCHMARK'].split("-")
+    if len(bmname) != 3:
+        panic("Malformed typed workload "+env['BENCHMARK'])
+    
+    type = bmname[1]
+    if type not in typedwls[np]:
+        panic("Unknown type "+type+" in workload "+env['BENCHMARK'])
+    
+    id = int(bmname[2])
+    if id < 0 or id >= len(typedwls[np][type]):
+        panic("Unknown workload id "+str(id)+" in workload "+env['BENCHMARK'])
+    
+    return createWorkload(typedwls[np][type][id].benchmarks)
+    
+def createWorkload(workload):
+    simwl = []
+    
+    idcnt = 0
+    for b in workload:
+        if b.startswith("s6-"):
+            bm = Spec2006.parseBenchmarkString(b)
+        else:
+            if b[-1] == '0':
+                b = b[0:len(b)-1]
+            bm = Spec2000.parseBenchmarkString(b)
+        if bm == None:
+            panic("Unknown benchmark "+b+" in workload")
+            
+        bm.cpuID = idcnt
+        simwl.append(bm)
+        idcnt += 1
+    
+    return simwl
 
 def setNFQParams(useTrafficGenerator, controllerID, optPart):
     if useTrafficGenerator:
@@ -823,6 +872,9 @@ prog = []
 if env['BENCHMARK'].startswith("fair"):
     tmpBM = env['BENCHMARK'].replace("fair","")
     prog = Spec2000.createWorkload(fair_workloads.workloads[int(env['NP'])][int(tmpBM)][0])
+
+elif env['BENCHMARK'].startswith("t-"):
+    prog = initTypedWorkload(env['BENCHMARK'])
 
 elif env['BENCHMARK'] in single_core.configuration:
     prog.append(Spec2000.createWorkload([single_core.configuration[env['BENCHMARK']][0]]))
