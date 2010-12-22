@@ -63,7 +63,7 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	mlpEstEvent = new MLPEstimationEvent(this);
 	//FIXME: write a better performance mlp estimation procedure!
-//	mlpEstEvent->schedule(curTick+1);
+	mlpEstEvent->schedule(curTick+1);
 
 	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
 	mlpAccumulatorTicks = 0;
