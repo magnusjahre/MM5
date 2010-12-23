@@ -35,6 +35,8 @@
 
 //#define DO_MISS_COUNT_TRACE
 
+#define FAST_MLP_ESTIMATION
+
 #include "mem/cache/miss/mshr_queue.hh"
 #include "sim/eventq.hh"
 
@@ -47,6 +49,7 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	maxMSHRs = num_mshrs;
 
+	lastMSHRChangeAt = 0;
 	allocated = 0;
 	inServiceMSHRs = 0;
 	allocatedTargets = 0;
@@ -61,9 +64,11 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	countdownCounter = 0;
 	ROBSize = 128; // TODO: this is a hack, fix
 
+#ifndef FAST_MLP_ESTIMATION
 	mlpEstEvent = new MLPEstimationEvent(this);
 	//FIXME: write a better performance mlp estimation procedure!
 	mlpEstEvent->schedule(curTick+1);
+#endif
 
 	currentMLPAccumulator.resize(maxMSHRs+1, 0.0);
 	mlpAccumulatorTicks = 0;
@@ -363,6 +368,7 @@ MSHRQueue::allocate(MemReqPtr &req, int size)
 	mshr->readyIter = pendingList.insert(pendingList.end(), mshr);
 
 	allocated += 1;
+	allocatedMSHRsChanged(true);
 
 	missArrived(req->cmd);
 
@@ -384,6 +390,8 @@ MSHRQueue::allocateFetch(Addr addr, int asid, int size, MemReqPtr &target)
 	missArrived(Read);
 
 	allocated += 1;
+	allocatedMSHRsChanged(true);
+
 	return mshr;
 }
 
@@ -400,6 +408,7 @@ MSHRQueue::allocateTargetList(Addr addr, int asid, int size)
 	mshr->inService = true;
 	++inServiceMSHRs;
 	++allocated;
+	allocatedMSHRsChanged(true);
 
 	missArrived(Read);
 
@@ -451,6 +460,8 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);
 	freeList.push_front(mshr);
 	allocated--;
+	allocatedMSHRsChanged(false);
+
 	allocatedTargets -= mshr->getNumTargets();
 	if (mshr->inService) {
 		inServiceMSHRs--;
@@ -655,6 +666,36 @@ MSHRQueue::isDemandRequest(MemReqPtr&  req){
 
 //	if(req->isSWPrefetch) return false;
 	return cmd == Read || cmd == Write;
+}
+
+void
+MSHRQueue::allocatedMSHRsChanged(bool increased){
+#ifdef FAST_MLP_ESTIMATION
+	if(!cache->isShared && isMissQueue){
+
+		int periodMSHRs = allocated+1;
+		if(increased) periodMSHRs = allocated-1;
+
+		if(periodMSHRs > 0){
+			Tick allocLength = curTick - lastMSHRChangeAt;
+
+			double mlpcost = 1 / (double) periodMSHRs;
+
+			for(int j=1;j<=maxMSHRs;j++){
+				if(j<periodMSHRs){
+					double estimatedCost = 1.0 / (double) j;
+					aggregateMLPAccumulator[j] += (estimatedCost * allocLength);
+				}
+				else{
+					aggregateMLPAccumulator[j] += (mlpcost * allocLength);
+				}
+			}
+			aggregateMLPAccumulatorTicks += allocLength;
+		}
+
+		lastMSHRChangeAt = curTick;
+	}
+#endif
 }
 
 void

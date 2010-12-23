@@ -90,6 +90,9 @@ class MSHRQueue {
 
 	void missArrived(MemCmd cmd);
 
+	Tick lastMSHRChangeAt;
+	void allocatedMSHRsChanged(bool increased);
+
 	bool isMissQueue;
 
 	MLPEstimationEvent* mlpEstEvent;
