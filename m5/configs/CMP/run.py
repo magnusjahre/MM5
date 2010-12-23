@@ -400,12 +400,20 @@ def copyCheckpointFiles(directory):
     for name in checkpointfiles:
         if name != "m5.cpt" and name != "m5.cpt.old":
             
-            if not os.path.isdir(directory+"/"+name):            
+            if not os.path.isdir(directory+"/"+name):
                 print >> sys.stderr, "Linking file "+name+" to current directory"
                 #shutil.copy(directory+"/"+name, ".")
-                #shutil.copy(directory+"/"+name, name+".clean")
-                os.symlink(directory+"/"+name, name)
-                os.symlink(directory+"/"+name, name+".clean")
+                #shutil.copy(directory+"/"+name, name+".clean
+                if not os.path.exists(name):
+                    os.symlink(directory+"/"+name, name)
+                else:
+                    print >> sys.stderr, "File "+name+" exists, skipping..."
+                
+                cleanname = name+".clean"
+                if not os.path.exists(cleanname):
+                    os.symlink(directory+"/"+name, cleanname)
+                else:
+                    print >> sys.stderr, "File "+cleanname+" exists, skipping..."
             else:
                 print >> sys.stderr, "Skipping directory "+name
 
