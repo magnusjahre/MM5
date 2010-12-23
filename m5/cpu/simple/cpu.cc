@@ -431,6 +431,10 @@ SimpleCPU::read(Addr addr, T &data, unsigned flags)
 	if (status() == DcacheMissStall || status() == DcacheMissSwitch) {
 		Fault fault = xc->read(memReq,data);
 
+		if(addr == 0x130533adc){
+			cout << curTick << ": (1) Reading from addr " << addr << ", got value " << data << ", fault is " << fault << "\n";
+		}
+
 		if (traceData) {
 			traceData->setAddr(addr);
 		}
@@ -464,10 +468,18 @@ SimpleCPU::read(Addr addr, T &data, unsigned flags)
 			// do functional access
 			fault = xc->read(memReq, data);
 
+			if(addr == 0x130533adc){
+				cout << curTick << ": (2) Reading from addr " << addr << ", got value " << data << ", fault is " << fault << "\n";
+			}
+
 		}
 	} else if(fault == No_Fault) {
 		// do functional access
 		fault = xc->read(memReq, data);
+
+		if(addr == 0x130533adc){
+			cout << curTick << ": (3) Reading from addr " << addr << ", got value " << data << ", fault is " << fault << "\n";
+		}
 
 	}
 
@@ -531,8 +543,12 @@ SimpleCPU::write(T data, Addr addr, unsigned flags, uint64_t *res)
 	Fault fault = xc->translateDataWriteReq(memReq);
 
 	// do functional access
-	if (fault == No_Fault)
+	if (fault == No_Fault){
 		fault = xc->write(memReq, data);
+		if(addr == 0x130533adc){
+			cout << curTick << ": (1) Writing to addr " << addr << ", value " << data << ", fault is " << fault << "\n";
+		}
+	}
 
 	if (fault == No_Fault && dcacheInterface) {
 		memReq->cmd = Write;
@@ -878,6 +894,9 @@ SimpleCPU::tick()
 	assert(status() == Running ||
 			status() == Idle ||
 			status() == DcacheMissStall);
+
+
+	if(numInst % 100000000 == 0) cout << curTick << " committed " << numInst << " instructions\n";
 
 	if(checkpointAtInstruction != 0){
 		if(numInst == checkpointAtInstruction){

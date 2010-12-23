@@ -438,7 +438,16 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 
 			int sim_fd = open(filename, hostFlags, mode);
 			if(sim_fd == -1){
-				panic("Could not open file %s in unserialize", path.c_str());
+				if(errno == EEXIST){
+					int newflags = hostFlags & ~O_CREAT;
+					sim_fd = open(filename, newflags, mode);
+					if(sim_fd == -1){
+						panic("Could not open file %s in unserialize, file exists (%d)", path.c_str(), errno);
+					}
+				}
+				else{
+					panic("Could not open file %s in unserialize, errno %d", path.c_str(), errno);
+				}
 			}
 
 			int newPos = lseek(sim_fd, pos, SEEK_SET);
