@@ -421,11 +421,13 @@ MissBandwidthPolicy::doEvaluation(int cpuID){
 
 	DPRINTFR(MissBWPolicyExtra, "Checking if cpu %d is should be searched with threshold %f\n", cpuID, requestCountThreshold);
 	if(currentMeasurements->requestsInSample[cpuID] < requestCountThreshold){
+		DPRINTFR(MissBWPolicyExtra, "Skipping, %d requests are less than threshold %d\n", currentMeasurements->requestsInSample[cpuID], requestCountThreshold);
 		return false;
 	}
 
 	double relativeVariation = reqsPerSampleStdDev[cpuID] / avgReqsPerSample[cpuID];
 	if(relativeVariation > requestVariationThreshold){
+		DPRINTFR(MissBWPolicyExtra, "Skipping, relative variation %f is larger than threshold %f\n", relativeVariation, requestVariationThreshold);
 		return false;
 	}
 
