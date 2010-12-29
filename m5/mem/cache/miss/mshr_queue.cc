@@ -691,6 +691,9 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 				}
 			}
 			aggregateMLPAccumulatorTicks += allocLength;
+
+			instTraceMLPAccumulator += (mlpcost * allocLength);
+			instTraceMLPCount += allocLength;
 		}
 
 		lastMSHRChangeAt = curTick;
@@ -862,6 +865,7 @@ MSHRQueue::getInstTraceMWS(){
 
 double
 MSHRQueue::getInstTraceMLP(){
+
 	double mlp = 0;
 	if(instTraceMLPCount > 0){
 		mlp = (double) instTraceMLPAccumulator / (double) instTraceMLPCount;
