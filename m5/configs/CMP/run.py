@@ -214,21 +214,38 @@ def setUpCachePartitioning():
 
 
 def initSharedCache(bankcnt, optPart):
-        
+    
+    if "SHARED-CACHE-BANK-SIZE" in env:
+        banksize = env["SHARED-CACHE-BANK-SIZE"]+"kB"
+    else:
+        banksize = None
+    
     if int(env['NP']) == 4:
-        root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
+        if banksize == None:
+            banksize = str(2*(2**10))+"kB"
+        root.SharedCache = [SharedCache8M(size=banksize) for i in range(bankcnt)]
     elif int(env['NP']) == 8:
-        root.SharedCache = [SharedCache16M() for i in range(bankcnt)]
+        if banksize == None:
+            banksize = str(4*(2**10))+"kB"
+        root.SharedCache = [SharedCache16M(size=banksize) for i in range(bankcnt)]
     elif int(env['NP']) == 16:
-        root.SharedCache = [SharedCache32M() for i in range(bankcnt)]
+        if banksize == None:
+            banksize = str(8*(2**10))+"kB"
+        root.SharedCache = [SharedCache32M(size=banksize) for i in range(bankcnt)]
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
         if int(env['MEMORY-ADDRESS-PARTS']) == 4:
-            root.SharedCache = [SharedCache8M() for i in range(bankcnt)]
+            if banksize == None:
+                banksize = str(2*(2**10))+"kB"
+            root.SharedCache = [SharedCache8M(size=banksize) for i in range(bankcnt)]
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
-            root.SharedCache = [SharedCache16M() for i in range(bankcnt)]
+            if banksize == None:
+                banksize = str(4*(2**10))+"kB"
+            root.SharedCache = [SharedCache16M(size=banksize) for i in range(bankcnt)]
         elif int(env['MEMORY-ADDRESS-PARTS']) == 16:
-            root.SharedCache = [SharedCache32M() for i in range(bankcnt)]
+            if banksize == None:
+                banksize = str(8*(2**10))+"kB"
+            root.SharedCache = [SharedCache32M(size=banksize) for i in range(bankcnt)]
         else:
             panic("Shared Cache: No single cache configuration present")
     else:

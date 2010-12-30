@@ -674,6 +674,15 @@ LRU::serialize(std::ostream &os){
 	contentfile.close();
 }
 
+Addr
+LRU::regenerateChkBlkAddr(Addr set, Addr tag, int origTagShift){
+
+	if(bankShift == -1){
+		return ((tag << origTagShift) | ((Addr)set << setShift));
+	}
+	return ((tag << origTagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
+}
+
 void
 LRU::unserialize(Checkpoint *cp, const std::string &section){
 
@@ -690,14 +699,27 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 	int readAssoc = assoc;
 	if(cache->isShared && cache->cpuCount == 1) readAssoc = assoc / divFactor;
 
-	if(*fileBlocks != numSets*readAssoc){
-		fatal("Wrong number of cache blocks in file %s, got size %d, expected %d", filename, *fileBlocks, numSets*readAssoc);
+	if(*fileBlocks < numSets*readAssoc){
+		fatal("File %s contains too few blocks for cache, got blocks %d, in cache %d", filename, *fileBlocks, numSets*readAssoc);
 	}
+
+	int checkpointSets = *fileBlocks / readAssoc;
+	int origTagShift = setShift + FloorLog2(checkpointSets);
 
 	for(int i=0;i<numSets;i++){
 		for(int j=0;j<readAssoc;j++){
 			assert(contentfile.good());
 			sets[i].blks[j]->unserialize(contentfile);
+
+			if(checkpointSets > numSets){
+				Addr origAddr = regenerateChkBlkAddr(sets[i].blks[j]->set,
+													 sets[i].blks[j]->tag,
+													 origTagShift);
+
+				assert(extractSet(origAddr) == i);
+				sets[i].blks[j]->set = i;
+				sets[i].blks[j]->tag = extractTag(origAddr);
+			}
 
 			if(sets[i].blks[j]->isValid()){
 				sets[i].blks[j]->isTouched = true;

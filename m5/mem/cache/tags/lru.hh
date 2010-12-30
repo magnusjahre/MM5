@@ -313,6 +313,8 @@ public:
 		return ((tag << tagShift) | ((Addr)set << setShift) | ((Addr) bankID << bankShift ));
 	}
 
+	Addr regenerateChkBlkAddr(Addr set, Addr tag, int origTagShift);
+
 	/**
 	 * Return the hit latency.
 	 * @return the hit latency.
