@@ -591,7 +591,8 @@ MissBandwidthPolicy::getAverageMemoryLatency(vector<int>* currentMHA,
 									i,
 									newRequestRatio,
 									newRequestCountEstimates[i],
-									currentMeasurements->requestsInSample[i]);
+									currentMeasurements->requestsInSample[i],
+									currentMeasurements->perCoreCacheMeasurements[i].getMissRate());
 
         double newAvgBusLat = newRequestRatio * currentAvgBusLat;
 
