@@ -50,7 +50,7 @@ using namespace std;
  * stalling on writebacks do to compression writes.
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
-		bool write_allocate, bool prefetch_miss)
+		bool write_allocate, bool prefetch_miss, int _minRequestInterval)
 : mq(numMSHRs, true, 4), wb(write_buffers, false, numMSHRs+1000), numMSHR(numMSHRs),
 numTarget(numTargets), writeBuffers(write_buffers),
 writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
@@ -64,6 +64,9 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 	if(numTargets == 1){
 		fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
 	}
+
+	minRequestInterval = _minRequestInterval;
+	nextAllowedRequestTime = 0;
 }
 
 void
@@ -583,7 +586,25 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	}
 	if (req->cmd != Hard_Prefetch) {
 		//If we need to request the bus (not on HW prefetch), do so
-		cache->setMasterRequest(Request_MSHR, time);
+
+		if(minRequestInterval != -1 && cache->interferenceManager != NULL && !cache->isShared){
+			Tick issueAt = 0;
+			if(nextAllowedRequestTime > time){
+				issueAt = nextAllowedRequestTime;
+				nextAllowedRequestTime += minRequestInterval;
+			}
+			else{
+				issueAt = time;
+				nextAllowedRequestTime = time + minRequestInterval;
+			}
+			assert(issueAt > 0);
+
+			cache->setMasterRequest(Request_MSHR, issueAt);
+		}
+		else{
+			cache->setMasterRequest(Request_MSHR, time);
+
+		}
 	}
 
 	if(mq.isFull()) assert(cache->isBlocked());

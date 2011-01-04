@@ -119,3 +119,4 @@ class BaseCache(BaseMem):
 
     static_cache_quotas = VectorParam.Int("The per core cache quota in ways")
     partitioning = Param.CachePartitioning("Object responsible for doing cache partitioning")
+    min_request_interval = Param.Int("Minimum number of cycles between each request")

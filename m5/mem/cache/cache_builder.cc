@@ -204,6 +204,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     VectorParam<int> static_cache_quotas;
 
     SimObjectParam<CachePartitioning *> partitioning;
+    Param<int> min_request_interval;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -310,7 +311,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),
     INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1),
     INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>()),
-    INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL)
+    INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL),
+    INIT_PARAM_DFLT(min_request_interval, "Minimum number of cycles between each request", -1)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -624,7 +626,7 @@ CREATE_SIM_OBJECT(BaseCache)
 	//BUILD_COHERENCE(BlockingBuffer);
     //} else {
 	MissQueue *mq = new MissQueue(mshrs, tgts_per_mshr, write_buffers,
-				      true, prefetch_miss);
+				      true, prefetch_miss, min_request_interval);
 
 	BUILD_COHERENCE(MissQueue);
     //}

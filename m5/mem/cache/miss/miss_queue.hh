@@ -63,6 +63,9 @@ class MissQueue
     RequestTrace latencyTrace;
     RequestTrace interferenceTrace;
 
+    Tick nextAllowedRequestTime;
+    int minRequestInterval;
+
   protected:
     /** The MSHRs. */
     MSHRQueue mq;
@@ -236,7 +239,7 @@ class MissQueue
      * @param write_allocate If true, treat write misses the same as reads.
      */
     MissQueue(int numMSHRs, int numTargets, int write_buffers,
-	      bool write_allocate, bool prefetch_miss);
+	      bool write_allocate, bool prefetch_miss, int _minRequestInterval = -1);
 
     /**
      * Deletes all allocated internal storage.
