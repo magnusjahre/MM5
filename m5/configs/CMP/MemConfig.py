@@ -14,10 +14,12 @@ class BaseL1Cache(BaseCache):
     write_buffers = 4
     tgts_per_mshr = 4
     
-    if mshrParamName in env:
-        mshrs = int(env[mshrParamName])
-    else:
-        mshrs = 16
+    #if mshrParamName in env:
+    #    mshrs = int(env[mshrParamName])
+    #else:
+    #    mshrs = 16
+    
+    mshrs = 16
     
     cpu_count = int(env['NP'])
     is_shared = False
