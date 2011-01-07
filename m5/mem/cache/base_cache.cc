@@ -340,7 +340,7 @@ BaseCache::regStats()
 		;
 
 	mshr_latency_distribution
-		.init(getCurrentMSHRCount(true)+1, 0, 500, 50)
+		.init(getCurrentMSHRCount(true)+1, 0, 1000, 20)
 		.name(name()+".mshr_latency_distribution")
 		.desc("Sum of latencies with a certain amount of mshrs")
 		.flags(total | cdf);
