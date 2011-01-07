@@ -137,13 +137,13 @@ class MSHRQueue {
 	Stats::Scalar<> mlp_cost_total_misses;
 	Stats::Formula avg_mlp_cost_per_miss;
 
-	Stats::Distribution<> mlp_cost_distribution;
-	Stats::Distribution<> latency_distribution;
-	Stats::Distribution<> allocated_mshrs_distribution;
+	//Stats::Distribution<> mlp_cost_distribution;
+	//Stats::Distribution<> latency_distribution;
+	//Stats::Distribution<> allocated_mshrs_distribution;
 
-	Stats::Vector<> mlp_estimation_accumulator;
-	Stats::Scalar<> mlp_active_cycles;
-	Stats::Formula avg_mlp_estimation;
+	//Stats::Vector<> mlp_estimation_accumulator;
+//	Stats::Scalar<> mlp_active_cycles;
+//	Stats::Formula avg_mlp_estimation;
 
   public:
     /** The number of MSHRs that have been forwarded to the bus. */

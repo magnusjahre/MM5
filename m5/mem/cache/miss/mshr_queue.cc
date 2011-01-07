@@ -200,47 +200,47 @@ MSHRQueue::regStats(const char* subname){
 	int maxval = 250;
 	if(isMissQueue) maxval = 5000;
 
-	mlp_cost_distribution
-		.init(0, maxval, 250)
-		.name(cache->name() + subname +".mlp_cost_distribution")
-		.desc("MLP cost distribution")
-		.flags(total | pdf | cdf)
-		;
+//	mlp_cost_distribution
+//		.init(0, maxval, 250)
+//		.name(cache->name() + subname +".mlp_cost_distribution")
+//		.desc("MLP cost distribution")
+//		.flags(total | pdf | cdf)
+//		;
+//
+//    latency_distribution
+//		.init(0, maxval, 250)
+//		.name(cache->name() + subname +".latency_distribution")
+//		.desc("Roundtrip latency distribution")
+//		.flags(total | pdf | cdf)
+//		;
+//
+//
+//    int mshrMaxVal = 1;
+//	if(isMissQueue) mshrMaxVal = 32;
+//    allocated_mshrs_distribution
+//		.init(0, mshrMaxVal, 1)
+//		.name(cache->name() + subname  + ".allocated_mshrs_distribution")
+//		.desc("Allocated mshrs distribution")
+//		.flags(total | pdf | cdf)
+//		;
 
-    latency_distribution
-		.init(0, maxval, 250)
-		.name(cache->name() + subname +".latency_distribution")
-		.desc("Roundtrip latency distribution")
-		.flags(total | pdf | cdf)
-		;
+//    mlp_estimation_accumulator
+//		.init(maxMSHRs+1)
+//    	.name(cache->name() + subname  + ".mlp_estimation_accumulator")
+//    	.desc("Accumulated estimated mlp with fewer MSHRs")
+//    	;
 
-
-    int mshrMaxVal = 1;
-	if(isMissQueue) mshrMaxVal = 32;
-    allocated_mshrs_distribution
-		.init(0, mshrMaxVal, 1)
-		.name(cache->name() + subname  + ".allocated_mshrs_distribution")
-		.desc("Allocated mshrs distribution")
-		.flags(total | pdf | cdf)
-		;
-
-    mlp_estimation_accumulator
-		.init(maxMSHRs+1)
-    	.name(cache->name() + subname  + ".mlp_estimation_accumulator")
-    	.desc("Accumulated estimated mlp with fewer MSHRs")
-    	;
-
-    mlp_active_cycles
-		.name(cache->name() + subname  + ".mlp_active_cycles")
-		.desc("The total number of cycles a miss was outstanding")
-		;
-
-    avg_mlp_estimation
-		.name(cache->name() + subname  + ".avg_mlp_estimation")
-		.desc("Estimated mlp with fewer MSHRs")
-		;
-
-    avg_mlp_estimation = mlp_estimation_accumulator / mlp_active_cycles;
+//    mlp_active_cycles
+//		.name(cache->name() + subname  + ".mlp_active_cycles")
+//		.desc("The total number of cycles a miss was outstanding")
+//		;
+//
+//    avg_mlp_estimation
+//		.name(cache->name() + subname  + ".avg_mlp_estimation")
+//		.desc("Estimated mlp with fewer MSHRs")
+//		;
+//
+//    avg_mlp_estimation = mlp_estimation_accumulator / mlp_active_cycles;
 }
 
 MemReqPtr
@@ -438,15 +438,15 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 		mlp_cost_accumulator += mshr->mlpCost;
 		mlp_cost_total_misses += 1;
 
-		mlp_cost_distribution.sample(mshr->mlpCost);
-		latency_distribution.sample(latency);
+//		mlp_cost_distribution.sample(mshr->mlpCost);
+//		latency_distribution.sample(latency);
 
 		for(int i=0;i<=maxMSHRs;i++){
-			mlp_estimation_accumulator[i] += mshr->mlpCostDistribution[i];
+//			mlp_estimation_accumulator[i] += mshr->mlpCostDistribution[i];
 			currentMLPAccumulator[i] += mshr->mlpCostDistribution[i];
 		}
 		mlpAccumulatorTicks += latency;
-		mlp_active_cycles += latency;
+//		mlp_active_cycles += latency;
 	}
 
 	if(isMissQueue && !cache->isShared && cache->interferenceManager != NULL){
@@ -675,9 +675,11 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 
 		int periodMSHRs = allocated+1;
 		if(increased) periodMSHRs = allocated-1;
+		Tick allocLength = curTick - lastMSHRChangeAt;
+
+		cache->sampleMSHRUse(periodMSHRs, allocLength);
 
 		if(periodMSHRs > 0){
-			Tick allocLength = curTick - lastMSHRChangeAt;
 
 			double mlpcost = 1 / (double) periodMSHRs;
 
@@ -703,8 +705,8 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 
 void
 MSHRQueue::handleMLPEstimationEvent(){
-
-	allocated_mshrs_distribution.sample(allocated);
+#ifndef FAST_MLP_ESTIMATION
+//	allocated_mshrs_distribution.sample(allocated);
 
 	if(!cache->isShared && isMissQueue){
 		int demandAllocated = 0;
@@ -807,6 +809,7 @@ MSHRQueue::handleMLPEstimationEvent(){
 		assert(outstandingMissAccumulatorCount < period);
 #endif
 	}
+#endif
 }
 
 std::vector<double>

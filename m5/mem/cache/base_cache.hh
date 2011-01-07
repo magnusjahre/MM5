@@ -300,6 +300,8 @@ public:
 
 	Stats::VectorDistribution<> hitProfile;
 
+	Stats::VectorDistribution<> mshr_latency_distribution;
+
 	/**
 	 * @}
 	 */
@@ -603,6 +605,8 @@ public:
 	virtual void setNumMSHRs(int newMSHRCount) = 0;
 
 	virtual RateMeasurement getMissRate() = 0;
+
+	void sampleMSHRUse(int allocated, Tick latency);
 
 #ifdef CACHE_DEBUG
 	virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;

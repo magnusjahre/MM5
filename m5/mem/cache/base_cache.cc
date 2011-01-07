@@ -338,6 +338,19 @@ BaseCache::regStats()
 		.name(name() + ".cache_hit_distribution")
 		.desc("Number of cache hits at each LRU position")
 		;
+
+	mshr_latency_distribution
+		.init(getCurrentMSHRCount(true)+1, 0, 500, 50)
+		.name(name()+".mshr_latency_distribution")
+		.desc("Sum of latencies with a certain amount of mshrs")
+		.flags(total | cdf);
+
+}
+
+void
+BaseCache::sampleMSHRUse(int allocated, Tick latency){
+	assert(allocated >= 0 && allocated <= mshr_latency_distribution.size());
+	mshr_latency_distribution[allocated].sample(latency);
 }
 
 void
