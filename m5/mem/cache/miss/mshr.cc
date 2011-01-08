@@ -52,6 +52,8 @@ MSHR::MSHR()
     threadNum = -1;
     mlpCost = 0;
     mlpCostDistribution.clear();
+    allocatedAt = 0;
+    mshrID = -1;
 
 //     cache = NULL;
 }
@@ -65,6 +67,7 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 	addr = _addr;
 	asid = _asid;
 
+	allocatedAt = curTick;
 	mlpCost = 0;
 	mlpCostDistribution.clear();
 
@@ -163,6 +166,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->isSWPrefetch = req->isSWPrefetch;
     req->nfqWBID = target->nfqWBID;
 
+    allocatedAt = curTick;
     mlpCost = 0;
     mlpCostDistribution.clear();
 }

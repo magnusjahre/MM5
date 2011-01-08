@@ -56,6 +56,7 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 	registers = new MSHR[numMSHRs];
 	for (int i = 0; i < numMSHRs; ++i) {
 		freeList.push_back(&registers[i]);
+		registers[i].mshrID = i;
 	}
 
 	minMSHRAddr = &registers[0];
@@ -63,6 +64,7 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
 
 	countdownCounter = 0;
 	ROBSize = 128; // TODO: this is a hack, fix
+
 
 #ifndef FAST_MLP_ESTIMATION
 	mlpEstEvent = new MLPEstimationEvent(this);
@@ -109,6 +111,13 @@ MSHRQueue::setCache(BaseCache* _cache){
 		vector<string> header;
 		header.push_back("Allocated MSHRs");
 		mshrCountTrace.initalizeTrace(header);
+
+		mshrAllocatedTrace = RequestTrace(cache->name(), "MSHRAllocatedTrace");
+		vector<string> header2;
+		header2.push_back("ID");
+		header2.push_back("Allocated At");
+		header2.push_back("Deallocated At");
+		mshrAllocatedTrace.initalizeTrace(header2);
 	}
 
 #ifdef DO_MISS_COUNT_TRACE
@@ -462,6 +471,15 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 			responsesWhileStalled++;
 			instTraceRespWhileStalled++;
 		}
+	}
+
+	if(isMissQueue){
+		assert(mshr->mshrID != -1);
+		vector<RequestTraceEntry> data;
+		data.push_back(RequestTraceEntry(mshr->mshrID));
+		data.push_back(RequestTraceEntry(mshr->allocatedAt));
+		data.push_back(RequestTraceEntry(curTick - mshr->allocatedAt));
+		mshrAllocatedTrace.addTrace(data);
 	}
 
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);

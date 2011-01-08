@@ -92,6 +92,9 @@ public:
     double mlpCost;
     std::vector<double> mlpCostDistribution;
 
+    Tick allocatedAt;
+    int mshrID;
+
 private:
     /** List of all requests that match the address */
     TargetList targets;
