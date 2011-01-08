@@ -104,6 +104,13 @@ MSHRQueue::setCache(BaseCache* _cache){
 		registers[i].setCache(_cache);
 	}
 
+	if(isMissQueue){
+		mshrCountTrace = RequestTrace(cache->name(), "MSHRTrace");
+		vector<string> header;
+		header.push_back("Allocated MSHRs");
+		mshrCountTrace.initalizeTrace(header);
+	}
+
 #ifdef DO_MISS_COUNT_TRACE
 	if(isMissQueue && cache->adaptiveMHA != NULL && !cache->isShared){
 		missCountTrace = RequestTrace(cache->name(), "MissCountTrace", 1);
@@ -678,6 +685,14 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 		Tick allocLength = curTick - lastMSHRChangeAt;
 
 		cache->sampleMSHRUse(periodMSHRs, allocLength);
+
+		vector<RequestTraceEntry> vals;
+		vals.push_back(RequestTraceEntry(periodMSHRs));
+		mshrCountTrace.addTrace(vals);
+
+		vector<RequestTraceEntry> vals2;
+		vals2.push_back(RequestTraceEntry(allocated));
+		mshrCountTrace.addTrace(vals2);
 
 		if(periodMSHRs > 0){
 

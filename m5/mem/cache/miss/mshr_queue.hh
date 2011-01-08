@@ -61,6 +61,8 @@ class MSHRQueue {
 
     RequestTrace missCountTrace;
 
+    RequestTrace mshrCountTrace;
+
     // Parameters
     /**
      * The total number of MSHRs in this queue. This number is set as the
