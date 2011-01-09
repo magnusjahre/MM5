@@ -61,8 +61,6 @@ class MSHRQueue {
 
     RequestTrace missCountTrace;
 
-    RequestTrace mshrCountTrace;
-
     RequestTrace mshrAllocatedTrace;
 
     // Parameters
@@ -123,6 +121,8 @@ class MSHRQueue {
 	int responsesWhileStalled;
 	int instTraceRespWhileStalled;
 
+	bool doMSHRTrace;
+
   protected:
 
 	Stats::Scalar<> opacu_overlapped_misses;
@@ -160,7 +160,7 @@ class MSHRQueue {
      * @param num_mshrs The number of MSHRs in this queue.
      * @param reserve The minimum number of MSHRs needed to satisfy any access.
      */
-    MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve = 1);
+    MSHRQueue(int num_mshrs, bool _isMissQueue, bool _doMSHRTrace, int reserve = 1);
 
     /** Destructor */
     ~MSHRQueue();

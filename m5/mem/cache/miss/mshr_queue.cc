@@ -42,12 +42,13 @@
 
 using namespace std;
 
-MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, int reserve)
+MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, bool _doMSHRTrace, int reserve)
 : numMSHRs(num_mshrs + reserve - 1), numReserve(reserve)
 {
 	isMissQueue = _isMissQueue;
 
 	maxMSHRs = num_mshrs;
+	doMSHRTrace = _doMSHRTrace;
 
 	lastMSHRChangeAt = 0;
 	allocated = 0;
@@ -106,11 +107,7 @@ MSHRQueue::setCache(BaseCache* _cache){
 		registers[i].setCache(_cache);
 	}
 
-	if(isMissQueue){
-		mshrCountTrace = RequestTrace(cache->name(), "MSHRTrace");
-		vector<string> header;
-		header.push_back("Allocated MSHRs");
-		mshrCountTrace.initalizeTrace(header);
+	if(isMissQueue && doMSHRTrace){
 
 		mshrAllocatedTrace = RequestTrace(cache->name(), "MSHRAllocatedTrace");
 		vector<string> header2;
@@ -473,7 +470,7 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 		}
 	}
 
-	if(isMissQueue){
+	if(isMissQueue && doMSHRTrace){
 		assert(mshr->mshrID != -1);
 		vector<RequestTraceEntry> data;
 		data.push_back(RequestTraceEntry(mshr->mshrID));
@@ -703,14 +700,6 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 		Tick allocLength = curTick - lastMSHRChangeAt;
 
 		cache->sampleMSHRUse(periodMSHRs, allocLength);
-
-		vector<RequestTraceEntry> vals;
-		vals.push_back(RequestTraceEntry(periodMSHRs));
-		mshrCountTrace.addTrace(vals);
-
-		vector<RequestTraceEntry> vals2;
-		vals2.push_back(RequestTraceEntry(allocated));
-		mshrCountTrace.addTrace(vals2);
 
 		if(periodMSHRs > 0){
 

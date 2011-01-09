@@ -887,6 +887,8 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
                 fatal("MIN-REQUEST-INTERVAL option only makes sense for single core experiments")
             root.PrivateL2Cache[0].min_request_interval = int(env["MIN-REQUEST-INTERVAL"])
         
+        if "DO-MSHR-TRACE" in env:
+            root.PrivateL2Cache[i].do_mshr_trace = bool(env["DO-MSHR-TRACE"])
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
 

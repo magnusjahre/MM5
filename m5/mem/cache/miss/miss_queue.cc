@@ -50,8 +50,8 @@ using namespace std;
  * stalling on writebacks do to compression writes.
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
-		bool write_allocate, bool prefetch_miss, int _minRequestInterval)
-: mq(numMSHRs, true, 4), wb(write_buffers, false, numMSHRs+1000), numMSHR(numMSHRs),
+		bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, int _minRequestInterval)
+: mq(numMSHRs, true, _doMSHRTrace, 4), wb(write_buffers, false, _doMSHRTrace, numMSHRs+1000), numMSHR(numMSHRs),
 numTarget(numTargets), writeBuffers(write_buffers),
 writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 {

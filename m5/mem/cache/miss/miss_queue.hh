@@ -239,7 +239,7 @@ class MissQueue
      * @param write_allocate If true, treat write misses the same as reads.
      */
     MissQueue(int numMSHRs, int numTargets, int write_buffers,
-	      bool write_allocate, bool prefetch_miss, int _minRequestInterval = -1);
+	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, int _minRequestInterval);
 
     /**
      * Deletes all allocated internal storage.
