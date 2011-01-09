@@ -305,6 +305,26 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         if buscnt % banksPerBus == 0:
             curbus += 1
 
+def setUpModThrotPolicy():
+    policy = ModelThrottlingPolicy()
+    optionName = 'MODEL-THROTLING-POLICY' 
+    if env["NP"] > 1:
+        if env[optionName] == "none":
+            policy.enforcePolicy = False
+        else:
+            policy.optimizationMetric = env[optionName]
+            policy.enforcePolicy = True 
+    else:
+        policy.enforcePolicy = False
+
+    assert "MODEL-THROTLING-POLICY-PERIOD" in env
+    policy.period = int(env["MODEL-THROTLING-POLICY-PERIOD"])        
+    policy.interferenceManager = root.interferenceManager
+    policy.cpuCount = int(env["NP"])
+    policy.performanceEstimationMethod = "no-mlp"
+    
+    return policy
+
 def setUpPerfDirPolicy():
     perfDirPolicy = PerformanceDirectedPolicy()
     optionName = 'PERFORMANCE-DIR-POLICY' 
@@ -640,6 +660,9 @@ if 'MISS-BW-POLICY' in env:
 
 if 'PERFORMANCE-DIR-POLICY' in env:
     root.globalPolicy = setUpPerfDirPolicy()
+    
+if 'MODEL-THROTLING-POLICY' in env:
+    root.globalPolicy = setUpModThrotPolicy()
     
 
 ###############################################################################
