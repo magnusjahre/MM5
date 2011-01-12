@@ -18,6 +18,7 @@ class CacheInterference;
 class BasePolicy;
 class BaseCache;
 class Bus;
+class MSHROccupancy;
 
 #include <vector>
 
@@ -185,6 +186,11 @@ public:
 
 	void doCommitTrace(int cpuID, int committedInstructions, int stallCycles, Tick ticksInSample);
 
+	void enableMSHROccupancyTrace();
+
+	std::vector<MSHROccupancy>* getMSHROccupancyList(int cpuID);
+
+	void clearMSHROccupancyLists();
 };
 
 #endif

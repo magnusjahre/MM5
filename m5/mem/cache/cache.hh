@@ -446,6 +446,18 @@ class Cache : public BaseCache
     	return missQueue->setNumMSHRs(newMSHRCount);
     }
 
+    virtual std::vector<MSHROccupancy>* getOccupancyList(){
+    	return missQueue->getOccupancyList();
+    }
+
+    virtual void clearOccupancyList(){
+    	missQueue->clearOccupancyList();
+    }
+
+    virtual void enableOccupancyList(){
+    	missQueue->enableOccupancyList();
+    }
+
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 

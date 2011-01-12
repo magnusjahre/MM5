@@ -86,6 +86,7 @@ class InterferenceManager;
 class RateMeasurement;
 class BasePolicy;
 class AdaptiveMHA;
+class MSHROccupancy;
 
 /**
  * A basic cache interface. Implements some common functions for speed.
@@ -606,6 +607,12 @@ public:
 
 	virtual RateMeasurement getMissRate() = 0;
 
+    virtual std::vector<MSHROccupancy>* getOccupancyList() = 0;
+
+    virtual void clearOccupancyList() = 0;
+
+    virtual void enableOccupancyList() = 0;
+
 	void sampleMSHRUse(int allocated, Tick latency);
 
 #ifdef CACHE_DEBUG
@@ -652,5 +659,15 @@ public:
 	}
 };
 
+class MSHROccupancy{
+public:
+	Tick allocatedAt;
+	int allocatedFor;
+
+	MSHROccupancy(Tick _allocatedAt, int _allocatedFor)
+	: allocatedAt(_allocatedAt), allocatedFor(_allocatedFor){
+
+	}
+};
 
 #endif //__BASE_CACHE_HH__

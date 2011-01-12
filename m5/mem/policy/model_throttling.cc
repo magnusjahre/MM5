@@ -18,12 +18,18 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 bool _enforcePolicy)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
-	cout << "creating model throttling policy\n";
+	intManager->enableMSHROccupancyTrace();
 }
 
 void
 ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
-	fatal("model throttling runPolicy not implemented");
+
+	//TODO: evaluate search space (call intManager->getMSHROccupancyList(cpuid) to get occupancy)
+
+	// clean up
+	intManager->clearMSHROccupancyLists();
+
+	fatal("stop here for now");
 }
 
 bool

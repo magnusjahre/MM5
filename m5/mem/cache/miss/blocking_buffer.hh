@@ -316,6 +316,18 @@ public:
     void setNumMSHRs(int newMSHRCount){
     	fatal("Makes no sense");
     }
+
+    virtual std::vector<MSHROccupancy>* getOccupancyList(){
+    	fatal("Makes no sense");
+    }
+
+    virtual void clearOccupancyList(){
+    	fatal("Makes no sense");
+    }
+
+    virtual void enableOccupancyList(){
+    	fatal("Makes no sense");
+    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__

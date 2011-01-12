@@ -479,6 +479,10 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 		mshrAllocatedTrace.addTrace(data);
 	}
 
+	if(occupancyListEnabled){
+		occupancyList.push_back(MSHROccupancy(mshr->allocatedAt, curTick - mshr->allocatedAt));
+	}
+
 	MSHR::Iterator retval = allocatedList.erase(mshr->allocIter);
 	freeList.push_front(mshr);
 	allocated--;

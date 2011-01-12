@@ -469,6 +469,18 @@ class MissQueue
     	return mq.getInstTraceRespWhileStalled();
     }
 
+    std::vector<MSHROccupancy>* getOccupancyList(){
+    	return mq.getOccupancyList();
+    }
+
+    void clearOccupancyList(){
+    	mq.clearOccupancyList();
+    }
+
+    void enableOccupancyList(){
+    	mq.enableOccupancyList();
+    }
+
 };
 
 

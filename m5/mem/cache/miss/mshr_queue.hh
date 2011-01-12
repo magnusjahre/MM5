@@ -123,6 +123,9 @@ class MSHRQueue {
 
 	bool doMSHRTrace;
 
+	bool occupancyListEnabled;
+	std::vector<MSHROccupancy> occupancyList;
+
   protected:
 
 	Stats::Scalar<> opacu_overlapped_misses;
@@ -396,6 +399,17 @@ class MSHRQueue {
     int getResponsesWhileStalled();
     int getInstTraceRespWhileStalled();
 
+    std::vector<MSHROccupancy>* getOccupancyList(){
+    	return &occupancyList;
+    }
+
+    void clearOccupancyList(){
+    	occupancyList.clear();
+    }
+
+    void enableOccupancyList(){
+    	occupancyListEnabled = true;
+    }
 };
 
 class MLPEstimationEvent : public Event{

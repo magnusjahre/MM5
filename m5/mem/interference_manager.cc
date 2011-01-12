@@ -592,6 +592,25 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 	instTraceLatencySum[cpuID] = 0;
 }
 
+void
+InterferenceManager::enableMSHROccupancyTrace(){
+	for(int i=0;i<lastPrivateCaches.size();i++){
+		lastPrivateCaches[i]->enableOccupancyList();
+	}
+}
+
+std::vector<MSHROccupancy>*
+InterferenceManager::getMSHROccupancyList(int cpuID){
+	return lastPrivateCaches[cpuID]->getOccupancyList();
+}
+
+void
+InterferenceManager::clearMSHROccupancyLists(){
+	for(int i=0;i<lastPrivateCaches.size();i++){
+		lastPrivateCaches[i]->clearOccupancyList();
+	}
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(InterferenceManager)
