@@ -124,8 +124,63 @@ ModelThrottlingPolicy::processConfiguration(std::vector<int> mha,
 }
 
 int
+ModelThrottlingPolicy::findFreeMSHR(std::vector<Tick>* occupiedTo, Tick at){
+	Tick mintick = 100000000000;
+	int minIndex = -1;
+	for(int i=0;i<occupiedTo->size();i++){
+		if(occupiedTo->at(i) <= at){
+			return i;
+		}
+
+		if(occupiedTo->at(i) < mintick){
+			mintick = occupiedTo->at(i);
+			minIndex = i;
+		}
+	}
+	assert(minIndex != -1);
+	return minIndex;
+}
+
+int
 ModelThrottlingPolicy::estimateInsertedRequests(int cpuID, int mshrs, int throttling, PerformanceMeasurement* measurements){
-	fatal("TODO: implement request estimation procedure");
+
+	DPRINTF(MissBWPolicyExtra, "Estimating requests for CPU %d, mshrs %d and throttling %d, %d original requests\n",
+			cpuID,
+			mshrs,
+			throttling,
+			mshrOccupancyPtrs[cpuID]->size());
+
+	vector<Tick> occupiedTo = vector<Tick>(mshrs, 0);
+	Tick lastRequestAt = 0;
+	int executedRequests = 0;
+
+	for(int i=0;i<mshrOccupancyPtrs[cpuID]->size();i++){
+		Tick allocAt = mshrOccupancyPtrs[cpuID]->at(i).allocatedAt;
+		int duration = mshrOccupancyPtrs[cpuID]->at(i).allocatedFor;
+
+		int freeMSHRID = findFreeMSHR(&occupiedTo, allocAt);
+
+		if(throttling > 0 && allocAt < (lastRequestAt + throttling)){
+			allocAt = lastRequestAt + throttling;
+		}
+		lastRequestAt = allocAt;
+
+		if(occupiedTo[freeMSHRID] < allocAt){
+			occupiedTo[freeMSHRID] = allocAt + duration;
+		}
+		else{
+			occupiedTo[freeMSHRID] += duration;
+		}
+
+		executedRequests++;
+		if(occupiedTo[freeMSHRID] >= curTick){
+			DPRINTF(MissBWPolicyExtra, "Occupied to %d exceeds %d, returning %d requests\n", occupiedTo[freeMSHRID], curTick, executedRequests);
+			return executedRequests;
+		}
+	}
+
+	DPRINTF(MissBWPolicyExtra, "Executed the whole list, returning %d requests\n", executedRequests);
+	return executedRequests;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
