@@ -34,13 +34,13 @@ public:
 	virtual bool doEvaluation(int cpuID);
 
 private:
-	void simpleSearch(PerformanceMeasurement* measurements);
-
-	double processConfiguration(std::vector<int> mha, std::vector<int> throttle, PerformanceMeasurement* measurements);
-
-	int estimateInsertedRequests(int cpuID, int mshrs, int throttling, PerformanceMeasurement* measurements);
-
-	int findFreeMSHR(std::vector<Tick>* occupiedTo, Tick at);
+//	void simpleSearch(PerformanceMeasurement* measurements);
+//
+//	double processConfiguration(std::vector<int> mha, std::vector<int> throttle, PerformanceMeasurement* measurements);
+//
+//	int estimateInsertedRequests(int cpuID, int mshrs, int throttling, PerformanceMeasurement* measurements);
+//
+//	int findFreeMSHR(std::vector<Tick>* occupiedTo, Tick at);
 };
 
 #endif /* MODEL_THROTTLING_HH_ */
