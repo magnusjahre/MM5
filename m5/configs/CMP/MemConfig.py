@@ -27,13 +27,17 @@ class BaseL1Cache(BaseCache):
     
     if int(env['NP']) == 4:
         latency = 3 * Parent.clock.period
+    elif int(env['NP']) == 4:
+        latency = 3 * Parent.clock.period
     elif int(env['NP']) == 8:
         latency = 2 * Parent.clock.period
     elif int(env['NP']) == 16:
         latency = 2 * Parent.clock.period
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
-        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        if int(env['MEMORY-ADDRESS-PARTS']) == 2:
+            latency = 3 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 4:
             latency = 3 * Parent.clock.period
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
             latency = 2 * Parent.clock.period
@@ -108,7 +112,9 @@ class PrivateCache1M(CommonLargeCache):
     tgts_per_mshr = 4
     write_buffers = 16
     
-    if int(env['NP']) == 4:
+    if int(env['NP']) == 2:
+        latency = 9 * Parent.clock.period
+    elif int(env['NP']) == 4:
         latency = 9 * Parent.clock.period
     elif int(env['NP']) == 8:
         latency = 6 * Parent.clock.period
@@ -116,7 +122,9 @@ class PrivateCache1M(CommonLargeCache):
         latency = 5 * Parent.clock.period
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
-        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        if int(env['MEMORY-ADDRESS-PARTS']) == 2:
+            latency = 9 * Parent.clock.period
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 4:
             latency = 9 * Parent.clock.period
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
             latency = 6 * Parent.clock.period
@@ -237,7 +245,10 @@ class InterconnectCrossbar(Crossbar):
         pipe_stages = 6
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
-        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        if int(env['MEMORY-ADDRESS-PARTS']) == 2:
+            transferDelay = 8
+            pipe_stages = 2
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 4:
             transferDelay = 8
             pipe_stages = 2
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
@@ -279,7 +290,9 @@ class PointToPointLink(PeerToPeerLink):
     arbitrationDelay = -1 # not used
     cpu_count = env['NP']
     
-    if int(env['NP']) == 4:
+    if int(env['NP']) == 2:
+        transferDelay = 4
+    elif int(env['NP']) == 4:
         transferDelay = 4
     elif int(env['NP']) == 8:
         transferDelay = 3
@@ -287,7 +300,9 @@ class PointToPointLink(PeerToPeerLink):
         transferDelay = 2
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
-        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        if int(env['MEMORY-ADDRESS-PARTS']) == 2:
+            transferDelay = 4
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 4:
             transferDelay = 4
         elif int(env['MEMORY-ADDRESS-PARTS']) == 8:
             transferDelay = 3
@@ -304,7 +319,7 @@ class RingInterconnect(Ring):
     if int(env['NP']) == 16:
         transferDelay = 8
         arbitrationDelay = 4
-    elif int(env['NP']) == 8 or int(env['NP']) == 4:
+    elif int(env['NP']) == 8 or int(env['NP']) == 4 or int(env['NP']) == 2:
         transferDelay = 4
         arbitrationDelay = 4
     elif int(env['NP']) == 1:
@@ -312,7 +327,7 @@ class RingInterconnect(Ring):
         if int(env['MEMORY-ADDRESS-PARTS']) == 16:
             transferDelay = 8
             arbitrationDelay = 4
-        elif int(env['MEMORY-ADDRESS-PARTS']) == 8 or int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        elif int(env['MEMORY-ADDRESS-PARTS']) == 8 or int(env['MEMORY-ADDRESS-PARTS']) == 4 or int(env['MEMORY-ADDRESS-PARTS']) == 2:
             transferDelay = 4
             arbitrationDelay = 4
         else:

@@ -34,7 +34,7 @@ Ring::Ring(const std::string &_name,
 
     fixedRoundtripLat = _fixedRoundtripLat;
 
-    if(_cpu_count == 4){
+    if(_cpu_count == 4 || _cpu_count == 2){
         numberOfRequestRings = 1;
     }
     else if(_cpu_count == 8){

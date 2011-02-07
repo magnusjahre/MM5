@@ -220,7 +220,7 @@ def initSharedCache(bankcnt, optPart):
     else:
         banksize = None
     
-    if int(env['NP']) == 4:
+    if int(env['NP']) == 4 or int(env['NP']) == 2:
         if banksize == None:
             banksize = str(2*(2**10))+"kB"
         root.SharedCache = [SharedCache8M(size=banksize) for i in range(bankcnt)]
@@ -234,7 +234,7 @@ def initSharedCache(bankcnt, optPart):
         root.SharedCache = [SharedCache32M(size=banksize) for i in range(bankcnt)]
     elif int(env['NP']) == 1:
         assert 'MEMORY-ADDRESS-PARTS' in env
-        if int(env['MEMORY-ADDRESS-PARTS']) == 4:
+        if int(env['MEMORY-ADDRESS-PARTS']) == 4 or int(env['MEMORY-ADDRESS-PARTS']) == 2:
             if banksize == None:
                 banksize = str(2*(2**10))+"kB"
             root.SharedCache = [SharedCache8M(size=banksize) for i in range(bankcnt)]
