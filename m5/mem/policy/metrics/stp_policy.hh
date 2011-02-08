@@ -10,6 +10,9 @@ public:
 	STPPolicy();
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
+
+	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, int np);
+
 };
 
 #endif /* STP_POLICY_HH_ */
