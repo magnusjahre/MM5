@@ -19,6 +19,12 @@ STPPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sha
 
 std::vector<double>
 STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, int np){
-	cout << "computing optimal period\n";
+	vector<double> alphas = vector<double>(np, 0.0);
+	vector<double> betas = vector<double>(np, 0.0);
+	for(int i=0;i<np;i++){
+		alphas[i] = measurements->alpha(i);
+		betas[i] = measurements->beta(i);
+	}
+
 	return vector<double>(np, 0.0);
 }

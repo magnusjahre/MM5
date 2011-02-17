@@ -81,6 +81,10 @@ public:
 	std::vector<RequestTraceEntry> createTraceLine();
 
 	double getNonStallCycles(int cpuID, int period);
+
+	double alpha(int cpuID);
+
+	double beta(int cpuID);
 };
 
 

@@ -227,6 +227,54 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 }
 
 double
+PerformanceMeasurement::alpha(int cpuID){
+
+	double avgBusService = latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
+
+	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusService, cpuID);
+
+	double totalMisses = 0;
+	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[cpuID].misses;
+
+	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
+	double overlap = mlpEstimate[cpuID][maxMSHRs];
+
+	double alpha = overlap * thisMisses * avgBusService * avgBusService * totalMisses;
+
+	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alpha, cpuID);
+
+	return alpha;
+}
+
+double
+PerformanceMeasurement::beta(int cpuID){
+	double ic = 0.0;
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectDelivery];
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectEntry];
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectRequestQueue];
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectRequestTransfer];
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectResponseQueue];
+	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectResponseTransfer];
+
+	double cache = latencyBreakdown[cpuID][InterferenceManager::CacheCapacity];
+
+	double bus = 0.0;
+	bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry];
+	bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
+
+	double compute = getNonStallCycles(cpuID, period);
+
+	double overlap = mlpEstimate[cpuID][maxMSHRs];
+
+	double beta = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
+
+	DPRINTF(MissBWPolicy, "Computed beta %f for CPU %d\n", beta, cpuID);
+
+	return beta;
+
+}
+
+double
 CacheMissMeasurements::getInterferenceMissesPerMiss(){
 
 	double dblIntMiss = (double) interferenceMisses;
@@ -256,3 +304,4 @@ CacheMissMeasurements::getMissRate(){
 	assert(missRate >= 0.0 && missRate <= 1.0);
 	return missRate;
 }
+
