@@ -25,7 +25,7 @@ class BaseL1Cache(BaseCache):
     is_shared = False
     simulate_contention = False
     
-    if int(env['NP']) == 4:
+    if int(env['NP']) == 2:
         latency = 3 * Parent.clock.period
     elif int(env['NP']) == 4:
         latency = 3 * Parent.clock.period
@@ -234,7 +234,10 @@ class InterconnectCrossbar(Crossbar):
     clock = 1 * Parent.clock.period
     arbitrationDelay = 0 
     
-    if int(env['NP']) == 4:
+    if int(env['NP']) == 2:
+        transferDelay = 8
+        pipe_stages = 2
+    elif int(env['NP']) == 4:
         transferDelay = 8
         pipe_stages = 2
     elif int(env['NP']) == 8:
