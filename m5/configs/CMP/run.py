@@ -663,6 +663,7 @@ if 'PERFORMANCE-DIR-POLICY' in env:
     
 if 'MODEL-THROTLING-POLICY' in env:
     root.globalPolicy = setUpModThrotPolicy()
+    useMissBWPolicy = True
     
 
 ###############################################################################

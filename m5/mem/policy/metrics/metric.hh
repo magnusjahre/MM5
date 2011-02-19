@@ -9,6 +9,7 @@
 #define METRIC_HH_
 
 #include <vector>
+#include <cmath>
 #include "base/misc.hh"
 #include "mem/policy/performance_measurement.hh"
 
@@ -21,7 +22,7 @@ public:
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
 
-	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, int np){
+	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
 		fatal("Metric has not implemented computeOptimalPeriod");
 		return std::vector<double>();
 	}

@@ -39,6 +39,9 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	cpuStallCycles.resize(cpuCount, 0);
 
 	perCoreCacheMeasurements.resize(cpuCount, CacheMissMeasurements());
+
+	alphas.resize(cpuCount, 0.0);
+	betas.resize(cpuCount, 0.0);
 }
 
 void
@@ -226,8 +229,16 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 	return period - cpuStallCycles[cpuID];
 }
 
-double
-PerformanceMeasurement::alpha(int cpuID){
+void
+PerformanceMeasurement::updateConstants(){
+	for(int i=0;i<cpuCount;i++){
+		updateAlpha(i);
+		updateBeta(i);
+	}
+}
+
+void
+PerformanceMeasurement::updateAlpha(int cpuID){
 
 	double avgBusService = latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
 
@@ -239,15 +250,15 @@ PerformanceMeasurement::alpha(int cpuID){
 	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
 	double overlap = mlpEstimate[cpuID][maxMSHRs];
 
-	double alpha = overlap * thisMisses * avgBusService * avgBusService * totalMisses;
+	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
-	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alpha, cpuID);
+	alphas[cpuID] = overlap * thisMisses * avgBusService * avgBusService * totalMisses;
 
-	return alpha;
+	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
 }
 
-double
-PerformanceMeasurement::beta(int cpuID){
+void
+PerformanceMeasurement::updateBeta(int cpuID){
 	double ic = 0.0;
 	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectDelivery];
 	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectEntry];
@@ -266,12 +277,9 @@ PerformanceMeasurement::beta(int cpuID){
 
 	double overlap = mlpEstimate[cpuID][maxMSHRs];
 
-	double beta = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
+	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
 
-	DPRINTF(MissBWPolicy, "Computed beta %f for CPU %d\n", beta, cpuID);
-
-	return beta;
-
+	DPRINTF(MissBWPolicy, "Computed beta %f for CPU %d\n", betas[cpuID], cpuID);
 }
 
 double

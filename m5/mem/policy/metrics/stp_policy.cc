@@ -1,5 +1,6 @@
 
 #include "stp_policy.hh"
+#include "base/trace.hh"
 
 using namespace std;
 
@@ -18,13 +19,58 @@ STPPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sha
 }
 
 std::vector<double>
-STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, int np){
-	vector<double> alphas = vector<double>(np, 0.0);
-	vector<double> betas = vector<double>(np, 0.0);
+STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
+
+	measurements->updateConstants();
+
+	double fraction = computeFraction(measurements, aloneCycles, np);
+	DPRINTF(MissBWPolicy, "Final fraction is %f\n", fraction);
+
+	vector<double> optimalPeriod = vector<double>(np, 0.0);
+
 	for(int i=0;i<np;i++){
-		alphas[i] = measurements->alpha(i);
-		betas[i] = measurements->beta(i);
+		double tmp = ((double) np*measurements->getPeriod()) - (measurements->alphas[i]*measurements->betas[i]);
+		DPRINTF(MissBWPolicy, "CPU %d specific result is %f\n", i, tmp);
+		optimalPeriod[i] = tmp / fraction;
 	}
 
-	return vector<double>(np, 0.0);
+	// verify constraint
+	int sum = 0;
+	for(int i=0;i<np;i++) sum += optimalPeriod[i];
+	if(sum != np*measurements->getPeriod()){
+		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", sum, np*measurements->getPeriod());
+	}
+
+	return optimalPeriod;
+}
+
+double
+STPPolicy::computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
+	double betamult = 1.0;
+	for(int i=0;i<np;i++){
+		betamult *= measurements->betas[i];
+	}
+
+	DPRINTF(MissBWPolicy, "Multiplied betas is %f\n", betamult);
+
+	double fracsum = 0.0;
+	for(int i=0;i<np;i++){
+
+		double privateCycles = aloneCycles[i];
+		double tmp = sqrt(measurements->alphas[i] * privateCycles);
+
+		DPRINTF(MissBWPolicy, "CPU %d sum root is %f\n", i, tmp);
+
+		double tmp2 = tmp / measurements->betas[i];
+
+		DPRINTF(MissBWPolicy, "CPU %d divided by beta gives %f\n", i, tmp2);
+
+		fracsum -= tmp2;
+	}
+
+	DPRINTF(MissBWPolicy, "Final fraction sum is %f\n", fracsum);
+
+
+
+	return (betamult * fracsum);
 }

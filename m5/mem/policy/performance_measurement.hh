@@ -61,6 +61,9 @@ public:
 
 	std::vector<double> cacheInterferenceLatency;
 
+	std::vector<double> alphas;
+	std::vector<double> betas;
+
 	double actualBusUtilization;
 	double sharedCacheMissRate;
 
@@ -82,9 +85,18 @@ public:
 
 	double getNonStallCycles(int cpuID, int period);
 
-	double alpha(int cpuID);
 
-	double beta(int cpuID);
+
+	int getPeriod(){
+		return period;
+	}
+
+	void updateConstants();
+
+private:
+	void updateAlpha(int cpuID);
+
+	void updateBeta(int cpuID);
 };
 
 

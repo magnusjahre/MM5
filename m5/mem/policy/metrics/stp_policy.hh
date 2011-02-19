@@ -11,8 +11,10 @@ public:
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
 
-	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, int np);
+	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
 
+private:
+	double computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
 };
 
 #endif /* STP_POLICY_HH_ */

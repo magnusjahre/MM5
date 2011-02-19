@@ -61,6 +61,7 @@ BasePolicy::BasePolicy(string _name,
 	cummulativeCommittedInsts.resize(_cpuCount, 0);
 
 	aloneIPCEstimates.resize(_cpuCount, 0.0);
+	aloneCycles.resize(_cpuCount, 0.0);
 	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
 
 	currentMeasurements = NULL;
@@ -82,6 +83,8 @@ BasePolicy::BasePolicy(string _name,
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
 	initComInstModelTrace(_cpuCount);
+
+	enableOccupancyTrace = false;
 }
 
 BasePolicy::~BasePolicy(){
@@ -129,9 +132,14 @@ BasePolicy::regStats(){
 
 void
 BasePolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs){
+
 	assert(caches[_cpuID] == NULL);
 	caches[_cpuID] = _cache;
 	maxMSHRs = _maxMSHRs;
+
+	if(enableOccupancyTrace){
+		_cache->enableOccupancyList();
+	}
 
 	if(!searchTrace.isInitialized()) initSearchTrace(cpuCount, searchAlgorithm);
 }
@@ -418,6 +426,7 @@ void
 BasePolicy::updateAloneIPCEstimate(){
 	for(int i=0;i<cpuCount;i++){
 		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
+
 			double stallParallelism = currentMeasurements->avgMissesWhileStalled[i][maxMSHRs];
 			double curMLP = currentMeasurements->mlpEstimate[i][maxMSHRs];
 			double curReqs = currentMeasurements->requestsInSample[i];
@@ -444,6 +453,8 @@ BasePolicy::updateAloneIPCEstimate(){
 			double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
 			double visibleIntCycles = mostRecentMLPEstimate[i][maxMSHRs] * totalInterferenceCycles;
 			avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
+
+			aloneCycles[i] = ((double) period - visibleIntCycles);
 		}
 	}
 }

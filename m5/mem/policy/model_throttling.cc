@@ -18,7 +18,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 bool _enforcePolicy)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
-	intManager->enableMSHROccupancyTrace();
+	enableOccupancyTrace = true;
 
 	mshrOccupancyPtrs.resize(_cpuCount, NULL);
 }
@@ -28,10 +28,18 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	DPRINTF(MissBWPolicy, "--- Running Model Throttling Policy\n");
 
+	assert(currentMeasurements == NULL);
+	currentMeasurements = &measurements;
+
 	for(int i=0;i<mshrOccupancyPtrs.size();i++){
 		assert(mshrOccupancyPtrs[i] == NULL);
 		mshrOccupancyPtrs[i] = intManager->getMSHROccupancyList(i);
 	}
+
+	updateMWSEstimates();
+	updateAloneIPCEstimate();
+	traceVector("Alone IPC Estimates: ", aloneIPCEstimates);
+	traceVector("Estimated Alone Cycles: ", aloneCycles);
 
 	vector<double> optimalArrivalRates = findOptimalArrivalRates(&measurements);
 	setArrivalRates(optimalArrivalRates);
@@ -40,6 +48,7 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<mshrOccupancyPtrs.size();i++) mshrOccupancyPtrs[i] = NULL;
 	intManager->clearMSHROccupancyLists();
 
+	currentMeasurements = NULL;
 	fatal("stop here for now");
 }
 
@@ -51,7 +60,7 @@ ModelThrottlingPolicy::doEvaluation(int cpuID){
 
 std::vector<double>
 ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
-	vector<double> optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, cpuCount);
+	vector<double> optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
 
 	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
 

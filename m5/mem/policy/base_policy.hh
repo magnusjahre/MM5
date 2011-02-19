@@ -49,6 +49,8 @@ public:
 
 protected:
 
+    bool enableOccupancyTrace;
+
 	Metric* performanceMetric;
 
 	PerformanceEstimationMethod perfEstMethod;
@@ -72,6 +74,7 @@ protected:
 	RequestTrace searchTrace;
 
 	std::vector<double> aloneIPCEstimates;
+	std::vector<double> aloneCycles;
 	std::vector<double> avgLatencyAloneIPCModel;
 
 //	bool dumpInitalized;
