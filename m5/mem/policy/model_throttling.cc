@@ -15,12 +15,15 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 bool _persistentAllocations,
 			   	    			 int _iterationLatency,
 			   	    			 Metric* _performanceMetric,
-			   	    			 bool _enforcePolicy)
+			   	    			 bool _enforcePolicy,
+			   	    			 bool _verify)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
 	//enableOccupancyTrace = true;
 
-	mshrOccupancyPtrs.resize(_cpuCount, NULL);
+	doVerification = _verify;
+
+	optimalPeriods.resize(_cpuCount, 0.0);
 
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
@@ -34,11 +37,6 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(currentMeasurements == NULL);
 	currentMeasurements = &measurements;
 
-	for(int i=0;i<mshrOccupancyPtrs.size();i++){
-		assert(mshrOccupancyPtrs[i] == NULL);
-		mshrOccupancyPtrs[i] = intManager->getMSHROccupancyList(i);
-	}
-
 	updateMWSEstimates();
 	updateAloneIPCEstimate();
 	measurements.computedOverlap = computedOverlap;
@@ -49,9 +47,9 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	vector<double> optimalArrivalRates = findOptimalArrivalRates(&measurements);
 	setArrivalRates(optimalArrivalRates);
 
-	// clean up
-	for(int i=0;i<mshrOccupancyPtrs.size();i++) mshrOccupancyPtrs[i] = NULL;
-	intManager->clearMSHROccupancyLists();
+	if(doVerification){
+		quitForVerification(&measurements, optimalArrivalRates);
+	}
 
 	currentMeasurements = NULL;
 }
@@ -64,7 +62,7 @@ ModelThrottlingPolicy::doEvaluation(int cpuID){
 
 std::vector<double>
 ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
-	vector<double> optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
+	optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
 
 	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
 
@@ -111,6 +109,21 @@ ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
 	throttleTrace.addTrace(vals);
 }
 
+void
+ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates){
+
+	DataDump dumpvals = DataDump("throttling-data-dump.txt");
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-throttles", i), 1.0 / optimalArrivalRates[i]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
+
+	dumpvals.dump();
+
+	new SimExitEvent("Stopping for model verification");
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -122,6 +135,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
+	Param<bool> verify;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -132,7 +146,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
-	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true)
+	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
+	INIT_PARAM_DFLT(verify, "Verify policy", false)
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -151,7 +166,8 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         persistentAllocations,
 							         iterationLatency,
 							         performanceMetric,
-							         enforcePolicy);
+							         enforcePolicy,
+							         verify);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

@@ -9,16 +9,18 @@
 #define MODEL_THROTTLING_HH_
 
 #include "base_policy.hh"
+#include "sim/sim_events.hh"
+#include "mem/datadump.hh"
 
 class ModelThrottlingPolicy : public BasePolicy{
 
 private:
-	std::vector<std::vector<MSHROccupancy>* > mshrOccupancyPtrs;
-	double bestMetricValue;
-	std::vector<int> bestMHA;
-	std::vector<int> bestThrot;
+
+	std::vector<double> optimalPeriods;
 
 	RequestTrace throttleTrace;
+
+	bool doVerification;
 
 public:
 	ModelThrottlingPolicy(std::string _name,
@@ -29,7 +31,8 @@ public:
 			        bool _persistentAllocations,
 			        int _iterationLatency,
 			        Metric* _performanceMetric,
-			        bool _enforcePolicy);
+			        bool _enforcePolicy,
+			        bool _verify);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
@@ -42,6 +45,8 @@ private:
 
 	void initThrottleTrace(int np);
 	void traceThrottling(std::vector<double> throttles);
+
+	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 };
 
 #endif /* MODEL_THROTTLING_HH_ */
