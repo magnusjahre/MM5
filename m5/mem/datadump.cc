@@ -48,6 +48,6 @@ DataDump::dump(){
 string
 DataDump::buildKey(string name, int id){
 	stringstream strstream;
-	strstream << name << "-" << id;
+	strstream << name << "=" << id;
 	return strstream.str();
 }
