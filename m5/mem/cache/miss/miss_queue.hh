@@ -481,6 +481,10 @@ class MissQueue
     	mq.enableOccupancyList();
     }
 
+    void setMinRequestInterval(int newInterval){
+    	minRequestInterval = newInterval;
+    }
+
 };
 
 

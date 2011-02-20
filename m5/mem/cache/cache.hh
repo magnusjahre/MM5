@@ -458,6 +458,10 @@ class Cache : public BaseCache
     	missQueue->enableOccupancyList();
     }
 
+    virtual void setMinRequestInterval(int newInterval){
+    	missQueue->setMinRequestInterval(newInterval);
+    }
+
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 

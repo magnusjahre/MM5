@@ -588,6 +588,7 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 		//If we need to request the bus (not on HW prefetch), do so
 
 		if(minRequestInterval != -1 && cache->interferenceManager != NULL && !cache->isShared){
+
 			Tick issueAt = 0;
 			if(nextAllowedRequestTime > time){
 				issueAt = nextAllowedRequestTime;

@@ -18,7 +18,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 bool _enforcePolicy)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
-	enableOccupancyTrace = true;
+	//enableOccupancyTrace = true;
 
 	mshrOccupancyPtrs.resize(_cpuCount, NULL);
 }
@@ -49,7 +49,6 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	intManager->clearMSHROccupancyLists();
 
 	currentMeasurements = NULL;
-	fatal("stop here for now");
 }
 
 bool
@@ -78,7 +77,18 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 void
 ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
-	fatal("set arrival rates not impl");
+
+	vector<double> cyclesPerReq = vector<double>(rates.size(), 0.0);
+	for(int i=0;i<rates.size();i++){
+		cyclesPerReq[i] = 1.0 / rates[i];
+	}
+
+	traceVector("Optimal cycles per request: ", cyclesPerReq);
+
+	for(int i=0;i<caches.size();i++){
+		DPRINTF(MissBWPolicy, "Setting minimum request interval for CPU %d to %d\n", i, (int) cyclesPerReq[i]);
+		caches[i]->setMinRequestInterval(cyclesPerReq[i]);
+	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

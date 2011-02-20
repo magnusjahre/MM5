@@ -613,6 +613,8 @@ public:
 
     virtual void enableOccupancyList() = 0;
 
+    virtual void setMinRequestInterval(int newInterval) = 0;
+
 	void sampleMSHRUse(int allocated, Tick latency);
 
 #ifdef CACHE_DEBUG

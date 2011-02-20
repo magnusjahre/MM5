@@ -50,6 +50,8 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, bool _doMSHRTrace, int re
 	maxMSHRs = num_mshrs;
 	doMSHRTrace = _doMSHRTrace;
 
+	occupancyListEnabled = false;
+
 	lastMSHRChangeAt = 0;
 	allocated = 0;
 	inServiceMSHRs = 0;

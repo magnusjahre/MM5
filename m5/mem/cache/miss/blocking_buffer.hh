@@ -328,6 +328,10 @@ public:
     virtual void enableOccupancyList(){
     	fatal("Makes no sense");
     }
+
+    virtual void setMinRequestInterval(int newInterval){
+    	fatal("Makes no sense");
+    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__
