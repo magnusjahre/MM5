@@ -6,6 +6,9 @@
 
 class STPPolicy : public Metric{
 
+private:
+	std::vector<double> zs;
+
 public:
 	STPPolicy();
 
@@ -14,7 +17,13 @@ public:
 	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
 
 private:
-	double computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
+
+	void computeZs(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
+
+	double computeGamma(PerformanceMeasurement* measurements, int np);
+
+	double computeDelta(PerformanceMeasurement* measurements, int np);
+
 };
 
 #endif /* STP_POLICY_HH_ */

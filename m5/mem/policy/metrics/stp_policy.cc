@@ -21,56 +21,100 @@ STPPolicy::computeMetric(std::vector<double>* speedups, std::vector<double>* sha
 std::vector<double>
 STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
 
-	measurements->updateConstants();
+	if(zs.empty()){
+		zs.resize(np, 0.0);
+	}
 
-	double fraction = computeFraction(measurements, aloneCycles, np);
-	DPRINTF(MissBWPolicy, "Final fraction is %f\n", fraction);
+	// update constants
+	measurements->updateConstants();
+	computeZs(measurements, aloneCycles, np);
+	double gamma = computeGamma(measurements, np);
+	double delta = computeDelta(measurements, np);
 
 	vector<double> optimalPeriod = vector<double>(np, 0.0);
 
 	for(int i=0;i<np;i++){
-		double tmp = ((double) np*measurements->getPeriod()) - (measurements->alphas[i]*measurements->betas[i]);
-		DPRINTF(MissBWPolicy, "CPU %d specific result is %f\n", i, tmp);
-		optimalPeriod[i] = tmp / fraction;
+		double resultNumerator = - gamma * measurements->alphas[i] - delta * zs[i];
+		double resultDenominator = gamma * measurements->betas[i];
+		double result = resultNumerator / resultDenominator;
+		DPRINTF(MissBWPolicy, "CPU %d, numerator is %f, denominator %f, result is %f\n", i, resultNumerator, resultDenominator, result);
+		optimalPeriod[i] = result;
 	}
 
 	// verify constraint
-	int sum = 0;
+	double sum = 0;
 	for(int i=0;i<np;i++) sum += optimalPeriod[i];
-	if(sum != np*measurements->getPeriod()){
-		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", sum, np*measurements->getPeriod());
+	int intsum = floor(sum + 0.5);
+	if(intsum != np*measurements->getPeriod()){
+		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, np*measurements->getPeriod());
 	}
+	DPRINTF(MissBWPolicy, "Sum of optimal periods %d is equal to target %d\n", intsum, np*measurements->getPeriod());
 
 	return optimalPeriod;
 }
 
-double
-STPPolicy::computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
-	double betamult = 1.0;
+void
+STPPolicy::computeZs(PerformanceMeasurement*  measurements, vector<double> aloneCycles, int np){
 	for(int i=0;i<np;i++){
-		betamult *= measurements->betas[i];
+		zs[i] = sqrt(aloneCycles[i] * measurements->alphas[i]); // use positive solution
+		DPRINTF(MissBWPolicy, "CPU %d z=%f\n", i, zs[i]);
 	}
-
-	DPRINTF(MissBWPolicy, "Multiplied betas is %f\n", betamult);
-
-	double fracsum = 0.0;
-	for(int i=0;i<np;i++){
-
-		double privateCycles = aloneCycles[i];
-		double tmp = sqrt(measurements->alphas[i] * privateCycles);
-
-		DPRINTF(MissBWPolicy, "CPU %d sum root is %f\n", i, tmp);
-
-		double tmp2 = tmp / measurements->betas[i];
-
-		DPRINTF(MissBWPolicy, "CPU %d divided by beta gives %f\n", i, tmp2);
-
-		fracsum -= tmp2;
-	}
-
-	DPRINTF(MissBWPolicy, "Final fraction sum is %f\n", fracsum);
-
-
-
-	return (betamult * fracsum);
 }
+
+double
+STPPolicy::computeGamma(PerformanceMeasurement*  measurements, int np){
+	double gamma = 0.0;
+	for(int i=0;i<np;i++){
+		double element = - zs[i] / measurements->betas[i];
+		DPRINTF(MissBWPolicy, "CPU %d gamma element is %f\n", i, element);
+		gamma += element;
+	}
+
+	DPRINTF(MissBWPolicy, "Final gamma is %f\n", gamma);
+	return gamma;
+}
+
+double
+STPPolicy::computeDelta(PerformanceMeasurement*  measurements, int np){
+	double delta = (double) (np*measurements->getPeriod());
+	DPRINTF(MissBWPolicy, "Initializing delta to %f\n", delta);
+
+	for(int i=0;i<np;i++){
+		double element = measurements->alphas[i] / measurements->betas[i];
+		DPRINTF(MissBWPolicy, "CPU %d delta element is %f\n", i, element);
+		delta += element;
+	}
+	DPRINTF(MissBWPolicy, "Final delta is %f\n", delta);
+	return delta;
+}
+
+//double
+//STPPolicy::computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
+//	double betamult = 1.0;
+//	for(int i=0;i<np;i++){
+//		betamult *= measurements->betas[i];
+//	}
+//
+//	DPRINTF(MissBWPolicy, "Multiplied betas is %f\n", betamult);
+//
+//	double fracsum = 0.0;
+//	for(int i=0;i<np;i++){
+//
+//		double privateCycles = aloneCycles[i];
+//		double tmp = sqrt(measurements->alphas[i] * privateCycles);
+//
+//		DPRINTF(MissBWPolicy, "CPU %d sum root is %f\n", i, tmp);
+//
+//		double tmp2 = tmp / measurements->betas[i];
+//
+//		DPRINTF(MissBWPolicy, "CPU %d divided by beta gives %f\n", i, tmp2);
+//
+//		fracsum -= tmp2;
+//	}
+//
+//	DPRINTF(MissBWPolicy, "Final fraction sum is %f\n", fracsum);
+//
+//
+//
+//	return (betamult * fracsum);
+//}
