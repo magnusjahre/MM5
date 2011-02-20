@@ -21,6 +21,9 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	//enableOccupancyTrace = true;
 
 	mshrOccupancyPtrs.resize(_cpuCount, NULL);
+
+	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
+	initThrottleTrace(_cpuCount);
 }
 
 void
@@ -86,11 +89,26 @@ ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
 	}
 
 	traceVector("Optimal cycles per request: ", cyclesPerReq);
+	traceThrottling(cyclesPerReq);
 
 	for(int i=0;i<caches.size();i++){
 		DPRINTF(MissBWPolicy, "Setting minimum request interval for CPU %d to %d\n", i, (int) cyclesPerReq[i]);
 		caches[i]->setMinRequestInterval(cyclesPerReq[i]);
 	}
+}
+
+void
+ModelThrottlingPolicy::initThrottleTrace(int np){
+	vector<string> headers;
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
+	throttleTrace.initalizeTrace(headers);
+}
+
+void
+ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
+	vector<RequestTraceEntry> vals = vector<RequestTraceEntry>(throttles.size(), 0);
+	for(int i=0;i<throttles.size();i++) vals[i] = (int) throttles[i];
+	throttleTrace.addTrace(vals);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

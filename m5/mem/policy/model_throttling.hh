@@ -18,6 +18,8 @@ private:
 	std::vector<int> bestMHA;
 	std::vector<int> bestThrot;
 
+	RequestTrace throttleTrace;
+
 public:
 	ModelThrottlingPolicy(std::string _name,
 			   	    InterferenceManager* _intManager,
@@ -38,6 +40,8 @@ private:
 	void setArrivalRates(std::vector<double> rates);
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
+	void initThrottleTrace(int np);
+	void traceThrottling(std::vector<double> throttles);
 };
 
 #endif /* MODEL_THROTTLING_HH_ */
