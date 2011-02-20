@@ -79,6 +79,8 @@ BasePolicy::BasePolicy(string _name,
 	avgReqsPerSample.resize(cpuCount, 0.0);
 	reqsPerSampleStdDev.resize(cpuCount, 0.0);
 
+	computedOverlap.resize(cpuCount, 0.0);
+
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
@@ -319,7 +321,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 									     double newMLP,
 									     double newAvgSharedLat,
 									     double newRequests,
-									     double responsesWhileStalled){
+									     double responsesWhileStalled,
+									     int cpuID){
 
 	if(perfEstMethod == RATIO_MWS){
 
@@ -386,17 +389,17 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			return 0;
 		}
 
-		double computedConstMLP = currentStallTime / (currentAvgSharedLat * currentRequests);
+		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * currentRequests);
 
 		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f and %f stall cycles\n",
       					           currentAvgSharedLat,
       					           currentRequests,
       					           currentStallTime);
 
-		DPRINTF(MissBWPolicyExtra, "Estimated MLP constant to be %f\n", computedConstMLP);
+		DPRINTF(MissBWPolicyExtra, "Estimated MLP constant to be %f\n", computedOverlap[cpuID]);
 
 
-		double adjustedMLP = (computedConstMLP * newMLP) / currentMLP;
+		double adjustedMLP = (computedOverlap[cpuID] * newMLP) / currentMLP;
 
 		DPRINTF(MissBWPolicyExtra, "Computed adjusted MLP to be %f with current MLP %f and new MLP %f\n",
 								    adjustedMLP,
@@ -439,7 +442,9 @@ BasePolicy::updateAloneIPCEstimate(){
 														  curMLP,
 														  currentMeasurements->estimatedPrivateLatencies[i],
 														  curReqs,
-														  currentMeasurements->responsesWhileStalled[i]);
+														  currentMeasurements->responsesWhileStalled[i],
+														  i);
+
 			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
 					              i,
@@ -451,9 +456,10 @@ BasePolicy::updateAloneIPCEstimate(){
 
 			double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
 			double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
-			double visibleIntCycles = mostRecentMLPEstimate[i][maxMSHRs] * totalInterferenceCycles;
+			double visibleIntCycles = computedOverlap[i] * totalInterferenceCycles;
 			avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
 
+			assert(period > visibleIntCycles);
 			aloneCycles[i] = ((double) period - visibleIntCycles);
 		}
 	}
@@ -660,7 +666,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      mlp,
 				                                      avgPrivateLatEstimate,
 				                                      reqs,
-				                                      responsesWhileStalled);
+				                                      responsesWhileStalled,
+				                                      cpuID);
 
 		double nonStallCycles = (double) totalCycles - (double) stallCycles;
 

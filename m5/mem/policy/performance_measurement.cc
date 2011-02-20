@@ -248,7 +248,7 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[cpuID].misses;
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
-	double overlap = mlpEstimate[cpuID][maxMSHRs];
+	double overlap = computedOverlap[cpuID];
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
@@ -275,7 +275,7 @@ PerformanceMeasurement::updateBeta(int cpuID){
 
 	double compute = getNonStallCycles(cpuID, period);
 
-	double overlap = mlpEstimate[cpuID][maxMSHRs];
+	double overlap = computedOverlap[cpuID];
 
 	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
 

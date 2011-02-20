@@ -387,7 +387,8 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 													  mostRecentMLPEstimate[i][currentMHA[i]],
 													  sharedLatencyEstimates[i],
 													  currentMeasurements->requestsInSample[i],
-													  currentMeasurements->responsesWhileStalled[i]);
+													  currentMeasurements->responsesWhileStalled[i],
+													  i);
 
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);

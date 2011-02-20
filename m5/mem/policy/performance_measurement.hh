@@ -63,6 +63,7 @@ public:
 
 	std::vector<double> alphas;
 	std::vector<double> betas;
+	std::vector<double> computedOverlap;
 
 	double actualBusUtilization;
 	double sharedCacheMissRate;

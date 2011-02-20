@@ -77,6 +77,8 @@ protected:
 	std::vector<double> aloneCycles;
 	std::vector<double> avgLatencyAloneIPCModel;
 
+	std::vector<double> computedOverlap;
+
 //	bool dumpInitalized;
 //	Tick dumpSearchSpaceAt;
 
@@ -166,7 +168,8 @@ protected:
 		                       double newMLP,
 		                       double newAvgSharedLat,
 		                       double newRequests,
-		                       double responsesWhileStalled);
+		                       double responsesWhileStalled,
+		                       int cpuID);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 

@@ -38,8 +38,10 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	updateMWSEstimates();
 	updateAloneIPCEstimate();
+	measurements.computedOverlap = computedOverlap;
 	traceVector("Alone IPC Estimates: ", aloneIPCEstimates);
 	traceVector("Estimated Alone Cycles: ", aloneCycles);
+	traceVector("Computed Overlap: ", computedOverlap);
 
 	vector<double> optimalArrivalRates = findOptimalArrivalRates(&measurements);
 	setArrivalRates(optimalArrivalRates);
