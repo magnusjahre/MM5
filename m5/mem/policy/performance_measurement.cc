@@ -245,7 +245,7 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusService, cpuID);
 
 	double totalMisses = 0;
-	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[cpuID].misses;
+	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[i].misses;
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
 	double overlap = computedOverlap[cpuID];
