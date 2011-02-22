@@ -255,6 +255,11 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	alphas[cpuID] = overlap * thisMisses * avgBusService * avgBusService * totalMisses;
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
+
+	if(alphas[cpuID] == 0.0){
+		alphas[cpuID] = 1;
+		DPRINTF(MissBWPolicy, "Method cannot handle alpha 0.0 , changing to %f for CPU %d\n", alphas[cpuID], cpuID);
+	}
 }
 
 void
