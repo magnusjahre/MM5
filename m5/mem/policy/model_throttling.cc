@@ -16,7 +16,8 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 int _iterationLatency,
 			   	    			 Metric* _performanceMetric,
 			   	    			 bool _enforcePolicy,
-			   	    			 bool _verify)
+			   	    			 bool _verify,
+			   	    			 std::vector<double> _staticArrivalRates)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
 {
 	//enableOccupancyTrace = true;
@@ -27,6 +28,11 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
+
+	if(!_staticArrivalRates.empty()){
+		StaticAllocationEvent* event = new StaticAllocationEvent(this, _staticArrivalRates);
+		event->schedule(1);
+	}
 }
 
 void
@@ -136,6 +142,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
 	Param<bool> verify;
+	VectorParam<double> staticArrivalRates;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -147,7 +154,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
-	INIT_PARAM_DFLT(verify, "Verify policy", false)
+	INIT_PARAM_DFLT(verify, "Verify policy", false),
+	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>())
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -167,7 +175,8 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         iterationLatency,
 							         performanceMetric,
 							         enforcePolicy,
-							         verify);
+							         verify,
+							         staticArrivalRates);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

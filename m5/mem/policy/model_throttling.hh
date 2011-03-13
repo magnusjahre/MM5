@@ -32,7 +32,8 @@ public:
 			        int _iterationLatency,
 			        Metric* _performanceMetric,
 			        bool _enforcePolicy,
-			        bool _verify);
+			        bool _verify,
+			        std::vector<double> _staticArrivalRates);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
@@ -47,6 +48,22 @@ private:
 	void traceThrottling(std::vector<double> throttles);
 
 	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
+
+	class StaticAllocationEvent : public Event{
+	private:
+		ModelThrottlingPolicy* mtp;
+		std::vector<double> rates;
+	public:
+		StaticAllocationEvent(ModelThrottlingPolicy* _mtp, std::vector<double> _rates):
+		Event(&mainEventQueue), mtp(_mtp), rates(_rates){
+
+		}
+
+		void process() {
+			mtp->setArrivalRates(rates);
+			delete this;
+		}
+	};
 };
 
 #endif /* MODEL_THROTTLING_HH_ */

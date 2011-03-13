@@ -323,6 +323,16 @@ def setUpModThrotPolicy():
     policy.cpuCount = int(env["NP"])
     policy.performanceEstimationMethod = "no-mlp"
     
+    statOptName = "MODEL-THROTLING-POLICY-STATIC" 
+    if statOptName in env:
+        tmpArrList = env[statOptName].split(',')
+        if len(tmpArrList) != int(env['NP']):
+            panic("Length of static policy list must be equal to the number of cores, list is "+str(env[statOptName]))
+        
+        arrList = [float(tmpArrList[i]) for i in range(int(env['NP']))]
+        policy.staticArrivalRates=tmpArrList
+            
+    
     return policy
 
 def setUpPerfDirPolicy():
