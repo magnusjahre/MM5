@@ -124,6 +124,8 @@ ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements,
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("committed-instructions", i), measurements->committedInstructions[i]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("requests", i), measurements->requestsInSample[i]);
 
 	dumpvals.dump();
 
