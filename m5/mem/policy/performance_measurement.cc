@@ -240,9 +240,12 @@ PerformanceMeasurement::updateConstants(){
 void
 PerformanceMeasurement::updateAlpha(int cpuID){
 
+	// TODO: it's wrong to combine latencies from a processor with average from a different processor
 	double avgBusService = latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
 
 	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusService, cpuID);
+
+	// TODO: include shared cache writebacks
 
 	double totalMisses = 0;
 	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[i].misses;
