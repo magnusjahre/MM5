@@ -127,6 +127,8 @@ ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements,
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("committed-instructions", i), measurements->committedInstructions[i]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("requests", i), measurements->requestsInSample[i]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->requestsInSample[i] / (double) measurements->getPeriod());
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-queue", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-service", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusService]);
 
 	dumpvals.dump();
 
