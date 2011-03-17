@@ -50,7 +50,7 @@ using namespace std;
  * stalling on writebacks do to compression writes.
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
-		bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, int _minRequestInterval)
+		bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetRequestRate, bool _traceArrivalRates)
 : mq(numMSHRs, true, _doMSHRTrace, 4), wb(write_buffers, false, _doMSHRTrace, numMSHRs+1000), numMSHR(numMSHRs),
 numTarget(numTargets), writeBuffers(write_buffers),
 writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
@@ -65,8 +65,18 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 		fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
 	}
 
-	minRequestInterval = _minRequestInterval;
+	targetRequestRate = _targetRequestRate;
 	nextAllowedRequestTime = 0;
+
+	measuredArrivalRate = 0.0;
+	arrivalRateRequests = 0;
+	allocationSetAt = 0;
+
+	sampleRequests = 0;
+	sampleAverage = 0.0;
+	sampleSize = 10000;
+
+	traceArrivalRates = _traceArrivalRates;
 }
 
 void
@@ -525,6 +535,11 @@ MissQueue::setCache(BaseCache *_cache)
 	mq.setCache(cache);
 	wb.setCache(cache);
 
+	if(cache->interferenceManager != NULL && !cache->isShared){
+		RequestRateSamplingEvent* event = new RequestRateSamplingEvent(this, sampleSize);
+		event->schedule(curTick+sampleSize);
+	}
+
 #ifdef DO_REQUEST_TRACE
 	if(!cache->isShared && cache->adaptiveMHA != NULL){
 
@@ -557,12 +572,63 @@ MissQueue::setCache(BaseCache *_cache)
 		interferenceTrace.initalizeTrace(params2);
 	}
 #endif
+
+	if(traceArrivalRates){
+		arrivalRateTrace = RequestTrace(_cache->name(), "ArrivalRateTrace");
+
+		vector<string> arrParams;
+		arrParams.push_back("Measured Average Arrival Rate");
+		arrParams.push_back("10K CC Average Arrival Rate");
+		arrParams.push_back("Target Arrival Rate");
+
+		arrivalRateTrace.initalizeTrace(arrParams);
+	}
 }
 
 void
 MissQueue::setPrefetcher(BasePrefetcher *_prefetcher)
 {
 	prefetcher = _prefetcher;
+}
+
+void
+MissQueue::sampleArrivalRate(){
+	sampleAverage = (double) ((double) sampleRequests / (double) sampleSize);
+	sampleRequests = 0;
+}
+
+Tick
+MissQueue::determineIssueTime(Tick time){
+
+	arrivalRateRequests++;
+	sampleRequests++;
+	measuredArrivalRate = (double) ((double) arrivalRateRequests / (double) (curTick - allocationSetAt)); // FIXME: should by cycles since last sample
+
+	if(traceArrivalRates){
+		vector<RequestTraceEntry> entries;
+		entries.push_back(measuredArrivalRate);
+		entries.push_back(sampleAverage);
+		entries.push_back(targetRequestRate);
+		arrivalRateTrace.addTrace(entries);
+	}
+
+	if(targetRequestRate > 0.0 && cache->interferenceManager != NULL && !cache->isShared){
+		if(measuredArrivalRate > targetRequestRate){
+			Tick issueAt = 0;
+			double timeBetweenRequests = (1.0 / targetRequestRate);
+			if(nextAllowedRequestTime > time){
+				issueAt = nextAllowedRequestTime;
+				nextAllowedRequestTime += (int) timeBetweenRequests;
+			}
+			else{
+				issueAt = time;
+				nextAllowedRequestTime = time + (int) timeBetweenRequests;
+			}
+			assert(issueAt > 0);
+			return issueAt;
+		}
+	}
+	return time;
 }
 
 MSHR*
@@ -586,26 +652,7 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	}
 	if (req->cmd != Hard_Prefetch) {
 		//If we need to request the bus (not on HW prefetch), do so
-
-		if(minRequestInterval != -1 && cache->interferenceManager != NULL && !cache->isShared){
-
-			Tick issueAt = 0;
-			if(nextAllowedRequestTime > time){
-				issueAt = nextAllowedRequestTime;
-				nextAllowedRequestTime += minRequestInterval;
-			}
-			else{
-				issueAt = time;
-				nextAllowedRequestTime = time + minRequestInterval;
-			}
-			assert(issueAt > 0);
-
-			cache->setMasterRequest(Request_MSHR, issueAt);
-		}
-		else{
-			cache->setMasterRequest(Request_MSHR, time);
-
-		}
+		cache->setMasterRequest(Request_MSHR, determineIssueTime(time));
 	}
 
 	if(mq.isFull()) assert(cache->isBlocked());

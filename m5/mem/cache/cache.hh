@@ -458,8 +458,8 @@ class Cache : public BaseCache
     	missQueue->enableOccupancyList();
     }
 
-    virtual void setMinRequestInterval(int newInterval){
-    	missQueue->setMinRequestInterval(newInterval);
+    virtual void setTargetArrivalRate(double newRate){
+    	missQueue->setTargetArrivalRate(newRate);
     }
 
     virtual void serialize(std::ostream &os);

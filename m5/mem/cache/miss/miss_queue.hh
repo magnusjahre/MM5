@@ -62,9 +62,20 @@ class MissQueue
 
     RequestTrace latencyTrace;
     RequestTrace interferenceTrace;
+    RequestTrace arrivalRateTrace;
+
+    bool traceArrivalRates;
 
     Tick nextAllowedRequestTime;
-    int minRequestInterval;
+
+    int arrivalRateRequests;
+    double targetRequestRate;
+    double measuredArrivalRate;
+    Tick allocationSetAt;
+
+    int sampleRequests;
+    double sampleAverage;
+    Tick sampleSize;
 
   protected:
     /** The MSHRs. */
@@ -227,7 +238,7 @@ class MissQueue
      */
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
 
-
+    Tick determineIssueTime(Tick time);
 
   public:
     /**
@@ -239,7 +250,7 @@ class MissQueue
      * @param write_allocate If true, treat write misses the same as reads.
      */
     MissQueue(int numMSHRs, int numTargets, int write_buffers,
-	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, int _minRequestInterval);
+	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetArrivalRate, bool _traceArrivalRates);
 
     /**
      * Deletes all allocated internal storage.
@@ -481,9 +492,34 @@ class MissQueue
     	mq.enableOccupancyList();
     }
 
-    void setMinRequestInterval(int newInterval){
-    	minRequestInterval = newInterval;
+    void setTargetArrivalRate(double newRate){
+    	targetRequestRate = newRate;
+    	measuredArrivalRate = 0.0;
+    	arrivalRateRequests = 0;
+    	allocationSetAt = curTick;
     }
+
+    void sampleArrivalRate();
+
+    class RequestRateSamplingEvent : public Event{
+    private:
+    	MissQueue* mq;
+    	Tick frequency;
+    public:
+    	RequestRateSamplingEvent(MissQueue* _mq, Tick _frequency) :
+    		Event(&mainEventQueue){
+    		mq = _mq;
+    		frequency = _frequency;
+
+    	}
+
+		void process() {
+			mq->sampleArrivalRate();
+			schedule(curTick+frequency);
+		}
+
+
+    };
 
 };
 

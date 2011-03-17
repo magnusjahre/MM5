@@ -916,13 +916,16 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         if "AGG-MSHR-MLP-EST" in env:
             root.PrivateL2Cache[i].use_aggregate_mlp_estimator = bool(env["AGG-MSHR-MLP-EST"])
             
-        if "MIN-REQUEST-INTERVAL" in env:
+        if "TARGET-REQUEST-RATE" in env:
             if(int(env["NP"]) != 1):
-                fatal("MIN-REQUEST-INTERVAL option only makes sense for single core experiments")
-            root.PrivateL2Cache[0].min_request_interval = int(env["MIN-REQUEST-INTERVAL"])
+                fatal("TARGET-REQUEST-RATE option only makes sense for single core experiments")
+            root.PrivateL2Cache[0].target_request_rate = int(env["TARGET-REQUEST-RATE"])
         
         if "DO-MSHR-TRACE" in env:
             root.PrivateL2Cache[i].do_mshr_trace = bool(env["DO-MSHR-TRACE"])
+            
+        if "DO-ARRIVAL-RATE-TRACE" in env:
+            root.PrivateL2Cache[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
 

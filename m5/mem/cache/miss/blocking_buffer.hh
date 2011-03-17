@@ -329,7 +329,7 @@ public:
     	fatal("Makes no sense");
     }
 
-    virtual void setMinRequestInterval(int newInterval){
+    virtual void setTargetArrivalRate(double newRate){
     	fatal("Makes no sense");
     }
 };
