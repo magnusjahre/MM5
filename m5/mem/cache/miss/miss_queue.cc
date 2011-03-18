@@ -602,7 +602,7 @@ MissQueue::determineIssueTime(Tick time){
 
 	arrivalRateRequests++;
 	sampleRequests++;
-	measuredArrivalRate = (double) ((double) arrivalRateRequests / (double) (curTick - allocationSetAt)); // FIXME: should by cycles since last sample
+	measuredArrivalRate = (double) ((double) arrivalRateRequests / (double) (curTick - allocationSetAt));
 
 	if(traceArrivalRates){
 		vector<RequestTraceEntry> entries;
