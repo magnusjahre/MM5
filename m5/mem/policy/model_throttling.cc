@@ -96,7 +96,7 @@ ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
 	traceThrottling(cyclesPerReq);
 
 	for(int i=0;i<caches.size();i++){
-		DPRINTF(MissBWPolicy, "Setting target arrival rate for CPU %d to %f\n", i, (int) rates[i]);
+		DPRINTF(MissBWPolicy, "Setting target arrival rate for CPU %d to %f\n", i, rates[i]);
 		caches[i]->setTargetArrivalRate(rates[i]);
 	}
 }

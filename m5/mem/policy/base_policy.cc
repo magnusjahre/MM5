@@ -453,14 +453,33 @@ BasePolicy::updateAloneIPCEstimate(){
 					              currentMeasurements->getNonStallCycles(i, period),
 								  newStallEstimate);
 
+			if(currentMeasurements->estimatedPrivateLatencies[i] < currentMeasurements->sharedLatencies[i]){
+				double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
+				double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
+				double visibleIntCycles = computedOverlap[i] * totalInterferenceCycles;
+				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
 
-			double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
-			double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
-			double visibleIntCycles = computedOverlap[i] * totalInterferenceCycles;
-			avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
+				assert(period > visibleIntCycles);
+				assert(visibleIntCycles >= 0);
+				aloneCycles[i] = ((double) period - visibleIntCycles);
 
-			assert(period > visibleIntCycles);
-			aloneCycles[i] = ((double) period - visibleIntCycles);
+				DPRINTF(MissBWPolicy, "Estimating alone IPC to %f and alone cycles to %f\n",
+						avgLatencyAloneIPCModel[i],
+						aloneCycles[i]);
+
+			}
+			else{
+				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period);
+				aloneCycles[i] = (double) period;
+
+				DPRINTF(MissBWPolicy, "The estimated private latency %d is greater than the measured shared latency %d, concluding no interference with alone IPC %f and alone cycles %f\n",
+						currentMeasurements->estimatedPrivateLatencies[i],
+						currentMeasurements->sharedLatencies[i],
+						avgLatencyAloneIPCModel[i],
+						aloneCycles[i]);
+
+			}
+
 		}
 	}
 }
