@@ -23,22 +23,26 @@ STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, std::vecto
 
 	if(zs.empty()){
 		zs.resize(np, 0.0);
+		taus.resize(np, 0.0);
 	}
+	double totalAloneCycles = 0.0;
+	for(int i=0;i<np;i++) totalAloneCycles += aloneCycles[i];
 
 	// update constants
 	measurements->updateConstants();
 	computeZs(measurements, aloneCycles, np);
+	computeTaus(measurements, aloneCycles, np);
 	double gamma = computeGamma(measurements, np);
-	double delta = computeDelta(measurements, np);
+	double delta = computeDelta(measurements, np, totalAloneCycles);
 
 	vector<double> optimalPeriod = vector<double>(np, 0.0);
 
 	for(int i=0;i<np;i++){
-		double resultNumerator = - gamma * measurements->alphas[i] - delta * zs[i];
+		double resultNumerator = - gamma * taus[i] - delta * zs[i];
 		double resultDenominator = gamma * measurements->betas[i];
 		double result = resultNumerator / resultDenominator;
 		DPRINTF(MissBWPolicy, "CPU %d, numerator is %f, denominator %f, result is %f\n", i, resultNumerator, resultDenominator, result);
-		optimalPeriod[i] = result;
+		optimalPeriod[i] = result + aloneCycles[i];
 	}
 
 	// verify constraint
@@ -61,6 +65,14 @@ STPPolicy::computeZs(PerformanceMeasurement*  measurements, vector<double> alone
 	}
 }
 
+void
+STPPolicy::computeTaus(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
+	for(int i=0;i<np;i++){
+		taus[i] = measurements->betas[i]*aloneCycles[i] + measurements->alphas[i];
+		DPRINTF(MissBWPolicy, "CPU %d tau=%f\n", i, taus[i]);
+	}
+}
+
 double
 STPPolicy::computeGamma(PerformanceMeasurement*  measurements, int np){
 	double gamma = 0.0;
@@ -75,12 +87,12 @@ STPPolicy::computeGamma(PerformanceMeasurement*  measurements, int np){
 }
 
 double
-STPPolicy::computeDelta(PerformanceMeasurement*  measurements, int np){
-	double delta = (double) (np*measurements->getPeriod());
+STPPolicy::computeDelta(PerformanceMeasurement*  measurements, int np, double totalAloneCycles){
+	double delta = (double) (np*measurements->getPeriod()) - totalAloneCycles;
 	DPRINTF(MissBWPolicy, "Initializing delta to %f\n", delta);
 
 	for(int i=0;i<np;i++){
-		double element = measurements->alphas[i] / measurements->betas[i];
+		double element = taus[i] / measurements->betas[i];
 		DPRINTF(MissBWPolicy, "CPU %d delta element is %f\n", i, element);
 		delta += element;
 	}

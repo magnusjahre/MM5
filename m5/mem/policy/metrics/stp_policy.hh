@@ -8,6 +8,7 @@ class STPPolicy : public Metric{
 
 private:
 	std::vector<double> zs;
+	std::vector<double> taus;
 
 public:
 	STPPolicy();
@@ -20,10 +21,11 @@ private:
 
 	void computeZs(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
 
+	void computeTaus(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
+
 	double computeGamma(PerformanceMeasurement* measurements, int np);
 
-	double computeDelta(PerformanceMeasurement* measurements, int np);
-
+	double computeDelta(PerformanceMeasurement* measurements, int np, double totalAloneCycles);
 };
 
 #endif /* STP_POLICY_HH_ */
