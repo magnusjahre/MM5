@@ -49,6 +49,8 @@ private:
 
 	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 
+	double magnitudeOfDifference(std::vector<double> oldvec, std::vector<double> newvec);
+
 	class StaticAllocationEvent : public Event{
 	private:
 		ModelThrottlingPolicy* mtp;

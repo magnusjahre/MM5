@@ -100,6 +100,34 @@ STPPolicy::computeDelta(PerformanceMeasurement*  measurements, int np, double to
 	return delta;
 }
 
+double
+STPPolicy::getInitLambda(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, double x0){
+	//double lambda = -aloneCycles[0] / (measurements->betas[0] + (measurements->alphas[0]/x0));
+	double lambda = 0.0000001;
+	DPRINTF(MissBWPolicy, "Choosing initial lambda %f\n", lambda);
+	return lambda;
+}
+
+std::vector<double>
+STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np, std::vector<double> point){
+	assert(point.size() == np+1);
+	vector<double> gradient = vector<double>(np+1, 0.0);
+
+	for(int i=0;i<np;i++){
+		double numerator = measurements->alphas[i] * aloneCycles[i];
+		double tosqval = measurements->betas[i] + (measurements->alphas[i] / point[i]);
+		double denominator = point[i]*point[i]*tosqval*tosqval;
+		gradient[i] = (numerator/denominator) + point[np];
+		DPRINTF(MissBWPolicy, "Gradient for CPU %d is %f\n", i, gradient[i]);
+	}
+
+	for(int i=0;i<np;i++) gradient[np] += point[i];
+	gradient[np] -= (double) (measurements->getPeriod()*np);
+	DPRINTF(MissBWPolicy, "Gradient for lambda is %f\n", gradient[np]);
+
+	return gradient;
+}
+
 //double
 //STPPolicy::computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
 //	double betamult = 1.0;

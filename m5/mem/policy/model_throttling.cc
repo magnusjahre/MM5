@@ -66,9 +66,80 @@ ModelThrottlingPolicy::doEvaluation(int cpuID){
 	return false;
 }
 
+//std::vector<double>
+//ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
+//	optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
+//
+//	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
+//
+//	assert(optimalPeriods.size() == optimalRequestRates.size());
+//	for(int i=0;i<optimalPeriods.size();i++){
+//		optimalRequestRates[i] = ((double) measurements->requestsInSample[i]) / optimalPeriods[i];
+//	}
+//
+//	traceVector("Got optimal periods: ", optimalPeriods);
+//	traceVector("Request count: ", measurements->requestsInSample);
+//	traceVector("Returning optimal request rates: ", optimalRequestRates);
+//
+//	return optimalRequestRates;
+//}
+
+double
+ModelThrottlingPolicy::magnitudeOfDifference(std::vector<double> oldvec, std::vector<double> newvec){
+	for(int i=0;i<newvec.size();i++){
+		newvec[i] = newvec[i] - oldvec[i];
+		newvec[i] = newvec[i] * newvec[i];
+	}
+
+	double magnitude = 0.0;
+	for(int i=0;i<newvec.size();i++) magnitude += newvec[i];
+	return sqrt(magnitude);
+}
+
 std::vector<double>
 ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
-	optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
+
+	measurements->updateConstants();
+
+	vector<double> oldvals = vector<double>(cpuCount+1, 0.0);
+	vector<double> xvals = vector<double>(cpuCount+1, measurements->getPeriod());
+	xvals[cpuCount] = performanceMetric->getInitLambda(measurements, aloneCycles, xvals[0]);
+	double stepsize = 100.0;
+	double presicion = 0.0000001;
+	bool hitConstraint = false;
+	int cutoff = 0;
+
+	while(magnitudeOfDifference(oldvals, xvals) > presicion || hitConstraint){
+		oldvals = xvals;
+		vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+		for(int i=0;i<xvals.size();i++){
+			xvals[i] = oldvals[i] - stepsize * thisGradient[i];
+			DPRINTF(MissBWPolicy, "New xval for CPU %d is %f, old was %f\n", i, xvals[i], oldvals[i]);
+		}
+
+		for(int i=0;i<xvals.size()-1;i++){
+			if(xvals[i] < aloneCycles[i]){
+				DPRINTF(MissBWPolicy, "Hit constraint for CPU %d new val %f is greater than %f\n", i, xvals[i], aloneCycles[i]);
+				hitConstraint = true;
+				xvals = oldvals;
+			}
+		}
+		cutoff++;
+		assert(cutoff < 10);
+
+		DPRINTF(MissBWPolicy, "Vector magnitude is %f, precision is %f\n", magnitudeOfDifference(oldvals, xvals), presicion);
+	}
+
+	double sum = 0.0;
+	for(int i=0;i<cpuCount;i++){
+		optimalPeriods[i] = xvals[i];
+		sum += xvals[i];
+	}
+	int intsum = floor(sum + 0.5);
+	if(intsum != cpuCount*measurements->getPeriod()){
+		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*measurements->getPeriod());
+	}
+
 
 	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
 
