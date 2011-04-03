@@ -42,11 +42,13 @@ public:
 
 private:
 
+	std::vector<double> findNewTrialPoint(std::vector<double> gradient, PerformanceMeasurement* measurements);
+
 	void setArrivalRates(std::vector<double> rates);
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
-	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> gradient, PerformanceMeasurement* measurements);
-	std::vector<double> addMultCons(std::vector<double> xvec, std::vector<double> gradient, double step);
+	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements);
+	std::vector<double> addMultCons(std::vector<double> xvec, std::vector<double> xstar, double step);
 
 	void initThrottleTrace(int np);
 	void traceThrottling(std::vector<double> throttles);
@@ -56,7 +58,7 @@ private:
 
 	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 
-	double magnitudeOfDifference(std::vector<double> oldvec, std::vector<double> newvec);
+	double checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient);
 
 	class StaticAllocationEvent : public Event{
 	private:

@@ -7,6 +7,8 @@
 
 #include "model_throttling.hh"
 
+#include "lp_lib.h"
+
 ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 InterferenceManager* _intManager,
 			   	    			 Tick _period,
@@ -88,67 +90,145 @@ ModelThrottlingPolicy::doEvaluation(int cpuID){
 //}
 
 double
-ModelThrottlingPolicy::magnitudeOfDifference(std::vector<double> oldvec, std::vector<double> newvec){
-	for(int i=0;i<newvec.size();i++){
-		newvec[i] = newvec[i] - oldvec[i];
-		newvec[i] = newvec[i] * newvec[i];
+ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient){
+	double xvecval = 0.0;
+	for(int i=0;i<xvec.size();i++) xvecval += gradient[i]*xvec[i];
+
+	double xstarval = 0.0;
+	for(int i=0;i<xstar.size();i++){
+		xstarval += gradient[i]*xstar[i];
 	}
 
-	double magnitude = 0.0;
-	for(int i=0;i<newvec.size();i++) magnitude += newvec[i];
-	return sqrt(magnitude);
+	if(xstarval == 0.0){
+		DPRINTF(MissBWPolicy, "wk(xstar) %f, assuming bootstrap\n", xstarval);
+		return true;
+	}
+
+	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f\n", xstarval, xvecval);
+	return xstarval > xvecval;
 }
 
 std::vector<double>
-ModelThrottlingPolicy::addMultCons(std::vector<double> xvec, std::vector<double> gradient, double step){
+ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, PerformanceMeasurement* measurements){
+	lprec *lp;
+
+	if ((lp = make_lp(0,cpuCount)) == NULL) fatal("Couldn't create LP");
+	set_outputfile(lp, (char*) "lp-trace.txt");
+
+	set_col_name(lp, 1, (char*) "CPU 0");
+	set_col_name(lp, 2, (char*) "CPU 1");
+
+	REAL* rowbuffer = (REAL*) malloc((cpuCount+1)*sizeof(REAL));
+	rowbuffer[0] = 0.0; //element 0 is ignored
+
+	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
+    if (!add_constraint(lp, rowbuffer, EQ, cpuCount*measurements->getPeriod())) fatal("Couldn't add sum constraint");
+
+    for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
+    set_obj_fn(lp, rowbuffer);
+
+    //for(int i=1;i<=cpuCount;i++) set_lowbo(lp, i, aloneCycles[i-1]);
+    for(int i=1;i<=cpuCount;i++){
+    	for(int j=1;j<=cpuCount;j++) rowbuffer[j] = 0.0;
+    	rowbuffer[i] = 1.0;
+    	if (!add_constraint(lp, rowbuffer, GE, aloneCycles[i-1])) fatal("Couldn't add larger than interference constraint");
+    }
+
+    set_maxim(lp);
+
+    print_lp(lp);
+
+    solve(lp);
+
+    int intsum = floor(get_var_primalresult(lp, 1) + 0.5);
+    if(intsum != cpuCount*measurements->getPeriod()){
+    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*measurements->getPeriod());
+    }
+
+    vector<double> retval = vector<double>(cpuCount, 0.0);
+    for(int i=0;i<cpuCount;i++){
+    	retval[i] = get_var_primalresult(lp, i+2);
+    	DPRINTF(MissBWPolicy, "xstar for CPU %d is %f\n", i, retval[i]);
+    }
+
+    print_solution(lp, 2);
+
+    free(rowbuffer);
+    delete_lp(lp);
+
+	return retval;
+}
+
+std::vector<double>
+ModelThrottlingPolicy::addMultCons(std::vector<double> xvec, std::vector<double> xstar, double step){
 	vector<double> outvec = vector<double>(xvec.size(), 0.0);
 	for(int i=0;i<outvec.size();i++){
-		outvec[i] = xvec[i] + step*gradient[i];
+		outvec[i] = xvec[i] - step*(xstar[i] - xvec[i]);
 	}
 	return outvec;
 }
 
-
 double
-ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector<double> gradient, PerformanceMeasurement* measurements){
+ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements){
 
-	double maxstep = 1000000000000.0;
-	double minstep = 0.0;
-	double gapsize = maxstep * 0.0001;
-	double tolerance = 0.001;
-	double x1 = ((maxstep + minstep) / 2.0) - gapsize;
-	double x2 = ((maxstep + minstep) / 2.0) + gapsize;
+	double step = 0.5;
+	double stepsize = 0.5;
+	double endval=10.0;
 
-	double x1val = performanceMetric->computeFunction(measurements, addMultCons(xvec, gradient, x1), aloneCycles);
-	double x2val = performanceMetric->computeFunction(measurements, addMultCons(xvec, gradient, x2), aloneCycles);
+	double maxstep = 0.0;
+	double maxval = 0.0;
 
-	int count = 0;
-
-	while(abs(x1val - x2val) > tolerance){
-		if(x1val < x2val){
-			//cout << "changing minstep from " << minstep << " to " << x1 << "\n";
-			minstep = x1;
-
+	while(step < endval){
+		if(step != 0.0){
+			double curval = performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, step), aloneCycles);
+			if(curval > maxval){
+				maxval = curval;
+				maxstep = step;
+			}
 		}
-		else if(x1val > x2val){
-			//cout << "changing maxstep from " << maxstep << " to " << x2 << "\n";
-			maxstep = x2;
-		}
-
-		x1 = ((maxstep + minstep) / 2.0) - gapsize;
-		x2 = ((maxstep + minstep) / 2.0) + gapsize;
-		x1val = performanceMetric->computeFunction(measurements, addMultCons(xvec, gradient, x1), aloneCycles);
-		x2val = performanceMetric->computeFunction(measurements, addMultCons(xvec, gradient, x2), aloneCycles);
-
-		//cout << "minstep " << minstep << ", x1 " << x1 << " f(x1)="<< x1val <<", maxstep " << maxstep << ", x2 " << x2 << " f(x2)=" << x2val << "\n";
-
-		count++;
-		if(count > 100) fatal("Step size search did not converge in 100 iterations");
-
-		cout << (x1val - x2val) << ", " << abs(x1val - x2val) << "\n";
+		step += stepsize;
 	}
 
-	return (x1 + x2) / 2.0;
+	DPRINTF(MissBWPolicy, "Best maxstep is %f\n", maxstep);
+	return maxstep;
+
+//	double maxstep = 11.0;
+//	double minstep = -10.0;
+//	double gapsize = 0.01;
+//	double tolerance = 0.00001;
+//	double x1 = ((maxstep + minstep) / 2.0) - gapsize;
+//	double x2 = ((maxstep + minstep) / 2.0) + gapsize;
+//
+//	double x1val = performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x1), aloneCycles);
+//	double x2val = performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x2), aloneCycles);
+//
+//	int count = 0;
+//
+//	while(abs(x1val - x2val) > tolerance){
+//		if(x1val < x2val){
+//			//cout << "changing minstep from " << minstep << " to " << x1 << "\n";
+//			minstep = x1;
+//
+//		}
+//		else if(x1val > x2val){
+//			//cout << "changing maxstep from " << maxstep << " to " << x2 << "\n";
+//			maxstep = x2;
+//		}
+//
+//		x1 = ((maxstep + minstep) / 2.0) - gapsize;
+//		x2 = ((maxstep + minstep) / 2.0) + gapsize;
+//		x1val = performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x1), aloneCycles);
+//		x2val = performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x2), aloneCycles);
+//
+//		cout << "minstep " << minstep << ", x1 " << x1 << " f(x1)="<< x1val <<", maxstep " << maxstep << ", x2 " << x2 << " f(x2)=" << x2val << "\n";
+//
+//		count++;
+//		if(count > 100) fatal("Step size search did not converge in 100 iterations");
+//
+//		cout << (x1val - x2val) << ", " << abs(x1val - x2val) << "\n";
+//	}
+//
+//	return (x1 + x2) / 2.0;
 }
 
 std::vector<double>
@@ -156,50 +236,39 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	vector<double> oldvals = vector<double>(cpuCount+1, 0.0);
-	vector<double> xvals = vector<double>(cpuCount+1, measurements->getPeriod());
-	xvals[cpuCount] = performanceMetric->getInitLambda(measurements, aloneCycles, xvals[0]);
+	vector<double> xvals = vector<double>(cpuCount, measurements->getPeriod());
+	vector<double> xstar = vector<double>(cpuCount, 0.0);
+	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 	traceSearch(xvals);
-	double presicion = 0.0000001;
 	bool hitConstraint = false;
 	int cutoff = 0;
 
-	while(magnitudeOfDifference(oldvals, xvals) > presicion && !hitConstraint){
-		oldvals = xvals;
-		vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
-		double stepsize = findOptimalStepSize(xvals, thisGradient, measurements);
-		for(int i=0;i<xvals.size();i++){
-			xvals[i] = oldvals[i] - stepsize * thisGradient[i];
-			DPRINTF(MissBWPolicy, "New xval for CPU %d is %f, old was %f\n", i, xvals[i], oldvals[i]);
-		}
+	while(checkConvergence(xstar, xvals, thisGradient) && !hitConstraint){
+		thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+		xstar = findNewTrialPoint(thisGradient, measurements);
+		double stepsize = findOptimalStepSize(xvals, xstar, measurements);
+		xvals = addMultCons(xvals, xstar, stepsize);
+		traceVector("New xvector is: ", xvals);
 
 		traceSearch(xvals);
-//		for(int i=0;i<xvals.size()-1;i++){
-//			if(xvals[i] < aloneCycles[i]){
-//				DPRINTF(MissBWPolicy, "Hit constraint for CPU %d new val %f is greater than %f\n", i, xvals[i], aloneCycles[i]);
-//				hitConstraint = true;
-//				xvals = oldvals;
-//			}
-//		}
+
 		cutoff++;
-		if(cutoff > 100){
+		if(cutoff > 10){
 			DPRINTF(MissBWPolicy, "Quitting due to iteration cutoff\n");
 			hitConstraint = true;
 		}
-
-		DPRINTF(MissBWPolicy, "Vector magnitude is %f, precision is %f\n", magnitudeOfDifference(oldvals, xvals), presicion);
 	}
 
-//	double sum = 0.0;
+	double sum = 0.0;
 	for(int i=0;i<cpuCount;i++){
 		optimalPeriods[i] = xvals[i];
-//		sum += xvals[i];
+		sum += xvals[i];
 	}
-//	int intsum = floor(sum + 0.5);
-//	if(intsum != cpuCount*measurements->getPeriod()){
-//		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*measurements->getPeriod());
-//	}
 
+	int intsum = floor(sum + 0.5);
+	if(intsum != cpuCount*measurements->getPeriod()){
+		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*measurements->getPeriod());
+	}
 
 	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
 
@@ -236,7 +305,6 @@ void
 ModelThrottlingPolicy::initSearchTrace(int np){
 	vector<string> headers;
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
-	headers.push_back("lambda");
 	modelSearchTrace.initalizeTrace(headers);
 }
 

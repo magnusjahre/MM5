@@ -110,20 +110,16 @@ STPPolicy::getInitLambda(PerformanceMeasurement* measurements, std::vector<doubl
 
 std::vector<double>
 STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np, std::vector<double> point){
-	assert(point.size() == np+1);
-	vector<double> gradient = vector<double>(np+1, 0.0);
+	assert(point.size() == np);
+	vector<double> gradient = vector<double>(np, 0.0);
 
 	for(int i=0;i<np;i++){
 		double numerator = measurements->alphas[i] * aloneCycles[i];
 		double tosqval = measurements->betas[i] + (measurements->alphas[i] / point[i]);
 		double denominator = point[i]*point[i]*tosqval*tosqval;
-		gradient[i] = (numerator/denominator) + point[np];
+		gradient[i] = (numerator/denominator);
 		DPRINTF(MissBWPolicy, "Gradient for CPU %d is %f\n", i, gradient[i]);
 	}
-
-	for(int i=0;i<np;i++) gradient[np] += point[i];
-	gradient[np] -= (double) (measurements->getPeriod()*np);
-	DPRINTF(MissBWPolicy, "Gradient for lambda is %f\n", gradient[np]);
 
 	return gradient;
 }
@@ -131,17 +127,23 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 double
 STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){
 	double funcval = 0.0;
-	for(int i=0;i<xvals.size()-1;i++){
-		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
-	}
-	for(int i=0;i<xvals.size()-1;i++){
-		funcval += xvals[xvals.size()-1] * xvals[i];
+
+	for(int i=0;i<xvals.size();i++){
+		if(xvals[i] < aloneCycles[i]) return 0.0;
 	}
 
-	cout << "function value ";
-	cout.precision(10);
-	cout << funcval;
-	cout << "\n";
+	for(int i=0;i<xvals.size();i++){
+		if(xvals[i] < 1 || xvals[i] > measurements->getPeriod()*xvals.size()){
+			return 0.0;
+		}
+
+		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
+	}
+
+//	cout << "function value ";
+//	cout.precision(10);
+//	cout << funcval;
+//	cout << "\n";
 
 	return funcval;
 }

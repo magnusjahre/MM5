@@ -179,10 +179,10 @@ env.Append(CCFLAGS=Split('-Wall -Wno-sign-compare -Wundef -Wno-deprecated -Werro
 if sys.platform == 'cygwin':
     # cygwin has some header file issues...
     env.Append(CCFLAGS=Split("-Wno-uninitialized"))
-env.Append(CPPPATH=[os.path.join(EXT_SRCDIR + '/dnet')])
+env.Append(CPPPATH=[os.path.join(EXT_SRCDIR + '/dnet'), "/home/jahre/usr/local/lpsolve/lp_solve_5.5"])
 
 # Default libraries
-env.Append(LIBS=['z'])
+env.Append(LIBS=['z', 'm', 'dl', 'lpsolve55'])
 
 # Platform-specific configuration
 conf = Configure(env)
