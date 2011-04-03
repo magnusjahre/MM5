@@ -36,6 +36,11 @@ public:
 		fatal("Metric has not implemented getInitLambda");
 		return 0.0;
 	}
+
+	virtual double computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){
+		fatal("Metric has not implemented computeFunction");
+		return 0.0;
+	}
 };
 
 #endif /* METRIC_HH_ */

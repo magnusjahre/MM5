@@ -19,6 +19,7 @@ private:
 	std::vector<double> optimalPeriods;
 
 	RequestTrace throttleTrace;
+	RequestTrace modelSearchTrace;
 
 	bool doVerification;
 
@@ -44,8 +45,14 @@ private:
 	void setArrivalRates(std::vector<double> rates);
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
+	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> gradient, PerformanceMeasurement* measurements);
+	std::vector<double> addMultCons(std::vector<double> xvec, std::vector<double> gradient, double step);
+
 	void initThrottleTrace(int np);
 	void traceThrottling(std::vector<double> throttles);
+
+	void initSearchTrace(int np);
+	void traceSearch(std::vector<double> xvec);
 
 	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 

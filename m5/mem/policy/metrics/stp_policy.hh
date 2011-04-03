@@ -18,6 +18,7 @@ public:
 	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np);
 	virtual std::vector<double> gradient(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np, std::vector<double> point);
 	virtual double getInitLambda(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, double x0);
+	virtual double computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles);
 
 private:
 

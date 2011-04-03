@@ -128,6 +128,25 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 	return gradient;
 }
 
+double
+STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){
+	double funcval = 0.0;
+	for(int i=0;i<xvals.size()-1;i++){
+		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
+	}
+	for(int i=0;i<xvals.size()-1;i++){
+		funcval += xvals[xvals.size()-1] * xvals[i];
+	}
+
+	cout << "function value ";
+	cout.precision(10);
+	cout << funcval;
+	cout << "\n";
+
+	return funcval;
+}
+
+
 //double
 //STPPolicy::computeFraction(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
 //	double betamult = 1.0;

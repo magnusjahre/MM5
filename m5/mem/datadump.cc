@@ -31,7 +31,9 @@ DataDump::dump(){
             	dumpfile << it->first << "=" << it->second.intVal << "\n";
                 break;
             case DOUBLE_TRACE:
-            	dumpfile << it->first << "=" << it->second.doubleVal << "\n";
+            	dumpfile << it->first << "=";
+            	dumpfile.precision(30);
+            	dumpfile << it->second.doubleVal << endl;
                 break;
             case STR_TRACE:
             	dumpfile << it->first << "=" << it->second.strVal << "\n";

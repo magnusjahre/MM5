@@ -58,7 +58,9 @@ RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
                 tracestring << ";" << values[i].intVal;
                 break;
             case DOUBLE_TRACE:
-                tracestring << ";" << values[i].doubleVal;
+                tracestring << ";";
+                tracestring.precision(10);
+                tracestring << values[i].doubleVal;
                 break;
             case STR_TRACE:
                 tracestring << ";" << values[i].strVal;
@@ -86,7 +88,6 @@ RequestTrace::dumpTracebuffer(){
     if(!tracebuffer.empty()){
 
         ofstream tracefile(filename.c_str(), ofstream::app);
-
         for(int i=0;i<curTracePos;i++) tracefile << tracebuffer[i].c_str() << "\n";
         curTracePos = 0;
 
