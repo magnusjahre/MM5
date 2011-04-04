@@ -155,7 +155,7 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
     free(rowbuffer);
     delete_lp(lp);
-cout << "   " << "\n";
+
 	return retval;
 }
 
