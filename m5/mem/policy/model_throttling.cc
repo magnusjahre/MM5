@@ -194,7 +194,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	vector<double> xvals = vector<double>(cpuCount, measurements->getPeriod());
 	vector<double> xstar = vector<double>(cpuCount, 0.0);
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
-	traceSearch(xvals);
+	if(doVerification) traceSearch(xvals);
 	int cutoff = 0;
 
 	while(checkConvergence(xstar, xvals, thisGradient)){
