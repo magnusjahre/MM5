@@ -129,21 +129,19 @@ STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<dou
 	double funcval = 0.0;
 
 	for(int i=0;i<xvals.size();i++){
-		if(xvals[i] < aloneCycles[i]) return 0.0;
+		if(xvals[i] < aloneCycles[i]){
+			fatal("function argument x[%d]=%f is not feasible");
+			return 0.0;
+		}
 	}
 
 	for(int i=0;i<xvals.size();i++){
 		if(xvals[i] < 1 || xvals[i] > measurements->getPeriod()*xvals.size()){
-			return 0.0;
+			fatal("function argument x[%d]=%f does not make sense", i, xvals[i]);
 		}
 
 		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
 	}
-
-//	cout << "function value ";
-//	cout.precision(10);
-//	cout << funcval;
-//	cout << "\n";
 
 	return funcval;
 }
