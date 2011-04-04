@@ -207,7 +207,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		if(doVerification) traceSearch(xvals);
 
 		cutoff++;
-		if(cutoff > 100){
+		if(cutoff > 1000){
 			fatal("Linear programming technique solution did not converge\n");
 		}
 	}
