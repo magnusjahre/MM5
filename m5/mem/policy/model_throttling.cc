@@ -104,8 +104,9 @@ ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<d
 		return true;
 	}
 
-	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f\n", xstarval, xvecval);
-	return xstarval > (xvecval + 0.000001);
+	double correctionFactor = 0.000001;
+	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f (%f)\n", xstarval, xvecval, xvecval+correctionFactor);
+	return xstarval > (xvecval + correctionFactor);
 }
 
 std::vector<double>
@@ -166,8 +167,8 @@ ModelThrottlingPolicy::addMultCons(std::vector<double> xvec, std::vector<double>
 double
 ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements){
 
-	double step = 0.01;
-	double stepsize = 0.01;
+	double step = 0.001;
+	double stepsize = 0.001;
 	double endval=1.0;
 
 	double maxstep = 0.0;
