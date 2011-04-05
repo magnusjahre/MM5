@@ -183,6 +183,7 @@ env.Append(CPPPATH=[os.path.join(EXT_SRCDIR + '/dnet'), os.path.join(EXT_SRCDIR 
 
 # Default libraries
 env.Append(LIBS=['z', 'm', 'dl', 'lpsolve55'])
+env.Append(LIBPATH=['#/ext/lpsolve/lpsolve55/bin/ux64'])
 
 # Platform-specific configuration
 conf = Configure(env)
