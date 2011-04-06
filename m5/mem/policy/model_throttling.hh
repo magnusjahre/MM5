@@ -22,6 +22,7 @@ private:
 	RequestTrace modelSearchTrace;
 
 	bool doVerification;
+	double throttleLimit;
 
 public:
 	ModelThrottlingPolicy(std::string _name,

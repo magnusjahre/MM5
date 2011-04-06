@@ -28,6 +28,8 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 
 	optimalPeriods.resize(_cpuCount, 0.0);
 
+	throttleLimit = 1.0 / 10000.0; //FIXME: parameterize
+
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
 
@@ -167,8 +169,8 @@ ModelThrottlingPolicy::addMultCons(std::vector<double> xvec, std::vector<double>
 double
 ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements){
 
-	double step = 0.001;
-	double stepsize = 0.001;
+	double step = 0.0001;
+	double stepsize = 0.0001;
 	double endval=1.0;
 
 	double maxstep = 0.0;
@@ -229,6 +231,11 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	assert(optimalPeriods.size() == optimalRequestRates.size());
 	for(int i=0;i<optimalPeriods.size();i++){
 		optimalRequestRates[i] = ((double) measurements->requestsInSample[i]) / optimalPeriods[i];
+		if(optimalRequestRates[i] < throttleLimit){
+			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d ", i, optimalRequestRates[i], throttleLimit);
+			optimalRequestRates[i] = throttleLimit;
+		}
+
 	}
 
 	traceVector("Got optimal periods: ", optimalPeriods);
