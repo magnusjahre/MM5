@@ -979,6 +979,10 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			Stats::SetupEvent(Stats::Dump, curTick);
 		}
 	}
+
+	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && CPUParamsCpuID == quitOnCPUID){
+		new SimExitEvent("The indicated cpu has committed the required number of instructions");
+	}
 }
 
 // register commit-stage statistics

@@ -373,7 +373,8 @@ FullCPU::FullCPU(Params *p,
 		 int _pc_sample_interval,
 		 PipeTrace *_ptrace,
 		 AdaptiveMHA* _amha,
-		 InterferenceManager* _intMan)
+		 InterferenceManager* _intMan,
+		 int _quitOnCPUID)
     : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -697,6 +698,8 @@ FullCPU::FullCPU(Params *p,
 
 	restartEvent = NULL;
 	restartHaltedProcesses = true; // TODO: parameterize
+
+	quitOnCPUID = _quitOnCPUID;
 }
 
 
@@ -1224,6 +1227,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<Counter> min_insts_all_cpus;
 
     SimObjectParam<InterferenceManager* > interferenceManager;
+    Param<int> quit_on_cpu_id;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1370,7 +1374,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
     INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0),
 
-    INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL)
+    INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL),
+    INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1)
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
 
@@ -1570,7 +1575,8 @@ CREATE_SIM_OBJECT(FullCPU)
 		      pc_sample_interval,
 		      (PipeTrace *)ptrace,
 			  adaptiveMHA,
-			  interferenceManager);
+			  interferenceManager,
+			  quit_on_cpu_id);
 
     return cpu;
 }

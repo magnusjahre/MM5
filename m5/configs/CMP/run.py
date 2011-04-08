@@ -758,6 +758,10 @@ if "USE-CHECKPOINT" in env:
 simInsts = -1
 if "SIMINSTS" in env:
     simInsts = int(env["SIMINSTS"])
+    
+quitOnCPUID = -1
+if "QUIT-ON-CPUID" in env:
+    quitOnCPUID = int(env["QUIT-ON-CPUID"])
 
 if "USE-SIMPOINT" in env:
     
@@ -805,7 +809,8 @@ if "USE-SIMPOINT" in env:
 
         root.checkpoint = checkpointDirPath
         for cpu in root.detailedCPU:
-            cpu.min_insts_all_cpus = simInsts 
+            cpu.min_insts_all_cpus = simInsts
+            cpu.quit_on_cpu_id = quitOnCPUID 
 else:
     
     if "SIMULATETICKS" in env and simInsts != -1:
@@ -833,6 +838,7 @@ else:
             simulateCycles = SIM_TICKS_NOT_USED_SIZE
             for cpu in root.detailedCPU:
                 cpu.min_insts_all_cpus = simInsts 
+                cpu.quit_on_cpu_id = quitOnCPUID
         
 root.sampler = Sampler()
 root.sampler.phase0_cpus = Parent.simpleCPU

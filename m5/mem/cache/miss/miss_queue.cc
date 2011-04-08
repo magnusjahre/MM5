@@ -621,6 +621,7 @@ MissQueue::determineIssueTime(Tick time){
 				nextAllowedRequestTime += (int) timeBetweenRequests;
 			}
 			else{
+				cout << curTick << " " << cache->name() << ": delaying request by " << timeBetweenRequests << " cycles\n";
 				issueAt = time;
 				nextAllowedRequestTime = time + (int) timeBetweenRequests;
 			}

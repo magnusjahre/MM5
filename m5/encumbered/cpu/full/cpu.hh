@@ -97,6 +97,8 @@ private:
 	Tick lastDumpTick;
 	RequestTrace committedInstTrace;
 
+	int quitOnCPUID;
+
 public:
 	////////////////////////////////////////////
 	//
@@ -275,7 +277,8 @@ public:
 			PipeTrace *pt,
 
 			AdaptiveMHA* _amha,
-			InterferenceManager* _intMan
+			InterferenceManager* _intMan,
+			int _quitOnCPUID
 	);
 
 

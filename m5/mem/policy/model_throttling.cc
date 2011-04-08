@@ -33,9 +33,12 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
 
+	searchItemNum = 0;
 	if(doVerification){
 		modelSearchTrace = RequestTrace(_name, "ModelSearchTrace", 1);
 		initSearchTrace(_cpuCount);
+
+		registerExitCallback(new PolicyCallback(this));
 	}
 
 	if(!_staticArrivalRates.empty()){
@@ -106,7 +109,7 @@ ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<d
 		return true;
 	}
 
-	double correctionFactor = 0.000001;
+	double correctionFactor = 0.0001;
 	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f (%f)\n", xstarval, xvecval, xvecval+correctionFactor);
 	return xstarval > (xvecval + correctionFactor);
 }
@@ -265,15 +268,18 @@ ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
 void
 ModelThrottlingPolicy::initSearchTrace(int np){
 	vector<string> headers;
+	headers.push_back("Iteration");
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
 	modelSearchTrace.initalizeTrace(headers);
 }
 
 void
 ModelThrottlingPolicy::traceSearch(std::vector<double> xvec){
-	vector<RequestTraceEntry> vals = vector<RequestTraceEntry>(xvec.size(), 0);
-	for(int i=0;i<xvec.size();i++) vals[i] = xvec[i];
+	vector<RequestTraceEntry> vals = vector<RequestTraceEntry>(xvec.size()+1, 0);
+	vals[0] = searchItemNum;
+	for(int i=1;i<=xvec.size();i++) vals[i] = xvec[i-1];
 	modelSearchTrace.addTrace(vals);
+	searchItemNum++;
 }
 
 void
@@ -293,6 +299,8 @@ ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
 void
 ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates){
 
+
+
 	DataDump dumpvals = DataDump("throttling-data-dump.txt");
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
@@ -305,6 +313,10 @@ ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements,
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->requestsInSample[i] / (double) measurements->getPeriod());
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-queue", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-service", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusService]);
+
+	vector<double> tmpPeriods = vector<double>(cpuCount, (double) measurements->getPeriod());
+	dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));
+	dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
 
 	dumpvals.dump();
 

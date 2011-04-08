@@ -120,3 +120,4 @@ class FullCPU(BaseCPU):
     width = Param.Int(4, "default machine width")
     adaptiveMHA = Param.AdaptiveMHA("Adaptive MHA object")
     interferenceManager = Param.InterferenceManager("The interference manager")
+    quit_on_cpu_id = Param.Int("Quit when this CPU reaches a certain number of instructions")

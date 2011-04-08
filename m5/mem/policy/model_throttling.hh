@@ -20,6 +20,7 @@ private:
 
 	RequestTrace throttleTrace;
 	RequestTrace modelSearchTrace;
+	int searchItemNum;
 
 	bool doVerification;
 	double throttleLimit;

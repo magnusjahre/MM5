@@ -7,11 +7,14 @@
 
 #include "sim/sim_object.hh"
 #include "sim/eventq.hh"
+#include "sim/sim_exit.hh"
+#include "base/callback.hh"
+
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/cache/base_cache.hh"
-#include "mem/policy/performance_measurement.hh"
 
+#include "mem/policy/performance_measurement.hh"
 #include "mem/policy/metrics/metric.hh"
 #include "mem/policy/metrics/hmos_policy.hh"
 #include "mem/policy/metrics/fairness_policy.hh"
@@ -285,6 +288,18 @@ public:
 	virtual const char *description() {
 		return "Miss Bandwidth Implement MHA Event";
 	}
+};
+
+class PolicyCallback : public Callback
+{
+    private:
+	BasePolicy *bp;
+    public:
+        PolicyCallback(BasePolicy *p) : bp(p) {}
+        virtual void process() {
+        	std::cout << "issuing callback\n";
+        	bp->handlePolicyEvent();
+        };
 };
 
 #endif /* BASE_POLICY_HH_ */
