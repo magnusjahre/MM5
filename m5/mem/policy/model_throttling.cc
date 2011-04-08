@@ -62,11 +62,18 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	traceVector("Estimated Alone Cycles: ", aloneCycles);
 	traceVector("Computed Overlap: ", computedOverlap);
 
-	vector<double> optimalArrivalRates = findOptimalArrivalRates(&measurements);
-	setArrivalRates(optimalArrivalRates);
+	vector<double> optimalArrivalRates;
+
+	if(cpuCount > 1){
+		optimalArrivalRates = findOptimalArrivalRates(&measurements);
+		setArrivalRates(optimalArrivalRates);
+	}
+	else{
+		assert(doVerification);
+	}
 
 	if(doVerification){
-		quitForVerification(&measurements, optimalArrivalRates);
+		dumpVerificationData(&measurements, optimalArrivalRates);
 	}
 
 	currentMeasurements = NULL;
@@ -297,30 +304,31 @@ ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
 }
 
 void
-ModelThrottlingPolicy::quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates){
-
-
+ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates){
 
 	DataDump dumpvals = DataDump("throttling-data-dump.txt");
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-throttles", i), 1.0 / optimalArrivalRates[i]);
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
+	if(cpuCount > 1){
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-throttles", i), 1.0 / optimalArrivalRates[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->requestsInSample[i] / (double) measurements->getPeriod());
+
+		vector<double> tmpPeriods = vector<double>(cpuCount, (double) measurements->getPeriod());
+		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));
+		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
+	}
+
+
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("committed-instructions", i), measurements->committedInstructions[i]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("requests", i), measurements->requestsInSample[i]);
-	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->requestsInSample[i] / (double) measurements->getPeriod());
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("ticks", i), curTick);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-queue", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-service", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusService]);
 
-	vector<double> tmpPeriods = vector<double>(cpuCount, (double) measurements->getPeriod());
-	dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));
-	dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
-
 	dumpvals.dump();
-
-	new SimExitEvent("Stopping for model verification");
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

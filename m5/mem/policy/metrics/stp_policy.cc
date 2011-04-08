@@ -130,7 +130,7 @@ STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<dou
 
 	for(int i=0;i<xvals.size();i++){
 		if(xvals[i] < aloneCycles[i]){
-			fatal("function argument x[%d]=%f is not feasible");
+			warn("function argument x[%d]=%f is less than alone cycles %f which is not feasible", i, xvals[i], aloneCycles[i]);
 			return 0.0;
 		}
 	}

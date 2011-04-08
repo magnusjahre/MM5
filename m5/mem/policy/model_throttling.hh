@@ -58,7 +58,7 @@ private:
 	void initSearchTrace(int np);
 	void traceSearch(std::vector<double> xvec);
 
-	void quitForVerification(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
+	void dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 
 	double checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient);
 

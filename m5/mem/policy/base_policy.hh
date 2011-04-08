@@ -296,10 +296,7 @@ class PolicyCallback : public Callback
 	BasePolicy *bp;
     public:
         PolicyCallback(BasePolicy *p) : bp(p) {}
-        virtual void process() {
-        	std::cout << "issuing callback\n";
-        	bp->handlePolicyEvent();
-        };
+        virtual void process() { bp->handlePolicyEvent(); }
 };
 
 #endif /* BASE_POLICY_HH_ */

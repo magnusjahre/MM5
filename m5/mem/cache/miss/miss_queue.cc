@@ -577,6 +577,7 @@ MissQueue::setCache(BaseCache *_cache)
 		arrivalRateTrace = RequestTrace(_cache->name(), "ArrivalRateTrace");
 
 		vector<string> arrParams;
+		arrParams.push_back("Requests");
 		arrParams.push_back("Measured Average Arrival Rate");
 		arrParams.push_back("10K CC Average Arrival Rate");
 		arrParams.push_back("Target Arrival Rate");
@@ -606,6 +607,7 @@ MissQueue::determineIssueTime(Tick time){
 
 	if(traceArrivalRates){
 		vector<RequestTraceEntry> entries;
+		entries.push_back(arrivalRateRequests);
 		entries.push_back(measuredArrivalRate);
 		entries.push_back(sampleAverage);
 		entries.push_back(targetRequestRate);
@@ -621,7 +623,6 @@ MissQueue::determineIssueTime(Tick time){
 				nextAllowedRequestTime += (int) timeBetweenRequests;
 			}
 			else{
-				cout << curTick << " " << cache->name() << ": delaying request by " << timeBetweenRequests << " cycles\n";
 				issueAt = time;
 				nextAllowedRequestTime = time + (int) timeBetweenRequests;
 			}
