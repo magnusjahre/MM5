@@ -932,6 +932,9 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
             
         if "DO-ARRIVAL-RATE-TRACE" in env:
             root.PrivateL2Cache[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
+            
+        if "CACHE-THROTLING-POLICY" in env:
+            root.PrivateL2Cache[i].throttling_policy = env["CACHE-THROTLING-POLICY"]
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
 

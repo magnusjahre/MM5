@@ -50,7 +50,7 @@ using namespace std;
  * stalling on writebacks do to compression writes.
  */
 MissQueue::MissQueue(int numMSHRs, int numTargets, int write_buffers,
-		bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetRequestRate, bool _traceArrivalRates)
+		bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetRequestRate, bool _traceArrivalRates, std::string _throttlingPolicy)
 : mq(numMSHRs, true, _doMSHRTrace, 4), wb(write_buffers, false, _doMSHRTrace, numMSHRs+1000), numMSHR(numMSHRs),
 numTarget(numTargets), writeBuffers(write_buffers),
 writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
@@ -77,6 +77,19 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 	sampleSize = 10000;
 
 	traceArrivalRates = _traceArrivalRates;
+
+	if(_throttlingPolicy == "strict"){
+		throttlingPolicy = STRICT;
+	}
+	else if(_throttlingPolicy == "average"){
+		throttlingPolicy = AVERAGE;
+	}
+	else if(_throttlingPolicy == "token"){
+		throttlingPolicy = TOKEN;
+	}
+	else{
+		fatal("Unknown throttling policy");
+	}
 }
 
 void
@@ -599,6 +612,47 @@ MissQueue::sampleArrivalRate(){
 }
 
 Tick
+MissQueue::useStrictPolicy(Tick time){
+	Tick issueAt = 0;
+	double timeBetweenRequests = (1.0 / targetRequestRate);
+	if(nextAllowedRequestTime > time){
+		issueAt = nextAllowedRequestTime;
+		nextAllowedRequestTime += (int) timeBetweenRequests;
+	}
+	else{
+		issueAt = time;
+		nextAllowedRequestTime = time + (int) timeBetweenRequests;
+	}
+	assert(issueAt > 0);
+	return issueAt;
+}
+
+Tick
+MissQueue::useAveragePolicy(Tick time){
+	if(measuredArrivalRate > targetRequestRate){
+		Tick issueAt = 0;
+		double timeBetweenRequests = (1.0 / targetRequestRate);
+		if(nextAllowedRequestTime > time){
+			issueAt = nextAllowedRequestTime;
+			nextAllowedRequestTime += (int) timeBetweenRequests;
+		}
+		else{
+			issueAt = time;
+			nextAllowedRequestTime = time + (int) timeBetweenRequests;
+		}
+		assert(issueAt > 0);
+		return issueAt;
+	}
+	return time;
+}
+
+Tick
+MissQueue::useTokenPolicy(Tick time){
+	fatal("not implemented");
+	return 0;
+}
+
+Tick
 MissQueue::determineIssueTime(Tick time){
 
 	arrivalRateRequests++;
@@ -615,20 +669,9 @@ MissQueue::determineIssueTime(Tick time){
 	}
 
 	if(targetRequestRate > 0.0 && cache->interferenceManager != NULL && !cache->isShared){
-		if(measuredArrivalRate > targetRequestRate){
-			Tick issueAt = 0;
-			double timeBetweenRequests = (1.0 / targetRequestRate);
-			if(nextAllowedRequestTime > time){
-				issueAt = nextAllowedRequestTime;
-				nextAllowedRequestTime += (int) timeBetweenRequests;
-			}
-			else{
-				issueAt = time;
-				nextAllowedRequestTime = time + (int) timeBetweenRequests;
-			}
-			assert(issueAt > 0);
-			return issueAt;
-		}
+		if(throttlingPolicy == STRICT) return useStrictPolicy(time);
+		if(throttlingPolicy == AVERAGE) return useAveragePolicy(time);
+		if(throttlingPolicy == TOKEN) return useTokenPolicy(time);
 	}
 	return time;
 }

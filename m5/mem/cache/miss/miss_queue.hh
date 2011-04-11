@@ -77,6 +77,14 @@ class MissQueue
     double sampleAverage;
     Tick sampleSize;
 
+    enum ThrottlingPolicy{
+    	STRICT,
+    	AVERAGE,
+    	TOKEN
+    };
+
+    ThrottlingPolicy throttlingPolicy;
+
   protected:
     /** The MSHRs. */
     MSHRQueue mq;
@@ -239,6 +247,9 @@ class MissQueue
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
 
     Tick determineIssueTime(Tick time);
+    Tick useStrictPolicy(Tick time);
+    Tick useAveragePolicy(Tick time);
+    Tick useTokenPolicy(Tick time);
 
   public:
     /**
@@ -250,7 +261,7 @@ class MissQueue
      * @param write_allocate If true, treat write misses the same as reads.
      */
     MissQueue(int numMSHRs, int numTargets, int write_buffers,
-	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetArrivalRate, bool _traceArrivalRates);
+	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetArrivalRate, bool _traceArrivalRates, std::string _throttlingPolicy);
 
     /**
      * Deletes all allocated internal storage.

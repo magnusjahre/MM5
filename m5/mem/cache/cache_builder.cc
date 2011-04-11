@@ -208,6 +208,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     Param<bool> do_mshr_trace;
     Param<bool> do_arrival_rate_trace;
 
+    Param<string> throttling_policy;
+
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
 
@@ -316,7 +318,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL),
     INIT_PARAM_DFLT(target_request_rate, "The downstream request rate target for this cache", -1.0),
     INIT_PARAM_DFLT(do_mshr_trace, "Trace the occupancy of all MSHRs (caution!)", false),
-    INIT_PARAM_DFLT(do_arrival_rate_trace, "Trace the arrival rate on every request (caution!)", false)
+    INIT_PARAM_DFLT(do_arrival_rate_trace, "Trace the arrival rate on every request (caution!)", false),
+    INIT_PARAM_DFLT(throttling_policy, "The policy to use to enforce throttles", "strict")
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -630,7 +633,7 @@ CREATE_SIM_OBJECT(BaseCache)
 	//BUILD_COHERENCE(BlockingBuffer);
     //} else {
 	MissQueue *mq = new MissQueue(mshrs, tgts_per_mshr, write_buffers,
-				      true, prefetch_miss, do_mshr_trace, target_request_rate, do_arrival_rate_trace);
+				      true, prefetch_miss, do_mshr_trace, target_request_rate, do_arrival_rate_trace, throttling_policy);
 
 	BUILD_COHERENCE(MissQueue);
     //}
