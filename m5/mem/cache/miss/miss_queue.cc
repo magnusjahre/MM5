@@ -78,6 +78,9 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 
 	traceArrivalRates = _traceArrivalRates;
 
+	tokenRunLast = 0;
+	tokens = 0;
+
 	if(_throttlingPolicy == "strict"){
 		throttlingPolicy = STRICT;
 	}
@@ -647,9 +650,27 @@ MissQueue::useAveragePolicy(Tick time){
 }
 
 Tick
+
 MissQueue::useTokenPolicy(Tick time){
-	fatal("not implemented");
-	return 0;
+
+	int cyclesBetweenRequests = (1/targetRequestRate);
+	if(tokenRunLast < time){
+
+		Tick cyclesSinceLast = time - tokenRunLast;
+		Tick overflow = cyclesSinceLast % cyclesBetweenRequests;
+		int newTokens = cyclesSinceLast / cyclesBetweenRequests;
+
+		tokens += newTokens;
+
+		if(tokens > 0){
+			tokens--;
+			tokenRunLast = time - overflow;
+			return time;
+		}
+	}
+
+	tokenRunLast += cyclesBetweenRequests;
+	return tokenRunLast;
 }
 
 Tick

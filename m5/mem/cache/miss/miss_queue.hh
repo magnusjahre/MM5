@@ -77,6 +77,9 @@ class MissQueue
     double sampleAverage;
     Tick sampleSize;
 
+    Tick tokenRunLast;
+    int tokens;
+
     enum ThrottlingPolicy{
     	STRICT,
     	AVERAGE,
