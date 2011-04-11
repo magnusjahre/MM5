@@ -99,6 +99,7 @@ Bus::Bus(const string &_name,
 
     requestPerCoreSample.resize(cpu_count, 0);
     readsPerCoreSample.resize(cpu_count, 0);
+    otherRequests = 0;
 
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -612,6 +613,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         		readsPerCoreSample[req->adaptiveMHASenderID]++;
         	}
         }
+        else{
+        	cout << "other request seen, cmd is " << req->cmd << "\n";
+        	otherRequests++;
+        }
     }
 
 #ifdef INJECT_TEST_REQUESTS
@@ -874,7 +879,7 @@ Bus::addInterferenceCycles(int victimID, Tick delay, interference_type iType){
 	fatal("deprecated");
 }
 
-double
+std::vector<double>
 Bus::getActualUtilization(){
 
 	Tick period = curTick - lastSampleTick;
@@ -883,11 +888,16 @@ Bus::getActualUtilization(){
 	double busSlots = (double) period / avgServiceLat;
 	double actualUtil = (double) requestSample / busSlots;
 
+	vector<double> retval = vector<double>(3, 0.0);
+	retval[0] = avgServiceLat;
+	retval[1] = requestSample;
+	retval[2] = actualUtil;
+
 	serviceCyclesSample = 0;
 	requestSample = 0;
 	lastSampleTick = curTick;
 
-	return actualUtil;
+	return retval;
 }
 
 std::vector<int>
@@ -901,6 +911,13 @@ std::vector<int>
 Bus::getPerCoreBusReads(){
 	vector<int> retval = readsPerCoreSample;
 	for(int i=0;i<readsPerCoreSample.size();i++) readsPerCoreSample[i] = 0;
+	return retval;
+}
+
+int
+Bus::getOtherRequests(){
+	int retval = otherRequests;
+	otherRequests = 0;
 	return retval;
 }
 

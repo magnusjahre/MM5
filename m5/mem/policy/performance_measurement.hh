@@ -71,6 +71,9 @@ public:
 	std::vector<int> busAccessesPerCore;
 	std::vector<int> busReadsPerCore;
 
+	double avgBusServiceCycles;
+	int otherBusRequests;
+
 	std::vector<CacheMissMeasurements> perCoreCacheMeasurements;
 
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);

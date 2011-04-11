@@ -33,6 +33,9 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	actualBusUtilization = 0.0;
 	sharedCacheMissRate = 0.0;
 
+	avgBusServiceCycles = 0.0;
+	otherBusRequests = 0.0;
+
 	busAccessesPerCore.resize(cpuCount, 0);
 	busReadsPerCore.resize(cpuCount, 0);
 
@@ -240,14 +243,12 @@ PerformanceMeasurement::updateConstants(){
 void
 PerformanceMeasurement::updateAlpha(int cpuID){
 
-	// TODO: it's wrong to combine latencies from a processor with average from a different processor
-	double avgBusService = latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
+	//FIXME: should average bus cycles be computed over the active cycles or all cycles?
+	assert(avgBusServiceCycles > 0.0);
 
-	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusService, cpuID);
+	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusServiceCycles, cpuID);
 
-	// TODO: include shared cache writebacks
-
-	double totalMisses = 0;
+	double totalMisses = otherBusRequests;
 	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[i].misses;
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
@@ -255,7 +256,7 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
-	alphas[cpuID] = overlap * thisMisses * avgBusService * avgBusService * totalMisses;
+	alphas[cpuID] = overlap * thisMisses * avgBusServiceCycles * avgBusServiceCycles * totalMisses;
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
 
