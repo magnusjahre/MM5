@@ -94,6 +94,7 @@ Bus::Bus(const string &_name,
     interferenceManager->registerBus(this);
 
     serviceCyclesSample = 0;
+    queueCyclesSample = 0;
     requestSample = 0;
     lastSampleTick = 0;
 
@@ -533,6 +534,9 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
             assert(request->inserted_into_memory_controller >= 0);
             int queue_lat = (curTick - request->inserted_into_memory_controller) + request->memBusBlockedWaitCycles;
             totalQueueCycles += queue_lat;
+
+            queueCyclesSample += (curTick - request->inserted_into_memory_controller);
+
             if(request->adaptiveMHASenderID >= 0 && request->adaptiveMHASenderID < cpu_count){
                 perCPUQueueCycles[request->adaptiveMHASenderID] += queue_lat;
                 perCPURequests[request->adaptiveMHASenderID] += 1;
@@ -899,14 +903,16 @@ Bus::getActualUtilization(){
 	double busSlots = (double) period / avgServiceLat;
 	double actualUtil = (double) requestSample / busSlots;
 
-	vector<double> retval = vector<double>(3, 0.0);
+	vector<double> retval = vector<double>(4, 0.0);
 	retval[0] = avgServiceLat;
 	retval[1] = requestSample;
 	retval[2] = actualUtil;
+	retval[3] = queueCyclesSample;
 
 	serviceCyclesSample = 0;
 	requestSample = 0;
 	lastSampleTick = curTick;
+	queueCyclesSample = 0;
 
 	return retval;
 }

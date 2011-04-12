@@ -75,6 +75,7 @@ public:
 
 	double avgBusServiceCycles;
 	int otherBusRequests;
+	double sumBusQueueCycles;
 
 	std::vector<CacheMissMeasurements> perCoreCacheMeasurements;
 

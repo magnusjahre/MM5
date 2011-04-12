@@ -115,6 +115,7 @@ class Bus : public BaseHier
     Tick lastSampleTick;
     int serviceCyclesSample;
     int requestSample;
+    int queueCyclesSample;
     std::vector<int> requestPerCoreSample;
     std::vector<int> readsPerCoreSample;
     int otherRequests;

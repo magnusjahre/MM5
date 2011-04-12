@@ -35,6 +35,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	avgBusServiceCycles = 0.0;
 	otherBusRequests = 0.0;
+	sumBusQueueCycles = 0.0;
 
 	busAccessesPerCore.resize(cpuCount, 0);
 	busReadsPerCore.resize(cpuCount, 0);
@@ -267,8 +268,12 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
-	double n = avgBusServiceCycles * totalMisses;
-	double w = n * avgBusServiceCycles * thisMisses;
+	double avgBusQueueCycles = sumBusQueueCycles / totalMisses;
+
+	DPRINTF(MissBWPolicy, "CPU %d: average queue cycles estimate is %f \n", cpuID, sumBusQueueCycles);
+
+	double n = avgBusQueueCycles * totalMisses;
+	double w = n * avgBusQueueCycles * thisMisses;
 
 	alphas[cpuID] = overlap * w;
 

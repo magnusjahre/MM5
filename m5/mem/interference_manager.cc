@@ -458,12 +458,14 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	double totalBusReqs = 0.0;
 	double totalAvgBusServiceLat = 0.0;
 	double otherRequests = 0;
+	double totalQueueCycles = 0.0;
 	if(memoryBuses.size() > 1) fatal("bus measurements has not been tested with more than 1 channel");
 	for(int i=0;i<memoryBuses.size();i++){
 		vector<double> utilvals = memoryBuses[i]->getActualUtilization();
 		totalAvgBusServiceLat += utilvals[0];
 		totalBusReqs += utilvals[1];
 		utilSum += utilvals[2];
+		totalQueueCycles += utilvals[3];
 
 		vector<int> tmpBusAccesses = memoryBuses[i]->getPerCoreBusAccesses();
 		for(int j=0;j<tmpBusAccesses.size();j++){
@@ -479,6 +481,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	currentMeasurement.avgBusServiceCycles = totalAvgBusServiceLat / (double) memoryBuses.size();
 	currentMeasurement.actualBusUtilization = utilSum / (double) memoryBuses.size();
 	currentMeasurement.otherBusRequests = otherRequests / (double) memoryBuses.size();
+	currentMeasurement.sumBusQueueCycles = totalQueueCycles; //FIXME: this does not handle multiple channels
 
 	double totalMisses = 0.0;
 	double totalAccesses = 0.0;
