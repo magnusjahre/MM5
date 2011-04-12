@@ -270,10 +270,8 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	double avgBusQueueCycles = sumBusQueueCycles / totalMisses;
 
-	DPRINTF(MissBWPolicy, "CPU %d: average queue cycles estimate is %f \n", cpuID, sumBusQueueCycles);
-
 	double n = avgBusQueueCycles * totalMisses;
-	double w = n * avgBusQueueCycles * thisMisses;
+	double w = n * avgBusServiceCycles * thisMisses;
 
 	alphas[cpuID] = overlap * w;
 
