@@ -60,6 +60,8 @@
 #include "mem/bus/slave_interface.hh"
 #include "mem/bus/controller/traffic_generator.hh"
 
+#include "mem/requesttrace.hh"
+
 //NOTE: these should _never_ be defined when running experiments!
 // #define DO_BUS_TRACE 1
 // #define INJECT_TEST_REQUESTS 1
@@ -120,6 +122,9 @@ class Bus : public BaseHier
     double utilizationLimit;
 
     TrafficGenerator* trafficGenerator;
+
+    bool doRequestQueueTrace;
+    RequestTrace queueSizeTrace;
 
   public:
     /** Width of the bus in bytes. */
@@ -351,6 +356,9 @@ class Bus : public BaseHier
     void registerTrafficGenerator(TrafficGenerator* _trafGen);
     void sendGeneratedRequest(MemReqPtr& req);
     int getCPUCount();
+
+    int queuedRequestsCounter;
+    void traceQueuedRequests(bool requestAdded);
 
   private:
     std::vector<int> perCPUDataBusUse;

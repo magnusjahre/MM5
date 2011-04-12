@@ -17,19 +17,21 @@ public:
 	int misses;
 	int interferenceMisses;
 	int accesses;
+	int sharedCacheWritebacks;
 
 	CacheMissMeasurements()
-	: misses(0), interferenceMisses(0), accesses(0){
+	: misses(0), interferenceMisses(0), accesses(0), sharedCacheWritebacks(0){
 	}
 
-	CacheMissMeasurements(int _misses, int _interferenceMisses, int _accesses)
-	: misses(_misses), interferenceMisses(_interferenceMisses), accesses(_accesses){
+	CacheMissMeasurements(int _misses, int _interferenceMisses, int _accesses, int _scwb)
+	: misses(_misses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb){
 	}
 
 	void add(CacheMissMeasurements newValues){
 		misses += newValues.misses;
 		interferenceMisses += newValues.interferenceMisses;
 		accesses += newValues.accesses;
+		sharedCacheWritebacks += newValues.sharedCacheWritebacks;
 	}
 
 	double getInterferenceMissesPerMiss();

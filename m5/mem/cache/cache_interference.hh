@@ -168,6 +168,7 @@ private:
 	std::vector<int> sequentialWritebackCount;
 
 	std::vector<int> missAccumulator;
+	std::vector<int> writebackAccumulator;
 	std::vector<int> interferenceMissAccumulator;
 	std::vector<int> accessAccumulator;
 

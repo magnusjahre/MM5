@@ -67,6 +67,7 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 
 
 	missAccumulator.resize(cache->cpuCount, 0);
+	writebackAccumulator.resize(cache->cpuCount, 0);
 	interferenceMissAccumulator.resize(cache->cpuCount, 0);
 	accessAccumulator.resize(cache->cpuCount, 0);
 
@@ -349,6 +350,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 			sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]++;
 		}
 
+		writebackAccumulator[req->adaptiveMHASenderID] += writebacks.size();
+
 		LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
 		if(currentBlk == NULL){
 			doShadowReplacement(req);
@@ -544,11 +547,13 @@ CacheInterference::getMissMeasurementSample(){
 	for(int i=0;i<cache->cpuCount;i++){
 		CacheMissMeasurements tmp(missAccumulator[i],
 								  interferenceMissAccumulator[i],
-								  accessAccumulator[i]);
+								  accessAccumulator[i],
+								  writebackAccumulator[i]);
 
 		missAccumulator[i] = 0;
 		interferenceMissAccumulator[i] = 0;
 		accessAccumulator[i] = 0;
+		writebackAccumulator[i] = 0;
 
 		missMeasurements.push_back(tmp);
 	}

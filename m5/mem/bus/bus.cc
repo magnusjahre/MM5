@@ -139,6 +139,8 @@ Bus::Bus(const string &_name,
 
     arbiter_scheduled_flag = false;
 
+    queuedRequestsCounter = 0;
+
     need_to_sort = true;
 
     perCPUDataBusUse.resize(cpu_count, 0);
@@ -172,6 +174,12 @@ Bus::Bus(const string &_name,
     utilizationLimit = _utilizationLimit;
 
     trafficGenerator = NULL;
+
+    doRequestQueueTrace = false;
+    queueSizeTrace = RequestTrace(_name, "QueueSizeTrace");
+    vector<string> headers;
+    headers.push_back("Queued Requests");
+    queueSizeTrace.initalizeTrace(headers);
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -472,6 +480,7 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     // Insert request into memory controller
     memoryController->insertRequest(req);
     totalRequests++;
+    traceQueuedRequests(true);
 
 #ifdef DO_BUS_TRACE
 #ifndef INJECT_TEST_REQUESTS
@@ -590,6 +599,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 #endif
 
     if(req->cmd != Activate && req->cmd != Close){
+
+    	traceQueuedRequests(false);
+
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
 
@@ -614,7 +626,6 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         	}
         }
         else{
-        	cout << "other request seen, cmd is " << req->cmd << "\n";
         	otherRequests++;
         }
     }
@@ -1210,6 +1221,18 @@ Bus::probe(MemReqPtr &req, bool update)
 {
     fatal("probe is not used in the new bus implementation");
     return 0;
+}
+
+void
+Bus::traceQueuedRequests(bool requestAdded){
+	if(doRequestQueueTrace){
+		if(requestAdded) queuedRequestsCounter++;
+		else queuedRequestsCounter--;
+
+		vector<RequestTraceEntry> data;
+		data.push_back(queuedRequestsCounter);
+		queueSizeTrace.addTrace(data);
+	}
 }
 
 

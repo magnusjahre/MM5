@@ -237,26 +237,46 @@ PerformanceMeasurement::updateConstants(){
 	for(int i=0;i<cpuCount;i++){
 		updateAlpha(i);
 		updateBeta(i);
+
+		DPRINTF(MissBWPolicy, "CPU %d estimated current cycles %d, should be approximately equal to period %d\n",
+				i,
+				betas[i]+(alphas[i]/(double)period),
+				period);
 	}
 }
 
 void
 PerformanceMeasurement::updateAlpha(int cpuID){
 
-	//FIXME: should average bus cycles be computed over the active cycles or all cycles?
 	assert(avgBusServiceCycles > 0.0);
 
 	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusServiceCycles, cpuID);
 
-	double totalMisses = otherBusRequests;
-	for(int i=0;i<cpuCount;i++) totalMisses += perCoreCacheMeasurements[i].misses;
+	double totalMisses = 0;
+	for(int i=0;i<cpuCount;i++){
+		DPRINTF(MissBWPolicy, "CPU %d had %d cache misses and caused %d shared cache writebacks\n",
+				i,
+				perCoreCacheMeasurements[i].misses,
+				perCoreCacheMeasurements[i].sharedCacheWritebacks);
+
+		totalMisses += perCoreCacheMeasurements[i].misses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
+	}
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
 	double overlap = computedOverlap[cpuID];
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
-	alphas[cpuID] = overlap * thisMisses * avgBusServiceCycles * avgBusServiceCycles * totalMisses;
+	double n = avgBusServiceCycles * totalMisses;
+	double w = n * avgBusServiceCycles * thisMisses;
+
+	alphas[cpuID] = overlap * w;
+
+	DPRINTF(MissBWPolicy, "Estimated average queue size is %f, average queue latency is %f, actual is %f for CPU %d\n",
+			n / (double) period,
+			(w / (double) period) / thisMisses,
+			latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue],
+			cpuID);
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
 
@@ -285,6 +305,8 @@ PerformanceMeasurement::updateBeta(int cpuID){
 	double compute = getNonStallCycles(cpuID, period);
 
 	double overlap = computedOverlap[cpuID];
+
+	DPRINTF(MissBWPolicy, "CPU %d has %f compute cycles and overlap %f\n", cpuID, compute, overlap);
 
 	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
 
