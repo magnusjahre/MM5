@@ -242,6 +242,10 @@ Cache(const std::string &_name, HierParams *hier_params,
     	interferenceManager->registerSharedCache(this);
     }
 
+    if(isShared && params.missBandwidthPolicy != NULL){
+    	params.missBandwidthPolicy->registerSharedCache(this);
+    }
+
     accessSample = 0;
     missSample = 0;
 

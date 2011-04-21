@@ -283,8 +283,9 @@ def initSharedCache(bankcnt, optPart):
    
     for bank in root.SharedCache:
         bank.interference_manager = root.interferenceManager
+        
    
-def setUpSharedCache(bankcnt, detailedStartTick):
+def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):
     
     assert 'MEMORY-BUS-CHANNELS' in env
     assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
@@ -300,6 +301,9 @@ def setUpSharedCache(bankcnt, detailedStartTick):
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
         root.SharedCache[i].do_modulo_addr = True
         root.SharedCache[i].interference_manager = root.interferenceManager
+        
+        if useMissBWPolicy:
+            root.SharedCache[i].miss_bandwidth_policy = root.globalPolicy
         
         buscnt += 1
         if buscnt % banksPerBus == 0:
@@ -884,7 +888,7 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.interconnect.interference_manager = root.interferenceManager
     root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
 
-    setUpSharedCache(bankcnt, cacheProfileStart)
+    setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
 
 elif env['MEMORY-SYSTEM'] == "RingBased":
 
@@ -901,7 +905,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     root.interconnect.interference_manager = root.interferenceManager
     root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
     
-    setUpSharedCache(bankcnt, cacheProfileStart)
+    setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
     
     root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
     

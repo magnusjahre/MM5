@@ -73,6 +73,7 @@ protected:
 
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
+	std::vector<BaseCache* > sharedCaches;
 
 	RequestTrace searchTrace;
 
@@ -199,6 +200,7 @@ public:
 	void handleTraceEvent();
 
 	void registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs);
+	void registerSharedCache(BaseCache* _cache);
 
 	void addTraceEntry(PerformanceMeasurement* measurement);
 

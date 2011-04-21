@@ -55,7 +55,7 @@ BasePolicy::BasePolicy(string _name,
 	searchTrace = RequestTrace(_name, "SearchTrace", 1);
 
 	cpuCount = _cpuCount;
-	caches.resize(cpuCount, 0);
+	caches.resize(cpuCount, NULL);
 
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
 	cummulativeCommittedInsts.resize(_cpuCount, 0);
@@ -144,6 +144,11 @@ BasePolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs){
 	}
 
 	if(!searchTrace.isInitialized()) initSearchTrace(cpuCount, searchAlgorithm);
+}
+
+void
+BasePolicy::registerSharedCache(BaseCache* _cache){
+	sharedCaches.push_back(_cache);
 }
 
 void
