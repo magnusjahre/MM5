@@ -65,21 +65,12 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 		fatal("In an explicitly addressed MSHR, the number of targets must be 2 or larger.");
 	}
 
-	targetRequestRate = _targetRequestRate;
-	nextAllowedRequestTime = 0;
+	staticTargetRequestRate = _targetRequestRate;
 
-	measuredArrivalRate = 0.0;
-	arrivalRateRequests = 0;
 	allocationSetAt = 0;
-
-	sampleRequests = 0;
-	sampleAverage = 0.0;
 	sampleSize = 10000;
-
 	traceArrivalRates = _traceArrivalRates;
 
-	tokenRunLast = 0;
-	tokens = 0;
 
 	if(_throttlingPolicy == "strict"){
 		throttlingPolicy = STRICT;
@@ -556,6 +547,23 @@ MissQueue::setCache(BaseCache *_cache)
 		event->schedule(curTick+sampleSize);
 	}
 
+	targetRequestRate = vector<double>(_cache->cpuCount, 0.0);
+
+	if(cache->interferenceManager != NULL && !cache->isShared && staticTargetRequestRate != -1.0){
+		assert(cache->cacheCpuID != -1);
+		targetRequestRate[cache->cacheCpuID] = staticTargetRequestRate;
+	}
+
+	measuredArrivalRate = vector<double>(_cache->cpuCount, 0.0);
+	sampleAverage = vector<double>(_cache->cpuCount, 0.0);
+
+	nextAllowedRequestTime = vector<Tick>(_cache->cpuCount, 0);
+	tokenRunLast = vector<Tick>(_cache->cpuCount, 0);
+
+	arrivalRateRequests = vector<int>(_cache->cpuCount, 0);
+	sampleRequests = vector<int>(_cache->cpuCount, 0);
+	tokens = vector<int>(_cache->cpuCount, 0);
+
 #ifdef DO_REQUEST_TRACE
 	if(!cache->isShared && cache->adaptiveMHA != NULL){
 
@@ -593,10 +601,12 @@ MissQueue::setCache(BaseCache *_cache)
 		arrivalRateTrace = RequestTrace(_cache->name(), "ArrivalRateTrace");
 
 		vector<string> arrParams;
-		arrParams.push_back("Requests");
-		arrParams.push_back("Measured Average Arrival Rate");
-		arrParams.push_back("10K CC Average Arrival Rate");
-		arrParams.push_back("Target Arrival Rate");
+		for(int i=0;i<cache->cpuCount;i++){
+			arrParams.push_back(RequestTrace::buildTraceName("Requests  CPU", i));
+			arrParams.push_back(RequestTrace::buildTraceName("Measured Average Arrival Rate CPU", i));
+			arrParams.push_back(RequestTrace::buildTraceName("10K CC Average Arrival Rate CPU", i));
+			arrParams.push_back(RequestTrace::buildTraceName("Target Arrival Rate CPU", i));
+		}
 
 		arrivalRateTrace.initalizeTrace(arrParams);
 	}
@@ -610,38 +620,40 @@ MissQueue::setPrefetcher(BasePrefetcher *_prefetcher)
 
 void
 MissQueue::sampleArrivalRate(){
-	sampleAverage = (double) ((double) sampleRequests / (double) sampleSize);
-	sampleRequests = 0;
+	for(int i=0;i<cache->cpuCount;i++){
+		sampleAverage[i] = (double) ((double) sampleRequests[i] / (double) sampleSize);
+		sampleRequests[i] = 0;
+	}
 }
 
 Tick
-MissQueue::useStrictPolicy(Tick time){
+MissQueue::useStrictPolicy(Tick time, int cpuid){
 	Tick issueAt = 0;
-	double timeBetweenRequests = (1.0 / targetRequestRate);
-	if(nextAllowedRequestTime > time){
-		issueAt = nextAllowedRequestTime;
-		nextAllowedRequestTime += (int) timeBetweenRequests;
+	double timeBetweenRequests = (1.0 / targetRequestRate[cpuid]);
+	if(nextAllowedRequestTime[cpuid] > time){
+		issueAt = nextAllowedRequestTime[cpuid];
+		nextAllowedRequestTime[cpuid] += (int) timeBetweenRequests;
 	}
 	else{
 		issueAt = time;
-		nextAllowedRequestTime = time + (int) timeBetweenRequests;
+		nextAllowedRequestTime[cpuid] = time + (int) timeBetweenRequests;
 	}
 	assert(issueAt > 0);
 	return issueAt;
 }
 
 Tick
-MissQueue::useAveragePolicy(Tick time){
+MissQueue::useAveragePolicy(Tick time, int cpuid){
 	if(measuredArrivalRate > targetRequestRate){
 		Tick issueAt = 0;
-		double timeBetweenRequests = (1.0 / targetRequestRate);
-		if(nextAllowedRequestTime > time){
-			issueAt = nextAllowedRequestTime;
-			nextAllowedRequestTime += (int) timeBetweenRequests;
+		double timeBetweenRequests = (1.0 / targetRequestRate[cpuid]);
+		if(nextAllowedRequestTime[cpuid] > time){
+			issueAt = nextAllowedRequestTime[cpuid];
+			nextAllowedRequestTime[cpuid] += (int) timeBetweenRequests;
 		}
 		else{
 			issueAt = time;
-			nextAllowedRequestTime = time + (int) timeBetweenRequests;
+			nextAllowedRequestTime [cpuid]= time + (int) timeBetweenRequests;
 		}
 		assert(issueAt > 0);
 		return issueAt;
@@ -651,48 +663,55 @@ MissQueue::useAveragePolicy(Tick time){
 
 Tick
 
-MissQueue::useTokenPolicy(Tick time){
+MissQueue::useTokenPolicy(Tick time, int cpuid){
 
-	int cyclesBetweenRequests = (1/targetRequestRate);
-	if(tokenRunLast < time){
+	int cyclesBetweenRequests = (1/targetRequestRate[cpuid]);
+	if(tokenRunLast[cpuid] < time){
 
-		Tick cyclesSinceLast = time - tokenRunLast;
+		Tick cyclesSinceLast = time - tokenRunLast[cpuid];
 		Tick overflow = cyclesSinceLast % cyclesBetweenRequests;
 		int newTokens = cyclesSinceLast / cyclesBetweenRequests;
 
-		tokens += newTokens;
+		tokens[cpuid] += newTokens;
 
-		if(tokens > 0){
-			tokens--;
-			tokenRunLast = time - overflow;
+		if(tokens[cpuid] > 0){
+			tokens[cpuid]--;
+			tokenRunLast[cpuid] = time - overflow;
 			return time;
 		}
 	}
 
-	tokenRunLast += cyclesBetweenRequests;
-	return tokenRunLast;
+	tokenRunLast[cpuid] += cyclesBetweenRequests;
+	return tokenRunLast[cpuid];
+}
+
+bool
+MissQueue::doMissThrottling(int cpuid){
+	return targetRequestRate[cpuid] > 0.0 && cache->interferenceManager != NULL && !cache->isShared;
 }
 
 Tick
-MissQueue::determineIssueTime(Tick time){
+MissQueue::determineIssueTime(Tick time, int cpuid){
 
-	arrivalRateRequests++;
-	sampleRequests++;
-	measuredArrivalRate = (double) ((double) arrivalRateRequests / (double) (curTick - allocationSetAt));
+	arrivalRateRequests[cpuid]++;
+	sampleRequests[cpuid]++;
+	measuredArrivalRate[cpuid] = (double) ((double) arrivalRateRequests[cpuid] / (double) (curTick - allocationSetAt));
 
 	if(traceArrivalRates){
 		vector<RequestTraceEntry> entries;
-		entries.push_back(arrivalRateRequests);
-		entries.push_back(measuredArrivalRate);
-		entries.push_back(sampleAverage);
-		entries.push_back(targetRequestRate);
+		for(int i=0;i<cache->cpuCount;i++){
+			entries.push_back(arrivalRateRequests[i]);
+			entries.push_back(measuredArrivalRate[i]);
+			entries.push_back(sampleAverage[i]);
+			entries.push_back(targetRequestRate[i]);
+		}
 		arrivalRateTrace.addTrace(entries);
 	}
 
-	if(targetRequestRate > 0.0 && cache->interferenceManager != NULL && !cache->isShared){
-		if(throttlingPolicy == STRICT) return useStrictPolicy(time);
-		if(throttlingPolicy == AVERAGE) return useAveragePolicy(time);
-		if(throttlingPolicy == TOKEN) return useTokenPolicy(time);
+	if(doMissThrottling(cpuid)){
+		if(throttlingPolicy == STRICT) return useStrictPolicy(time, cpuid);
+		if(throttlingPolicy == AVERAGE) return useAveragePolicy(time, cpuid);
+		if(throttlingPolicy == TOKEN) return useTokenPolicy(time, cpuid);
 	}
 	return time;
 }
@@ -718,7 +737,8 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	}
 	if (req->cmd != Hard_Prefetch) {
 		//If we need to request the bus (not on HW prefetch), do so
-		cache->setMasterRequest(Request_MSHR, determineIssueTime(time));
+		assert(req->adaptiveMHASenderID != -1);
+		cache->setMasterRequest(Request_MSHR, determineIssueTime(time, req->adaptiveMHASenderID));
 	}
 
 	if(mq.isFull()) assert(cache->isBlocked());

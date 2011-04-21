@@ -458,8 +458,8 @@ class Cache : public BaseCache
     	missQueue->enableOccupancyList();
     }
 
-    virtual void setTargetArrivalRate(double newRate){
-    	missQueue->setTargetArrivalRate(newRate);
+    virtual void setTargetArrivalRate(std::vector<double> newRates){
+    	missQueue->setTargetArrivalRate(newRates);
     }
 
     virtual void serialize(std::ostream &os);

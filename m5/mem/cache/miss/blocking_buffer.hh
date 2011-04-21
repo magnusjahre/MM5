@@ -329,7 +329,7 @@ public:
     	fatal("Makes no sense");
     }
 
-    virtual void setTargetArrivalRate(double newRate){
+    virtual void setTargetArrivalRate(std::vector<double> newRate){
     	fatal("Makes no sense");
     }
 };

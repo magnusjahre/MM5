@@ -66,19 +66,21 @@ class MissQueue
 
     bool traceArrivalRates;
 
-    Tick nextAllowedRequestTime;
+    std::vector<Tick> nextAllowedRequestTime;
 
-    int arrivalRateRequests;
-    double targetRequestRate;
-    double measuredArrivalRate;
+    std::vector<int> arrivalRateRequests;
+    std::vector<double> targetRequestRate;
+    std::vector<double> measuredArrivalRate;
     Tick allocationSetAt;
 
-    int sampleRequests;
-    double sampleAverage;
+    std::vector<int> sampleRequests;
+    std::vector<double> sampleAverage;
     Tick sampleSize;
 
-    Tick tokenRunLast;
-    int tokens;
+    std::vector<Tick> tokenRunLast;
+    std::vector<int> tokens;
+
+    double staticTargetRequestRate;
 
     enum ThrottlingPolicy{
     	STRICT,
@@ -249,10 +251,11 @@ class MissQueue
      */
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
 
-    Tick determineIssueTime(Tick time);
-    Tick useStrictPolicy(Tick time);
-    Tick useAveragePolicy(Tick time);
-    Tick useTokenPolicy(Tick time);
+    Tick determineIssueTime(Tick time, int cpuid);
+    Tick useStrictPolicy(Tick time, int cpuid);
+    Tick useAveragePolicy(Tick time, int cpuid);
+    Tick useTokenPolicy(Tick time, int cpuid);
+    bool doMissThrottling(int cpuid);
 
   public:
     /**
@@ -506,10 +509,13 @@ class MissQueue
     	mq.enableOccupancyList();
     }
 
-    void setTargetArrivalRate(double newRate){
-    	targetRequestRate = newRate;
-    	measuredArrivalRate = 0.0;
-    	arrivalRateRequests = 0;
+    void setTargetArrivalRate(std::vector<double> newRates){
+    	assert(newRates.size() == targetRequestRate.size());
+    	for(int i=0;i<newRates.size();i++){
+			targetRequestRate[i] = newRates[i];
+			measuredArrivalRate[i] = 0.0;
+			arrivalRateRequests[i] = 0;
+    	}
     	allocationSetAt = curTick;
     }
 
