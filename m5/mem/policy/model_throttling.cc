@@ -266,9 +266,14 @@ ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
 	traceVector("Optimal cycles per request: ", cyclesPerReq);
 	traceThrottling(cyclesPerReq);
 
-	for(int i=0;i<caches.size();i++){
-		DPRINTF(MissBWPolicy, "Setting target arrival rate for CPU %d to %f\n", i, rates[i]);
-		caches[i]->setTargetArrivalRate(rates);
+//	for(int i=0;i<caches.size();i++){
+//		DPRINTF(MissBWPolicy, "Setting target arrival rate for CPU %d to %f\n", i, rates[i]);
+//		caches[i]->setTargetArrivalRate(rates);
+//	}
+
+	traceVector("Setting memory bus arrival rates to:", rates);
+	for(int i=0;i<sharedCaches.size();i++){
+		sharedCaches[i]->setTargetArrivalRate(rates);
 	}
 }
 

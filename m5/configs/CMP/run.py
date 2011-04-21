@@ -305,6 +305,9 @@ def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):
         if useMissBWPolicy:
             root.SharedCache[i].miss_bandwidth_policy = root.globalPolicy
         
+        if "DO-ARRIVAL-RATE-TRACE" in env:
+            root.SharedCache[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
+        
         buscnt += 1
         if buscnt % banksPerBus == 0:
             curbus += 1
