@@ -613,8 +613,6 @@ public:
 
     virtual void enableOccupancyList() = 0;
 
-    virtual void setTargetArrivalRate(std::vector<double> newRates) = 0;
-
 	void sampleMSHRUse(int allocated, Tick latency);
 
 #ifdef CACHE_DEBUG

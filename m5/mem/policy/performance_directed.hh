@@ -43,7 +43,9 @@ public:
 			                  bool _persistentAllocations,
 			                  int _iterationLatency,
 			                  Metric* _performanceMetric,
-			                  bool _enforcePolicy);
+			                  bool _enforcePolicy,
+			                  ThrottleControl* _sharedCacheThrottle,
+			                  std::vector<ThrottleControl* > _privateCacheThrottles);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 	virtual bool doEvaluation(int cpuID);

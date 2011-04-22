@@ -13,6 +13,7 @@
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/cache/base_cache.hh"
+#include "mem/cache/miss/throttle_control.hh"
 
 #include "mem/policy/performance_measurement.hh"
 #include "mem/policy/metrics/metric.hh"
@@ -120,6 +121,9 @@ protected:
 
 	bool measurementsValid;
 
+	ThrottleControl* sharedCacheThrottle;
+	std::vector<ThrottleControl* > privateCacheThrottles;
+
 	void initProjectionTrace(int cpuCount);
 	void traceBestProjection();
 	void traceNumMSHRs();
@@ -191,7 +195,9 @@ public:
 			   bool _persistentAllocations,
 			   int _iterationLatency,
 			   Metric* _performanceMetric,
-			   bool _enforcePolicy);
+			   bool _enforcePolicy,
+			   ThrottleControl* _sharedCacheThrottle,
+			   std::vector<ThrottleControl* > _privateCacheThrottles);
 
 	~BasePolicy();
 

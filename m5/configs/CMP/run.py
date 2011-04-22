@@ -287,6 +287,16 @@ def initSharedCache(bankcnt, optPart):
    
 def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):
     
+    root.sharedCacheThrottle = ThrottleControl()
+    root.sharedCacheThrottle.cpu_count = int(env['NP'])
+    root.sharedCacheThrottle.cache_type = "shared"
+    if "DO-ARRIVAL-RATE-TRACE" in env:
+        root.sharedCacheThrottle.do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
+    if "CACHE-THROTLING-POLICY" in env:
+        root.sharedCacheThrottle.throttling_policy = env["CACHE-THROTLING-POLICY"]
+    
+    root.globalPolicy.sharedCacheThrottle = root.sharedCacheThrottle
+    
     assert 'MEMORY-BUS-CHANNELS' in env
     assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
     banksPerBus = bankcnt / int(env['MEMORY-BUS-CHANNELS'])
@@ -301,12 +311,10 @@ def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):
         root.SharedCache[i].adaptive_mha = root.adaptiveMHA
         root.SharedCache[i].do_modulo_addr = True
         root.SharedCache[i].interference_manager = root.interferenceManager
+        root.SharedCache[i].throttle_control = root.sharedCacheThrottle
         
         if useMissBWPolicy:
             root.SharedCache[i].miss_bandwidth_policy = root.globalPolicy
-        
-        if "DO-ARRIVAL-RATE-TRACE" in env:
-            root.SharedCache[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
         
         buscnt += 1
         if buscnt % banksPerBus == 0:
@@ -338,7 +346,6 @@ def setUpModThrotPolicy():
         
         arrList = [float(tmpArrList[i]) for i in range(int(env['NP']))]
         policy.staticArrivalRates=tmpArrList
-            
     
     return policy
 
@@ -681,7 +688,6 @@ if 'PERFORMANCE-DIR-POLICY' in env:
 if 'MODEL-THROTLING-POLICY' in env:
     root.globalPolicy = setUpModThrotPolicy()
     useMissBWPolicy = True
-    
 
 ###############################################################################
 #  CPUs and L1 caches
@@ -911,6 +917,9 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
     
     root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
+    root.PrivateL2Throttles = [ThrottleControl(cpu_count=int(env['NP']), cache_cpu_id=i, cache_type="private") for i in range(env['NP'])]
+    
+    root.globalPolicy.privateCacheThrottles = root.PrivateL2Throttles
     
     for i in range(env['NP']):
         root.PrivateL2Cache[i].in_interconnect = root.PointToPointLink[i]
@@ -918,6 +927,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
         root.PrivateL2Cache[i].interference_manager = root.interferenceManager
+        root.PrivateL2Cache[i].throttle_control = root.PrivateL2Throttles[i]
         
         if useMissBWPolicy:
             root.PrivateL2Cache[i].miss_bandwidth_policy = root.globalPolicy
@@ -938,10 +948,10 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
             root.PrivateL2Cache[i].do_mshr_trace = bool(env["DO-MSHR-TRACE"])
             
         if "DO-ARRIVAL-RATE-TRACE" in env:
-            root.PrivateL2Cache[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
+            root.PrivateL2Throttles[i].do_arrival_rate_trace = bool(env["DO-ARRIVAL-RATE-TRACE"])
             
         if "CACHE-THROTLING-POLICY" in env:
-            root.PrivateL2Cache[i].throttling_policy = env["CACHE-THROTLING-POLICY"]
+            root.PrivateL2Throttles[i].throttling_policy = env["CACHE-THROTLING-POLICY"]
 else:
     panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
 

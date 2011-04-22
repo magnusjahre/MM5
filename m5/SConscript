@@ -208,6 +208,7 @@ base_sources = Split('''
 	mem/cache/miss/mshr.cc
 	mem/cache/miss/mshr_queue.cc
 	mem/cache/miss/adaptive_mha.cc
+	mem/cache/miss/throttle_control.cc
 	
 	mem/policy/base_policy.cc
 	mem/policy/miss_bandwidth_policy.cc

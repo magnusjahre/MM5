@@ -18,9 +18,11 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 int _iterationLatency,
 			   	    			 Metric* _performanceMetric,
 			   	    			 bool _enforcePolicy,
+			   	    			 ThrottleControl* _sharedCacheThrottle,
+			   	    			 std::vector<ThrottleControl* > _privateCacheThrottles,
 			   	    			 bool _verify,
 			   	    			 std::vector<double> _staticArrivalRates)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles)
 {
 	//enableOccupancyTrace = true;
 
@@ -266,15 +268,8 @@ ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
 	traceVector("Optimal cycles per request: ", cyclesPerReq);
 	traceThrottling(cyclesPerReq);
 
-//	for(int i=0;i<caches.size();i++){
-//		DPRINTF(MissBWPolicy, "Setting target arrival rate for CPU %d to %f\n", i, rates[i]);
-//		caches[i]->setTargetArrivalRate(rates);
-//	}
-
 	traceVector("Setting memory bus arrival rates to:", rates);
-	for(int i=0;i<sharedCaches.size();i++){
-		sharedCaches[i]->setTargetArrivalRate(rates);
-	}
+	sharedCacheThrottle->setTargetArrivalRate(rates);
 }
 
 void
@@ -347,6 +342,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
+	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
+	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<bool> verify;
 	VectorParam<double> staticArrivalRates;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -360,6 +357,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
+	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
+	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM_DFLT(verify, "Verify policy", false),
 	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>())
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -381,6 +380,8 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         iterationLatency,
 							         performanceMetric,
 							         enforcePolicy,
+							         sharedCacheThrottle,
+							         privateCacheThrottles,
 							         verify,
 							         staticArrivalRates);
 }

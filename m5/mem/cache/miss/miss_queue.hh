@@ -43,6 +43,7 @@
 #include "mem/cache/miss/mshr_queue.hh"
 #include "base/statistics.hh"
 #include "mem/requesttrace.hh"
+#include "mem/cache/miss/throttle_control.hh"
 
 class BaseCache;
 class BasePrefetcher;
@@ -62,33 +63,8 @@ class MissQueue
 
     RequestTrace latencyTrace;
     RequestTrace interferenceTrace;
-    RequestTrace arrivalRateTrace;
 
-    bool traceArrivalRates;
-
-    std::vector<Tick> nextAllowedRequestTime;
-
-    std::vector<int> arrivalRateRequests;
-    std::vector<double> targetRequestRate;
-    std::vector<double> measuredArrivalRate;
-    Tick allocationSetAt;
-
-    std::vector<int> sampleRequests;
-    std::vector<double> sampleAverage;
-    Tick sampleSize;
-
-    std::vector<Tick> tokenRunLast;
-    std::vector<int> tokens;
-
-    double staticTargetRequestRate;
-
-    enum ThrottlingPolicy{
-    	STRICT,
-    	AVERAGE,
-    	TOKEN
-    };
-
-    ThrottlingPolicy throttlingPolicy;
+    ThrottleControl* throttleControl;
 
   protected:
     /** The MSHRs. */
@@ -251,12 +227,6 @@ class MissQueue
      */
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
 
-    Tick determineIssueTime(Tick time, int cpuid);
-    Tick useStrictPolicy(Tick time, int cpuid);
-    Tick useAveragePolicy(Tick time, int cpuid);
-    Tick useTokenPolicy(Tick time, int cpuid);
-    bool doMissThrottling(int cpuid);
-
   public:
     /**
      * Simple Constructor. Initializes all needed internal storage and sets
@@ -267,7 +237,7 @@ class MissQueue
      * @param write_allocate If true, treat write misses the same as reads.
      */
     MissQueue(int numMSHRs, int numTargets, int write_buffers,
-	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, double _targetArrivalRate, bool _traceArrivalRates, std::string _throttlingPolicy);
+	      bool write_allocate, bool prefetch_miss, bool _doMSHRTrace, ThrottleControl* _tc);
 
     /**
      * Deletes all allocated internal storage.
@@ -508,38 +478,6 @@ class MissQueue
     void enableOccupancyList(){
     	mq.enableOccupancyList();
     }
-
-    void setTargetArrivalRate(std::vector<double> newRates){
-    	assert(newRates.size() == targetRequestRate.size());
-    	for(int i=0;i<newRates.size();i++){
-			targetRequestRate[i] = newRates[i];
-			measuredArrivalRate[i] = 0.0;
-			arrivalRateRequests[i] = 0;
-    	}
-    	allocationSetAt = curTick;
-    }
-
-    void sampleArrivalRate();
-
-    class RequestRateSamplingEvent : public Event{
-    private:
-    	MissQueue* mq;
-    	Tick frequency;
-    public:
-    	RequestRateSamplingEvent(MissQueue* _mq, Tick _frequency) :
-    		Event(&mainEventQueue){
-    		mq = _mq;
-    		frequency = _frequency;
-
-    	}
-
-		void process() {
-			mq->sampleArrivalRate();
-			schedule(curTick+frequency);
-		}
-
-
-    };
 
 };
 

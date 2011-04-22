@@ -15,3 +15,5 @@ class BasePolicy(SimObject):
     iterationLatency = Param.Int("The number of cycles it takes to evaluate one MHA")
     optimizationMetric = Param.OptimizationMetric("The metric to optimize for")
     enforcePolicy = Param.Bool("Should the policy be enforced?")
+    sharedCacheThrottle = Param.ThrottleControl("The shared cache throttle")
+    privateCacheThrottles = VectorParam.ThrottleControl("The private cache throttles")

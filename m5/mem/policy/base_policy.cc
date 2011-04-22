@@ -20,7 +20,9 @@ BasePolicy::BasePolicy(string _name,
 					   bool _persistentAllocations,
 					   int _iterationLatency,
 					   Metric* _performanceMetric,
-					   bool _enforcePolicy)
+					   bool _enforcePolicy,
+					   ThrottleControl* _sharedCacheThrottle,
+					   std::vector<ThrottleControl* > _privateCacheThrottles)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -33,6 +35,8 @@ BasePolicy::BasePolicy(string _name,
 	usePersistentAllocations = _persistentAllocations;
 	iterationLatency = _iterationLatency;
 
+	privateCacheThrottles = _privateCacheThrottles;
+	sharedCacheThrottle = _sharedCacheThrottle;
 
 	intManager->registerMissBandwidthPolicy(this);
 

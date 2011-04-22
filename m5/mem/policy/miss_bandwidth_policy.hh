@@ -59,6 +59,8 @@ public:
 			            int _iterationLatency,
 			            Metric* _performanceMetric,
 			            bool _enforcePolicy,
+			            ThrottleControl* _sharedCacheThrottle,
+			            std::vector<ThrottleControl* > _privateCacheThrottles,
 			            double _busUtilThreshold,
 			            double _cutoffReqInt,
 			            RequestEstimationMethod _reqEstMethod,

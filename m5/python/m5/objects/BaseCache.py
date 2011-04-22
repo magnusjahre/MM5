@@ -9,8 +9,6 @@ class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer', 'shado
 
 class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private', 'sequential']
 
-class ThrottlingPolicy(Enum): vals = ['strict', 'average', 'token']
-
 class BaseCache(BaseMem):
     type = 'BaseCache'
     adaptive_compression = Param.Bool(False,
@@ -121,8 +119,6 @@ class BaseCache(BaseMem):
 
     static_cache_quotas = VectorParam.Int("The per core cache quota in ways")
     partitioning = Param.CachePartitioning("Object responsible for doing cache partitioning")
-    target_request_rate = Param.Float("The downstream request rate target for this cache")
+    
     do_mshr_trace = Param.Bool("Trace the occupancy of all MSHRs (caution!)")
-    do_arrival_rate_trace = Param.Bool("Trace the arrival rate on every request (caution!)")
-
-    throttling_policy = Param.ThrottlingPolicy("The policy to use to enforce throttles")
+    throttle_control = Param.ThrottleControl("A pointer to the throttle control object")

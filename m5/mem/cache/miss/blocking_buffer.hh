@@ -328,10 +328,6 @@ public:
     virtual void enableOccupancyList(){
     	fatal("Makes no sense");
     }
-
-    virtual void setTargetArrivalRate(std::vector<double> newRate){
-    	fatal("Makes no sense");
-    }
 };
 
 #endif // __BLOCKING_BUFFER_HH__

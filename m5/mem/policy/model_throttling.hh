@@ -35,6 +35,8 @@ public:
 			        int _iterationLatency,
 			        Metric* _performanceMetric,
 			        bool _enforcePolicy,
+			        ThrottleControl* _sharedCacheThrottle,
+			        std::vector<ThrottleControl* > _privateCacheThrottles,
 			        bool _verify,
 			        std::vector<double> _staticArrivalRates);
 

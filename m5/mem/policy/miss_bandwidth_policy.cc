@@ -16,6 +16,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 										 int _iterationLatency,
 										 Metric* _performanceMetric,
 										 bool _enforcePolicy,
+					   	    			 ThrottleControl* _sharedCacheThrottle,
+					   	    			 std::vector<ThrottleControl* > _privateCacheThrottles,
 										 double _busUtilThreshold,
 										 double _cutoffReqInt,
 										 RequestEstimationMethod _reqEstMethod,
@@ -32,7 +34,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 		_persistentAllocations,
 		_iterationLatency,
 		_performanceMetric,
-		_enforcePolicy)
+		_enforcePolicy,
+		_sharedCacheThrottle,
+		_privateCacheThrottles)
 {
 
 	level = 0;
@@ -662,6 +666,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
+	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
+	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<double> busUtilizationThreshold;
 	Param<double> requestCountThreshold;
 	Param<string> requestEstimationMethod;
@@ -681,6 +687,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
+	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
+	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.9375),
 	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 512),
 	INIT_PARAM(requestEstimationMethod, "The request estimation method to use"),
@@ -711,6 +719,8 @@ CREATE_SIM_OBJECT(MissBandwidthPolicy)
 							       iterationLatency,
 							       performanceMetric,
 							       enforcePolicy,
+							       sharedCacheThrottle,
+							       privateCacheThrottles,
 							       busUtilizationThreshold,
 							       requestCountThreshold,
 							       reqEstMethod,

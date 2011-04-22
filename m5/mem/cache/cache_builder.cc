@@ -204,11 +204,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     VectorParam<int> static_cache_quotas;
 
     SimObjectParam<CachePartitioning *> partitioning;
-    Param<double> target_request_rate;
     Param<bool> do_mshr_trace;
-    Param<bool> do_arrival_rate_trace;
-
-    Param<string> throttling_policy;
+    SimObjectParam<ThrottleControl *> throttle_control;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -316,10 +313,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1),
     INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>()),
     INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL),
-    INIT_PARAM_DFLT(target_request_rate, "The downstream request rate target for this cache", -1.0),
     INIT_PARAM_DFLT(do_mshr_trace, "Trace the occupancy of all MSHRs (caution!)", false),
-    INIT_PARAM_DFLT(do_arrival_rate_trace, "Trace the arrival rate on every request (caution!)", false),
-    INIT_PARAM_DFLT(throttling_policy, "The policy to use to enforce throttles", "strict")
+    INIT_PARAM_DFLT(throttle_control, "A pointer to the throttle control object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -632,8 +627,7 @@ CREATE_SIM_OBJECT(BaseCache)
 	//BlockingBuffer *mq = new BlockingBuffer(true);
 	//BUILD_COHERENCE(BlockingBuffer);
     //} else {
-	MissQueue *mq = new MissQueue(mshrs, tgts_per_mshr, write_buffers,
-				      true, prefetch_miss, do_mshr_trace, target_request_rate, do_arrival_rate_trace, throttling_policy);
+    MissQueue *mq = new MissQueue(mshrs, tgts_per_mshr, write_buffers, true, prefetch_miss, do_mshr_trace, throttle_control);
 
 	BUILD_COHERENCE(MissQueue);
     //}

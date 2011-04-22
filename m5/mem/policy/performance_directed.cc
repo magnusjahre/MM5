@@ -15,8 +15,10 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 			                                          bool _persistentAllocations,
 			                                          int _iterationLatency,
 			                                          Metric* _performanceMetric,
-			                                          bool _enforcePolicy)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy)
+			                                          bool _enforcePolicy,
+			                                          ThrottleControl* _sharedCacheThrottle,
+			                                          std::vector<ThrottleControl* > _privateCacheThrottles)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles)
 {
 	cacheResolution = 4; // FIXME: Parameterize
 	bandwidthResolution = 4.0; // FIXME: Parameterize
@@ -141,7 +143,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	Param<bool> persistentAllocations;
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
-	Param<bool> enforcePolicy;;
+	Param<bool> enforcePolicy;
+	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
+	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 END_DECLARE_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
@@ -152,7 +156,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
-	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true)
+	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
+	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
+	INIT_PARAM(privateCacheThrottles, "Private cache throttles")
 END_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 
 CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
@@ -171,7 +177,9 @@ CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
 							       persistentAllocations,
 							       iterationLatency,
 							       performanceMetric,
-							       enforcePolicy);
+							       enforcePolicy,
+							       sharedCacheThrottle,
+							       privateCacheThrottles);
 }
 
 REGISTER_SIM_OBJECT("PerformanceDirectedPolicy", PerformanceDirectedPolicy)
