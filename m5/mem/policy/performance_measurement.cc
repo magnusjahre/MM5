@@ -220,7 +220,7 @@ PerformanceMeasurement::createTraceLine(){
 	line.push_back(actualBusUtilization);
 	line.push_back(sharedCacheMissRate);
 
-	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].misses);
+	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].readMisses);
 	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].interferenceMisses);
 	for(int i=0;i<cpuCount;i++) line.push_back(perCoreCacheMeasurements[i].accesses);
 
@@ -255,15 +255,16 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	double totalMisses = 0;
 	for(int i=0;i<cpuCount;i++){
-		DPRINTF(MissBWPolicy, "CPU %d had %d cache misses and caused %d shared cache writebacks\n",
+		DPRINTF(MissBWPolicy, "CPU %d had %d cache misses, %d writeback misses and caused %d shared cache writebacks\n",
 				i,
-				perCoreCacheMeasurements[i].misses,
+				perCoreCacheMeasurements[i].readMisses,
+				perCoreCacheMeasurements[i].wbMisses,
 				perCoreCacheMeasurements[i].sharedCacheWritebacks);
 
-		totalMisses += perCoreCacheMeasurements[i].misses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
+		totalMisses += perCoreCacheMeasurements[i].readMisses + perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
 	}
 
-	double thisMisses = perCoreCacheMeasurements[cpuID].misses;
+	double thisMisses = perCoreCacheMeasurements[cpuID].readMisses;
 	double overlap = computedOverlap[cpuID];
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
@@ -320,11 +321,11 @@ double
 CacheMissMeasurements::getInterferenceMissesPerMiss(){
 
 	double dblIntMiss = (double) interferenceMisses;
-	double dblMisses = (double) misses;
+	double dblMisses = (double) readMisses;
 
 	double intMissRate = -1.0;
-	if(interferenceMisses > misses) intMissRate = 1.0;
-	else if(misses == 0) intMissRate = 0.0;
+	if(interferenceMisses > readMisses) intMissRate = 1.0;
+	else if(readMisses == 0) intMissRate = 0.0;
 	else intMissRate = dblIntMiss / dblMisses;
 
 	assert(intMissRate >= 0.0 && intMissRate <= 1.0);
@@ -335,10 +336,10 @@ CacheMissMeasurements::getInterferenceMissesPerMiss(){
 double
 CacheMissMeasurements::getMissRate(){
 	double dblAccesses = (double) accesses;
-	double dblMisses = (double) misses;
+	double dblMisses = (double) readMisses;
 
 	if(accesses == 0){
-		assert(misses == 0);
+		assert(readMisses == 0);
 		return 0.0;
 	}
 

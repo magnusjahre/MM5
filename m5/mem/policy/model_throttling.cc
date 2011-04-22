@@ -242,7 +242,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	assert(optimalPeriods.size() == optimalRequestRates.size());
 	for(int i=0;i<optimalPeriods.size();i++){
-		optimalRequestRates[i] = ((double) measurements->requestsInSample[i]) / optimalPeriods[i];
+		optimalRequestRates[i] = ((double) measurements->perCoreCacheMeasurements[i].readMisses) / optimalPeriods[i];
 		if(optimalRequestRates[i] < throttleLimit){
 			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d ", i, optimalRequestRates[i], throttleLimit);
 			optimalRequestRates[i] = throttleLimit;
@@ -314,7 +314,8 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
-		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->requestsInSample[i] / (double) measurements->getPeriod());
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("cache-misses", i), measurements->perCoreCacheMeasurements[i].readMisses);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->perCoreCacheMeasurements[i].readMisses / (double) measurements->getPeriod());
 
 		vector<double> tmpPeriods = vector<double>(cpuCount, (double) measurements->getPeriod());
 		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));

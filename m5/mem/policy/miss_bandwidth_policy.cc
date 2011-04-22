@@ -82,7 +82,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<cpuCount;i++){
 		DPRINTFR(MissBWPolicy, "CPU %d, %d cache misses, %d interference misses, %d accesses\n",
 				i,
-				currentMeasurements->perCoreCacheMeasurements[i].misses,
+				currentMeasurements->perCoreCacheMeasurements[i].readMisses,
 				currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses,
 				currentMeasurements->perCoreCacheMeasurements[i].accesses);
 	}
@@ -364,7 +364,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 	for(int i=0;i<cpuCount;i++){
 		DPRINTFR(MissBWPolicyExtra, "CPU %d, %d cache misses, %d interference misses, %d accesses\n",
 				i,
-				currentMeasurements->perCoreCacheMeasurements[i].misses,
+				currentMeasurements->perCoreCacheMeasurements[i].readMisses,
 				currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses,
 				currentMeasurements->perCoreCacheMeasurements[i].accesses);
 	}

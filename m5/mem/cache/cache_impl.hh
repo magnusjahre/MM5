@@ -1352,7 +1352,10 @@ template<class TagStore, class Buffering, class Coherence>
 Tick
 Cache<TagStore,Buffering,Coherence>::probe(MemReqPtr &req, bool update)
 {
-    MemDebug::cacheProbe(req);
+
+	fatal("cache probe got called");
+
+	MemDebug::cacheProbe(req);
     if (!update && !doData()) {
 	// Nothing to do here
 	return mi->sendProbe(req,update);

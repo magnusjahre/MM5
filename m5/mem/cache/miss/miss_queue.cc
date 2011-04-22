@@ -588,6 +588,7 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 		//If we need to request the bus (not on HW prefetch), do so
 		assert(req->adaptiveMHASenderID != -1);
 		if(throttleControl != NULL){
+			assert(req->cmd == Read);
 			cache->setMasterRequest(Request_MSHR, throttleControl->determineIssueTime(time, req->adaptiveMHASenderID));
 		}
 		else{

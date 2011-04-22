@@ -66,7 +66,8 @@ CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, in
 	sharedResponsesSinceLastPrivWriteback.resize(cache->cpuCount, 0);
 
 
-	missAccumulator.resize(cache->cpuCount, 0);
+	readMissAccumulator.resize(cache->cpuCount, 0);
+	wbMissAccumulator.resize(cache->cpuCount, 0);
 	writebackAccumulator.resize(cache->cpuCount, 0);
 	interferenceMissAccumulator.resize(cache->cpuCount, 0);
 	accessAccumulator.resize(cache->cpuCount, 0);
@@ -167,7 +168,10 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 		assert(req->cmd == Writeback || req->cmd == Read);
 
 		accessAccumulator[req->adaptiveMHASenderID]++;
-		if(isCacheMiss) missAccumulator[req->adaptiveMHASenderID]++;
+		if(isCacheMiss){
+			if(req->cmd == Read) readMissAccumulator[req->adaptiveMHASenderID]++;
+			else wbMissAccumulator[req->adaptiveMHASenderID]++;
+		}
 
 		int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 
@@ -545,12 +549,14 @@ CacheInterference::getMissMeasurementSample(){
 	std::vector<CacheMissMeasurements> missMeasurements;
 
 	for(int i=0;i<cache->cpuCount;i++){
-		CacheMissMeasurements tmp(missAccumulator[i],
+		CacheMissMeasurements tmp(readMissAccumulator[i],
+							      wbMissAccumulator[i],
 								  interferenceMissAccumulator[i],
 								  accessAccumulator[i],
 								  writebackAccumulator[i]);
 
-		missAccumulator[i] = 0;
+		readMissAccumulator[i] = 0;
+		wbMissAccumulator[i] = 0;
 		interferenceMissAccumulator[i] = 0;
 		accessAccumulator[i] = 0;
 		writebackAccumulator[i] = 0;

@@ -14,21 +14,23 @@
 
 class CacheMissMeasurements{
 public:
-	int misses;
+	int readMisses;
+	int wbMisses;
 	int interferenceMisses;
 	int accesses;
 	int sharedCacheWritebacks;
 
 	CacheMissMeasurements()
-	: misses(0), interferenceMisses(0), accesses(0), sharedCacheWritebacks(0){
+	: readMisses(0), wbMisses(0), interferenceMisses(0), accesses(0), sharedCacheWritebacks(0){
 	}
 
-	CacheMissMeasurements(int _misses, int _interferenceMisses, int _accesses, int _scwb)
-	: misses(_misses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb){
+	CacheMissMeasurements(int _readMisses, int _wbMisses, int _interferenceMisses, int _accesses, int _scwb)
+	: readMisses(_readMisses), wbMisses(_wbMisses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb){
 	}
 
 	void add(CacheMissMeasurements newValues){
-		misses += newValues.misses;
+		readMisses += newValues.readMisses;
+		wbMisses += newValues.wbMisses;
 		interferenceMisses += newValues.interferenceMisses;
 		accesses += newValues.accesses;
 		sharedCacheWritebacks += newValues.sharedCacheWritebacks;
