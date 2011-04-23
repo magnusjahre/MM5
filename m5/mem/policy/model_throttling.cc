@@ -9,6 +9,9 @@
 
 #include "lp_lib.h"
 
+#define SEARCH_DECIMALS 12
+#define METRIC_DECIMALS 4
+
 ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 InterferenceManager* _intManager,
 			   	    			 Tick _period,
@@ -118,9 +121,11 @@ ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<d
 		return true;
 	}
 
-	double correctionFactor = 0.0001;
-	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f (%f)\n", xstarval, xvecval, xvecval+correctionFactor);
-	return xstarval > (xvecval + correctionFactor);
+	xstarval = setPrecision(xstarval, METRIC_DECIMALS);
+	xvecval = setPrecision(xvecval, METRIC_DECIMALS);
+
+	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f\n", xstarval, xvecval);
+	return xstarval > xvecval;
 }
 
 std::vector<double>
@@ -201,6 +206,49 @@ ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector
 	return maxstep;
 }
 
+double
+ModelThrottlingPolicy::setPrecision(double number, int decimalPlaces){
+	double power = pow(10, decimalPlaces);
+	return floor((number * power) + 0.5) / power;
+}
+
+double
+ModelThrottlingPolicy::fastFindOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements){
+	double precision = 0.00000001;
+	double xl = precision;
+	double xr = 1.0;
+	double x1 = xl + (xr - xl - precision)/2;
+	double x2 = xl + (xr - xl + precision)/2;
+
+	double x1val = setPrecision(performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x1), aloneCycles), SEARCH_DECIMALS);
+	double x2val = setPrecision(performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x2), aloneCycles), SEARCH_DECIMALS);
+
+	DPRINTF(MissBWPolicyExtra, "Initial: x1=%f, x2=%f, x1val=%f, x2val=%f\n", x1, x2, x1val, x2val);
+
+	int itcnt = 0;
+
+	while(x1val != x2val){
+
+		if(x1val < x2val) xl = x1;
+		else if(x1val > x2val) xr = x2;
+		else fatal("equal in dict search, should not happen");
+
+		x1 = xl + (xr - xl - precision)/2;
+		x2 = xl + (xr - xl + precision)/2;
+		x1val = setPrecision(performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x1), aloneCycles), SEARCH_DECIMALS);
+		x2val = setPrecision(performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x2), aloneCycles), SEARCH_DECIMALS);
+
+		DPRINTF(MissBWPolicyExtra, "x1=%f, x2=%f, x1val=%f, x2val=%f\n", x1, x2, x1val, x2val);
+
+		itcnt++;
+		if(itcnt > 1000) fatal("dict search did not converge");
+	}
+
+	double retval = (x1 + x2) / 2;
+	DPRINTF(MissBWPolicy, "Best maxstep is %f\n", retval);
+	return retval;
+}
+
 std::vector<double>
 ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
 
@@ -215,14 +263,15 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	while(checkConvergence(xstar, xvals, thisGradient)){
 		thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 		xstar = findNewTrialPoint(thisGradient, measurements);
-		double stepsize = findOptimalStepSize(xvals, xstar, measurements);
+		//double stepsize = findOptimalStepSize(xvals, xstar, measurements);
+		double stepsize = fastFindOptimalStepSize(xvals, xstar, measurements);
 		xvals = addMultCons(xvals, xstar, stepsize);
 		traceVector("New xvector is: ", xvals);
 
 		if(doVerification) traceSearch(xvals);
 
 		cutoff++;
-		if(cutoff > 1000){
+		if(cutoff > 5000){
 			fatal("Linear programming technique solution did not converge\n");
 		}
 	}

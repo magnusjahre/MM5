@@ -52,6 +52,9 @@ private:
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
 	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements);
+	double fastFindOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements);
+	double setPrecision(double number, int decimalPlaces);
+
 	std::vector<double> addMultCons(std::vector<double> xvec, std::vector<double> xstar, double step);
 
 	void initThrottleTrace(int np);
