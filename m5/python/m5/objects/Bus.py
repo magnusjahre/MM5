@@ -14,4 +14,5 @@ class Bus(BaseHier):
     infinite_bw = Param.Bool("Infinite bandwidth and only page hits")
     interference_manager = Param.InterferenceManager("Interference manager")
     utilization_limit = Param.Float("Data bus utilization limit (single core only)")
+    policy = Param.BasePolicy("The policy object")
 

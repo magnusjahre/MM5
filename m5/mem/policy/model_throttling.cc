@@ -24,7 +24,8 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 ThrottleControl* _sharedCacheThrottle,
 			   	    			 std::vector<ThrottleControl* > _privateCacheThrottles,
 			   	    			 bool _verify,
-			   	    			 std::vector<double> _staticArrivalRates)
+			   	    			 std::vector<double> _staticArrivalRates,
+			   	    			 std::string _implStrategy)
 : BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles)
 {
 	//enableOccupancyTrace = true;
@@ -32,11 +33,22 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	doVerification = _verify;
 
 	optimalPeriods.resize(_cpuCount, 0.0);
+	optimalBWShares = vector<double>(cpuCount, 0.0);
 
 	throttleLimit = 1.0 / 10000.0; //FIXME: parameterize
 
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
+
+	if(_implStrategy == "nfq"){
+		implStrat = BW_IMPL_NFQ;
+	}
+	else if(_implStrategy == "throttle"){
+		implStrat = BW_IMPL_THROTTLE;
+	}
+	else{
+		fatal("Unknown bandwidth allocation implementation strategy");
+	}
 
 	searchItemNum = 0;
 	if(doVerification){
@@ -71,7 +83,16 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	if(cpuCount > 1){
 		optimalArrivalRates = findOptimalArrivalRates(&measurements);
-		setArrivalRates(optimalArrivalRates);
+
+		if(implStrat == BW_IMPL_THROTTLE){
+			implementAllocation(optimalArrivalRates);
+		}
+		else if(implStrat == BW_IMPL_NFQ){
+			implementAllocation(optimalBWShares);
+		}
+		else{
+			fatal("Unknown bandwidth allocation implementation strategy");
+		}
 	}
 	else{
 		assert(doVerification);
@@ -295,6 +316,15 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*measurements->getPeriod());
 	}
 
+
+	double bwsum = 0.0;
+	for(int i=0;i<cpuCount;i++){
+		optimalBWShares[i] = optimalPeriods[i] / (double) (cpuCount* measurements->getPeriod());
+		bwsum += optimalBWShares[i];
+	}
+	assert(floor(bwsum+0.5) == 1);
+	traceVector("Optimal bandwidth shares: ", optimalBWShares);
+
 	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
 
 	assert(optimalPeriods.size() == optimalRequestRates.size());
@@ -315,18 +345,29 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 }
 
 void
-ModelThrottlingPolicy::setArrivalRates(std::vector<double> rates){
+ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation){
 
-	vector<double> cyclesPerReq = vector<double>(rates.size(), 0.0);
-	for(int i=0;i<rates.size();i++){
-		cyclesPerReq[i] = 1.0 / rates[i];
+	if(implStrat == BW_IMPL_THROTTLE){
+		vector<double> cyclesPerReq = vector<double>(allocation.size(), 0.0);
+		for(int i=0;i<allocation.size();i++){
+			cyclesPerReq[i] = 1.0 / allocation[i];
+		}
+
+		traceVector("Optimal cycles per request: ", cyclesPerReq);
+		traceThrottling(cyclesPerReq);
+
+		traceVector("Setting memory bus arrival rates to:", allocation);
+		sharedCacheThrottle->setTargetArrivalRate(allocation);
 	}
+	else if(implStrat == BW_IMPL_NFQ){
+		for(int i=0;i<buses.size();i++){
+			buses[i]->setBandwidthQuotas(allocation);
+		}
 
-	traceVector("Optimal cycles per request: ", cyclesPerReq);
-	traceThrottling(cyclesPerReq);
-
-	traceVector("Setting memory bus arrival rates to:", rates);
-	sharedCacheThrottle->setTargetArrivalRate(rates);
+	}
+	else{
+		fatal("Unknown bandwidth allocation implementation strategy");
+	}
 }
 
 void
@@ -368,6 +409,7 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-throttles", i), 1.0 / optimalArrivalRates[i]);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-bw-shares", i), optimalBWShares[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
@@ -405,6 +447,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<bool> verify;
 	VectorParam<double> staticArrivalRates;
+	Param<string> implStrategy;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -419,7 +462,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
 	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM_DFLT(verify, "Verify policy", false),
-	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>())
+	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>()),
+	INIT_PARAM_DFLT(implStrategy, "The way to enforce the bandwidth quotas", "throttle")
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -442,7 +486,8 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         sharedCacheThrottle,
 							         privateCacheThrottles,
 							         verify,
-							         staticArrivalRates);
+							         staticArrivalRates,
+							         implStrategy);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

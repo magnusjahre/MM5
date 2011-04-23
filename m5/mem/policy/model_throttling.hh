@@ -17,6 +17,7 @@ class ModelThrottlingPolicy : public BasePolicy{
 private:
 
 	std::vector<double> optimalPeriods;
+	vector<double> optimalBWShares;
 
 	RequestTrace throttleTrace;
 	RequestTrace modelSearchTrace;
@@ -24,6 +25,12 @@ private:
 
 	bool doVerification;
 	double throttleLimit;
+
+	enum BWImplStrat{
+		BW_IMPL_NFQ,
+		BW_IMPL_THROTTLE
+	};
+	BWImplStrat implStrat;
 
 public:
 	ModelThrottlingPolicy(std::string _name,
@@ -38,7 +45,8 @@ public:
 			        ThrottleControl* _sharedCacheThrottle,
 			        std::vector<ThrottleControl* > _privateCacheThrottles,
 			        bool _verify,
-			        std::vector<double> _staticArrivalRates);
+			        std::vector<double> _staticArrivalRates,
+			        std::string _implStrategy);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
@@ -48,7 +56,7 @@ private:
 
 	std::vector<double> findNewTrialPoint(std::vector<double> gradient, PerformanceMeasurement* measurements);
 
-	void setArrivalRates(std::vector<double> rates);
+	void implementAllocation(std::vector<double> allocation);
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
 	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements);
@@ -70,15 +78,15 @@ private:
 	class StaticAllocationEvent : public Event{
 	private:
 		ModelThrottlingPolicy* mtp;
-		std::vector<double> rates;
+		std::vector<double> allocations;
 	public:
-		StaticAllocationEvent(ModelThrottlingPolicy* _mtp, std::vector<double> _rates):
-		Event(&mainEventQueue), mtp(_mtp), rates(_rates){
+		StaticAllocationEvent(ModelThrottlingPolicy* _mtp, std::vector<double> _alloc):
+		Event(&mainEventQueue), mtp(_mtp), allocations(_alloc){
 
 		}
 
 		void process() {
-			mtp->setArrivalRates(rates);
+			mtp->implementAllocation(allocations);
 			delete this;
 		}
 	};

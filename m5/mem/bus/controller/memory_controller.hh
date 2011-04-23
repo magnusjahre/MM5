@@ -176,6 +176,10 @@ class TimingMemoryController : public SimObject
 
     void insertPrivateVirtualRequest(MemReqPtr& req);
 
+    virtual void setBandwidthQuotas(std::vector<double> quotas){
+    	fatal("Controller does not support bandwidth quotas");
+    }
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

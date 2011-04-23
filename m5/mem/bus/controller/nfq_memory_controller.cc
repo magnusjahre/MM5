@@ -48,17 +48,19 @@ NFQMemoryController::~NFQMemoryController(){
 void
 NFQMemoryController::setUpWeights(std::vector<double> priorities){
 
-    double max = 0.0;
-    double min = 2.0;
-    for(int i=0; i< priorities.size(); i++){
-    	if(priorities[i] > max) max = priorities[i];
-    	if(priorities[i] < min) min = priorities[i];
-    }
+//    double max = 0.0;
+//    double min = 2.0;
+//    for(int i=0; i< priorities.size(); i++){
+//    	if(priorities[i] > max) max = priorities[i];
+//    	if(priorities[i] < min) min = priorities[i];
+//    }
 
     processorIncrements.resize(nfqNumCPUs, 0);
     for(int i=0; i<priorities.size(); i++){
-    	processorIncrements[i] = (int) (max / priorities[i]);
+    	processorIncrements[i] = (int) ((1 / priorities[i])*1000);
     }
+
+
 }
 
 int

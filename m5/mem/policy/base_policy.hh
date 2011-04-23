@@ -14,6 +14,7 @@
 #include "mem/requesttrace.hh"
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/throttle_control.hh"
+#include "mem/bus/bus.hh"
 
 #include "mem/policy/performance_measurement.hh"
 #include "mem/policy/metrics/metric.hh"
@@ -29,6 +30,7 @@ class MissBandwidthPolicyEvent;
 class MissBandwidthTraceEvent;
 class InterferenceManager;
 class BaseCache;
+class Bus;
 
 class BasePolicy : public SimObject{
 
@@ -75,6 +77,7 @@ protected:
 	RequestTrace measurementTrace;
 	std::vector<BaseCache* > caches;
 	std::vector<BaseCache* > sharedCaches;
+	std::vector<Bus* > buses;
 
 	RequestTrace searchTrace;
 
@@ -207,6 +210,7 @@ public:
 
 	void registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs);
 	void registerSharedCache(BaseCache* _cache);
+	void registerBus(Bus* _bus);
 
 	void addTraceEntry(PerformanceMeasurement* measurement);
 

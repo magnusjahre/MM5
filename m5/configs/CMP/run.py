@@ -114,7 +114,7 @@ def setNFQParams(useTrafficGenerator, controllerID, optPart):
     
     root.membus[controllerID].memory_controller.priorities = priorities
 
-def createMemBus(bankcnt, optPart):
+def createMemBus(bankcnt, optPart, useMissBWPolicy):
     assert 'MEMORY-BUS-CHANNELS' in env
     
     channels = int(env['MEMORY-BUS-CHANNELS'])
@@ -156,6 +156,9 @@ def createMemBus(bankcnt, optPart):
             
         root.membus[i].adaptive_mha = root.adaptiveMHA
         root.membus[i].interference_manager = root.interferenceManager
+        
+        if useMissBWPolicy:
+            root.membus[i].policy = root.globalPolicy    
         
         if "MEMORY-BUS-MAX-UTIL" in env:
             root.membus[i].utilization_limit = float(env["MEMORY-BUS-MAX-UTIL"])
@@ -337,6 +340,9 @@ def setUpModThrotPolicy():
     policy.interferenceManager = root.interferenceManager
     policy.cpuCount = int(env["NP"])
     policy.performanceEstimationMethod = "no-mlp"
+    
+    assert "MODEL-THROTLING-IMPL-STRAT" in env
+    policy.implStrategy = env["MODEL-THROTLING-IMPL-STRAT"]
     
     statOptName = "MODEL-THROTLING-POLICY-STATIC" 
     if statOptName in env:
@@ -885,7 +891,7 @@ if env['MEMORY-SYSTEM'] == "Legacy":
 elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 
     bankcnt = 4
-    createMemBus(bankcnt, optPartData)
+    createMemBus(bankcnt, optPartData, useMissBWPolicy)
     initSharedCache(bankcnt, optPartData)
 
     root.interconnect = InterconnectCrossbar()
@@ -902,7 +908,7 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 elif env['MEMORY-SYSTEM'] == "RingBased":
 
     bankcnt = 4
-    createMemBus(bankcnt, optPartData)
+    createMemBus(bankcnt, optPartData, useMissBWPolicy)
     initSharedCache(bankcnt, optPartData)
 
     for link in root.PointToPointLink:

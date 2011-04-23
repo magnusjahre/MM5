@@ -78,5 +78,9 @@ class NFQMemoryController : public TimingMemoryController
         virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
         	// not needed
         }
+
+        virtual void setBandwidthQuotas(std::vector<double> quotas){
+        	setUpWeights(quotas);
+        }
 };
 

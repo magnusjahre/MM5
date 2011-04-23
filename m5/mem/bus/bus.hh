@@ -61,6 +61,7 @@
 #include "mem/bus/controller/traffic_generator.hh"
 
 #include "mem/requesttrace.hh"
+#include "mem/policy/base_policy.hh"
 
 //NOTE: these should _never_ be defined when running experiments!
 // #define DO_BUS_TRACE 1
@@ -203,7 +204,8 @@ class Bus : public BaseHier
         TimingMemoryController* _memoryController,
         bool _infiniteBW,
         InterferenceManager* intman,
-        double _utilizationLimit);
+        double _utilizationLimit,
+        BasePolicy* _policy);
 
     /** Frees locally allocated memory. */
     ~Bus();
@@ -360,6 +362,8 @@ class Bus : public BaseHier
 
     int queuedRequestsCounter;
     void traceQueuedRequests(bool requestAdded);
+
+    virtual void setBandwidthQuotas(std::vector<double> quotas);
 
   private:
     std::vector<int> perCPUDataBusUse;

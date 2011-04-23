@@ -151,6 +151,11 @@ BasePolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs){
 }
 
 void
+BasePolicy::registerBus(Bus *_bus){
+	buses.push_back(_bus);
+}
+
+void
 BasePolicy::registerSharedCache(BaseCache* _cache){
 	sharedCaches.push_back(_cache);
 }

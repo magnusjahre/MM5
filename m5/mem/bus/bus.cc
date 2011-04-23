@@ -81,7 +81,8 @@ Bus::Bus(const string &_name,
          TimingMemoryController* _memoryController,
          bool _infiniteBW,
          InterferenceManager* intman,
-         double _utilizationLimit)
+         double _utilizationLimit,
+         BasePolicy* _policy)
     : BaseHier(_name, hier_params)
 {
     width = _width;
@@ -101,6 +102,8 @@ Bus::Bus(const string &_name,
     requestPerCoreSample.resize(cpu_count, 0);
     readsPerCoreSample.resize(cpu_count, 0);
     otherRequests = 0;
+
+    if(_policy != NULL) _policy->registerBus(this);
 
     busInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
     conflictInterference = vector<vector<int> >(cpu_count, vector<int>(cpu_count,0));
@@ -1245,6 +1248,11 @@ Bus::traceQueuedRequests(bool requestAdded){
 	}
 }
 
+void
+Bus::setBandwidthQuotas(std::vector<double> quotas){
+	memoryController->setBandwidthQuotas(quotas);
+}
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
@@ -1262,7 +1270,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(Bus)
     Param<bool> infinite_bw;
     SimObjectParam<InterferenceManager* > interference_manager;
     Param<double> utilization_limit;
-
+    SimObjectParam<BasePolicy* > policy;
 END_DECLARE_SIM_OBJECT_PARAMS(Bus)
 
 
@@ -1281,7 +1289,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(Bus)
     INIT_PARAM_DFLT(memory_controller, "Memory controller object", NULL),
     INIT_PARAM_DFLT(infinite_bw, "Infinite bandwidth and only page hits", false),
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
-    INIT_PARAM_DFLT(utilization_limit, "Data bus utilization limit (single core only)", 0.0)
+    INIT_PARAM_DFLT(utilization_limit, "Data bus utilization limit (single core only)", 0.0),
+    INIT_PARAM_DFLT(policy, "The policy object", NULL)
 
 END_INIT_SIM_OBJECT_PARAMS(Bus)
 
@@ -1300,7 +1309,8 @@ CREATE_SIM_OBJECT(Bus)
                    memory_controller,
                    infinite_bw,
                    interference_manager,
-                   utilization_limit);
+                   utilization_limit,
+                   policy);
 }
 
 REGISTER_SIM_OBJECT("Bus", Bus)
