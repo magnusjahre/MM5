@@ -117,14 +117,14 @@ ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<d
 	for(int i=0;i<xstar.size();i++) xstarval += gradient[i]*xstar[i];
 
 	if(xstarval == 0.0){
-		DPRINTF(MissBWPolicy, "wk(xstar) %f, assuming bootstrap\n", xstarval);
+		DPRINTF(MissBWPolicyExtra, "wk(xstar) %f, assuming bootstrap\n", xstarval);
 		return true;
 	}
 
 	xstarval = setPrecision(xstarval, METRIC_DECIMALS);
 	xvecval = setPrecision(xvecval, METRIC_DECIMALS);
 
-	DPRINTF(MissBWPolicy, "Checking convergence, wk(xstar) %f > wk(xvec) %f\n", xstarval, xvecval);
+	DPRINTF(MissBWPolicyExtra, "Checking convergence, wk(xstar) %f > wk(xvec) %f\n", xstarval, xvecval);
 	return xstarval > xvecval;
 }
 
@@ -163,8 +163,9 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
     vector<double> retval = vector<double>(cpuCount, 0.0);
     for(int i=0;i<cpuCount;i++){
     	retval[i] = get_var_primalresult(lp, i+2);
-    	DPRINTF(MissBWPolicy, "xstar for CPU %d is %f\n", i, retval[i]);
     }
+
+    traceVerboseVector("xstar is: ", retval);
 
     print_solution(lp, 2);
 
@@ -202,7 +203,7 @@ ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector
 		step += stepsize;
 	}
 
-	DPRINTF(MissBWPolicy, "Best maxstep is %f\n", maxstep);
+	DPRINTF(MissBWPolicyExtra, "Best maxstep is %f\n", maxstep);
 	return maxstep;
 }
 
@@ -233,6 +234,9 @@ ModelThrottlingPolicy::fastFindOptimalStepSize(std::vector<double> xvec, std::ve
 		else if(x1val > x2val) xr = x2;
 		else fatal("equal in dict search, should not happen");
 
+		assert(xl > 0.0);
+		assert(xr <= 1.0);
+
 		x1 = xl + (xr - xl - precision)/2;
 		x2 = xl + (xr - xl + precision)/2;
 		x1val = setPrecision(performanceMetric->computeFunction(measurements, addMultCons(xvec, xstar, x1), aloneCycles), SEARCH_DECIMALS);
@@ -241,11 +245,14 @@ ModelThrottlingPolicy::fastFindOptimalStepSize(std::vector<double> xvec, std::ve
 		DPRINTF(MissBWPolicyExtra, "x1=%f, x2=%f, x1val=%f, x2val=%f\n", x1, x2, x1val, x2val);
 
 		itcnt++;
-		if(itcnt > 1000) fatal("dict search did not converge");
+		if(itcnt > 50){
+			DPRINTF(MissBWPolicyExtra, "Reached iteration cutoff, stopping search\n");
+			x1val = x2val;
+		}
 	}
 
 	double retval = (x1 + x2) / 2;
-	DPRINTF(MissBWPolicy, "Best maxstep is %f\n", retval);
+	DPRINTF(MissBWPolicyExtra, "Best maxstep is %f\n", retval);
 	return retval;
 }
 
@@ -262,11 +269,12 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	while(checkConvergence(xstar, xvals, thisGradient)){
 		thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+		traceVerboseVector("New gradient is: ", thisGradient);
 		xstar = findNewTrialPoint(thisGradient, measurements);
 		//double stepsize = findOptimalStepSize(xvals, xstar, measurements);
 		double stepsize = fastFindOptimalStepSize(xvals, xstar, measurements);
 		xvals = addMultCons(xvals, xstar, stepsize);
-		traceVector("New xvector is: ", xvals);
+		traceVerboseVector("New xvector is: ", xvals);
 
 		if(doVerification) traceSearch(xvals);
 
@@ -377,6 +385,7 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("ticks", i), curTick);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-queue", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusQueue]);
 	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-service", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusService]);
+	for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("avg-bus-entry", i), measurements->latencyBreakdown[i][InterferenceManager::MemoryBusEntry]);
 
 	dumpvals.dump();
 }

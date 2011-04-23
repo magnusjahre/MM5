@@ -469,12 +469,16 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 
     // assumption: no memory bus blocking in private memory system
     if(req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
-    	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
-    	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += curTick - origReqTime;
+    	assert(req->finishedInCacheAt <= origReqTime);
+
+    	int interference = curTick - req->finishedInCacheAt;
+
+    	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += interference;
+    	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += interference;
 
     	if(req->cmd == Read && interferenceManager != NULL){
-    		interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
-			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, curTick - origReqTime);
+    		interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, interference);
+			interferenceManager->addInterference(InterferenceManager::MemoryBusEntry, req, interference);
 		}
     }
 

@@ -118,7 +118,6 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 		double tosqval = measurements->betas[i] + (measurements->alphas[i] / point[i]);
 		double denominator = point[i]*point[i]*tosqval*tosqval;
 		gradient[i] = (numerator/denominator);
-		DPRINTF(MissBWPolicy, "Gradient for CPU %d is %f\n", i, gradient[i]);
 	}
 
 	return gradient;
@@ -127,13 +126,6 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 double
 STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){
 	double funcval = 0.0;
-
-	for(int i=0;i<xvals.size();i++){
-		if(xvals[i] < aloneCycles[i]){
-			warn("function argument x[%d]=%f is less than alone cycles %f which is not feasible", i, xvals[i], aloneCycles[i]);
-			return 0.0;
-		}
-	}
 
 	for(int i=0;i<xvals.size();i++){
 		if(xvals[i] < 1 || xvals[i] > measurements->getPeriod()*xvals.size()){
