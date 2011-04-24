@@ -163,7 +163,7 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 	rowbuffer[0] = 0.0; //element 0 is ignored
 
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
-    if (!add_constraint(lp, rowbuffer, EQ, cpuCount*measurements->getPeriod())) fatal("Couldn't add sum constraint");
+    if (!add_constraint(lp, rowbuffer, EQ, cpuCount*period)) fatal("Couldn't add sum constraint");
 
     for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
     set_obj_fn(lp, rowbuffer);
@@ -177,8 +177,8 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
     solve(lp);
 
     int intsum = floor(get_var_primalresult(lp, 1) + 0.5);
-    if(intsum != cpuCount*measurements->getPeriod()){
-    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*measurements->getPeriod());
+    if(intsum != cpuCount*period){
+    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*period);
     }
 
     vector<double> retval = vector<double>(cpuCount, 0.0);
@@ -282,7 +282,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	vector<double> xvals = vector<double>(cpuCount, measurements->getPeriod());
+	vector<double> xvals = vector<double>(cpuCount, period);
 	vector<double> xstar = vector<double>(cpuCount, 0.0);
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 	if(doVerification) traceSearch(xvals);
@@ -312,14 +312,14 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	}
 
 	int intsum = floor(sum + 0.5);
-	if(intsum != cpuCount*measurements->getPeriod()){
-		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*measurements->getPeriod());
+	if(intsum != cpuCount*period){
+		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*period);
 	}
 
 
 	double bwsum = 0.0;
 	for(int i=0;i<cpuCount;i++){
-		optimalBWShares[i] = optimalPeriods[i] / (double) (cpuCount* measurements->getPeriod());
+		optimalBWShares[i] = optimalPeriods[i] / (double) (cpuCount* period);
 		bwsum += optimalBWShares[i];
 	}
 	assert(floor(bwsum+0.5) == 1);
@@ -329,7 +329,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	assert(optimalPeriods.size() == optimalRequestRates.size());
 	for(int i=0;i<optimalPeriods.size();i++){
-		optimalRequestRates[i] = ((double) measurements->perCoreCacheMeasurements[i].readMisses) / optimalPeriods[i];
+		optimalRequestRates[i] = getTotalMisses(i,measurements) / optimalPeriods[i];
 		if(optimalRequestRates[i] < throttleLimit){
 			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d ", i, optimalRequestRates[i], throttleLimit);
 			optimalRequestRates[i] = throttleLimit;
@@ -401,6 +401,11 @@ ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
 	throttleTrace.addTrace(vals);
 }
 
+double
+ModelThrottlingPolicy::getTotalMisses(int cpuid, PerformanceMeasurement* measurements){
+	return measurements->perCoreCacheMeasurements[cpuid].readMisses;
+}
+
 void
 ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates){
 
@@ -414,9 +419,12 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("cache-misses", i), measurements->perCoreCacheMeasurements[i].readMisses);
-		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), (double) measurements->perCoreCacheMeasurements[i].readMisses / (double) measurements->getPeriod());
 
-		vector<double> tmpPeriods = vector<double>(cpuCount, (double) measurements->getPeriod());
+		for(int i=0;i<cpuCount;i++){
+			dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), getTotalMisses(i, measurements) / (double) curTick);
+		}
+
+		vector<double> tmpPeriods = vector<double>(cpuCount, (double) period);
 		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));
 		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
 	}

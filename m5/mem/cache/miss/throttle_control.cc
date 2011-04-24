@@ -131,7 +131,7 @@ ThrottleControl::useStrictPolicy(Tick time, int cpuid){
 
 Tick
 ThrottleControl::useAveragePolicy(Tick time, int cpuid){
-	if(measuredArrivalRate > targetRequestRate){
+	if(measuredArrivalRate[cpuid] > targetRequestRate[cpuid]){
 		Tick issueAt = 0;
 		double timeBetweenRequests = (1.0 / targetRequestRate[cpuid]);
 		if(nextAllowedRequestTime[cpuid] > time){
@@ -140,7 +140,7 @@ ThrottleControl::useAveragePolicy(Tick time, int cpuid){
 		}
 		else{
 			issueAt = time;
-			nextAllowedRequestTime [cpuid]= time + (int) timeBetweenRequests;
+			nextAllowedRequestTime[cpuid] = time + (int) timeBetweenRequests;
 		}
 		assert(issueAt > 0);
 		return issueAt;
@@ -167,6 +167,7 @@ ThrottleControl::useTokenPolicy(Tick time, int cpuid){
 		}
 	}
 
+	assert(tokens[cpuid] >= 0);
 	tokenRunLast[cpuid] += cyclesBetweenRequests;
 	return tokenRunLast[cpuid];
 }

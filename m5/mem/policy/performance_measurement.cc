@@ -276,10 +276,12 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	alphas[cpuID] = overlap * w;
 
-	DPRINTF(MissBWPolicy, "Estimated average queue size is %f, average queue latency is %f, actual is %f for CPU %d\n",
+	DPRINTF(MissBWPolicy, "Estimated average queue size is %f, average queue latency is %f, actual is e=%f+q=%f=%f for CPU %d\n",
 			n / (double) period,
 			(w / (double) period) / thisMisses,
+			latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry],
 			latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue],
+			latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue] + latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry],
 			cpuID);
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
@@ -303,7 +305,7 @@ PerformanceMeasurement::updateBeta(int cpuID){
 	double cache = latencyBreakdown[cpuID][InterferenceManager::CacheCapacity];
 
 	double bus = 0.0;
-	bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry];
+	//bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry]; //entry latency is part of alpha
 	bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
 
 	double compute = getNonStallCycles(cpuID, period);

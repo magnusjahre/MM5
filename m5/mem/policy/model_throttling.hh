@@ -73,6 +73,8 @@ private:
 
 	void dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 
+	double getTotalMisses(int cpuid, PerformanceMeasurement* measurements);
+
 	double checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient);
 
 	class StaticAllocationEvent : public Event{

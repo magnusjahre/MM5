@@ -62,7 +62,7 @@ using namespace std;
 /** The maximum value of type Tick. */
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-// #define TRACE_QUEUE
+//#define TRACE_QUEUE
 
 #define MAX_ARB_RESCHED 1000
 
@@ -180,6 +180,7 @@ Bus::Bus(const string &_name,
     trafficGenerator = NULL;
 
     doRequestQueueTrace = false;
+    //doRequestQueueTrace = true;
     queueSizeTrace = RequestTrace(_name, "QueueSizeTrace");
     vector<string> headers;
     headers.push_back("Queued Requests");
@@ -478,6 +479,8 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
 
     	req->latencyBreakdown[MEM_BUS_ENTRY_LAT] += interference;
     	req->interferenceBreakdown[MEM_BUS_ENTRY_LAT] += interference;
+
+    	queueCyclesSample += interference;
 
     	if(req->cmd == Read && interferenceManager != NULL){
     		interferenceManager->addLatency(InterferenceManager::MemoryBusEntry, req, interference);
