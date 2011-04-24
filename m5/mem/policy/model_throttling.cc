@@ -287,8 +287,9 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 	if(doVerification) traceSearch(xvals);
 	int cutoff = 0;
+	bool quitForCutoff = false;
 
-	while(checkConvergence(xstar, xvals, thisGradient)){
+	while(checkConvergence(xstar, xvals, thisGradient) && !quitForCutoff){
 		thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 		traceVerboseVector("New gradient is: ", thisGradient);
 		xstar = findNewTrialPoint(thisGradient, measurements);
@@ -301,7 +302,8 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 		cutoff++;
 		if(cutoff > 5000){
-			fatal("Linear programming technique solution did not converge\n");
+			warn("Linear programming technique solution did not converge\n");
+			quitForCutoff = true;
 		}
 	}
 
