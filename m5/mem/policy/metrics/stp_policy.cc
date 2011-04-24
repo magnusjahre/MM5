@@ -48,7 +48,7 @@ STPPolicy::computeOptimalPeriod(PerformanceMeasurement* measurements, std::vecto
 	// verify constraint
 	double sum = 0;
 	for(int i=0;i<np;i++) sum += optimalPeriod[i];
-	int intsum = floor(sum + 0.5);
+	int intsum = (int) floor(sum + 0.5);
 	if(intsum != np*measurements->getPeriod()){
 		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, np*measurements->getPeriod());
 	}

@@ -480,7 +480,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 
 	currentMeasurement.avgBusServiceCycles = totalAvgBusServiceLat / (double) memoryBuses.size();
 	currentMeasurement.actualBusUtilization = utilSum / (double) memoryBuses.size();
-	currentMeasurement.otherBusRequests = otherRequests / (double) memoryBuses.size();
+	currentMeasurement.otherBusRequests = (int) (otherRequests / (double) memoryBuses.size());
 	currentMeasurement.sumBusQueueCycles = totalQueueCycles; //FIXME: this does not handle multiple channels
 
 	double totalMisses = 0.0;

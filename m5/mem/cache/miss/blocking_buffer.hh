@@ -91,6 +91,8 @@ public:
     {
     }
 
+    virtual ~BlockingBuffer(){ }
+
     /**
      * Register statistics for this object.
      * @param name The name of the parent cache.

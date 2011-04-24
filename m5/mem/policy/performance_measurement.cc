@@ -34,7 +34,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	sharedCacheMissRate = 0.0;
 
 	avgBusServiceCycles = 0.0;
-	otherBusRequests = 0.0;
+	otherBusRequests = 0;
 	sumBusQueueCycles = 0.0;
 
 	busAccessesPerCore.resize(cpuCount, 0);

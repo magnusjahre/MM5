@@ -176,7 +176,7 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
     solve(lp);
 
-    int intsum = floor(get_var_primalresult(lp, 1) + 0.5);
+    int intsum = (int) floor(get_var_primalresult(lp, 1) + 0.5);
     if(intsum != cpuCount*period){
     	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*period);
     }
@@ -230,7 +230,7 @@ ModelThrottlingPolicy::findOptimalStepSize(std::vector<double> xvec, std::vector
 
 double
 ModelThrottlingPolicy::setPrecision(double number, int decimalPlaces){
-	double power = pow(10, decimalPlaces);
+        double power = pow((double) 10.0, decimalPlaces);
 	return floor((number * power) + 0.5) / power;
 }
 
@@ -313,7 +313,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		sum += xvals[i];
 	}
 
-	int intsum = floor(sum + 0.5);
+	int intsum = (int) floor(sum + 0.5);
 	if(intsum != cpuCount*period){
 		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*period);
 	}
