@@ -333,7 +333,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	for(int i=0;i<optimalPeriods.size();i++){
 		optimalRequestRates[i] = getTotalMisses(i,measurements) / optimalPeriods[i];
 		if(optimalRequestRates[i] < throttleLimit){
-			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d ", i, optimalRequestRates[i], throttleLimit);
+			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d\n", i, optimalRequestRates[i], throttleLimit);
 			optimalRequestRates[i] = throttleLimit;
 		}
 

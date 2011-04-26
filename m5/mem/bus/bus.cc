@@ -909,9 +909,14 @@ Bus::getActualUtilization(){
 
 	Tick period = curTick - lastSampleTick;
 
-	double avgServiceLat = (double) ((double) serviceCyclesSample / (double) requestSample);
-	double busSlots = (double) period / avgServiceLat;
-	double actualUtil = (double) requestSample / busSlots;
+	double avgServiceLat = 0.0;
+	double busSlots = 0.0;
+	double actualUtil = 0.0;
+	if(requestSample > 0){
+		avgServiceLat = (double) ((double) serviceCyclesSample / (double) requestSample);
+		busSlots = (double) period / avgServiceLat;
+		actualUtil = (double) requestSample / busSlots;
+	}
 
 	vector<double> retval = vector<double>(4, 0.0);
 	retval[0] = avgServiceLat;

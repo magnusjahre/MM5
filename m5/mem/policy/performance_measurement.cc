@@ -249,8 +249,6 @@ PerformanceMeasurement::updateConstants(){
 void
 PerformanceMeasurement::updateAlpha(int cpuID){
 
-	assert(avgBusServiceCycles > 0.0);
-
 	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusServiceCycles, cpuID);
 
 	double totalMisses = 0;
@@ -263,6 +261,15 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 		totalMisses += perCoreCacheMeasurements[i].readMisses + perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
 	}
+
+	if(avgBusServiceCycles == 0.0){
+		assert(totalMisses == 0);
+		DPRINTF(MissBWPolicy, "No requests used the bus, alpha is 0\n");
+		alphas[cpuID] = 0.0;
+		return;
+	}
+	assert(avgBusServiceCycles > 0.0);
+
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].readMisses;
 	double overlap = computedOverlap[cpuID];
@@ -285,11 +292,6 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 			cpuID);
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
-
-	if(alphas[cpuID] == 0.0){
-		alphas[cpuID] = 1;
-		DPRINTF(MissBWPolicy, "Method cannot handle alpha 0.0 , changing to %f for CPU %d\n", alphas[cpuID], cpuID);
-	}
 }
 
 void
