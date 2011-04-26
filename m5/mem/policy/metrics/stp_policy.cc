@@ -114,10 +114,14 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 	vector<double> gradient = vector<double>(np, 0.0);
 
 	for(int i=0;i<np;i++){
+//		double numerator = measurements->alphas[i] * aloneCycles[i];
+//		double tosqval = measurements->betas[i] + (measurements->alphas[i] / point[i]);
+//		double denominator = point[i]*point[i]*tosqval*tosqval;
+//		gradient[i] = (numerator/denominator);
+
 		double numerator = measurements->alphas[i] * aloneCycles[i];
-		double tosqval = measurements->betas[i] + (measurements->alphas[i] / point[i]);
-		double denominator = point[i]*point[i]*tosqval*tosqval;
-		gradient[i] = (numerator/denominator);
+		double tosqval = measurements->betas[i] + (measurements->alphas[i] * point[i]);
+		gradient[i] = -numerator/(tosqval*tosqval);
 	}
 
 	return gradient;
@@ -128,11 +132,8 @@ STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<dou
 	double funcval = 0.0;
 
 	for(int i=0;i<xvals.size();i++){
-		if(xvals[i] < 1 || xvals[i] > measurements->getPeriod()*xvals.size()){
-			fatal("function argument x[%d]=%f does not make sense", i, xvals[i]);
-		}
-
-		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
+		//funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]/xvals[i]));
+		funcval += aloneCycles[i] / (measurements->betas[i] + (measurements->alphas[i]*xvals[i]));
 	}
 
 	return funcval;

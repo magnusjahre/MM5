@@ -81,6 +81,8 @@ public:
 
 	std::vector<CacheMissMeasurements> perCoreCacheMeasurements;
 
+	double maxRequestRate;
+
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 
 	void addInterferenceData(std::vector<double> sharedLatencyAccumulator,
@@ -106,6 +108,8 @@ private:
 	void updateAlpha(int cpuID);
 
 	void updateBeta(int cpuID);
+
+	void setBandwidthBound();
 };
 
 

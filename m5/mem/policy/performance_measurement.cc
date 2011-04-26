@@ -46,6 +46,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	alphas.resize(cpuCount, 0.0);
 	betas.resize(cpuCount, 0.0);
+
+	maxRequestRate = 0.0;
 }
 
 void
@@ -235,6 +237,7 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 
 void
 PerformanceMeasurement::updateConstants(){
+	setBandwidthBound();
 	for(int i=0;i<cpuCount;i++){
 		updateAlpha(i);
 		updateBeta(i);
@@ -279,7 +282,8 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	double avgBusQueueCycles = sumBusQueueCycles / totalMisses;
 
 	double n = avgBusQueueCycles * totalMisses;
-	double w = n * avgBusServiceCycles * thisMisses;
+	//double w = n * avgBusServiceCycles * thisMisses;
+	double w = n * avgBusServiceCycles;
 
 	alphas[cpuID] = overlap * w;
 
@@ -292,6 +296,22 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 			cpuID);
 
 	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
+}
+
+void
+PerformanceMeasurement::setBandwidthBound(){
+	assert(avgBusServiceCycles > 0.0); // this will fail
+	double maxRate = 1/avgBusServiceCycles;
+	DPRINTF(MissBWPolicy, "Estimated maximum request rate the bus can handle is %f\n", maxRate);
+
+	double uncontrollableMisses = 0.0;
+	for(int i=0;i<cpuCount;i++){
+		uncontrollableMisses += perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
+	}
+	double uncontrollableMissRate = uncontrollableMisses / (double) period;
+
+	maxRequestRate = maxRate - uncontrollableMissRate;
+	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRate, maxRequestRate);
 }
 
 void

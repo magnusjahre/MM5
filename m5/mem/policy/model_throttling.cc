@@ -96,12 +96,12 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 		else{
 			fatal("Unknown bandwidth allocation implementation strategy");
 		}
+
+		traceModelValues(&measurements);
 	}
 	else{
 		assert(doVerification);
 	}
-
-	traceModelValues(&measurements);
 
 	if(doVerification){
 		dumpVerificationData(&measurements, optimalArrivalRates);
@@ -168,12 +168,16 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 	rowbuffer[0] = 0.0; //element 0 is ignored
 
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
-    if (!add_constraint(lp, rowbuffer, EQ, cpuCount*period)) fatal("Couldn't add sum constraint");
+    //if (!add_constraint(lp, rowbuffer, EQ, cpuCount*period)) fatal("Couldn't add sum constraint");
+	if (!add_constraint(lp, rowbuffer, LE, measurements->maxRequestRate)) fatal("Couldn't add sum constraint");
 
     for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
     set_obj_fn(lp, rowbuffer);
 
-    for(int i=1;i<=cpuCount;i++) set_lowbo(lp, i, aloneCycles[i-1]);
+    for(int i=1;i<=cpuCount;i++){
+    	double upbo = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
+    	set_upbo(lp, i, upbo);
+    }
 
     set_maxim(lp);
 
@@ -181,10 +185,10 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
     solve(lp);
 
-    int intsum = (int) floor(get_var_primalresult(lp, 1) + 0.5);
-    if(intsum != cpuCount*period){
-    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*period);
-    }
+//    int intsum = (int) floor(get_var_primalresult(lp, 1) + 0.5);
+//    if(intsum != cpuCount*period){
+//    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*period);
+//    }
 
     vector<double> retval = vector<double>(cpuCount, 0.0);
     for(int i=0;i<cpuCount;i++){
@@ -287,9 +291,16 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	vector<double> xvals = vector<double>(cpuCount, period);
+	//vector<double> xvals = vector<double>(cpuCount, period);
+	vector<double> xvals = vector<double>(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++) xvals[i] = (double) measurements->perCoreCacheMeasurements[i].readMisses / (double) period;
+
 	vector<double> xstar = vector<double>(cpuCount, 0.0);
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+
+	traceVector("Initial xvector is: ", xvals);
+	traceVector("Initial gradient is: ", thisGradient);
+
 	if(doVerification) traceSearch(xvals);
 	int cutoff = 0;
 	bool quitForCutoff = false;
@@ -306,49 +317,25 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		if(doVerification) traceSearch(xvals);
 
 		cutoff++;
-		if(cutoff > 5000){
+		if(cutoff > 100){ // FIXME: set back to 5000
 			warn("Linear programming technique solution did not converge\n");
 			quitForCutoff = true;
 		}
 	}
 
-	double sum = 0.0;
-	for(int i=0;i<cpuCount;i++){
-		optimalPeriods[i] = xvals[i];
-		sum += xvals[i];
-	}
+	traceVector("Optimal request rates are: ", xvals);
 
-	int intsum = (int) floor(sum + 0.5);
-	if(intsum != cpuCount*period){
-		fatal("Sum of optimal periods %d does not satisfy constraint (should be %d)", intsum, cpuCount*period);
-	}
+	// FIXME: may want to implement throttle limit here
+//	for(int i=0;i<optimalPeriods.size();i++){
+//		optimalRequestRates[i] = getTotalMisses(i,measurements) / optimalPeriods[i];
+//		if(optimalRequestRates[i] < throttleLimit){
+//			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d\n", i, optimalRequestRates[i], throttleLimit);
+//			optimalRequestRates[i] = throttleLimit;
+//		}
+//
+//	}
 
-
-	double bwsum = 0.0;
-	for(int i=0;i<cpuCount;i++){
-		optimalBWShares[i] = optimalPeriods[i] / (double) (cpuCount* period);
-		bwsum += optimalBWShares[i];
-	}
-	assert(floor(bwsum+0.5) == 1);
-	traceVector("Optimal bandwidth shares: ", optimalBWShares);
-
-	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
-
-	assert(optimalPeriods.size() == optimalRequestRates.size());
-	for(int i=0;i<optimalPeriods.size();i++){
-		optimalRequestRates[i] = getTotalMisses(i,measurements) / optimalPeriods[i];
-		if(optimalRequestRates[i] < throttleLimit){
-			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d\n", i, optimalRequestRates[i], throttleLimit);
-			optimalRequestRates[i] = throttleLimit;
-		}
-
-	}
-
-	traceVector("Got optimal periods: ", optimalPeriods);
-	traceVector("Request count: ", measurements->requestsInSample);
-	traceVector("Returning optimal request rates: ", optimalRequestRates);
-
-	return optimalRequestRates;
+	return xvals;
 }
 
 void
@@ -441,21 +428,24 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 	DataDump dumpvals = DataDump("throttling-data-dump.txt");
 	if(cpuCount > 1){
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-arrival-rates", i), optimalArrivalRates[i]);
-		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
+		//for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-periods", i), (int) optimalPeriods[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-throttles", i), 1.0 / optimalArrivalRates[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("optimal-bw-shares", i), optimalBWShares[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-cycles", i), RequestTraceEntry(aloneCycles[i]));
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alpha", i), measurements->alphas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("beta", i), measurements->betas[i]);
 		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("cache-misses", i), measurements->perCoreCacheMeasurements[i].readMisses);
+		for(int i=0;i<cpuCount;i++) dumpvals.addElement(DataDump::buildKey("alone-req-rates", i), (double) measurements->perCoreCacheMeasurements[i].readMisses / aloneCycles[i]);
 
+		vector<double> measuredReqRates = vector<double>(cpuCount, 0.0);
 		for(int i=0;i<cpuCount;i++){
-			dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), getTotalMisses(i, measurements) / (double) curTick);
+			measuredReqRates[i] = getTotalMisses(i, measurements) / (double) curTick;
+			dumpvals.addElement(DataDump::buildKey("measured-request-rate", i), measuredReqRates[i]);
 		}
 
-		vector<double> tmpPeriods = vector<double>(cpuCount, (double) period);
-		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, tmpPeriods, aloneCycles));
-		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
+		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, measuredReqRates, aloneCycles));
+		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalArrivalRates, aloneCycles));
+		dumpvals.addElement("max-bus-request-rate", measurements->maxRequestRate);
 	}
 
 
