@@ -20,6 +20,7 @@ private:
 	vector<double> optimalBWShares;
 
 	RequestTrace throttleTrace;
+	RequestTrace modelValueTrace;
 	RequestTrace modelSearchTrace;
 	int searchItemNum;
 
@@ -70,6 +71,9 @@ private:
 
 	void initSearchTrace(int np);
 	void traceSearch(std::vector<double> xvec);
+
+	void initModelValueTrace(int np);
+	void traceModelValues(PerformanceMeasurement* measurements);
 
 	void dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 

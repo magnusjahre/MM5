@@ -40,6 +40,9 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
 
+	modelValueTrace = RequestTrace(_name, "ModelValueTrace", 1);
+	initModelValueTrace(_cpuCount);
+
 	if(_implStrategy == "nfq"){
 		implStrat = BW_IMPL_NFQ;
 	}
@@ -97,6 +100,8 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	else{
 		assert(doVerification);
 	}
+
+	traceModelValues(&measurements);
 
 	if(doVerification){
 		dumpVerificationData(&measurements, optimalArrivalRates);
@@ -387,6 +392,28 @@ ModelThrottlingPolicy::traceSearch(std::vector<double> xvec){
 	for(int i=1;i<=xvec.size();i++) vals[i] = xvec[i-1];
 	modelSearchTrace.addTrace(vals);
 	searchItemNum++;
+}
+
+void
+ModelThrottlingPolicy::initModelValueTrace(int np){
+	vector<string> headers;
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alpha", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("beta", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alone", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("optimal-period", i));
+	headers.push_back("optimal-metric-value");
+	modelValueTrace.initalizeTrace(headers);
+}
+
+void
+ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements){
+	vector<RequestTraceEntry> vals;
+	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->alphas[i]);
+	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->betas[i]);
+	for(int i=0;i<cpuCount;i++) vals.push_back(aloneCycles[i]);
+	for(int i=0;i<cpuCount;i++) vals.push_back(optimalPeriods[i]);
+	vals.push_back(performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
+	modelValueTrace.addTrace(vals);
 }
 
 void
