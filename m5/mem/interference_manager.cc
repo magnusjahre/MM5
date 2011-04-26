@@ -99,7 +99,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 		stringstream mtitle;
 		mtitle << "CPU" << i << "MissTrace";
-		aloneMissTrace[i] = RequestTrace(mtitle.str(), "");
+		aloneMissTrace[i] = RequestTrace(mtitle.str(), "", 1);
 
 		vector<string> mTraceHeaders;
 		mTraceHeaders.push_back("Requests");
