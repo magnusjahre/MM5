@@ -25,7 +25,6 @@ private:
 	int searchItemNum;
 
 	bool doVerification;
-	double throttleLimit;
 
 	enum BWImplStrat{
 		BW_IMPL_NFQ,
@@ -73,7 +72,7 @@ private:
 	void traceSearch(std::vector<double> xvec);
 
 	void initModelValueTrace(int np);
-	void traceModelValues(PerformanceMeasurement* measurements);
+	void traceModelValues(PerformanceMeasurement* measurements, vector<double> optimalRates);
 
 	void dumpVerificationData(PerformanceMeasurement* measurements, std::vector<double> optimalArrivalRates);
 

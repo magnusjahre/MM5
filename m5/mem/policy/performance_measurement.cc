@@ -285,7 +285,7 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	//double w = n * avgBusServiceCycles * thisMisses;
 	double w = n * avgBusServiceCycles;
 
-	alphas[cpuID] = overlap * w;
+	alphas[cpuID] = (overlap * w) / (double) period;
 
 	DPRINTF(MissBWPolicy, "Estimated average queue size is %f, average queue latency is %f, actual is e=%f+q=%f=%f for CPU %d\n",
 			n / (double) period,

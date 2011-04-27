@@ -35,8 +35,6 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	optimalPeriods.resize(_cpuCount, 0.0);
 	optimalBWShares = vector<double>(cpuCount, 0.0);
 
-	throttleLimit = 1.0 / 10000.0; //FIXME: parameterize
-
 	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
 	initThrottleTrace(_cpuCount);
 
@@ -97,7 +95,7 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 			fatal("Unknown bandwidth allocation implementation strategy");
 		}
 
-		traceModelValues(&measurements);
+		traceModelValues(&measurements, optimalArrivalRates);
 	}
 	else{
 		assert(doVerification);
@@ -184,11 +182,6 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
     print_lp(lp);
 
     solve(lp);
-
-//    int intsum = (int) floor(get_var_primalresult(lp, 1) + 0.5);
-//    if(intsum != cpuCount*period){
-//    	fatal("Constraint constant %d does not satisfy constraint after LP-solve (should be %d)", intsum, cpuCount*period);
-//    }
 
     vector<double> retval = vector<double>(cpuCount, 0.0);
     for(int i=0;i<cpuCount;i++){
@@ -291,9 +284,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	//vector<double> xvals = vector<double>(cpuCount, period);
 	vector<double> xvals = vector<double>(cpuCount, 0.0);
-	for(int i=0;i<cpuCount;i++) xvals[i] = (double) measurements->perCoreCacheMeasurements[i].readMisses / (double) period;
 
 	vector<double> xstar = vector<double>(cpuCount, 0.0);
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
@@ -317,23 +308,13 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		if(doVerification) traceSearch(xvals);
 
 		cutoff++;
-		if(cutoff > 100){ // FIXME: set back to 5000
+		if(cutoff > 5000){
 			warn("Linear programming technique solution did not converge\n");
 			quitForCutoff = true;
 		}
 	}
 
 	traceVector("Optimal request rates are: ", xvals);
-
-	// FIXME: may want to implement throttle limit here
-//	for(int i=0;i<optimalPeriods.size();i++){
-//		optimalRequestRates[i] = getTotalMisses(i,measurements) / optimalPeriods[i];
-//		if(optimalRequestRates[i] < throttleLimit){
-//			DPRINTF(MissBWPolicy, "Throttle for CPU %d is high %f, setting to limit val %d\n", i, optimalRequestRates[i], throttleLimit);
-//			optimalRequestRates[i] = throttleLimit;
-//		}
-//
-//	}
 
 	return xvals;
 }
@@ -387,19 +368,19 @@ ModelThrottlingPolicy::initModelValueTrace(int np){
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alpha", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("beta", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alone", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("optimal-period", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("optimal-req-rate", i));
 	headers.push_back("optimal-metric-value");
 	modelValueTrace.initalizeTrace(headers);
 }
 
 void
-ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements){
+ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements, vector<double> optimalRates){
 	vector<RequestTraceEntry> vals;
 	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->alphas[i]);
 	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->betas[i]);
 	for(int i=0;i<cpuCount;i++) vals.push_back(aloneCycles[i]);
-	for(int i=0;i<cpuCount;i++) vals.push_back(optimalPeriods[i]);
-	vals.push_back(performanceMetric->computeFunction(measurements, optimalPeriods, aloneCycles));
+	for(int i=0;i<cpuCount;i++) vals.push_back(optimalRates[i]);
+	vals.push_back(performanceMetric->computeFunction(measurements, optimalRates, aloneCycles));
 	modelValueTrace.addTrace(vals);
 }
 
