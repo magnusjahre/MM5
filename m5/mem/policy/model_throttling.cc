@@ -316,6 +316,22 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	traceVector("Optimal request rates are: ", xvals);
 
+	double allocsum = 0.0;
+	for(int i=0;i<xvals.size();i++) allocsum += xvals[i];
+
+	double threshold = 0.95; //FIXME: parameterize
+	if(allocsum < (measurements->maxRequestRate * threshold)){
+		DPRINTF(MissBWPolicy, "Sum of allocations %f is less than %f of maximum %f (%f), no allocations needed\n",
+				allocsum,
+				threshold,
+				measurements->maxRequestRate,
+				measurements->maxRequestRate * threshold);
+		for(int i=0;i<xvals.size();i++) xvals[i] = -1.0;
+	}
+
+	traceVector("Final allocation is: ", xvals);
+
+
 	return xvals;
 }
 

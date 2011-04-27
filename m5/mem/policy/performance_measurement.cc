@@ -300,8 +300,15 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 void
 PerformanceMeasurement::setBandwidthBound(){
-	assert(avgBusServiceCycles > 0.0); // this will fail
-	double maxRate = 1/avgBusServiceCycles;
+
+	double useAvgBusCycles = avgBusServiceCycles;
+	if(avgBusServiceCycles == 0.0){
+		DPRINTF(MissBWPolicy, "No requests in previous sample, falling back to 120 clock cycles\n");
+		useAvgBusCycles = 120.0;
+	}
+
+	assert(useAvgBusCycles > 0.0);
+	double maxRate = 1/useAvgBusCycles;
 	DPRINTF(MissBWPolicy, "Estimated maximum request rate the bus can handle is %f\n", maxRate);
 
 	double uncontrollableMisses = 0.0;
