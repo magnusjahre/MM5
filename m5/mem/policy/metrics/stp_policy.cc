@@ -114,9 +114,16 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 	vector<double> gradient = vector<double>(np, 0.0);
 
 	for(int i=0;i<np;i++){
-		double numerator = aloneCycles[i] * measurements->alphas[i];
-		double denominator = measurements->getPeriod() * measurements->betas[i];
-		gradient[i] = numerator/denominator;
+		assert(measurements->betas[i] >= 0);
+		if(measurements->betas[i] == 0){
+			gradient[i] = 0;
+		}
+		else{
+			assert(measurements->alphas[i] >= 0);
+			double numerator = aloneCycles[i] * measurements->alphas[i];
+			double denominator = measurements->getPeriod() * measurements->betas[i];
+			gradient[i] = numerator/denominator;
+		}
 	}
 
 	return gradient;

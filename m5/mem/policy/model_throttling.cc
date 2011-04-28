@@ -73,6 +73,8 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(currentMeasurements == NULL);
 	currentMeasurements = &measurements;
 
+	assert(measurements.getPeriod() == period);
+
 	updateMWSEstimates();
 	updateAloneIPCEstimate();
 	measurements.computedOverlap = computedOverlap;
@@ -292,6 +294,14 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	traceVector("Initial xvector is: ", xvals);
 	traceVector("Initial gradient is: ", thisGradient);
 
+	double gradsum = 0;
+	for(int i=0;i<thisGradient.size();i++) gradsum += thisGradient[i];
+	if(gradsum == 0){
+		DPRINTF(MissBWPolicy, "All gradient values are zero, returning no allocation\n");
+		return vector<double>(cpuCount, -1.0);
+	}
+
+
 	if(doVerification) traceSearch(xvals);
 	int cutoff = 0;
 	bool quitForCutoff = false;
@@ -316,8 +326,17 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	traceVector("Optimal request rates are: ", xvals);
 
+	double minimalAllocation = 1.0 / 5000.0; //FIXME: parameterize
 	double allocsum = 0.0;
-	for(int i=0;i<xvals.size();i++) allocsum += xvals[i];
+	for(int i=0;i<xvals.size();i++){
+		assert(xvals[i] >= 0);
+		allocsum += xvals[i];
+
+		if(xvals[i] < minimalAllocation){
+			DPRINTF(MissBWPolicy, "CPU %d got allocation %f, increasing to minimum alloc %f\n", i, xvals[i], minimalAllocation);
+			xvals[i] = minimalAllocation;
+		}
+	}
 
 	double threshold = 0.95; //FIXME: parameterize
 	if(allocsum < (measurements->maxRequestRate * threshold)){
@@ -330,7 +349,6 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	}
 
 	traceVector("Final allocation is: ", xvals);
-
 
 	return xvals;
 }
