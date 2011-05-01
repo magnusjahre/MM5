@@ -128,6 +128,10 @@ class Bus : public BaseHier
     bool doRequestQueueTrace;
     RequestTrace queueSizeTrace;
 
+    RequestTrace bandwidthTrace;
+    Tick bandwidthMesCycles;
+    int bandwidthMesData;
+
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -364,6 +368,8 @@ class Bus : public BaseHier
     void traceQueuedRequests(bool requestAdded);
 
     virtual void setBandwidthQuotas(std::vector<double> quotas);
+
+    void traceBandwidth();
 
   private:
     std::vector<int> perCPUDataBusUse;
@@ -686,6 +692,27 @@ class MemoryBusQueuedReqEvent : public Event
      */
     virtual const char *description(){
         return "Memory Controller Queued Requests Event";
+    }
+};
+
+class MemoryBusBandwidthTraceEvent : public Event
+{
+    Bus *bus;
+    int frequency;
+
+    public:
+    MemoryBusBandwidthTraceEvent(Bus *_bus, int _frequency)
+        : Event(&mainEventQueue), bus(_bus), frequency(_frequency)
+    {
+    }
+
+    void process(){
+        bus->traceBandwidth();
+        schedule(curTick+frequency);
+    }
+
+    virtual const char *description(){
+        return "Memory Bus Bandwidth Trace Event";
     }
 };
 

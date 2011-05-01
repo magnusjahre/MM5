@@ -186,6 +186,17 @@ Bus::Bus(const string &_name,
     headers.push_back("Queued Requests");
     queueSizeTrace.initalizeTrace(headers);
 
+    bandwidthMesCycles = 0;
+    bandwidthMesData = 0;
+    bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
+    vector<string> headers2;
+    headers2.push_back("Measured Bandwidth");
+    bandwidthTrace.initalizeTrace(headers);
+
+    Tick bwtracefreq = 100000;//FIXME: parameterize
+    MemoryBusBandwidthTraceEvent* bwte = new MemoryBusBandwidthTraceEvent(this, bwtracefreq);
+    bwte->schedule(bwtracefreq);
+
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
     file << "";
@@ -615,6 +626,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->cmd != Activate && req->cmd != Close){
 
     	traceQueuedRequests(false);
+    	bandwidthMesCycles += (time - curTick);
+    	bandwidthMesData += 1;
 
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
@@ -966,6 +979,16 @@ Bus::sendGeneratedRequest(MemReqPtr& req){
 	if (!memoryControllerEvent->scheduled()) {
 		memoryControllerEvent->schedule(curTick);
 	}
+}
+
+void
+Bus::traceBandwidth(){
+	vector<RequestTraceEntry> data;
+	data.push_back((double) bandwidthMesData / (double) bandwidthMesCycles);
+	bandwidthTrace.addTrace(data);
+
+	bandwidthMesData = 0;
+	bandwidthMesCycles = 0;
 }
 
 int
