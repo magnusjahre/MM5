@@ -166,6 +166,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 	req->ringBaselineTransLat = r->ringBaselineTransLat;
 	req->isSWPrefetch = r->isSWPrefetch;
 	req->nfqWBID = r->nfqWBID;
+	req->isSharedWB = r->isSharedWB;
 
 	req->latencyBreakdown = r->latencyBreakdown;
 	req->interferenceBreakdown = r->interferenceBreakdown;
@@ -264,6 +265,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 	to->ringBaselineTransLat = from->ringBaselineTransLat;
 	to->isSWPrefetch = from->isSWPrefetch;
 	to->nfqWBID = from->nfqWBID;
+	to->isSharedWB = from->isSharedWB;
 
 	to->latencyBreakdown = from->latencyBreakdown;
 	to->interferenceBreakdown = from->interferenceBreakdown;

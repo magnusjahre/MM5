@@ -73,6 +73,7 @@ class DataArbiterEvent;
 class ForwardEvent;
 class DeliverEvent;
 class MemoryControllerEvent;
+class MemoryBusTraceData;
 
 template <class BusType> class BusInterface;
 class AdaptiveMHA;
@@ -128,9 +129,8 @@ class Bus : public BaseHier
     bool doRequestQueueTrace;
     RequestTrace queueSizeTrace;
 
-    RequestTrace bandwidthTrace;
-    Tick bandwidthMesCycles;
-    int bandwidthMesData;
+    MemoryBusTraceData* bandwidthTraceData;
+
 
   public:
     /** Width of the bus in bytes. */
@@ -714,6 +714,27 @@ class MemoryBusBandwidthTraceEvent : public Event
     virtual const char *description(){
         return "Memory Bus Bandwidth Trace Event";
     }
+};
+
+class MemoryBusTraceData{
+private:
+	Tick totalCycles;
+
+	int totalData;
+    int readData;
+    int privWbData;
+    int shWbData;
+
+    RequestTrace bandwidthTrace;
+
+    void reset();
+
+public:
+	MemoryBusTraceData(std::string _name);
+
+	void addData(MemReqPtr& req, Tick time);
+
+	void writeTraceLine();
 };
 
 #endif // __BUS_HH__

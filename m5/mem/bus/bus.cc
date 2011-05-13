@@ -186,12 +186,7 @@ Bus::Bus(const string &_name,
     headers.push_back("Queued Requests");
     queueSizeTrace.initalizeTrace(headers);
 
-    bandwidthMesCycles = 0;
-    bandwidthMesData = 0;
-    bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
-    vector<string> headers2;
-    headers2.push_back("Measured Bandwidth");
-    bandwidthTrace.initalizeTrace(headers);
+    bandwidthTraceData = new MemoryBusTraceData(_name);
 
     Tick bwtracefreq = 100000;//FIXME: parameterize
     MemoryBusBandwidthTraceEvent* bwte = new MemoryBusBandwidthTraceEvent(this, bwtracefreq);
@@ -229,6 +224,7 @@ Bus::Bus(const string &_name,
 Bus::~Bus()
 {
     delete memoryControllerEvent;
+    delete bandwidthTraceData;
 }
 
 /* register bus stats */
@@ -626,8 +622,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->cmd != Activate && req->cmd != Close){
 
     	traceQueuedRequests(false);
-    	bandwidthMesCycles += (time - curTick);
-    	bandwidthMesData += 1;
+    	bandwidthTraceData->addData(req, time);
 
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
@@ -983,12 +978,7 @@ Bus::sendGeneratedRequest(MemReqPtr& req){
 
 void
 Bus::traceBandwidth(){
-	vector<RequestTraceEntry> data;
-	data.push_back((double) bandwidthMesData / (double) bandwidthMesCycles);
-	bandwidthTrace.addTrace(data);
-
-	bandwidthMesData = 0;
-	bandwidthMesCycles = 0;
+	bandwidthTraceData->writeTraceLine();
 }
 
 int
@@ -1284,6 +1274,59 @@ Bus::setBandwidthQuotas(std::vector<double> quotas){
 	memoryController->setBandwidthQuotas(quotas);
 }
 
+MemoryBusTraceData::MemoryBusTraceData(std::string _name){
+    bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
+    vector<string> headers;
+    headers.push_back("Total Bandwidth");
+    headers.push_back("Read Bandwidth");
+    headers.push_back("Private Writeback Bandwidth");
+    headers.push_back("Shared Writeback Bandwidth");
+    bandwidthTrace.initalizeTrace(headers);
+
+    reset();
+}
+
+void
+MemoryBusTraceData::addData(MemReqPtr& req, Tick time){
+	int size = 1; // might want to use bytes as the unit instead of requests
+
+	totalCycles += (time - curTick);;
+	totalData += size;
+
+	if(req->cmd == Read) readData += size;
+	else if(req->cmd == Writeback){
+		if(req->isSharedWB) shWbData += size;
+		else privWbData += size;
+	}
+	else{
+		fatal("Cannot trace request, command not handled");
+	}
+}
+
+void
+MemoryBusTraceData::writeTraceLine(){
+
+	assert(totalData == readData + privWbData + shWbData);
+
+	vector<RequestTraceEntry> data;
+	data.push_back( totalCycles == 0 ? 0 : (double) totalData / (double) totalCycles);
+	data.push_back( totalCycles == 0 ? 0 : (double) readData / (double) totalCycles);
+	data.push_back( totalCycles == 0 ? 0 : (double) privWbData / (double) totalCycles);
+	data.push_back( totalCycles == 0 ? 0 : (double) shWbData / (double) totalCycles);
+	bandwidthTrace.addTrace(data);
+
+	reset();
+}
+
+void
+MemoryBusTraceData::reset(){
+	totalData = 0;
+	readData = 0;
+	privWbData = 0;
+	shWbData = 0;
+
+	totalCycles = 0;
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
