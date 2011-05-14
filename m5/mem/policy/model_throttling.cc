@@ -326,15 +326,15 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	traceVector("Optimal request rates are: ", xvals);
 
-	double minimalAllocation = 1.0 / 5000.0; //FIXME: parameterize
+	double minimalAllocation = 1.0 / 2000.0; //FIXME: parameterize
 	double allocsum = 0.0;
 	for(int i=0;i<xvals.size();i++){
 		assert(xvals[i] >= 0);
 		allocsum += xvals[i];
 
 		if(xvals[i] < minimalAllocation){
-			DPRINTF(MissBWPolicy, "CPU %d got allocation %f, increasing to minimum alloc %f\n", i, xvals[i], minimalAllocation);
-			xvals[i] = minimalAllocation;
+			DPRINTF(MissBWPolicy, "CPU %d got allocation %f, not enforcing for this CPU\n", i, xvals[i]);
+			xvals[i] = -1.0;
 		}
 	}
 
