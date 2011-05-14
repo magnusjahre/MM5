@@ -719,18 +719,25 @@ class MemoryBusBandwidthTraceEvent : public Event
 class MemoryBusTraceData{
 private:
 	Tick totalCycles;
+	int np;
 
 	int totalData;
-    int readData;
-    int privWbData;
-    int shWbData;
+	int readData;
+	int privWbData;
+	int shWbData;
+
+
+	std::vector<int> totalPerCPUData;
+	std::vector<int> readPerCPUData;
+	std::vector<int> privWbPerCPUData;
+	std::vector<int> shWbPerCPUData;
 
     RequestTrace bandwidthTrace;
 
     void reset();
 
 public:
-	MemoryBusTraceData(std::string _name);
+	MemoryBusTraceData(std::string _name, int _np);
 
 	void addData(MemReqPtr& req, Tick time);
 

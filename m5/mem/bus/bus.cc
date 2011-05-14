@@ -186,9 +186,9 @@ Bus::Bus(const string &_name,
     headers.push_back("Queued Requests");
     queueSizeTrace.initalizeTrace(headers);
 
-    bandwidthTraceData = new MemoryBusTraceData(_name);
+    bandwidthTraceData = new MemoryBusTraceData(_name, _cpu_count);
 
-    Tick bwtracefreq = 100000;//FIXME: parameterize
+    Tick bwtracefreq = 1000000;//FIXME: parameterize
     MemoryBusBandwidthTraceEvent* bwte = new MemoryBusBandwidthTraceEvent(this, bwtracefreq);
     bwte->schedule(bwtracefreq);
 
@@ -1274,13 +1274,24 @@ Bus::setBandwidthQuotas(std::vector<double> quotas){
 	memoryController->setBandwidthQuotas(quotas);
 }
 
-MemoryBusTraceData::MemoryBusTraceData(std::string _name){
+MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
+
+	np = _np;
+
     bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
     vector<string> headers;
     headers.push_back("Total Bandwidth");
     headers.push_back("Read Bandwidth");
     headers.push_back("Private Writeback Bandwidth");
     headers.push_back("Shared Writeback Bandwidth");
+
+    for(int i=0;i<_np;i++){
+    	headers.push_back(RequestTrace::buildTraceName("Total Bandwidth CPU", i));
+    	headers.push_back(RequestTrace::buildTraceName("Read Bandwidth CPU", i));
+    	headers.push_back(RequestTrace::buildTraceName("Private Writeback Bandwidth CPU", i));
+    	headers.push_back(RequestTrace::buildTraceName("Shared Writeback Bandwidth CPU", i));
+    }
+
     bandwidthTrace.initalizeTrace(headers);
 
     reset();
@@ -1288,15 +1299,27 @@ MemoryBusTraceData::MemoryBusTraceData(std::string _name){
 
 void
 MemoryBusTraceData::addData(MemReqPtr& req, Tick time){
+
+	assert(req->adaptiveMHASenderID != -1);
 	int size = 1; // might want to use bytes as the unit instead of requests
 
 	totalCycles += (time - curTick);;
 	totalData += size;
+	totalPerCPUData[req->adaptiveMHASenderID] += size;
 
-	if(req->cmd == Read) readData += size;
+	if(req->cmd == Read){
+		readData += size;
+		readPerCPUData[req->adaptiveMHASenderID] += size;
+	}
 	else if(req->cmd == Writeback){
-		if(req->isSharedWB) shWbData += size;
-		else privWbData += size;
+		if(req->isSharedWB){
+			shWbData += size;
+			shWbPerCPUData[req->adaptiveMHASenderID] += size;
+		}
+		else{
+			privWbData += size;
+			privWbPerCPUData[req->adaptiveMHASenderID] += size;
+		}
 	}
 	else{
 		fatal("Cannot trace request, command not handled");
@@ -1307,12 +1330,23 @@ void
 MemoryBusTraceData::writeTraceLine(){
 
 	assert(totalData == readData + privWbData + shWbData);
+	for(int i=0;i<np;i++){
+		assert(totalPerCPUData[i] == readPerCPUData[i] + privWbPerCPUData[i] + shWbPerCPUData[i]);
+	}
 
 	vector<RequestTraceEntry> data;
 	data.push_back( totalCycles == 0 ? 0 : (double) totalData / (double) totalCycles);
 	data.push_back( totalCycles == 0 ? 0 : (double) readData / (double) totalCycles);
 	data.push_back( totalCycles == 0 ? 0 : (double) privWbData / (double) totalCycles);
 	data.push_back( totalCycles == 0 ? 0 : (double) shWbData / (double) totalCycles);
+
+	for(int i=0;i<np;i++){
+		data.push_back( totalCycles == 0 ? 0 : (double) totalPerCPUData[i] / (double) totalCycles);
+		data.push_back( totalCycles == 0 ? 0 : (double) readPerCPUData[i] / (double) totalCycles);
+		data.push_back( totalCycles == 0 ? 0 : (double) privWbPerCPUData[i] / (double) totalCycles);
+		data.push_back( totalCycles == 0 ? 0 : (double) shWbPerCPUData[i] / (double) totalCycles);
+	}
+
 	bandwidthTrace.addTrace(data);
 
 	reset();
@@ -1324,6 +1358,11 @@ MemoryBusTraceData::reset(){
 	readData = 0;
 	privWbData = 0;
 	shWbData = 0;
+
+	totalPerCPUData = vector<int>(np, 0);
+	readPerCPUData = vector<int>(np, 0);
+	privWbPerCPUData = vector<int>(np, 0);
+	shWbPerCPUData = vector<int>(np, 0);
 
 	totalCycles = 0;
 }
