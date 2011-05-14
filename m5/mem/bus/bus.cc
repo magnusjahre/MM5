@@ -1300,24 +1300,25 @@ MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
 void
 MemoryBusTraceData::addData(MemReqPtr& req, Tick time){
 
-	assert(req->adaptiveMHASenderID != -1);
 	int size = 1; // might want to use bytes as the unit instead of requests
 
 	totalCycles += (time - curTick);;
 	totalData += size;
-	totalPerCPUData[req->adaptiveMHASenderID] += size;
+	if(req->adaptiveMHASenderID != -1) totalPerCPUData[req->adaptiveMHASenderID] += size;
 
 	if(req->cmd == Read){
 		readData += size;
+		assert(req->adaptiveMHASenderID != -1);
 		readPerCPUData[req->adaptiveMHASenderID] += size;
 	}
 	else if(req->cmd == Writeback){
 		if(req->isSharedWB){
 			shWbData += size;
-			shWbPerCPUData[req->adaptiveMHASenderID] += size;
+			if(req->adaptiveMHASenderID != -1) shWbPerCPUData[req->adaptiveMHASenderID] += size;
 		}
 		else{
 			privWbData += size;
+			assert(req->adaptiveMHASenderID != -1);
 			privWbPerCPUData[req->adaptiveMHASenderID] += size;
 		}
 	}

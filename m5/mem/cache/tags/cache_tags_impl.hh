@@ -589,6 +589,7 @@ CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
     if(!cache->isShared){
         cache->setSenderID(writeback);
     }
+
     writeback->isSharedWB = cache->isShared;
 
     blk->status &= ~BlkDirty;

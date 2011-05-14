@@ -726,7 +726,6 @@ private:
 	int privWbData;
 	int shWbData;
 
-
 	std::vector<int> totalPerCPUData;
 	std::vector<int> readPerCPUData;
 	std::vector<int> privWbPerCPUData;
