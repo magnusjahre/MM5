@@ -1115,8 +1115,8 @@ FullCPU::issue()
     unsigned current_fu_pool = issue_starting_fu_pool;
 
     //  Increment the last_iq index (RR fashion) for next cycle
-    issue_starting_iqueue = (++issue_starting_iqueue % numIQueues);
-    issue_starting_fu_pool = (++issue_starting_fu_pool % numFUPools);
+    issue_starting_iqueue = (issue_starting_iqueue+1) % numIQueues;
+    issue_starting_fu_pool = (issue_starting_fu_pool+1) % numFUPools;
 
 
     // visit all ready instructions (i.e., insts whose register input
@@ -1129,7 +1129,7 @@ FullCPU::issue()
     //  Check to see if we need to change HP thread
     //
     if (prioritize_issue && (hp_thread_change <= curTick)) {
-	hp_thread = ++hp_thread % number_of_threads;
+	hp_thread = (hp_thread+1) % number_of_threads;
 
 	// schedule the next change
 	hp_thread_change = curTick + issue_thread_weights[hp_thread];
@@ -1666,7 +1666,7 @@ FullCPU::issue()
 
 		//  each load attempts to issue to the "next" pool
 		issue_current_fupool_for_sb
-		    = (++issue_current_fupool_for_sb % numFUPools);
+		    = (issue_current_fupool_for_sb+1) % numFUPools;
 
 		++sb_count;
 	    } else {

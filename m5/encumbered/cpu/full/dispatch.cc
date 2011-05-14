@@ -1074,7 +1074,8 @@ FullCPU::dispatch_thread(unsigned thread, unsigned iq_idx, unsigned max,
 			if ((rob != 0) &&
 			    ((dispatch_count[thread]) % MODULO_VAL))
 			{
-			    mod_n_queue_idx = ++mod_n_queue_idx % numIQueues;
+
+			    mod_n_queue_idx = (mod_n_queue_idx+1) % numIQueues;
 			    if (!using_loose_mod_n) {
 				iq_idx = mod_n_queue_idx;
 				first_idx = iq_idx;
@@ -1409,7 +1410,7 @@ FullCPU::choose_decode_thread()
 
     //  Use a Round-Robin approach to decide where to start
     unsigned t = first_decode_thread;
-    first_decode_thread = ++first_decode_thread % number_of_threads;
+    first_decode_thread = (first_decode_thread+1) % number_of_threads;
 
     unsigned first = t;
 

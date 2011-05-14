@@ -146,7 +146,7 @@ SchedList<T>::advance(void)
     ClearEntry(data_array[position]);
 
     //    position = (++position % size);
-    position = ++position & mask;
+    position = (position+1) & mask;
 }
 
 
