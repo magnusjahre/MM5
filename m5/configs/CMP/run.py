@@ -298,7 +298,8 @@ def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):
     if "CACHE-THROTLING-POLICY" in env:
         root.sharedCacheThrottle.throttling_policy = env["CACHE-THROTLING-POLICY"]
     
-    root.globalPolicy.sharedCacheThrottle = root.sharedCacheThrottle
+    if useMissBWPolicy:
+        root.globalPolicy.sharedCacheThrottle = root.sharedCacheThrottle
     
     assert 'MEMORY-BUS-CHANNELS' in env
     assert bankcnt >= int(env['MEMORY-BUS-CHANNELS'])
@@ -925,7 +926,8 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
     root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
     root.PrivateL2Throttles = [ThrottleControl(cpu_count=int(env['NP']), cache_cpu_id=i, cache_type="private") for i in range(env['NP'])]
     
-    root.globalPolicy.privateCacheThrottles = root.PrivateL2Throttles
+    if useMissBWPolicy:
+        root.globalPolicy.privateCacheThrottles = root.PrivateL2Throttles
     
     for i in range(env['NP']):
         root.PrivateL2Cache[i].in_interconnect = root.PointToPointLink[i]
