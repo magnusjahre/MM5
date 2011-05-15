@@ -151,7 +151,7 @@ ThrottleControl::useAveragePolicy(Tick time, int cpuid){
 Tick
 ThrottleControl::useTokenPolicy(Tick time, int cpuid){
 
-        int cyclesBetweenRequests = (int) (1.0/targetRequestRate[cpuid]);
+	int cyclesBetweenRequests = (int) (1.0/targetRequestRate[cpuid]);
 	if(tokenRunLast[cpuid] < time){
 
 		Tick cyclesSinceLast = time - tokenRunLast[cpuid];
@@ -179,6 +179,9 @@ ThrottleControl::setTargetArrivalRate(vector<double> newRates){
 		targetRequestRate[i] = newRates[i];
 		measuredArrivalRate[i] = 0.0;
 		arrivalRateRequests[i] = 0;
+
+		tokens[i] = 0;
+		tokenRunLast[i] = curTick;
 	}
 	allocationSetAt = curTick;
 }
