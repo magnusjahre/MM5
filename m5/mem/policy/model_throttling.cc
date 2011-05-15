@@ -363,7 +363,7 @@ ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation){
 		}
 
 		traceVector("Optimal cycles per request: ", cyclesPerReq);
-		traceThrottling(cyclesPerReq);
+		traceThrottling(allocation, cyclesPerReq);
 
 		traceVector("Setting memory bus arrival rates to:", allocation);
 		sharedCacheThrottle->setTargetArrivalRate(allocation);
@@ -421,14 +421,16 @@ ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements, ve
 void
 ModelThrottlingPolicy::initThrottleTrace(int np){
 	vector<string> headers;
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Cycles between req CPU", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Arrival Rate CPU", i));
 	throttleTrace.initalizeTrace(headers);
 }
 
 void
-ModelThrottlingPolicy::traceThrottling(std::vector<double> throttles){
-	vector<RequestTraceEntry> vals = vector<RequestTraceEntry>(throttles.size(), 0);
-	for(int i=0;i<throttles.size();i++) vals[i] = (int) throttles[i];
+ModelThrottlingPolicy::traceThrottling(std::vector<double> allocation, std::vector<double> throttles){
+	vector<RequestTraceEntry> vals;
+	for(int i=0;i<throttles.size();i++) vals.push_back(throttles[i]);
+	for(int i=0;i<throttles.size();i++) vals.push_back(allocation[i]);
 	throttleTrace.addTrace(vals);
 }
 
