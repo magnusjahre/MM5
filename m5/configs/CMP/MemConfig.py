@@ -371,6 +371,10 @@ class ReadyFirstMemoryController(RDFCFSMemoryController):
 class InOrderMemoryController(FCFSMemoryController):
     queue_size = 128
     
+class FixedBandwidthController(FixedBandwidthMemoryController):
+    queue_size = 32
+    cpu_count = int(env['NP'])
+    
 class FairNFQMemoryController(NFQMemoryController):
     rd_queue_size = 64
     wr_queue_size = 64

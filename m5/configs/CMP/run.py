@@ -151,6 +151,8 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
         elif env["MEMORY-BUS-SCHEDULER"] == "FCFS":
             root.membus[i].memory_controller = InOrderMemoryController()
         
+        elif env["MEMORY-BUS-SCHEDULER"] == "FBW":
+            root.membus[i].memory_controller = FixedBandwidthController()
         else:
             panic("Unkown memory bus scheduler")
             
@@ -584,10 +586,11 @@ if "MEMORY-BUS-SCHEDULER" in env:
     if env["MEMORY-BUS-SCHEDULER"] == "FCFS" \
     or env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" \
     or env["MEMORY-BUS-SCHEDULER"] == "FNFQ" \
-    or env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
+    or env["MEMORY-BUS-SCHEDULER"] == "TNFQ" \
+    or env["MEMORY-BUS-SCHEDULER"] == "FBW":
         pass
     else:
-        panic("Only FCFS, RDFCFS, TNFQ and FNFQ memory bus schedulers are supported")
+        panic("Only FCFS, RDFCFS, TNFQ, FNFQ and FBW memory bus schedulers are supported")
 
 L2BankSize = -1
 if "L2BANKSIZE" in env:
