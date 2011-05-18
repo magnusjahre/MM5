@@ -11,14 +11,33 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         int queueLength;
         int cpuCount;
 
-        std::vector<Addr> activePages;
-        std::vector<Tick> activatedAt;
-        int numActivePages;
+        MemReqPtr invalidRequest;
+        MemReqPtr activate;
+        MemReqPtr close;
 
-        std::vector<std::vector<MemReqPtr > > perCoreReads;
-        std::vector<MemReqPtr> otherRequests;
+        std::vector<Addr> activePages;
+
+        std::vector<MemReqPtr> requests;
+
+        Tick lastRunAt;
+        std::vector<double> tokens;
+        std::vector<double> targetAllocation;
 
         void checkBlockingStatus();
+        void addTokens();
+        MemReqPtr findHighestPriRequest();
+        MemReqPtr findAdminRequests(MemReqPtr& highestPriReq);
+        void prepareCloseReq(Addr pageAddr);
+
+        int getQueueID(int reqCPUID){
+        	if(reqCPUID != -1) return reqCPUID;
+        	return cpuCount;
+        }
+
+        bool hasMoreTokens(MemReqPtr& req1, MemReqPtr& req2);
+        bool hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2);
+        bool isOlder(MemReqPtr& req1, MemReqPtr& req2);
+        void removeRequest(MemReqPtr& req);
 
     public:
 

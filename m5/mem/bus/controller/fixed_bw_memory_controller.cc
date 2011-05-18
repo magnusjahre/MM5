@@ -14,10 +14,18 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
     : TimingMemoryController(_name) {
 
     queueLength = _queueLength;
-    numActivePages = 0;
     cpuCount = _cpuCount;
 
-    perCoreReads.resize(_cpuCount, vector<MemReqPtr>());
+    tokens.resize(_cpuCount+1, 0.0);
+    //targetAllocation.resize(_cpuCount+1, -1.0); // FIXME: reinsert
+    targetAllocation.resize(_cpuCount+1, 1.0/(_cpuCount+1)); // FIXME: remove
+    lastRunAt = 0;
+
+    invalidRequest = new MemReq();
+    assert(invalidRequest->paddr == MemReq::inval_addr);
+
+    close = new MemReq();
+    activate = new MemReq();
 
     if(_cpuCount == 1) fatal("The FixedBandwidth controller only makes sense for multi-core configurations");
 }
@@ -36,15 +44,7 @@ int FixedBandwidthMemoryController::insertRequest(MemReqPtr &req) {
     			              req->paddr,
     			              req->cmd.toString());
 
-
-    if(req->adaptiveMHASenderID != -1 && req->cmd == Read){
-    	DPRINTF(MemoryController, "Added request to read queue for core %d\n", req->adaptiveMHASenderID);
-    	perCoreReads[req->adaptiveMHASenderID].push_back(req);
-    }
-    else{
-    	DPRINTF(MemoryController, "Added request to other queue\n");
-    	otherRequests.push_back(req);
-    }
+    requests.push_back(req);
 
     checkBlockingStatus();
 
@@ -60,14 +60,8 @@ FixedBandwidthMemoryController::checkBlockingStatus(){
 
 	bool shouldBeBlocked = false;
 
-	for(int i=0;i<perCoreReads.size();i++){
-		assert(perCoreReads[i].size() <= queueLength);
-		if(perCoreReads[i].size() == queueLength){
-			shouldBeBlocked = true;
-		}
-	}
-	assert(otherRequests.size() <= queueLength);
-	if(otherRequests.size() == queueLength){
+	assert(requests.size() <= queueLength);
+	if(requests.size() == queueLength){
 		shouldBeBlocked = true;
 	}
 
@@ -84,23 +78,147 @@ FixedBandwidthMemoryController::checkBlockingStatus(){
 
 }
 
-bool FixedBandwidthMemoryController::hasMoreRequests() {
-	for(int i=0;i<perCoreReads.size();i++){
-		if(!perCoreReads[i].empty()) return true;
-	}
-	if(!otherRequests.empty()) return true;
-    return false;
+bool
+FixedBandwidthMemoryController::hasMoreRequests() {
+	return !requests.empty();
 }
 
-MemReqPtr FixedBandwidthMemoryController::getRequest() {
+void
+FixedBandwidthMemoryController::addTokens(){
+	for(int i=0;i<tokens.size();i++){
+		if(targetAllocation[i] > 0){
+			assert(targetAllocation[i] > 0 && targetAllocation[i] < 1.0);
+			double newTokens = (curTick - lastRunAt) * targetAllocation[i];
+			DPRINTF(MemoryController, "Adding %f tokens for CPU %d, allocation is %f\n", newTokens, i, targetAllocation[i]);
+			tokens[i] += newTokens;
+		}
+	}
 
-    MemReqPtr retval = new MemReq(); // dummy initialization
+	lastRunAt = curTick;
+}
 
-    fatal("get request not implemeneted");
+bool
+FixedBandwidthMemoryController::hasMoreTokens(MemReqPtr& req1, MemReqPtr& req2){
+	return tokens[getQueueID(req1->adaptiveMHASenderID)] > tokens[getQueueID(req2->adaptiveMHASenderID)];
+}
+
+bool
+FixedBandwidthMemoryController::hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2){
+	return tokens[getQueueID(req1->adaptiveMHASenderID)] == tokens[getQueueID(req2->adaptiveMHASenderID)];
+}
+
+bool
+FixedBandwidthMemoryController::isOlder(MemReqPtr& req1, MemReqPtr& req2){
+	return req1->inserted_into_memory_controller < req2->inserted_into_memory_controller;
+}
+
+MemReqPtr
+FixedBandwidthMemoryController::findHighestPriRequest(){
+
+	MemReqPtr retval = requests[0];
+
+	for(int i=0;i<requests.size();i++){
+		MemReqPtr testreq = requests[i];
+		if(isReady(testreq)){
+			if(isReady(retval) && hasMoreTokens(retval, testreq)){
+				continue;
+			}
+			if(isReady(retval) && hasEqualTokens(retval, testreq) && isOlder(retval, testreq)){
+				continue;
+			}
+			retval = testreq;
+		}
+		else if(!isReady(testreq) && !isReady(retval)){
+			if(hasMoreTokens(retval, testreq)){
+				continue;
+			}
+			if(hasEqualTokens(retval, testreq) && isOlder(retval, testreq)){
+				continue;
+			}
+			retval = testreq;
+		}
+
+	}
+
+	assert(retval->paddr != MemReq::inval_addr);
+	return retval;
+}
+
+void
+FixedBandwidthMemoryController::prepareCloseReq(Addr pageAddr){
+
+	close->paddr = getPageAddr(pageAddr);
+
+    close->cmd = Close;
+    close->paddr = getPageAddr(pageAddr);
+    close->flags &= ~SATISFIED;
+}
+
+MemReqPtr
+FixedBandwidthMemoryController::findAdminRequests(MemReqPtr& highestPriReq){
+	if(isActive(highestPriReq)) return invalidRequest;
+
+	assert(activePages.size() <= max_active_pages);
+
+	// TODO: pass over active banks and close all that don't have pending reqs
+
+	if(!bankIsClosed(highestPriReq)){
+		fatal("need to close specific bank");
+	}
+	else if(activePages.size() == max_active_pages){
+
+		prepareCloseReq(activePages.front());
+		activePages.erase(activePages.begin());
+
+		return close;
+
+	}
+
+	Addr page = getPage(highestPriReq);
+	activePages.push_back(page);
+
+	activate->cmd = Activate;
+	activate->paddr = getPageAddr(page);
+	activate->flags &= ~SATISFIED;
+
+	return activate;
+}
+
+void
+FixedBandwidthMemoryController::removeRequest(MemReqPtr& req){
+	vector<MemReqPtr>::iterator it;
+	for(it = requests.begin(); it != requests.end(); it++){
+		if((*it)->paddr == req->paddr) break;
+	}
+	assert(it != requests.end());
+	DPRINTF(MemoryController, "removing request for addr %d\n", (*it)->paddr);
+	requests.erase(it);
+}
+
+MemReqPtr
+FixedBandwidthMemoryController::getRequest() {
+
+	addTokens();
+
+    MemReqPtr issueReq = findHighestPriRequest();
+    DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, address %d, bank %d\n",
+    		issueReq->adaptiveMHASenderID,
+    		issueReq->cmd,
+    		issueReq->paddr,
+    		getMemoryBankID(issueReq->paddr));
+
+    MemReqPtr adminReq = findAdminRequests(issueReq);
 
     checkBlockingStatus();
 
-    return retval;
+    if(adminReq->paddr == MemReq::inval_addr){
+    	removeRequest(issueReq);
+    	DPRINTF(MemoryController, "Returning %s req for CPU %d, paddr %d\n", issueReq->cmd, issueReq->adaptiveMHASenderID, issueReq->paddr);
+    	return issueReq;
+    }
+    DPRINTF(MemoryController, "DRAM state updates needed, returning %s for paddr %d\n", adminReq->cmd, adminReq->paddr);
+
+    return adminReq;
 }
 
 void
