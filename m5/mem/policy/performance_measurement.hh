@@ -47,6 +47,7 @@ private:
 	int numIntTypes;
 	int maxMSHRs;
 	int period;
+	double uncontrollableMissRequestRate;
 
 public:
 	std::vector<int> committedInstructions;
@@ -103,6 +104,10 @@ public:
 	}
 
 	void updateConstants();
+
+	double getUncontrollableMissReqRate(){
+		return uncontrollableMissRequestRate;
+	}
 
 private:
 	void updateAlpha(int cpuID);

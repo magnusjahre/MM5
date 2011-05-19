@@ -48,6 +48,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	betas.resize(cpuCount, 0.0);
 
 	maxRequestRate = 0.0;
+	uncontrollableMissRequestRate = 0.0;
 }
 
 void
@@ -315,10 +316,10 @@ PerformanceMeasurement::setBandwidthBound(){
 	for(int i=0;i<cpuCount;i++){
 		uncontrollableMisses += perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
 	}
-	double uncontrollableMissRate = uncontrollableMisses / (double) period;
+	uncontrollableMissRequestRate = uncontrollableMisses / (double) period;
 
-	maxRequestRate = maxRate - uncontrollableMissRate;
-	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRate, maxRequestRate);
+	maxRequestRate = maxRate - uncontrollableMissRequestRate;
+	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRequestRate, maxRequestRate);
 }
 
 void

@@ -10,15 +10,18 @@ using namespace std;
 
 #define TICK_T_MAX ULL(0x3FFFFFFFFFFFFF)
 
-FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name, int _queueLength, int _cpuCount)
+FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name,
+															   int _queueLength,
+															   int _cpuCount,
+															   int _starvationThreshold)
     : TimingMemoryController(_name) {
 
     queueLength = _queueLength;
     cpuCount = _cpuCount;
+    curSeqNum = 0;
 
     tokens.resize(_cpuCount+1, 0.0);
-    //targetAllocation.resize(_cpuCount+1, -1.0); // FIXME: reinsert
-    targetAllocation.resize(_cpuCount+1, 1.0/(_cpuCount+1)); // FIXME: remove
+    targetAllocation.resize(_cpuCount+1, -1.0);
     lastRunAt = 0;
 
     invalidRequest = new MemReq();
@@ -28,6 +31,9 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
     activate = new MemReq();
 
     if(_cpuCount == 1) fatal("The FixedBandwidth controller only makes sense for multi-core configurations");
+
+    starvationThreshold = _starvationThreshold;
+    starvationCounter = 0;
 }
 
 /** Frees locally allocated memory. */
@@ -38,11 +44,14 @@ int FixedBandwidthMemoryController::insertRequest(MemReqPtr &req) {
 
 
     req->inserted_into_memory_controller = curTick;
+    req->memCtrlSequenceNumber = curSeqNum;
+    curSeqNum++;
 
-    DPRINTF(MemoryController, "Recieved request from CPU %d, addr %d, cmd %s\n",
+    DPRINTF(MemoryController, "Received request from CPU %d, addr %d, cmd %s, sequence number %d\n",
     			              req->adaptiveMHASenderID,
     			              req->paddr,
-    			              req->cmd.toString());
+    			              req->cmd.toString(),
+    			              req->memCtrlSequenceNumber);
 
     requests.push_back(req);
 
@@ -89,8 +98,13 @@ FixedBandwidthMemoryController::addTokens(){
 		if(targetAllocation[i] > 0){
 			assert(targetAllocation[i] > 0 && targetAllocation[i] < 1.0);
 			double newTokens = (curTick - lastRunAt) * targetAllocation[i];
-			DPRINTF(MemoryController, "Adding %f tokens for CPU %d, allocation is %f\n", newTokens, i, targetAllocation[i]);
 			tokens[i] += newTokens;
+
+			DPRINTF(MemoryController, "Adding %f tokens for CPU %d, allocation is %f, tokens are now %f\n",
+					newTokens,
+					i,
+					targetAllocation[i],
+					tokens[i]);
 		}
 	}
 
@@ -99,17 +113,46 @@ FixedBandwidthMemoryController::addTokens(){
 
 bool
 FixedBandwidthMemoryController::hasMoreTokens(MemReqPtr& req1, MemReqPtr& req2){
+	if(targetAllocation[getQueueID(req1->adaptiveMHASenderID)] == -1.0){
+		assert(targetAllocation[getQueueID(req2->adaptiveMHASenderID)] == -1.0);
+		return false;
+	}
+
+	assert(starvationCounter <= starvationThreshold);
+	if(starvationCounter == starvationThreshold){
+		return false;
+	}
+
 	return tokens[getQueueID(req1->adaptiveMHASenderID)] > tokens[getQueueID(req2->adaptiveMHASenderID)];
 }
 
 bool
 FixedBandwidthMemoryController::hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2){
+	if(targetAllocation[getQueueID(req1->adaptiveMHASenderID)] == -1.0){
+		assert(targetAllocation[getQueueID(req2->adaptiveMHASenderID)] == -1.0);
+		return true;
+	}
+
+	assert(starvationCounter <= starvationThreshold);
+	if(starvationCounter == starvationThreshold){
+		return true;
+	}
+
 	return tokens[getQueueID(req1->adaptiveMHASenderID)] == tokens[getQueueID(req2->adaptiveMHASenderID)];
 }
 
 bool
 FixedBandwidthMemoryController::isOlder(MemReqPtr& req1, MemReqPtr& req2){
-	return req1->inserted_into_memory_controller < req2->inserted_into_memory_controller;
+	return req1->memCtrlSequenceNumber < req2->memCtrlSequenceNumber;
+}
+
+bool
+FixedBandwidthMemoryController::consideredReady(MemReqPtr& req){
+	assert(starvationCounter <= starvationThreshold);
+	if(starvationCounter == starvationThreshold){
+		return false;
+	}
+	return isReady(req);
 }
 
 MemReqPtr
@@ -119,16 +162,16 @@ FixedBandwidthMemoryController::findHighestPriRequest(){
 
 	for(int i=0;i<requests.size();i++){
 		MemReqPtr testreq = requests[i];
-		if(isReady(testreq)){
-			if(isReady(retval) && hasMoreTokens(retval, testreq)){
+		if(consideredReady(testreq)){
+			if(consideredReady(retval) && hasMoreTokens(retval, testreq)){
 				continue;
 			}
-			if(isReady(retval) && hasEqualTokens(retval, testreq) && isOlder(retval, testreq)){
+			if(consideredReady(retval) && hasEqualTokens(retval, testreq) && isOlder(retval, testreq)){
 				continue;
 			}
 			retval = testreq;
 		}
-		else if(!isReady(testreq) && !isReady(retval)){
+		else if(!consideredReady(testreq) && !consideredReady(retval)){
 			if(hasMoreTokens(retval, testreq)){
 				continue;
 			}
@@ -156,14 +199,26 @@ FixedBandwidthMemoryController::prepareCloseReq(Addr pageAddr){
 
 MemReqPtr
 FixedBandwidthMemoryController::findAdminRequests(MemReqPtr& highestPriReq){
+
+	// TODO: add support for closed page policy here
+
 	if(isActive(highestPriReq)) return invalidRequest;
 
 	assert(activePages.size() <= max_active_pages);
 
-	// TODO: pass over active banks and close all that don't have pending reqs
-
 	if(!bankIsClosed(highestPriReq)){
-		fatal("need to close specific bank");
+
+		vector<Addr>::iterator it;
+		for(it=activePages.begin();it!=activePages.end();it++){
+			if(getMemoryBankID(getPageAddr(*it)) == getMemoryBankID(highestPriReq->paddr)){
+				break;
+			}
+		}
+
+		assert(it != activePages.end());
+		prepareCloseReq(*it);
+		activePages.erase(it);
+		return close;
 	}
 	else if(activePages.size() == max_active_pages){
 
@@ -186,26 +241,64 @@ FixedBandwidthMemoryController::findAdminRequests(MemReqPtr& highestPriReq){
 
 void
 FixedBandwidthMemoryController::removeRequest(MemReqPtr& req){
+
+	if(req->memCtrlSequenceNumber== requests[0]->memCtrlSequenceNumber){
+		starvationCounter = 0;
+
+		DPRINTF(MemoryController, "Request for addr %d, sequence number %d is the oldest, resetting counter\n",
+				req->paddr,
+				req->memCtrlSequenceNumber);
+	}
+	else{
+		starvationCounter++;
+		DPRINTF(MemoryController, "Request for addr %d, sequence number %d is not oldest, starvation counter is now %d\n",
+				req->paddr,
+				req->memCtrlSequenceNumber,
+				starvationCounter);
+	}
+
 	vector<MemReqPtr>::iterator it;
 	for(it = requests.begin(); it != requests.end(); it++){
-		if((*it)->paddr == req->paddr) break;
+		if((*it)->memCtrlSequenceNumber == req->memCtrlSequenceNumber) break;
 	}
 	assert(it != requests.end());
-	DPRINTF(MemoryController, "removing request for addr %d\n", (*it)->paddr);
+	DPRINTF(MemoryController, "Removing request for addr %d, sequence number %d\n",
+			(*it)->paddr,
+			(*it)->memCtrlSequenceNumber);
 	requests.erase(it);
+}
+
+void
+FixedBandwidthMemoryController::lastRequestLatency(int cpuID, int latency){
+	tokens[getQueueID(cpuID)] = tokens[getQueueID(cpuID)] - latency;
+	DPRINTF(MemoryController, "Last request for CPU %d took %d ticks, tokens are now %f\n",
+			cpuID,
+			latency,
+			tokens[getQueueID(cpuID)]);
 }
 
 MemReqPtr
 FixedBandwidthMemoryController::getRequest() {
 
+	DPRINTFR(MemoryController, "Current Queue: ");
+	for(int i=0;i<requests.size();i++){
+		DPRINTFR(MemoryController, "(%d, %d, %d, %d)",
+				requests[i]->adaptiveMHASenderID,
+				requests[i]->paddr,
+				requests[i]->memCtrlSequenceNumber,
+				requests[i]->inserted_into_memory_controller);
+	}
+	DPRINTFR(MemoryController, "\n");
+
 	addTokens();
 
     MemReqPtr issueReq = findHighestPriRequest();
-    DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, address %d, bank %d\n",
+    DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, address %d, bank %d, queued requests %d\n",
     		issueReq->adaptiveMHASenderID,
     		issueReq->cmd,
     		issueReq->paddr,
-    		getMemoryBankID(issueReq->paddr));
+    		getMemoryBankID(issueReq->paddr),
+    		requests.size());
 
     MemReqPtr adminReq = findAdminRequests(issueReq);
 
@@ -234,17 +327,29 @@ FixedBandwidthMemoryController::setOpenPages(std::list<Addr> pages){
 	fatal("setOpenPages is deprecated");
 }
 
+void
+FixedBandwidthMemoryController::setBandwidthQuotas(std::vector<double> quotas){
+	assert(quotas.size() == targetAllocation.size());
+	for(int i=0;i<targetAllocation.size();i++){
+		targetAllocation[i] = quotas[i];
+		tokens[i] = 0.0;
+		DPRINTF(MemoryController, "New allocation for CPU %d is %f, resetting tokens\n", i, targetAllocation[i]);
+	}
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
     Param<int> queue_size;
 	Param<int> cpu_count;
+	Param<int> starvation_threshold;
 END_DECLARE_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
 
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
     INIT_PARAM_DFLT(queue_size, "Max queue size", 64),
-    INIT_PARAM(cpu_count, "Number of cores in the system")
+    INIT_PARAM(cpu_count, "Number of cores in the system"),
+    INIT_PARAM_DFLT(starvation_threshold, "Number of consecutive requests that are allowed to bypass other requests", 10)
 END_INIT_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
 
 
@@ -252,7 +357,8 @@ CREATE_SIM_OBJECT(FixedBandwidthMemoryController)
 {
     return new FixedBandwidthMemoryController(getInstanceName(),
                                           	  queue_size,
-                                          	  cpu_count);
+                                          	  cpu_count,
+                                          	  starvation_threshold);
 }
 
 REGISTER_SIM_OBJECT("FixedBandwidthMemoryController", FixedBandwidthMemoryController)

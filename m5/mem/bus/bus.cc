@@ -188,7 +188,7 @@ Bus::Bus(const string &_name,
 
     bandwidthTraceData = new MemoryBusTraceData(_name, _cpu_count);
 
-    Tick bwtracefreq = 1000000;//FIXME: parameterize
+    Tick bwtracefreq = 1048578;//FIXME: parameterize
     MemoryBusBandwidthTraceEvent* bwte = new MemoryBusBandwidthTraceEvent(this, bwtracefreq);
     bwte->schedule(bwtracefreq);
 
@@ -626,6 +626,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
         assert(slaveInterfaces.size() == 1);
         busUseCycles += slaveInterfaces[0]->getDataTransTime();
+        memoryController->lastRequestLatency(req->adaptiveMHASenderID, (time - curTick));
 
         if(req->adaptiveMHASenderID != -1){
             perCPUDataBusUse[req->adaptiveMHASenderID] += slaveInterfaces[0]->getDataTransTime();
@@ -1302,7 +1303,7 @@ MemoryBusTraceData::addData(MemReqPtr& req, Tick time){
 
 	int size = 1; // might want to use bytes as the unit instead of requests
 
-	totalCycles += (time - curTick);;
+	totalCycles += (time - curTick);
 	totalData += size;
 	if(req->adaptiveMHASenderID != -1) totalPerCPUData[req->adaptiveMHASenderID] += size;
 

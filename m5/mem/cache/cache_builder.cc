@@ -306,7 +306,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(adaptive_mha, "Adaptive MHA object", NULL),
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
 	INIT_PARAM_DFLT(miss_bandwidth_policy, "Miss Bandwidth Policy", NULL),
-    INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "owner"),
+    INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "shadow-tags"),
     INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
     INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
     INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),

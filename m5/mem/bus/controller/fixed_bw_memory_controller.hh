@@ -10,6 +10,10 @@ class FixedBandwidthMemoryController : public TimingMemoryController
     private:
         int queueLength;
         int cpuCount;
+        int curSeqNum;
+
+        int starvationThreshold;
+        int starvationCounter;
 
         MemReqPtr invalidRequest;
         MemReqPtr activate;
@@ -34,6 +38,7 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         	return cpuCount;
         }
 
+        bool consideredReady(MemReqPtr& req);
         bool hasMoreTokens(MemReqPtr& req1, MemReqPtr& req2);
         bool hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2);
         bool isOlder(MemReqPtr& req1, MemReqPtr& req2);
@@ -42,7 +47,10 @@ class FixedBandwidthMemoryController : public TimingMemoryController
     public:
 
         /** Constructs a Memory Controller object. */
-        FixedBandwidthMemoryController(std::string _name, int _queueLength, int _cpuCount);
+        FixedBandwidthMemoryController(std::string _name,
+        							   int _queueLength,
+        							   int _cpuCount,
+        							   int _starvationThreshold);
 
         /** Frees locally allocated memory. */
         ~FixedBandwidthMemoryController();
@@ -56,6 +64,10 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         virtual void setOpenPages(std::list<Addr> pages);
 
         virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
+
+        virtual void lastRequestLatency(int cpuID, int latency);
+
+        virtual void setBandwidthQuotas(std::vector<double> quotas);
 
 };
 

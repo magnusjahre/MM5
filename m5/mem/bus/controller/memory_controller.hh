@@ -180,6 +180,10 @@ class TimingMemoryController : public SimObject
     	fatal("Controller does not support bandwidth quotas");
     }
 
+    virtual void lastRequestLatency(int cpuID, int latency){
+
+    }
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

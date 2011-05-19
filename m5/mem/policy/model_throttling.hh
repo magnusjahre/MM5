@@ -28,7 +28,8 @@ private:
 
 	enum BWImplStrat{
 		BW_IMPL_NFQ,
-		BW_IMPL_THROTTLE
+		BW_IMPL_THROTTLE,
+		BW_IMPL_FIXED_BW,
 	};
 	BWImplStrat implStrat;
 
@@ -56,7 +57,7 @@ private:
 
 	std::vector<double> findNewTrialPoint(std::vector<double> gradient, PerformanceMeasurement* measurements);
 
-	void implementAllocation(std::vector<double> allocation);
+	void implementAllocation(std::vector<double> allocation, double writeRate);
 	std::vector<double> findOptimalArrivalRates(PerformanceMeasurement* measurements);
 
 	double findOptimalStepSize(std::vector<double> xvec, std::vector<double> xstar, PerformanceMeasurement* measurements);
@@ -66,7 +67,7 @@ private:
 	std::vector<double> addMultCons(std::vector<double> xvec, std::vector<double> xstar, double step);
 
 	void initThrottleTrace(int np);
-	void traceThrottling(std::vector<double> allocation, std::vector<double> throttles);
+	void traceThrottling(std::vector<double> allocation, std::vector<double> throttles, double writeRate);
 
 	void initSearchTrace(int np);
 	void traceSearch(std::vector<double> xvec);
@@ -91,7 +92,7 @@ private:
 		}
 
 		void process() {
-			mtp->implementAllocation(allocations);
+			mtp->implementAllocation(allocations, -1.0);
 			delete this;
 		}
 	};

@@ -1,7 +1,7 @@
 from m5 import *
 from BasePolicy import BasePolicy
 
-class ImplementationStrategy(Enum): vals = ['nfq', 'throttle']
+class ImplementationStrategy(Enum): vals = ['nfq', 'throttle', 'fixedbw']
 
 class ModelThrottlingPolicy(BasePolicy):    
     type = 'ModelThrottlingPolicy'

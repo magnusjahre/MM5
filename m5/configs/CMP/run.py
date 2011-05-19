@@ -153,6 +153,10 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
         
         elif env["MEMORY-BUS-SCHEDULER"] == "FBW":
             root.membus[i].memory_controller = FixedBandwidthController()
+            
+            if "FBW-STARVATION-THRESHOLD" in env:
+                root.membus[i].memory_controller.starvation_threshold = int(env["FBW-STARVATION-THRESHOLD"])
+            
         else:
             panic("Unkown memory bus scheduler")
             
@@ -350,7 +354,7 @@ def setUpModThrotPolicy():
     statOptName = "MODEL-THROTLING-POLICY-STATIC" 
     if statOptName in env:
         tmpArrList = env[statOptName].split(',')
-        if len(tmpArrList) != int(env['NP']):
+        if len(tmpArrList) != int(env['NP']) and len(tmpArrList) != int(env['NP'])+1:
             panic("Length of static policy list must be equal to the number of cores, list is "+str(env[statOptName]))
         
         arrList = [float(tmpArrList[i]) for i in range(int(env['NP']))]

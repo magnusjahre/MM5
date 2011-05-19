@@ -33,10 +33,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	doVerification = _verify;
 
 	optimalPeriods.resize(_cpuCount, 0.0);
-	optimalBWShares = vector<double>(cpuCount, 0.0);
-
-	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
-	initThrottleTrace(_cpuCount);
+	optimalBWShares = vector<double>(cpuCount+1, 0.0);
 
 	modelValueTrace = RequestTrace(_name, "ModelValueTrace", 1);
 	initModelValueTrace(_cpuCount);
@@ -47,9 +44,15 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	else if(_implStrategy == "throttle"){
 		implStrat = BW_IMPL_THROTTLE;
 	}
+	else if(_implStrategy == "fixedbw"){
+		implStrat = BW_IMPL_FIXED_BW;
+	}
 	else{
 		fatal("Unknown bandwidth allocation implementation strategy");
 	}
+
+	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
+	initThrottleTrace(_cpuCount);
 
 	searchItemNum = 0;
 	if(doVerification){
@@ -86,16 +89,7 @@ ModelThrottlingPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	if(cpuCount > 1){
 		optimalArrivalRates = findOptimalArrivalRates(&measurements);
-
-		if(implStrat == BW_IMPL_THROTTLE){
-			implementAllocation(optimalArrivalRates);
-		}
-		else if(implStrat == BW_IMPL_NFQ){
-			implementAllocation(optimalBWShares);
-		}
-		else{
-			fatal("Unknown bandwidth allocation implementation strategy");
-		}
+		implementAllocation(optimalArrivalRates, measurements.getUncontrollableMissReqRate());
 
 		traceModelValues(&measurements, optimalArrivalRates);
 	}
@@ -326,35 +320,42 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	traceVector("Optimal request rates are: ", xvals);
 
-	double minimalAllocation = 1.0 / 2000.0; //FIXME: parameterize
-	double allocsum = 0.0;
-	for(int i=0;i<xvals.size();i++){
-		assert(xvals[i] >= 0);
-		allocsum += xvals[i];
+	double maxbw = measurements->maxRequestRate + measurements->getUncontrollableMissReqRate();
+	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = xvals[i] / maxbw;
+	optimalBWShares[cpuCount] = measurements->getUncontrollableMissReqRate() / maxbw;
+	traceVector("Optimal bandwidth shares are: ", optimalBWShares);
 
-		if(xvals[i] < minimalAllocation){
-			DPRINTF(MissBWPolicy, "CPU %d got allocation %f, not enforcing for this CPU\n", i, xvals[i]);
-			xvals[i] = -1.0;
+	if(implStrat == BW_IMPL_THROTTLE){
+		double minimalAllocation = 1.0 / 2000.0; //FIXME: parameterize
+		double allocsum = 0.0;
+		for(int i=0;i<xvals.size();i++){
+			assert(xvals[i] >= 0);
+			allocsum += xvals[i];
+
+			if(xvals[i] < minimalAllocation){
+				DPRINTF(MissBWPolicy, "CPU %d got allocation %f, not enforcing for this CPU\n", i, xvals[i]);
+				xvals[i] = -1.0;
+			}
 		}
-	}
 
-	double threshold = 0.95; //FIXME: parameterize
-	if(allocsum < (measurements->maxRequestRate * threshold)){
-		DPRINTF(MissBWPolicy, "Sum of allocations %f is less than %f of maximum %f (%f), no allocations needed\n",
-				allocsum,
-				threshold,
-				measurements->maxRequestRate,
-				measurements->maxRequestRate * threshold);
-		for(int i=0;i<xvals.size();i++) xvals[i] = -1.0;
-	}
+		double threshold = 0.95; //FIXME: parameterize
+		if(allocsum < (measurements->maxRequestRate * threshold)){
+			DPRINTF(MissBWPolicy, "Sum of allocations %f is less than %f of maximum %f (%f), no allocations needed\n",
+					allocsum,
+					threshold,
+					measurements->maxRequestRate,
+					measurements->maxRequestRate * threshold);
+			for(int i=0;i<xvals.size();i++) xvals[i] = -1.0;
+		}
 
-	traceVector("Final allocation is: ", xvals);
+		traceVector("Final allocation is: ", xvals);
+	}
 
 	return xvals;
 }
 
 void
-ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation){
+ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, double writeRate){
 
 	if(implStrat == BW_IMPL_THROTTLE){
 		vector<double> cyclesPerReq = vector<double>(allocation.size(), 0.0);
@@ -363,16 +364,17 @@ ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation){
 		}
 
 		traceVector("Optimal cycles per request: ", cyclesPerReq);
-		traceThrottling(allocation, cyclesPerReq);
+		traceThrottling(allocation, cyclesPerReq, -1.0);
 
 		traceVector("Setting memory bus arrival rates to:", allocation);
 		sharedCacheThrottle->setTargetArrivalRate(allocation);
 	}
-	else if(implStrat == BW_IMPL_NFQ){
+	else if(implStrat == BW_IMPL_NFQ || implStrat == BW_IMPL_FIXED_BW){
 		for(int i=0;i<buses.size();i++){
-			buses[i]->setBandwidthQuotas(allocation);
+			buses[i]->setBandwidthQuotas(optimalBWShares);
 		}
 
+		traceThrottling(allocation, vector<double>(), writeRate);
 	}
 	else{
 		fatal("Unknown bandwidth allocation implementation strategy");
@@ -421,16 +423,23 @@ ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements, ve
 void
 ModelThrottlingPolicy::initThrottleTrace(int np){
 	vector<string> headers;
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Cycles between req CPU", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Arrival Rate CPU", i));
+	if(implStrat == BW_IMPL_THROTTLE){
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Cycles between req CPU", i));
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Arrival Rate CPU", i));
+	}
+	else{
+		for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Arrival Rate CPU", i));
+		headers.push_back("Write Rate");
+	}
 	throttleTrace.initalizeTrace(headers);
 }
 
 void
-ModelThrottlingPolicy::traceThrottling(std::vector<double> allocation, std::vector<double> throttles){
+ModelThrottlingPolicy::traceThrottling(std::vector<double> allocation, std::vector<double> throttles, double writeRate){
 	vector<RequestTraceEntry> vals;
 	for(int i=0;i<throttles.size();i++) vals.push_back(throttles[i]);
-	for(int i=0;i<throttles.size();i++) vals.push_back(allocation[i]);
+	for(int i=0;i<allocation.size();i++) vals.push_back(allocation[i]);
+	if(writeRate != -1.0) vals.push_back(writeRate);
 	throttleTrace.addTrace(vals);
 }
 
@@ -463,6 +472,8 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, measuredReqRates, aloneCycles));
 		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalArrivalRates, aloneCycles));
 		dumpvals.addElement("max-bus-request-rate", measurements->maxRequestRate);
+		dumpvals.addElement("uncontrollable-request-rate", measurements->getUncontrollableMissReqRate());
+		dumpvals.addElement("uncontrollable-request-share", optimalBWShares[cpuCount]);
 	}
 
 
