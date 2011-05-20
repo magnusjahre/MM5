@@ -243,10 +243,7 @@ PerformanceMeasurement::updateConstants(){
 		updateAlpha(i);
 		updateBeta(i);
 
-		DPRINTF(MissBWPolicy, "CPU %d estimated current cycles %d, should be approximately equal to period %d\n",
-				i,
-				betas[i]+(alphas[i]/(double)period),
-				period);
+		//TODO: create new validation dprintf when the new model is implemented
 	}
 }
 

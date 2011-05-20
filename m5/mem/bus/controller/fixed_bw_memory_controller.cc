@@ -75,13 +75,13 @@ FixedBandwidthMemoryController::checkBlockingStatus(){
 	}
 
 	if(isBlocked() && !shouldBeBlocked){
-		DPRINTF(MemoryController, "Unblocking controller\n");
+		DPRINTF(MemoryController, "Unblocking controller, %d queued requests\n", requests.size());
 		setUnBlocked();
 	}
 
 
 	if(!isBlocked() && shouldBeBlocked){
-		DPRINTF(MemoryController, "Blocking controller\n");
+		DPRINTF(MemoryController, "Blocking controller, %d queued requests\n", requests.size());
 		setBlocked();
 	}
 
