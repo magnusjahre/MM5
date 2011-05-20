@@ -132,7 +132,11 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
     
     for i in range(channels):
         
-        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" or int(env['NP']) == 1:
+            
+            if env["MEMORY-BUS-SCHEDULER"] != "RDFCFS":
+                warn("CPU count is 1, overriding bus selection "+env["MEMORY-BUS-SCHEDULER"]+" and choosing RDFCFS")
+            
             root.membus[i].memory_controller = ReadyFirstMemoryController()
             
             if "MEMORY-BUS-PAGE-POLICY" in env:
@@ -169,7 +173,7 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
         if "MEMORY-BUS-MAX-UTIL" in env:
             root.membus[i].utilization_limit = float(env["MEMORY-BUS-MAX-UTIL"])
     
-    if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+    if int(env['NP']) > 1:
         root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
         for i in range(channels):
             if "READY-FIRST-LIMIT-ALL-CPUS" in env:
@@ -188,11 +192,9 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
                     root.controllerInterference[i].pure_head_pointer_model = True
                 else:
                     root.controllerInterference[i].pure_head_pointer_model = False
-    else:
-        root.controllerInterference = [FCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
-
-    for i in range(channels):
-        root.controllerInterference[i].cpu_count = int(env['NP'])
+    
+        for i in range(channels):
+            root.controllerInterference[i].cpu_count = int(env['NP'])
         
 def setUpCachePartitioning():
     

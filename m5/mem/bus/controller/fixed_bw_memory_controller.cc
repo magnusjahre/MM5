@@ -42,6 +42,9 @@ FixedBandwidthMemoryController::~FixedBandwidthMemoryController(){
 
 int FixedBandwidthMemoryController::insertRequest(MemReqPtr &req) {
 
+	if(controllerInterference != NULL && !controllerInterference->isInitialized()){
+		controllerInterference->initialize(cpuCount);
+	}
 
     req->inserted_into_memory_controller = curTick;
     req->memCtrlSequenceNumber = curSeqNum;
