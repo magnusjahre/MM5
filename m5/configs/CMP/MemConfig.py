@@ -372,7 +372,7 @@ class InOrderMemoryController(FCFSMemoryController):
     queue_size = 128
     
 class FixedBandwidthController(FixedBandwidthMemoryController):
-    queue_size = 32
+    queue_size = 128
     cpu_count = int(env['NP'])
     
 class FairNFQMemoryController(NFQMemoryController):
