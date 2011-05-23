@@ -1281,6 +1281,7 @@ MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
 
     bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
     vector<string> headers;
+    headers.push_back("Utilization");
     headers.push_back("Total Bandwidth");
     headers.push_back("Read Bandwidth");
     headers.push_back("Private Writeback Bandwidth");
@@ -1336,17 +1337,21 @@ MemoryBusTraceData::writeTraceLine(){
 		assert(totalPerCPUData[i] == readPerCPUData[i] + privWbPerCPUData[i] + shWbPerCPUData[i]);
 	}
 
+	double ticksSinceLast= (curTick - runLast);
+	assert(ticksSinceLast > 0);
+
 	vector<RequestTraceEntry> data;
-	data.push_back( totalCycles == 0 ? 0 : (double) totalData / (double) totalCycles);
-	data.push_back( totalCycles == 0 ? 0 : (double) readData / (double) totalCycles);
-	data.push_back( totalCycles == 0 ? 0 : (double) privWbData / (double) totalCycles);
-	data.push_back( totalCycles == 0 ? 0 : (double) shWbData / (double) totalCycles);
+	data.push_back( totalCycles == 0 ? 0 : (double) totalCycles / ticksSinceLast);
+	data.push_back( (double) totalData / ticksSinceLast);
+	data.push_back( (double) readData / ticksSinceLast);
+	data.push_back( (double) privWbData / ticksSinceLast);
+	data.push_back( (double) shWbData / ticksSinceLast);
 
 	for(int i=0;i<np;i++){
-		data.push_back( totalCycles == 0 ? 0 : (double) totalPerCPUData[i] / (double) totalCycles);
-		data.push_back( totalCycles == 0 ? 0 : (double) readPerCPUData[i] / (double) totalCycles);
-		data.push_back( totalCycles == 0 ? 0 : (double) privWbPerCPUData[i] / (double) totalCycles);
-		data.push_back( totalCycles == 0 ? 0 : (double) shWbPerCPUData[i] / (double) totalCycles);
+		data.push_back( (double) totalPerCPUData[i] / ticksSinceLast);
+		data.push_back( (double) readPerCPUData[i] / ticksSinceLast);
+		data.push_back( (double) privWbPerCPUData[i] / ticksSinceLast);
+		data.push_back( (double) shWbPerCPUData[i] / ticksSinceLast);
 	}
 
 	bandwidthTrace.addTrace(data);
@@ -1367,6 +1372,7 @@ MemoryBusTraceData::reset(){
 	shWbPerCPUData = vector<int>(np, 0);
 
 	totalCycles = 0;
+	runLast = curTick;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

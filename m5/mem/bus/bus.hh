@@ -719,6 +719,7 @@ class MemoryBusBandwidthTraceEvent : public Event
 class MemoryBusTraceData{
 private:
 	Tick totalCycles;
+	Tick runLast;
 	int np;
 
 	int totalData;
