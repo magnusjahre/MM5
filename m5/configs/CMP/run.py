@@ -132,7 +132,7 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
     
     for i in range(channels):
         
-        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" or (int(env['NP']) == 1 and env["MEMORY-BUS-SCHEDULER"] != "TNFQ"):
+        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" or int(env['NP']) == 1:
             
             if env["MEMORY-BUS-SCHEDULER"] != "RDFCFS":
                 warn("CPU count is 1, overriding bus selection "+env["MEMORY-BUS-SCHEDULER"]+" and choosing RDFCFS")
