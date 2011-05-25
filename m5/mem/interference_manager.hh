@@ -128,6 +128,8 @@ protected:
 	Stats::Formula avgInterference[NUM_LAT_TYPES];
 
 	Stats::Formula avgLatency[NUM_LAT_TYPES];
+	Stats::Formula noBusLatency;
+	Stats::Formula busLatency;
 
 	Stats::Formula avgRoundTripLatency;
 

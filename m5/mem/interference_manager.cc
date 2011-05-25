@@ -188,6 +188,26 @@ InterferenceManager::regStats(){
 		avgLatency[i] = latencies[i] / requests;
 	}
 
+	noBusLatency
+		.name(name() + ".no_bus_latency")
+		.desc("Total bus independent latency");
+
+	noBusLatency = latencies[InterconnectEntry] +
+			       latencies[InterconnectRequestQueue] +
+			       latencies[InterconnectRequestTransfer] +
+			       latencies[InterconnectResponseQueue] +
+			       latencies[InterconnectResponseTransfer] +
+			       latencies[InterconnectDelivery] +
+			       latencies[CacheCapacity];
+
+	busLatency
+		.name(name() + ".bus_latency")
+		.desc("Total bus dependent latency");
+
+	busLatency = latencies[MemoryBusEntry] +
+				 latencies[MemoryBusQueue] +
+				 latencies[MemoryBusService];
+
 	totalLatency
 		.init(intManCPUCount)
 		.name(name() + ".total_latency")
