@@ -277,23 +277,18 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
 
-	double avgBusQueueCycles = sumBusQueueCycles / totalMisses;
+	double avgWaitCalPerReq = latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue]
+	                        + latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry]
+	                        + latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
 
-	double n = avgBusQueueCycles * totalMisses;
-	//double w = n * avgBusServiceCycles * thisMisses;
-	double w = n * avgBusServiceCycles;
+	double avgWaitCalTot = avgWaitCalPerReq * requestsInSample[cpuID];
+	double avgWaitPerMiss = avgWaitCalTot / thisMisses;
 
-	alphas[cpuID] = (overlap * w) / (double) period;
+	alphas[cpuID] = overlap * thisMisses * avgWaitPerMiss;
 
-	DPRINTF(MissBWPolicy, "Estimated average queue size is %f, average queue latency is %f, actual is e=%f+q=%f=%f for CPU %d\n",
-			n / (double) period,
-			(w / (double) period) / thisMisses,
-			latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry],
-			latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue],
-			latencyBreakdown[cpuID][InterferenceManager::MemoryBusQueue] + latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry],
-			cpuID);
-
-	DPRINTF(MissBWPolicy, "Computed alpha %f for CPU %d\n", alphas[cpuID], cpuID);
+	DPRINTF(MissBWPolicy, "Estimated average wait time per miss is %d, returning alpha %d\n",
+			avgWaitPerMiss,
+			alphas[cpuID]);
 }
 
 void
@@ -317,6 +312,7 @@ PerformanceMeasurement::setBandwidthBound(){
 
 	maxRequestRate = maxRate - uncontrollableMissRequestRate;
 	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRequestRate, maxRequestRate);
+
 }
 
 void

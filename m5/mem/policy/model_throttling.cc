@@ -163,13 +163,14 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
     //if (!add_constraint(lp, rowbuffer, EQ, cpuCount*period)) fatal("Couldn't add sum constraint");
-	if (!add_constraint(lp, rowbuffer, LE, measurements->maxRequestRate)) fatal("Couldn't add sum constraint");
+	if (!add_constraint(lp, rowbuffer, LE, 1.0)) fatal("Couldn't add sum constraint");
 
     for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
     set_obj_fn(lp, rowbuffer);
 
     for(int i=1;i<=cpuCount;i++){
-    	double upbo = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
+    	double thisMaxBW = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
+    	double upbo = thisMaxBW / measurements->maxRequestRate;
     	set_upbo(lp, i, upbo);
     }
 
@@ -280,7 +281,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	vector<double> xvals = vector<double>(cpuCount, 0.0);
+	vector<double> xvals = vector<double>(cpuCount, 1.0 / (double) cpuCount);
 
 	vector<double> xstar = vector<double>(cpuCount, 0.0);
 	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
@@ -318,12 +319,17 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		}
 	}
 
-	traceVector("Optimal request rates are: ", xvals);
+
 
 	double maxbw = measurements->maxRequestRate + measurements->getUncontrollableMissReqRate();
-	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = xvals[i] / maxbw;
+	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = (xvals[i] * measurements->maxRequestRate)  / maxbw;
 	optimalBWShares[cpuCount] = measurements->getUncontrollableMissReqRate() / maxbw;
 	traceVector("Optimal bandwidth shares are: ", optimalBWShares);
+
+	vector<double> optimalReqRates = vector<double>(cpuCount+1, 0.0);
+	for(int i=0;i<=cpuCount;i++) optimalReqRates[i] = optimalBWShares[i] * maxbw;
+
+	traceVector("Optimal request rates are: ", optimalReqRates);
 
 	if(implStrat == BW_IMPL_THROTTLE){
 		double minimalAllocation = 1.0 / 2000.0; //FIXME: parameterize
@@ -358,6 +364,7 @@ void
 ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, double writeRate){
 
 	if(implStrat == BW_IMPL_THROTTLE){
+
 		vector<double> cyclesPerReq = vector<double>(allocation.size(), 0.0);
 		for(int i=0;i<allocation.size();i++){
 			cyclesPerReq[i] = 1.0 / allocation[i];
