@@ -273,6 +273,13 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].readMisses;
+	if(perCoreCacheMeasurements[cpuID].readMisses == 0){
+		DPRINTF(MissBWPolicy, "No read misses for CPU %d used the bus, alpha is 0\n", cpuID);
+		alphas[cpuID] = 0.0;
+		return;
+	}
+	assert(perCoreCacheMeasurements[cpuID].readMisses >= 0);
+
 	double overlap = computedOverlap[cpuID];
 
 	DPRINTF(MissBWPolicy, "CPU %d: Overlap %f, this core misses %f, total misses %f \n", cpuID, overlap, thisMisses, totalMisses);
