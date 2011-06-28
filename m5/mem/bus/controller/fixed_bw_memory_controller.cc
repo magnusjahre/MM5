@@ -23,7 +23,7 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
 
     tokens.resize(_cpuCount+1, 0.0);
     targetAllocation.resize(_cpuCount+1, -1.0);
-    requestCount.resize(_cpuCount+1, 0.0);
+    requestCount.resize(_cpuCount+1, 0);
     lastRunAt = 0;
 
     invalidRequest = new MemReq();
