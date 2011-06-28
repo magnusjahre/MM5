@@ -13,7 +13,8 @@ using namespace std;
 FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name,
 															   int _queueLength,
 															   int _cpuCount,
-															   int _starvationThreshold)
+															   int _starvationThreshold,
+															   int _readyThreshold)
     : TimingMemoryController(_name) {
 
     queueLength = _queueLength;
@@ -22,6 +23,7 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
 
     tokens.resize(_cpuCount+1, 0.0);
     targetAllocation.resize(_cpuCount+1, -1.0);
+    requestCount.resize(_cpuCount+1, 0.0);
     lastRunAt = 0;
 
     invalidRequest = new MemReq();
@@ -34,6 +36,9 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
 
     starvationThreshold = _starvationThreshold;
     starvationCounter = 0;
+
+    readyThreshold = _readyThreshold;
+    readyCounter = 0;
 }
 
 /** Frees locally allocated memory. */
@@ -49,12 +54,14 @@ int FixedBandwidthMemoryController::insertRequest(MemReqPtr &req) {
     req->inserted_into_memory_controller = curTick;
     req->memCtrlSequenceNumber = curSeqNum;
     curSeqNum++;
+	requestCount[getQueueID(req->adaptiveMHASenderID)]++;
 
-    DPRINTF(MemoryController, "Received request from CPU %d, addr %d, cmd %s, sequence number %d\n",
+    DPRINTF(MemoryController, "Received request from CPU %d, addr %d, cmd %s, sequence number %d, pending reqs %d\n",
     			              req->adaptiveMHASenderID,
     			              req->paddr,
     			              req->cmd.toString(),
-    			              req->memCtrlSequenceNumber);
+    			              req->memCtrlSequenceNumber,
+    			              requestCount[getQueueID(req->adaptiveMHASenderID)]);
 
     requests.push_back(req);
 
@@ -151,8 +158,9 @@ FixedBandwidthMemoryController::isOlder(MemReqPtr& req1, MemReqPtr& req2){
 
 bool
 FixedBandwidthMemoryController::consideredReady(MemReqPtr& req){
+	assert(readyCounter <= readyThreshold);
 	assert(starvationCounter <= starvationThreshold);
-	if(starvationCounter == starvationThreshold){
+	if(readyCounter == readyThreshold || starvationCounter == starvationThreshold){
 		return false;
 	}
 	return isReady(req);
@@ -242,32 +250,79 @@ FixedBandwidthMemoryController::findAdminRequests(MemReqPtr& highestPriReq){
 	return activate;
 }
 
+bool
+FixedBandwidthMemoryController::hasHighestPri(int cpuID){
+	double maxtokens = tokens[0];
+	int maxID = 0;
+
+	for(int i=1;i<tokens.size();i++){
+		if(tokens[i] > maxtokens && requestCount[i] > 0){
+			maxtokens = tokens[i];
+			maxID = i;
+		}
+	}
+
+	DPRINTF(MemoryController, "CPU %d had the highest priority, query for CPU %d\n", maxID, cpuID);
+
+	return cpuID == maxID;
+}
+
 void
 FixedBandwidthMemoryController::removeRequest(MemReqPtr& req){
 
-	if(req->memCtrlSequenceNumber== requests[0]->memCtrlSequenceNumber){
+	if(req->memCtrlSequenceNumber == requests[0]->memCtrlSequenceNumber){
 		starvationCounter = 0;
+		readyCounter = 0;
 
-		DPRINTF(MemoryController, "Request for addr %d, sequence number %d is the oldest, resetting counter\n",
+		DPRINTF(MemoryController, "Step 1: Request for addr %d, sequence number %d is the oldest, resetting counters\n",
 				req->paddr,
 				req->memCtrlSequenceNumber);
 	}
 	else{
 		starvationCounter++;
-		DPRINTF(MemoryController, "Request for addr %d, sequence number %d is not oldest, starvation counter is now %d\n",
+		DPRINTF(MemoryController, "Step 1: Request for addr %d, sequence number %d is not oldest, starvation counter is now %d\n",
 				req->paddr,
 				req->memCtrlSequenceNumber,
 				starvationCounter);
+
+		if(isReady(req)){
+			if(hasHighestPri(req->adaptiveMHASenderID)){
+				readyCounter = 0;
+
+				DPRINTF(MemoryController, "Step 2: Request for addr %d, sequence number %d is ready but from highest priority thread, resetting ready counter\n",
+						req->paddr,
+						req->memCtrlSequenceNumber);
+			}
+			else{
+				readyCounter++;
+
+				DPRINTF(MemoryController, "Step 2: Ready request for addr %d, sequence number %d, ready counter is now %d\n",
+						req->paddr,
+						req->memCtrlSequenceNumber,
+						readyCounter);
+			}
+
+		}
+		else{
+			readyCounter = 0;
+
+			DPRINTF(MemoryController, "Step 2: Request for addr %d, sequence number %d is not ready, resetting ready counter\n",
+					req->paddr,
+					req->memCtrlSequenceNumber);
+		}
 	}
+
+    requestCount[getQueueID(req->adaptiveMHASenderID)]--;
 
 	vector<MemReqPtr>::iterator it;
 	for(it = requests.begin(); it != requests.end(); it++){
 		if((*it)->memCtrlSequenceNumber == req->memCtrlSequenceNumber) break;
 	}
 	assert(it != requests.end());
-	DPRINTF(MemoryController, "Removing request for addr %d, sequence number %d\n",
+	DPRINTF(MemoryController, "Removing request for addr %d, sequence number %d, pending requests are now %d\n",
 			(*it)->paddr,
-			(*it)->memCtrlSequenceNumber);
+			(*it)->memCtrlSequenceNumber,
+			requestCount[getQueueID(req->adaptiveMHASenderID)]);
 	requests.erase(it);
 }
 
@@ -293,12 +348,21 @@ FixedBandwidthMemoryController::getRequest() {
 	}
 	DPRINTFR(MemoryController, "\n");
 
+	DPRINTFR(MemoryController, "Tokens: ");
+	for(int i=0;i<tokens.size();i++){
+		DPRINTFR(MemoryController, "(%d, %d) ",
+				i,
+				tokens[i]);
+	}
+	DPRINTFR(MemoryController, "\n");
+
 	addTokens();
 
     MemReqPtr issueReq = findHighestPriRequest();
-    DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, address %d, bank %d, queued requests %d\n",
+    DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, seq num %d, address %d, bank %d, queued requests %d\n",
     		issueReq->adaptiveMHASenderID,
     		issueReq->cmd,
+    		issueReq->memCtrlSequenceNumber,
     		issueReq->paddr,
     		getMemoryBankID(issueReq->paddr),
     		requests.size());
@@ -346,13 +410,15 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
     Param<int> queue_size;
 	Param<int> cpu_count;
 	Param<int> starvation_threshold;
+	Param<int> ready_threshold;
 END_DECLARE_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
 
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
     INIT_PARAM_DFLT(queue_size, "Max queue size", 64),
     INIT_PARAM(cpu_count, "Number of cores in the system"),
-    INIT_PARAM_DFLT(starvation_threshold, "Number of consecutive requests that are allowed to bypass other requests", 10)
+    INIT_PARAM_DFLT(starvation_threshold, "Number of consecutive requests that are allowed to bypass other requests", 10),
+    INIT_PARAM_DFLT(ready_threshold, "Number of ready requests that are allowed to bypass other requests", 3)
 END_INIT_SIM_OBJECT_PARAMS(FixedBandwidthMemoryController)
 
 
@@ -361,7 +427,8 @@ CREATE_SIM_OBJECT(FixedBandwidthMemoryController)
     return new FixedBandwidthMemoryController(getInstanceName(),
                                           	  queue_size,
                                           	  cpu_count,
-                                          	  starvation_threshold);
+                                          	  starvation_threshold,
+                                          	  ready_threshold);
 }
 
 REGISTER_SIM_OBJECT("FixedBandwidthMemoryController", FixedBandwidthMemoryController)

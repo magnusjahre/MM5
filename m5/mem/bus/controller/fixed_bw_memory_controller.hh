@@ -15,6 +15,9 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         int starvationThreshold;
         int starvationCounter;
 
+        int readyCounter;
+        int readyThreshold;
+
         MemReqPtr invalidRequest;
         MemReqPtr activate;
         MemReqPtr close;
@@ -22,6 +25,8 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         std::vector<Addr> activePages;
 
         std::vector<MemReqPtr> requests;
+
+        std::vector<int> requestCount;
 
         Tick lastRunAt;
         std::vector<double> tokens;
@@ -43,6 +48,7 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         bool hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2);
         bool isOlder(MemReqPtr& req1, MemReqPtr& req2);
         void removeRequest(MemReqPtr& req);
+        bool hasHighestPri(int cpuID);
 
     public:
 
@@ -50,7 +56,8 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         FixedBandwidthMemoryController(std::string _name,
         							   int _queueLength,
         							   int _cpuCount,
-        							   int _starvationThreshold);
+        							   int _starvationThreshold,
+        							   int _readyThreshold);
 
         /** Frees locally allocated memory. */
         ~FixedBandwidthMemoryController();

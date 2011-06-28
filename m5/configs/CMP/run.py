@@ -160,6 +160,9 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
             
             if "FBW-STARVATION-THRESHOLD" in env:
                 root.membus[i].memory_controller.starvation_threshold = int(env["FBW-STARVATION-THRESHOLD"])
+                
+            if "FBW-READY-THRESHOLD" in env:
+                root.membus[i].memory_controller.ready_threshold = int(env["FBW-READY-THRESHOLD"])
             
         else:
             panic("Unkown memory bus scheduler")
