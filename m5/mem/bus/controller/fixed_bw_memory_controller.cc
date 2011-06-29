@@ -286,7 +286,7 @@ FixedBandwidthMemoryController::removeRequest(MemReqPtr& req){
 				starvationCounter);
 
 		if(isReady(req)){
-			if(hasHighestPri(req->adaptiveMHASenderID)){
+			if(hasHighestPri(getQueueID(req->adaptiveMHASenderID))){
 				readyCounter = 0;
 
 				DPRINTF(MemoryController, "Step 2: Request for addr %d, sequence number %d is ready but from highest priority thread, resetting ready counter\n",
@@ -301,7 +301,6 @@ FixedBandwidthMemoryController::removeRequest(MemReqPtr& req){
 						req->memCtrlSequenceNumber,
 						readyCounter);
 			}
-
 		}
 		else{
 			readyCounter = 0;
@@ -348,6 +347,8 @@ FixedBandwidthMemoryController::getRequest() {
 	}
 	DPRINTFR(MemoryController, "\n");
 
+	addTokens();
+
 	DPRINTFR(MemoryController, "Tokens: ");
 	for(int i=0;i<tokens.size();i++){
 		DPRINTFR(MemoryController, "(%d, %d) ",
@@ -355,8 +356,6 @@ FixedBandwidthMemoryController::getRequest() {
 				tokens[i]);
 	}
 	DPRINTFR(MemoryController, "\n");
-
-	addTokens();
 
     MemReqPtr issueReq = findHighestPriRequest();
     DPRINTF(MemoryController, "Highest priority req is from CPU %d, cmd %s, seq num %d, address %d, bank %d, queued requests %d\n",
