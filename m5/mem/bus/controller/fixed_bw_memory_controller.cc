@@ -251,20 +251,24 @@ FixedBandwidthMemoryController::findAdminRequests(MemReqPtr& highestPriReq){
 }
 
 bool
-FixedBandwidthMemoryController::hasHighestPri(int cpuID){
-	double maxtokens = tokens[0];
-	int maxID = 0;
+FixedBandwidthMemoryController::hasHighestPri(int queueID){
 
-	for(int i=1;i<tokens.size();i++){
+	assert(!requests.empty());
+
+	double maxtokens = -1000000000000.0;
+	int maxID = -1;
+
+	for(int i=0;i<tokens.size();i++){
 		if(tokens[i] > maxtokens && requestCount[i] > 0){
 			maxtokens = tokens[i];
 			maxID = i;
 		}
 	}
+	assert(maxID >= 0);
 
-	DPRINTF(MemoryController, "CPU %d had the highest priority, query for CPU %d\n", maxID, cpuID);
+	DPRINTF(MemoryController, "CPU %d had the highest priority, query for CPU %d\n", maxID, queueID);
 
-	return cpuID == maxID;
+	return queueID == maxID;
 }
 
 void

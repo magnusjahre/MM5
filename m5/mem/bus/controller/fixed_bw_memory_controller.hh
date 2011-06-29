@@ -48,7 +48,7 @@ class FixedBandwidthMemoryController : public TimingMemoryController
         bool hasEqualTokens(MemReqPtr& req1, MemReqPtr& req2);
         bool isOlder(MemReqPtr& req1, MemReqPtr& req2);
         void removeRequest(MemReqPtr& req);
-        bool hasHighestPri(int cpuID);
+        bool hasHighestPri(int queueID);
 
     public:
 
