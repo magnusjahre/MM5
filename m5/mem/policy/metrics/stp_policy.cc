@@ -134,6 +134,8 @@ double
 STPPolicy::computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){
 	double funcval = 0.0;
 
+	assert(xvals.size() == aloneCycles.size());
+
 	for(int i=0;i<xvals.size();i++){
 		double denominator = (measurements->alphas[i] / xvals[i]) + measurements->betas[i];
 		funcval += aloneCycles[i] / denominator;

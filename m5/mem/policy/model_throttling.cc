@@ -35,6 +35,8 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 	optimalPeriods.resize(_cpuCount, 0.0);
 	optimalBWShares = vector<double>(cpuCount+1, 0.0);
 
+	predictedCPI.resize(_cpuCount, 0.0);
+
 	modelValueTrace = RequestTrace(_name, "ModelValueTrace", 1);
 	initModelValueTrace(_cpuCount);
 
@@ -411,7 +413,9 @@ ModelThrottlingPolicy::initModelValueTrace(int np){
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alpha", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("beta", i));
 	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("alone", i));
-	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("optimal-req-rate", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPI estimate", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPI actual", i));
+	for(int i=0;i<cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("Optimal BW Shares", i));
 	headers.push_back("optimal-metric-value");
 	modelValueTrace.initalizeTrace(headers);
 }
@@ -422,9 +426,21 @@ ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements, ve
 	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->alphas[i]);
 	for(int i=0;i<cpuCount;i++) vals.push_back(measurements->betas[i]);
 	for(int i=0;i<cpuCount;i++) vals.push_back(aloneCycles[i]);
-	for(int i=0;i<cpuCount;i++) vals.push_back(optimalRates[i]);
-	vals.push_back(performanceMetric->computeFunction(measurements, optimalRates, aloneCycles));
+	for(int i=0;i<cpuCount;i++) vals.push_back(predictedCPI[i]);
+	for(int i=0;i<cpuCount;i++) vals.push_back((double) period /(double) measurements->committedInstructions[i]);
+
+	vector<double> procshares;
+	for(int i=0;i<cpuCount;i++){
+		vals.push_back(optimalBWShares[i]);
+		procshares.push_back(optimalBWShares[i]);
+	}
+
+	vals.push_back(performanceMetric->computeFunction(measurements, procshares, aloneCycles));
 	modelValueTrace.addTrace(vals);
+
+	for(int i=0;i<cpuCount;i++){
+		predictedCPI[i] = ((measurements->alphas[i] / optimalBWShares[i]) + measurements->betas[i]) / (double) measurements->committedInstructions[i];
+	}
 }
 
 void

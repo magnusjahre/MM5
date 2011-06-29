@@ -19,6 +19,8 @@ private:
 	std::vector<double> optimalPeriods;
 	vector<double> optimalBWShares;
 
+	vector<double> predictedCPI;
+
 	RequestTrace throttleTrace;
 	RequestTrace modelValueTrace;
 	RequestTrace modelSearchTrace;
