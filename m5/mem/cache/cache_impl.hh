@@ -655,16 +655,17 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 							case BaseCache::WB_POLICY_OWNER:
 								assert(blk->prevOrigRequestingCpuID != -1);
 								writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
+								writebacks.front()->nfqWBID = blk->prevOrigRequestingCpuID;
 								break;
 							case BaseCache::WB_POLICY_REPLACER:
 								writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
+								writebacks.front()->nfqWBID = req->adaptiveMHASenderID;
 								break;
 							default:
 								writebacks.front()->adaptiveMHASenderID = -1;
+								writebacks.front()->nfqWBID = -1;
 								break;
 							}
-
-							writebacks.front()->nfqWBID = blk->prevOrigRequestingCpuID;
 
 							writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
 							writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];

@@ -414,7 +414,7 @@ END_DECLARE_SIM_OBJECT_PARAMS(NFQMemoryController)
 BEGIN_INIT_SIM_OBJECT_PARAMS(NFQMemoryController)
     INIT_PARAM_DFLT(rd_queue_size, "Max read queue size", 64),
     INIT_PARAM_DFLT(wr_queue_size, "Max write queue size", 64),
-    INIT_PARAM_DFLT(starvation_prevention_thres, "Starvation Prevention Threshold", 1),
+    INIT_PARAM_DFLT(starvation_prevention_thres, "Starvation Prevention Threshold", 3),
     INIT_PARAM_DFLT(num_cpus, "Number of CPUs", -1),
     INIT_PARAM(priorities, "The per thread priorities"),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false)
