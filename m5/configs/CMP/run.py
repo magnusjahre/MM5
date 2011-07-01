@@ -87,11 +87,11 @@ def createWorkload(workload):
 
 def setNFQParams(useTrafficGenerator, controllerID, optPart):
     if useTrafficGenerator:
-        length = int(env["NP"])+1
+        length = int(env["NP"])+2
     else:
-        length = int(env["NP"])
+        length = int(env["NP"])+1
         
-    root.membus[controllerID].memory_controller.num_cpus = length
+    root.membus[controllerID].memory_controller.num_cpus = int(env["NP"])
     
     priorities = [1.0 / float(length) for i in range(length)]
     
@@ -104,7 +104,7 @@ def setNFQParams(useTrafficGenerator, controllerID, optPart):
             pris = env["NFQ-PRIORITIES"].split(",")
             
             if len(pris) != int(env["NP"])+1:
-                panic("You need to provide NFQ priorities for both all cores (and the traffic generator if available)")
+                panic("You need to provide NFQ priorities for both all cores and shared writebacks (and the traffic generator if available)")
                 
             for i in range(length):
                 priorities[i] = float(pris[i])

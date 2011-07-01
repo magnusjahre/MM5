@@ -53,6 +53,8 @@ class NFQMemoryController : public TimingMemoryController
 
         void setUpWeights(std::vector<double> priorities);
 
+        int getQueueID(int cpuID);
+
     public:
 
         /** Constructs a Memory Controller object. */

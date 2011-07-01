@@ -26,8 +26,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
 
     nfqNumCPUs = _numCPUs;
 
-    virtualFinishTimes.resize(nfqNumCPUs, 0);
-    requests.resize(nfqNumCPUs);
+    virtualFinishTimes.resize(nfqNumCPUs+1, 0);
+    requests.resize(nfqNumCPUs+1);
 
     pageCmd = new MemReq();
     pageCmd->cmd = Activate;
@@ -45,22 +45,21 @@ NFQMemoryController::NFQMemoryController(std::string _name,
 NFQMemoryController::~NFQMemoryController(){
 }
 
+int
+NFQMemoryController::getQueueID(int cpuID){
+	if(cpuID == -1){
+		return nfqNumCPUs;
+	}
+	return cpuID;
+}
+
 void
 NFQMemoryController::setUpWeights(std::vector<double> priorities){
-
-//    double max = 0.0;
-//    double min = 2.0;
-//    for(int i=0; i< priorities.size(); i++){
-//    	if(priorities[i] > max) max = priorities[i];
-//    	if(priorities[i] < min) min = priorities[i];
-//    }
-
-    processorIncrements.resize(nfqNumCPUs, 0);
+    processorIncrements.resize(nfqNumCPUs+1, 0);
+    assert(priorities.size() == processorIncrements.size());
     for(int i=0; i<priorities.size(); i++){
     	processorIncrements[i] = (int) ((1 / priorities[i])*1000);
     }
-
-
 }
 
 int
@@ -74,8 +73,8 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     req->cmd == Read ? queuedReads++ : queuedWrites++;
-    int curCPUID = (req->adaptiveMHASenderID >= 0 ? req->adaptiveMHASenderID : req->nfqWBID);
-    assert(curCPUID >= 0 && curCPUID < nfqNumCPUs);
+    int curCPUID = getQueueID(req->adaptiveMHASenderID);
+    assert(curCPUID >= 0 && curCPUID < requests.size());
 
     Tick minTag = getMinStartTag();
     Tick curFinTag = -1;
@@ -86,8 +85,9 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     virtualFinishTimes[curCPUID] = req->virtualStartTime + processorIncrements[curCPUID];
 
     DPRINTF(MemoryController,
-            "Inserting request from cpu %d, addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
+            "Inserting request into queue %d (cpu %d), addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
             curCPUID,
+            req->adaptiveMHASenderID,
             req->paddr,
             req->virtualStartTime,
             minTag,
@@ -190,6 +190,17 @@ NFQMemoryController::getRequest() {
                     retval->virtualStartTime,
                     oldest);
         }
+    }
+
+    if(retval->cmd == Read || retval->cmd == Writeback){
+    	DPRINTF(MemoryController,
+    			"Executing request from cpu %d, cmd %s, addr %d, start time is %d, new finish time %d, weight %d\n",
+    			retval->adaptiveMHASenderID,
+    			retval->cmd,
+    			retval->paddr,
+    			retval->virtualStartTime,
+    			virtualFinishTimes[getQueueID(retval->adaptiveMHASenderID)],
+    			processorIncrements[retval->adaptiveMHASenderID]);
     }
 
     return retval;
@@ -360,7 +371,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
             "Returning column request, start time %d, addr %d, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
-            (req->adaptiveMHASenderID >=0 ? req->adaptiveMHASenderID : req->nfqWBID));
+            req->adaptiveMHASenderID);
 
     return req;
 }
