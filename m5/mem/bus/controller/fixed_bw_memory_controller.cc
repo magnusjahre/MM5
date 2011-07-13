@@ -22,7 +22,7 @@ FixedBandwidthMemoryController::FixedBandwidthMemoryController(std::string _name
     curSeqNum = 0;
 
     tokens.resize(_cpuCount+1, 0.0);
-    targetAllocation.resize(_cpuCount+1, -1.0);
+    targetAllocation.resize(_cpuCount+1, 1.0 / (_cpuCount+1));
     requestCount.resize(_cpuCount+1, 0);
     lastRunAt = 0;
 
