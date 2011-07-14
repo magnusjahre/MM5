@@ -151,7 +151,7 @@ NFQMemoryController::getRequest() {
 
     if(starvationCounter < starvationPreventionThreshold){
         // 1. Prioritize ready pages
-        foundReady = findColumnRequest(retval, &NFQMemoryController::isActive);
+        foundReady = findColumnRequest(retval, &NFQMemoryController::isReady);
 
         // 2. Prioritize CAS commands
         if(!foundReady){
