@@ -77,9 +77,7 @@ class NFQMemoryController : public TimingMemoryController
 
         virtual void setOpenPages(std::list<Addr> pages);
 
-        virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-        	// not needed
-        }
+        virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
         virtual void setBandwidthQuotas(std::vector<double> quotas){
         	setUpWeights(quotas);

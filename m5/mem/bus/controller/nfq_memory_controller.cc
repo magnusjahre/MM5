@@ -65,6 +65,10 @@ NFQMemoryController::setUpWeights(std::vector<double> priorities){
 int
 NFQMemoryController::insertRequest(MemReqPtr &req) {
 
+	if(controllerInterference != NULL && !controllerInterference->isInitialized()){
+		controllerInterference->initialize(nfqNumCPUs);
+	}
+
     req->inserted_into_memory_controller = curTick;
     assert(req->cmd == Read || req->cmd == Writeback);
 
@@ -99,6 +103,10 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     if((queuedReads >= readQueueLength || queuedWrites >= writeQueueLenght) && !isBlocked() ){
         DPRINTF(MemoryController, "Blocking, #reads %d, #writes %d\n", queuedReads, queuedWrites);
         setBlocked();
+    }
+
+    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    	controllerInterference->insertRequest(req);
     }
 
     return 0;
@@ -408,6 +416,14 @@ NFQMemoryController::printRequestQueue(Tick fromTick){
             cout << "\n";
         }
     }
+}
+
+void
+NFQMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
+    assert(req->interferenceMissAt == 0);
+	if(controllerInterference != NULL){
+		controllerInterference->estimatePrivateLatency(req);
+	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
