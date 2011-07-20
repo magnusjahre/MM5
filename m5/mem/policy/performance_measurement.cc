@@ -46,6 +46,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	alphas.resize(cpuCount, 0.0);
 	betas.resize(cpuCount, 0.0);
+	currentBWShare.resize(cpuCount, 0.0);
 
 	maxRequestRate = 0.0;
 	uncontrollableMissRequestRate = 0.0;
@@ -243,7 +244,12 @@ PerformanceMeasurement::updateConstants(){
 		updateAlpha(i);
 		updateBeta(i);
 
-		//TODO: create new validation dprintf when the new model is implemented
+		double modelPeriod = (alphas[i] / currentBWShare[i]) + betas[i];
+		DPRINTF(MissBWPolicy, "Model Calibration: model period is %f, actual period %d, error %f, alphas/bwshare=%f\n",
+				modelPeriod,
+				period,
+				(modelPeriod - period)/(double)period,
+				alphas[i] / currentBWShare[i]);
 	}
 }
 
@@ -263,6 +269,9 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 		totalMisses += perCoreCacheMeasurements[i].readMisses + perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
 	}
 
+	currentBWShare[cpuID] = perCoreCacheMeasurements[cpuID].readMisses / totalMisses;
+	DPRINTF(MissBWPolicy, "CPU %d has a %f share of the total bus bandwidth\n", cpuID, currentBWShare[cpuID]);
+
 	if(avgBusServiceCycles == 0.0){
 		assert(totalMisses == 0);
 		DPRINTF(MissBWPolicy, "No requests used the bus, alpha is 0\n");
@@ -270,7 +279,6 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 		return;
 	}
 	assert(avgBusServiceCycles > 0.0);
-
 
 	double thisMisses = perCoreCacheMeasurements[cpuID].readMisses;
 	if(perCoreCacheMeasurements[cpuID].readMisses == 0){
@@ -291,10 +299,13 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	double avgWaitCalTot = avgWaitCalPerReq * requestsInSample[cpuID];
 	double avgWaitPerMiss = avgWaitCalTot / thisMisses;
 
-	alphas[cpuID] = overlap * thisMisses * avgWaitPerMiss;
+	double avgMinWaitPerMiss = currentBWShare[cpuID] * avgWaitPerMiss;
 
-	DPRINTF(MissBWPolicy, "Estimated average wait time per miss is %d, returning alpha %d\n",
+	alphas[cpuID] = overlap * thisMisses * avgMinWaitPerMiss;
+
+	DPRINTF(MissBWPolicy, "Estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
 			avgWaitPerMiss,
+			avgMinWaitPerMiss,
 			alphas[cpuID]);
 }
 
@@ -342,7 +353,12 @@ PerformanceMeasurement::updateBeta(int cpuID){
 
 	double overlap = computedOverlap[cpuID];
 
-	DPRINTF(MissBWPolicy, "CPU %d has %f compute cycles and overlap %f\n", cpuID, compute, overlap);
+	DPRINTF(MissBWPolicy, "CPU %d has %f compute cycles, overlap %f and non-bus cycles %f (average %f)\n",
+			cpuID,
+			compute,
+			overlap,
+			requestsInSample[cpuID] * (ic + cache + bus),
+			ic + cache+ bus);
 
 	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
 
