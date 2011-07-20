@@ -172,7 +172,7 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
     for(int i=1;i<=cpuCount;i++){
     	double thisMaxBW = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
-    	double upbo = thisMaxBW / measurements->maxRequestRate;
+    	double upbo = thisMaxBW / measurements->maxReadRequestRate;
     	set_upbo(lp, i, upbo);
     }
 
@@ -323,8 +323,8 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 
 
-	double maxbw = measurements->maxRequestRate + measurements->getUncontrollableMissReqRate();
-	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = (xvals[i] * measurements->maxRequestRate)  / maxbw;
+	double maxbw = measurements->maxReadRequestRate + measurements->getUncontrollableMissReqRate();
+	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = (xvals[i] * measurements->maxReadRequestRate)  / maxbw;
 	optimalBWShares[cpuCount] = measurements->getUncontrollableMissReqRate() / maxbw;
 	traceVector("Optimal bandwidth shares are: ", optimalBWShares);
 
@@ -347,12 +347,12 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		}
 
 		double threshold = 0.95; //FIXME: parameterize
-		if(allocsum < (measurements->maxRequestRate * threshold)){
+		if(allocsum < (measurements->maxReadRequestRate * threshold)){
 			DPRINTF(MissBWPolicy, "Sum of allocations %f is less than %f of maximum %f (%f), no allocations needed\n",
 					allocsum,
 					threshold,
-					measurements->maxRequestRate,
-					measurements->maxRequestRate * threshold);
+					measurements->maxReadRequestRate,
+					measurements->maxReadRequestRate * threshold);
 			for(int i=0;i<xvals.size();i++) xvals[i] = -1.0;
 		}
 
@@ -494,7 +494,7 @@ ModelThrottlingPolicy::dumpVerificationData(PerformanceMeasurement* measurements
 
 		dumpvals.addElement("cur-metric-value", performanceMetric->computeFunction(measurements, measuredReqRates, aloneCycles));
 		dumpvals.addElement("opt-metric-value", performanceMetric->computeFunction(measurements, optimalArrivalRates, aloneCycles));
-		dumpvals.addElement("max-bus-request-rate", measurements->maxRequestRate);
+		dumpvals.addElement("max-bus-request-rate", measurements->maxReadRequestRate);
 		dumpvals.addElement("uncontrollable-request-rate", measurements->getUncontrollableMissReqRate());
 		dumpvals.addElement("uncontrollable-request-share", optimalBWShares[cpuCount]);
 	}

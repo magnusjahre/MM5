@@ -83,7 +83,8 @@ public:
 
 	std::vector<CacheMissMeasurements> perCoreCacheMeasurements;
 
-	double maxRequestRate;
+	double maxReadRequestRate;
+	double maxRate;
 
 	PerformanceMeasurement(int _cpuCount, int _numIntTypes, int _maxMSHRs, int _period);
 

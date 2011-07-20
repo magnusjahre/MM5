@@ -37,6 +37,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	otherBusRequests = 0;
 	sumBusQueueCycles = 0.0;
 
+	maxRate = 0.0;
+
 	busAccessesPerCore.resize(cpuCount, 0);
 	busReadsPerCore.resize(cpuCount, 0);
 
@@ -48,7 +50,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	betas.resize(cpuCount, 0.0);
 	currentBWShare.resize(cpuCount, 0.0);
 
-	maxRequestRate = 0.0;
+	maxReadRequestRate = 0.0;
 	uncontrollableMissRequestRate = 0.0;
 }
 
@@ -258,14 +260,15 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	DPRINTF(MissBWPolicy, "Computed average bus service latency %f for CPU %d\n", avgBusServiceCycles, cpuID);
 
+	DPRINTF(MissBWPolicy, "CPU %d had %d cache misses, %d writeback misses and caused %d shared cache writebacks (total requests %d)\n",
+			cpuID,
+			perCoreCacheMeasurements[cpuID].readMisses,
+			perCoreCacheMeasurements[cpuID].wbMisses,
+			perCoreCacheMeasurements[cpuID].sharedCacheWritebacks,
+			requestsInSample[cpuID]);
+
 	double totalMisses = 0;
 	for(int i=0;i<cpuCount;i++){
-		DPRINTF(MissBWPolicy, "CPU %d had %d cache misses, %d writeback misses and caused %d shared cache writebacks\n",
-				i,
-				perCoreCacheMeasurements[i].readMisses,
-				perCoreCacheMeasurements[i].wbMisses,
-				perCoreCacheMeasurements[i].sharedCacheWritebacks);
-
 		totalMisses += perCoreCacheMeasurements[i].readMisses + perCoreCacheMeasurements[i].wbMisses + perCoreCacheMeasurements[i].sharedCacheWritebacks;
 	}
 
@@ -299,11 +302,15 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 	double avgWaitCalTot = avgWaitCalPerReq * requestsInSample[cpuID];
 	double avgWaitPerMiss = avgWaitCalTot / thisMisses;
 
-	double avgMinWaitPerMiss = currentBWShare[cpuID] * avgWaitPerMiss;
+	double curRate = perCoreCacheMeasurements[cpuID].readMisses / (double) period;
+	double curBWShare = curRate / maxReadRequestRate;
+
+	double avgMinWaitPerMiss = curBWShare * avgWaitPerMiss;
 
 	alphas[cpuID] = overlap * thisMisses * avgMinWaitPerMiss;
 
-	DPRINTF(MissBWPolicy, "Estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
+	DPRINTF(MissBWPolicy, "Current BW share is %f, estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
+			curBWShare,
 			avgWaitPerMiss,
 			avgMinWaitPerMiss,
 			alphas[cpuID]);
@@ -319,7 +326,7 @@ PerformanceMeasurement::setBandwidthBound(){
 	}
 
 	assert(useAvgBusCycles > 0.0);
-	double maxRate = 1/useAvgBusCycles;
+	maxRate = 1/useAvgBusCycles;
 	DPRINTF(MissBWPolicy, "Estimated maximum request rate the bus can handle is %f\n", maxRate);
 
 	double uncontrollableMisses = 0.0;
@@ -328,8 +335,8 @@ PerformanceMeasurement::setBandwidthBound(){
 	}
 	uncontrollableMissRequestRate = uncontrollableMisses / (double) period;
 
-	maxRequestRate = maxRate - uncontrollableMissRequestRate;
-	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRequestRate, maxRequestRate);
+	maxReadRequestRate = maxRate - uncontrollableMissRequestRate;
+	DPRINTF(MissBWPolicy, "There are %f misses the model cannot reach (rate %f), returning reachable max %f\n", uncontrollableMisses, uncontrollableMissRequestRate, maxReadRequestRate);
 
 }
 
@@ -345,10 +352,6 @@ PerformanceMeasurement::updateBeta(int cpuID){
 
 	double cache = latencyBreakdown[cpuID][InterferenceManager::CacheCapacity];
 
-	double bus = 0.0;
-	//bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusEntry]; //entry latency is part of alpha
-	bus += latencyBreakdown[cpuID][InterferenceManager::MemoryBusService];
-
 	double compute = getNonStallCycles(cpuID, period);
 
 	double overlap = computedOverlap[cpuID];
@@ -357,10 +360,10 @@ PerformanceMeasurement::updateBeta(int cpuID){
 			cpuID,
 			compute,
 			overlap,
-			requestsInSample[cpuID] * (ic + cache + bus),
-			ic + cache+ bus);
+			requestsInSample[cpuID] * (ic + cache),
+			ic + cache);
 
-	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache + bus);
+	betas[cpuID] = compute + overlap * requestsInSample[cpuID] * (ic + cache);
 
 	DPRINTF(MissBWPolicy, "Computed beta %f for CPU %d\n", betas[cpuID], cpuID);
 }
