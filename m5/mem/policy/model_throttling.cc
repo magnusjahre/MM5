@@ -163,9 +163,17 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 	REAL* rowbuffer = (REAL*) malloc((cpuCount+1)*sizeof(REAL));
 	rowbuffer[0] = 0.0; //element 0 is ignored
 
+	// sum of bandwidth shares must be less than 1.0
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
-    //if (!add_constraint(lp, rowbuffer, EQ, cpuCount*period)) fatal("Couldn't add sum constraint");
 	if (!add_constraint(lp, rowbuffer, LE, 1.0)) fatal("Couldn't add sum constraint");
+
+	// ad starvation constraints
+	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 0.0;
+	for(int i=1;i<=cpuCount;i++){
+		rowbuffer[i-1] = 0.0;
+		rowbuffer[i] = 1.0;
+		if (!add_constraint(lp, rowbuffer, GE, 0.05)) fatal("Couldn't add starvation constraint");
+	}
 
     for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
     set_obj_fn(lp, rowbuffer);
