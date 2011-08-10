@@ -6,7 +6,7 @@
 
 #include "mem/bus/controller/nfq_memory_controller.hh"
 
-#define LARGE_TICK 10000000000ull
+#define LARGE_TICK 10000000000000000ull
 #define MAX_ACTIVE_PAGES 4
 
 using namespace std;
@@ -261,6 +261,8 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
     Tick minval = LARGE_TICK;
     int minrow = -1;
     int mincol = -1;
+
+    cout << minval << "\n";
 
     for(int i=0;i<requests.size();i++){
         for(int j=0;j<requests[i].size();j++){
