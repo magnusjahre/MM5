@@ -262,8 +262,6 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
     int minrow = -1;
     int mincol = -1;
 
-    cout << minval << "\n";
-
     for(int i=0;i<requests.size();i++){
         for(int j=0;j<requests[i].size();j++){
             if(requests[i][j]->virtualStartTime < minval){
