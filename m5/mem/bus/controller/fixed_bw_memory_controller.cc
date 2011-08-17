@@ -266,9 +266,10 @@ FixedBandwidthMemoryController::hasHighestPri(int queueID){
 	}
 	assert(maxID >= 0);
 
-	DPRINTF(MemoryController, "CPU %d had the highest priority, query for CPU %d\n", maxID, queueID);
+	DPRINTF(MemoryController, "CPU %d had the highest priority (tokens %f), query for CPU %d (tokens %f)\n",
+			maxID, tokens[maxID], queueID, tokens[queueID]);
 
-	return queueID == maxID;
+	return tokens[queueID] == tokens[maxID];
 }
 
 void
