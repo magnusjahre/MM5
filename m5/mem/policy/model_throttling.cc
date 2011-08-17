@@ -157,9 +157,6 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 	if ((lp = make_lp(0,cpuCount)) == NULL) fatal("Couldn't create LP");
 	set_outputfile(lp, (char*) "lp-trace.txt");
 
-	set_col_name(lp, 1, (char*) "CPU 0");
-	set_col_name(lp, 2, (char*) "CPU 1");
-
 	REAL* rowbuffer = (REAL*) malloc((cpuCount+1)*sizeof(REAL));
 	rowbuffer[0] = 0.0; //element 0 is ignored
 
@@ -167,28 +164,43 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
 	if (!add_constraint(lp, rowbuffer, LE, 1.0)) fatal("Couldn't add sum constraint");
 
-	// ad starvation constraints
+	// ad starvation constraints and upper bounds
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 0.0;
 	for(int i=1;i<=cpuCount;i++){
+
+		double thisMaxBW = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
+		double upbo = thisMaxBW / measurements->maxReadRequestRate;
+
+		double lowbo = 0.05;
+		if(lowbo > upbo){
+			lowbo = upbo;
+		}
+
+		// starvation constraint
 		rowbuffer[i-1] = 0.0;
 		rowbuffer[i] = 1.0;
-		if (!add_constraint(lp, rowbuffer, GE, 0.05)) fatal("Couldn't add starvation constraint");
+		if (!add_constraint(lp, rowbuffer, GE, lowbo)) fatal("Couldn't add starvation constraint");
+
+		// upper bound
+		set_upbo(lp, i, upbo);
 	}
 
     for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
     set_obj_fn(lp, rowbuffer);
 
     for(int i=1;i<=cpuCount;i++){
-    	double thisMaxBW = (double) measurements->perCoreCacheMeasurements[i-1].readMisses / (double) aloneCycles[i-1];
-    	double upbo = thisMaxBW / measurements->maxReadRequestRate;
-    	set_upbo(lp, i, upbo);
+
     }
 
     set_maxim(lp);
 
     print_lp(lp);
 
-    solve(lp);
+    int ret = solve(lp);
+    if(ret != OPTIMAL){
+    	warn("Linear programming solver returned non-optimal result (Code %d)", ret);
+    	return vector<double>();
+    }
 
     vector<double> retval = vector<double>(cpuCount, 0.0);
     for(int i=0;i<cpuCount;i++){
@@ -315,6 +327,12 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
 		traceVerboseVector("New gradient is: ", thisGradient);
 		xstar = findNewTrialPoint(thisGradient, measurements);
+		if(xstar.empty()){
+			warn("Linear programming problem not solved optimally, returning initial solution\n");
+			xvals = vector<double>(cpuCount, 1.0 / (double) cpuCount);
+			break;
+		}
+
 		//double stepsize = findOptimalStepSize(xvals, xstar, measurements);
 		double stepsize = fastFindOptimalStepSize(xvals, xstar, measurements);
 		xvals = addMultCons(xvals, xstar, stepsize);
