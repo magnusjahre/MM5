@@ -173,7 +173,7 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 
 		double lowbo = 0.05;
 		if(lowbo > upbo){
-			lowbo = upbo;
+			upbo = lowbo;
 		}
 
 		// starvation constraint
