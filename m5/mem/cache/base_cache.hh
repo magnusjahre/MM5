@@ -183,16 +183,6 @@ public:
 
 	WritebackOwnerPolicy writebackOwnerPolicy;
 
-	enum InterferenceProbabilityPolicy{
-		IPP_FULL_RANDOM_FLOAT, // float
-		IPP_COUNTER_FIXED_INTMAN, // fixed
-		IPP_COUNTER_FIXED_PRIVATE, // fixed-private
-		IPP_SEQUENTIAL_INSERT,
-		IPP_INVALID
-	};
-
-	InterferenceProbabilityPolicy intProbabilityPolicy;
-
 	/** Bank addressing scheme */
 	bool doModuloAddressing;
 	int bankID;
@@ -614,6 +604,10 @@ public:
     virtual void enableOccupancyList() = 0;
 
 	void sampleMSHRUse(int allocated, Tick latency);
+
+	int getAssoc(){
+		return associativity;
+	}
 
 #ifdef CACHE_DEBUG
 	virtual void removePendingRequest(Addr address, MemReqPtr& req) = 0;

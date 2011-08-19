@@ -197,8 +197,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<BasePolicy *> miss_bandwidth_policy;
 
     Param<string> writeback_owner_policy;
-    Param<string> interference_probability_policy;
-    Param<int> ipp_bits;
     Param<bool> use_aggregate_mlp_estimator;
     Param<int> max_use_ways;
     VectorParam<int> static_cache_quotas;
@@ -206,6 +204,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<CachePartitioning *> partitioning;
     Param<bool> do_mshr_trace;
     SimObjectParam<ThrottleControl *> throttle_control;
+
+    SimObjectParam<CacheInterference *> cache_interference;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -307,14 +307,13 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
 	INIT_PARAM_DFLT(miss_bandwidth_policy, "Miss Bandwidth Policy", NULL),
     INIT_PARAM_DFLT(writeback_owner_policy, "The policy used for providing sender IDs to shared cache writebacks", "shadow-tags"),
-    INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
-    INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
     INIT_PARAM_DFLT(use_aggregate_mlp_estimator, "Use the aggregate MLP estimator (and not the per MSHR estimator)", true),
     INIT_PARAM_DFLT(max_use_ways, "Maximum number of ways available (Only for shared caches and single core)", -1),
     INIT_PARAM_DFLT(static_cache_quotas, "The per core cache quota in ways", vector<int>()),
     INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL),
     INIT_PARAM_DFLT(do_mshr_trace, "Trace the occupancy of all MSHRs (caution!)", false),
-    INIT_PARAM_DFLT(throttle_control, "A pointer to the throttle control object", NULL)
+    INIT_PARAM_DFLT(throttle_control, "A pointer to the throttle control object", NULL),
+    INIT_PARAM_DFLT(cache_interference, "A pointer to the cache interference object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -370,8 +369,8 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        do_modulo_addr, bank_id,\
                                                        bank_count, adaptive_mha,\
             detailed_sim_start_tick, simulate_contention, memory_address_offset, memory_address_parts,\
-            interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, ipp, ipp_bits,\
-            use_aggregate_mlp_estimator, static_cache_quotas, partitioning); \
+            interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, \
+            use_aggregate_mlp_estimator, static_cache_quotas, partitioning, cache_interference); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\
@@ -562,24 +561,6 @@ CREATE_SIM_OBJECT(BaseCache)
     }
     else{
     	fatal("Unknown writeback policy provided to cache");
-    }
-
-    BaseCache::InterferenceProbabilityPolicy ipp;
-    string ipp_name = interference_probability_policy;
-    if(ipp_name == "float"){
-    	ipp = BaseCache::IPP_FULL_RANDOM_FLOAT;
-    }
-    else if(ipp_name == "fixed"){
-    	ipp = BaseCache::IPP_COUNTER_FIXED_INTMAN;
-    }
-    else if(ipp_name == "fixed-private"){
-    	ipp = BaseCache::IPP_COUNTER_FIXED_PRIVATE;
-    }
-    else if(ipp_name == "sequential"){
-    	ipp = BaseCache::IPP_SEQUENTIAL_INSERT;
-    }
-    else{
-    	fatal("Unknown interference probability policy provided");
     }
 
     // Build BaseCache param object

@@ -7,8 +7,6 @@ class DirectoryProtocol(Enum): vals = ['none', 'stenstrom']
 
 class WritebackOwnerPolicy(Enum): vals = ['unknown', 'owner', 'replacer', 'shadow-tags']
 
-class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private', 'sequential']
-
 class BaseCache(BaseMem):
     type = 'BaseCache'
     adaptive_compression = Param.Bool(False,
@@ -112,8 +110,6 @@ class BaseCache(BaseMem):
     miss_bandwidth_policy = Param.BasePolicy("Global Policy Object")
     
     writeback_owner_policy = Param.WritebackOwnerPolicy("The policy used for providing sender IDs to shared cache writebacks")
-    interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
-    ipp_bits = Param.Int("The resolution of the probability (used in a subset of IPP modes)")
     use_aggregate_mlp_estimator = Param.Bool("Use the aggregate MLP estimator (and not the per MSHR estimator)")
     max_use_ways = Param.Int("Maximum number of ways available (Only for shared caches and single core)")
 
@@ -122,3 +118,5 @@ class BaseCache(BaseMem):
     
     do_mshr_trace = Param.Bool("Trace the occupancy of all MSHRs (caution!)")
     throttle_control = Param.ThrottleControl("A pointer to the throttle control object")
+    
+    cache_interference = Param.CacheInterference("Cache interference object")

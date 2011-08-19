@@ -11,159 +11,188 @@
 
 using namespace std;
 
-CacheInterference::CacheInterference(int _numLeaderSets, int _totalSetNumber, int _numBanks, std::vector<LRU*> _shadowTags, BaseCache* _cache, int _numBits){
+CacheInterference::CacheInterference(std::string _name,
+		                             int _cpuCount,
+		                             int _numLeaderSets,
+		                             int _size,
+		                             int _numBits,
+		                             InterferenceProbabilityPolicy _ipp,
+		                             InterferenceManager* _intman,
+		                             int _blockSize,
+		                             int _assoc,
+		                             int _hitLat)
+: SimObject(_name){
 
-	totalSetNumber = _totalSetNumber;
-	numBanks = _numBanks;
-	shadowTags = _shadowTags;
-	cache = _cache;
+	size = _size;
 
-	numLeaderSets = _numLeaderSets / numBanks;
+	totalSetNumber = size / (_blockSize * _assoc);
+	cpuCount = _cpuCount;
+	intProbabilityPolicy = _ipp;
+
+	shadowTags = vector<LRU*>(cpuCount, NULL);
+
+	for(int i=0;i<cpuCount;i++){
+		shadowTags[i] = new LRU(totalSetNumber,
+								_blockSize,
+								_assoc,
+								_hitLat,
+								1,
+								true,
+								-1, // division factor
+								-1, // max use ways
+								i);
+	}
+
+	numLeaderSets = _numLeaderSets;
 	if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
 	if(totalSetNumber % numLeaderSets  != 0){
 		fatal("The the total number for sets must be divisible by the number of leader sets");
 	}
 	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
 
-	doInterferenceInsertion.resize(cache->cpuCount, numLeaderSets == totalSetNumber);
+	doInterferenceInsertion.resize(cpuCount, numLeaderSets == totalSetNumber);
 
-	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN || cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
+	if(intProbabilityPolicy == IPP_COUNTER_FIXED_INTMAN || intProbabilityPolicy == IPP_COUNTER_FIXED_PRIVATE){
 		randomCounterBits = _numBits;
-		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, randomCounterBits));
-		responseCounters.resize(cache->cpuCount, FixedWidthCounter(false, randomCounterBits));
+		requestCounters.resize(cpuCount, FixedWidthCounter(false, randomCounterBits));
+		responseCounters.resize(cpuCount, FixedWidthCounter(false, randomCounterBits));
 	}
-	else if(cache->intProbabilityPolicy == BaseCache::IPP_FULL_RANDOM_FLOAT){
+	else if(intProbabilityPolicy == IPP_FULL_RANDOM_FLOAT){
 		randomCounterBits = 0;
-		requestCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
-		responseCounters.resize(cache->cpuCount, FixedWidthCounter(false, 0));
+		requestCounters.resize(cpuCount, FixedWidthCounter(false, 0));
+		responseCounters.resize(cpuCount, FixedWidthCounter(false, 0));
 	}
-	else if(cache->intProbabilityPolicy == BaseCache::IPP_SEQUENTIAL_INSERT){
+	else if(intProbabilityPolicy == IPP_SEQUENTIAL_INSERT){
 		for(int i=0;i<doInterferenceInsertion.size();i++) doInterferenceInsertion[i] = true;
 	}
 	else{
 		fatal("cache interference probability policy not set");
 	}
 
-	sequentialReadCount.resize(cache->cpuCount, 0);
-	sequentialWritebackCount.resize(cache->cpuCount, 0);
+	sequentialReadCount.resize(cpuCount, 0);
+	sequentialWritebackCount.resize(cpuCount, 0);
 
 
-	samplePrivateMisses.resize(cache->cpuCount, MissCounter(0));
-	sampleSharedMisses.resize(cache->cpuCount, MissCounter(0));
+	samplePrivateMisses.resize(cpuCount, MissCounter(0));
+	sampleSharedMisses.resize(cpuCount, MissCounter(0));
 
-	interferenceMissProbabilities.resize(cache->cpuCount, InterferenceMissProbability(true, randomCounterBits));
+	interferenceMissProbabilities.resize(cpuCount, InterferenceMissProbability(true, randomCounterBits));
 
-	samplePrivateWritebacks.resize(cache->cpuCount, MissCounter(0));
-	sampleSharedResponses.resize(cache->cpuCount, MissCounter(0));
+	samplePrivateWritebacks.resize(cpuCount, MissCounter(0));
+	sampleSharedResponses.resize(cpuCount, MissCounter(0));
 
-	privateWritebackProbability.resize(cache->cpuCount, InterferenceMissProbability(false, randomCounterBits));
+	privateWritebackProbability.resize(cpuCount, InterferenceMissProbability(false, randomCounterBits));
 
-	cache->interferenceManager->registerCacheInterferenceObj(this);
+	_intman->registerCacheInterferenceObj(this);
 
 	setsInConstituency = totalSetNumber / numLeaderSets;
 
-	missesSinceLastInterferenceMiss.resize(cache->cpuCount, 0);
-	sharedResponsesSinceLastPrivWriteback.resize(cache->cpuCount, 0);
+	missesSinceLastInterferenceMiss.resize(cpuCount, 0);
+	sharedResponsesSinceLastPrivWriteback.resize(cpuCount, 0);
 
 
-	readMissAccumulator.resize(cache->cpuCount, 0);
-	wbMissAccumulator.resize(cache->cpuCount, 0);
-	writebackAccumulator.resize(cache->cpuCount, 0);
-	interferenceMissAccumulator.resize(cache->cpuCount, 0);
-	accessAccumulator.resize(cache->cpuCount, 0);
+	readMissAccumulator.resize(cpuCount, 0);
+	wbMissAccumulator.resize(cpuCount, 0);
+	writebackAccumulator.resize(cpuCount, 0);
+	interferenceMissAccumulator.resize(cpuCount, 0);
+	accessAccumulator.resize(cpuCount, 0);
 
 	srand(240000);
 }
 
 void
-CacheInterference::regStats(string name){
+CacheInterference::regStats(){
 
 	using namespace Stats;
 
     extraMissLatency
-        .init(cache->cpuCount)
-        .name(name + ".cpu_extra_latency")
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_latency")
         .desc("extra latency due to blocks being evicted from the cache")
         .flags(total)
         ;
 
     numExtraResponses
-        .init(cache->cpuCount)
-        .name(name + ".cpu_extra_responses")
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_responses")
         .desc("number of responses to extra misses measured with shadow tags")
         .flags(total)
         ;
 
     numExtraMisses
-        .init(cache->cpuCount)
-        .name(name + ".cpu_extra_misses")
+        .init(cpuCount)
+        .name(name() + ".cpu_extra_misses")
         .desc("number of extra misses measured with shadow tags")
         .flags(total)
         ;
 
     shadowTagWritebacks
-		.init(cache->cpuCount)
-		.name(name + ".shadow_tag_writebacks")
+		.init(cpuCount)
+		.name(name() + ".shadow_tag_writebacks")
 		.desc("the number of writebacks detected in the shadowtags")
 		.flags(total)
 		;
 
     estimatedShadowAccesses
-        .init(cache->cpuCount)
-        .name(name + ".estimated_shadow_accesses")
+        .init(cpuCount)
+        .name(name() + ".estimated_shadow_accesses")
         .desc("number of shadow accesses from sampled shadow tags")
         .flags(total)
         ;
 
     estimatedShadowMisses
-		.init(cache->cpuCount)
-		.name(name + ".estimated_shadow_misses")
+		.init(cpuCount)
+		.name(name() + ".estimated_shadow_misses")
 		.desc("number of shadow misses from sampled shadow tags")
 		.flags(total)
 		;
 
     estimatedShadowMissRate
-		.name(name + ".estimated_shadow_miss_rate")
+		.name(name() + ".estimated_shadow_miss_rate")
 		.desc("miss rate estimate from sampled shadow tags")
 		;
 
     estimatedShadowMissRate = estimatedShadowMisses / estimatedShadowAccesses;
 
-    estimatedShadowInterferenceMisses
-		.name(name + ".estimated_shadow_interference_misses")
-		.desc("interference miss estimate from sampled shadow tags")
-		;
-
-    estimatedShadowInterferenceMisses = cache->missesPerCPU - estimatedShadowMisses;
+//    estimatedShadowInterferenceMisses
+//		.name(name() + ".estimated_shadow_interference_misses")
+//		.desc("interference miss estimate from sampled shadow tags")
+//		;
+//
+//    estimatedShadowInterferenceMisses = cache->missesPerCPU - estimatedShadowMisses;
 
     interferenceMissDistanceDistribution
-		.init(cache->cpuCount, 1, 50, 1)
-		.name(name + ".interference_miss_distance_distribution")
+		.init(cpuCount, 1, 50, 1)
+		.name(name() + ".interference_miss_distance_distribution")
         .desc("The distribution of misses between each interference miss")
         .flags(total | pdf | cdf)
 		;
 
     privateWritebackDistribution
-    		.init(cache->cpuCount, 1, 50, 1)
-    		.name(name + ".private_writeback_distance_distribution")
+    		.init(cpuCount, 1, 50, 1)
+    		.name(name() + ".private_writeback_distance_distribution")
             .desc("The distribution of the number of shared-mode writebacks between each private-mode writeback")
             .flags(total | pdf | cdf)
     		;
+
+    for(int i=0;i<shadowTags.size();i++){
+        stringstream tmp;
+        tmp << i;
+        shadowTags[i]->regStats(name()+".shadowtags.cpu"+tmp.str());
+    }
 }
 
 void
-CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
+CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart){
 
-	assert(cache->isShared);
 	assert(!shadowTags.empty());
 
-	if(cache->cpuCount > 1){
+	if(cpuCount > 1){
 
 		bool shadowHit = false;
 		bool shadowLeaderSet = false;
 
 		// access tags to update LRU stack
-		assert(cache->isShared);
 		assert(req->adaptiveMHASenderID != -1);
 		assert(req->cmd == Writeback || req->cmd == Read);
 
@@ -178,7 +207,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 		int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 		shadowLeaderSet = isLeaderSet(shadowSet);
 
-		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID, shadowLeaderSet);
+		LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID, shadowLeaderSet, hitLat);
 
 
 		if(shadowBlk != NULL){
@@ -194,13 +223,13 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 		if(shadowLeaderSet){
 			if(shadowBlk == NULL){ // shadow miss
-				if(curTick >= cache->detailedSimulationStartTick){
+				if(curTick >= detailedSimStart){
 					samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 				}
 				estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 			}
 			else{ // shadow hit
-				if(isCacheMiss && curTick >= cache->detailedSimulationStartTick){
+				if(isCacheMiss && curTick >= detailedSimStart){
 					// shared cache miss and shadow hit -> need to tag reqs as interference requests
 					sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
 					interferenceMissAccumulator[req->adaptiveMHASenderID] += setsInConstituency;
@@ -209,7 +238,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 			estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
-		if(curTick >= cache->detailedSimulationStartTick){
+		if(curTick >= detailedSimStart){
 			if(isCacheMiss){
 				sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
 			}
@@ -217,17 +246,17 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss){
 
 		doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
 
-		if(curTick >= cache->detailedSimulationStartTick
+		if(curTick >= detailedSimStart
 		   && doInterferenceInsertion[req->adaptiveMHASenderID]){
 
 			if(numberOfSets == numLeaderSets){
 				if(shadowHit && isCacheMiss){
-					tagAsInterferenceMiss(req);
+					tagAsInterferenceMiss(req, hitLat);
 				}
 			}
 			else{
 				if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd), req->adaptiveMHASenderID, true)){
-					tagAsInterferenceMiss(req);
+					tagAsInterferenceMiss(req, hitLat);
 				}
 			}
 		}
@@ -255,7 +284,7 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 
 	assert(numLeaderSets < totalSetNumber);
 
-	if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_INTMAN){
+	if(intProbabilityPolicy == IPP_COUNTER_FIXED_INTMAN){
 
 		FixedWidthCounter* counter = NULL;
 		if(useRequestCounter) counter = &requestCounters[cpuID];
@@ -267,7 +296,7 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 
 		return doInsertion;
 	}
-	else if(cache->intProbabilityPolicy == BaseCache::IPP_FULL_RANDOM_FLOAT){
+	else if(intProbabilityPolicy == IPP_FULL_RANDOM_FLOAT){
 		double randNum = rand() / (double) RAND_MAX;
 
 		if(randNum < probability.getFloatValue()){
@@ -275,7 +304,7 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 		}
 		return false;
 	}
-	else if(cache->intProbabilityPolicy == BaseCache::IPP_SEQUENTIAL_INSERT){
+	else if(intProbabilityPolicy == IPP_SEQUENTIAL_INSERT){
 		int* counter = 0;
 		if(useRequestCounter) counter = &sequentialReadCount[cpuID];
 		else counter = &sequentialWritebackCount[cpuID];
@@ -286,7 +315,7 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 		}
 		return false;
 	}
-	else if(cache->intProbabilityPolicy == BaseCache::IPP_COUNTER_FIXED_PRIVATE){
+	else if(intProbabilityPolicy == IPP_COUNTER_FIXED_PRIVATE){
 		fatal("private counter based policy interference determination not implemented");
 	}
 	else{
@@ -295,7 +324,7 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 }
 
 void
-CacheInterference::doShadowReplacement(MemReqPtr& req){
+CacheInterference::doShadowReplacement(MemReqPtr& req, BaseCache* cache){
 
 	int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 	bool isShadowLeaderSet = isLeaderSet(shadowSet);
@@ -312,7 +341,7 @@ CacheInterference::doShadowReplacement(MemReqPtr& req){
 
 			if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
 				Addr wbAddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
-				issuePrivateWriteback(req->adaptiveMHASenderID, wbAddr);
+				issuePrivateWriteback(req->adaptiveMHASenderID, wbAddr, cache);
 			}
 
 			privateWritebackDistribution[req->adaptiveMHASenderID].sample(sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]);
@@ -332,7 +361,7 @@ CacheInterference::doShadowReplacement(MemReqPtr& req){
 	// set block values to the values of the new occupant
 	shadowBlk->tag = shadowTags[req->adaptiveMHASenderID]->extractTag(req->paddr, shadowBlk);
 	shadowBlk->asid = req->asid;
-	assert(req->xc || !cache->doData());
+	assert(req->xc);
 	shadowBlk->xc = req->xc;
 	shadowBlk->status = BlkValid;
 	shadowBlk->origRequestingCpuID = req->adaptiveMHASenderID;
@@ -340,14 +369,13 @@ CacheInterference::doShadowReplacement(MemReqPtr& req){
 }
 
 void
-CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
+CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCache* cache){
 
-	assert(cache->isShared);
 	assert(!shadowTags.empty());
 	assert(req->adaptiveMHASenderID != -1);
 	assert(req->cmd == Read);
 
-	if(cache->cpuCount > 1){
+	if(cpuCount > 1){
 
 		if(curTick >= cache->detailedSimulationStartTick){
 			sampleSharedResponses[req->adaptiveMHASenderID].increment(req);
@@ -358,7 +386,7 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 
 		LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
 		if(currentBlk == NULL){
-			doShadowReplacement(req);
+			doShadowReplacement(req, cache);
 		}
 
 		// Compute cache capacity interference penalty and inform the InterferenceManager
@@ -379,14 +407,14 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks){
 		   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read), req->adaptiveMHASenderID, false)){
 
 			int set = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
-			issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, set);
+			issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, cache, set);
 		}
 
 	}
 }
 
 void
-CacheInterference::issuePrivateWriteback(int cpuID, Addr addr, int cacheSet){
+CacheInterference::issuePrivateWriteback(int cpuID, Addr addr, BaseCache* cache, int cacheSet){
 	MemReqPtr virtualWriteback = new MemReq();
 	virtualWriteback->cmd = VirtualPrivateWriteback;
 	virtualWriteback->paddr = addr;
@@ -400,8 +428,8 @@ CacheInterference::issuePrivateWriteback(int cpuID, Addr addr, int cacheSet){
 }
 
 void
-CacheInterference::tagAsInterferenceMiss(MemReqPtr& req){
-	req->interferenceMissAt = curTick + cache->getHitLatency();
+CacheInterference::tagAsInterferenceMiss(MemReqPtr& req, int hitLat){
+	req->interferenceMissAt = curTick + hitLat;
 	numExtraMisses[req->adaptiveMHASenderID]++;
 }
 
@@ -434,8 +462,7 @@ CacheInterference::isLeaderSet(int set){
 }
 
 LRUBlk*
-CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet){
-	int hitLat = cache->getHitLatency();
+CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet, int hitLat){
 	return shadowTags[cpuID]->findBlock(req, hitLat, isLeaderSet);
 }
 
@@ -548,7 +575,7 @@ std::vector<CacheMissMeasurements>
 CacheInterference::getMissMeasurementSample(){
 	std::vector<CacheMissMeasurements> missMeasurements;
 
-	for(int i=0;i<cache->cpuCount;i++){
+	for(int i=0;i<cpuCount;i++){
 		CacheMissMeasurements tmp(readMissAccumulator[i],
 							      wbMissAccumulator[i],
 								  interferenceMissAccumulator[i],
@@ -566,3 +593,66 @@ CacheInterference::getMissMeasurementSample(){
 
 	return missMeasurements;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
+	Param<int> cpuCount;
+	Param<int> leaderSets;
+	Param<int> size;
+    Param<string> interference_probability_policy;
+    Param<int> ipp_bits;
+    SimObjectParam<InterferenceManager* > interferenceManager;
+    Param<int> blockSize;
+    Param<int> assoc;
+    Param<int> hitLatency;
+END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
+	INIT_PARAM(cpuCount, "Number of cores"),
+	INIT_PARAM_DFLT(leaderSets, "Number of leader sets", 64),
+	INIT_PARAM(size, "The size of the cache in bytes"),
+    INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
+    INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
+    INIT_PARAM(interferenceManager, "Pointer to the interference manager"),
+    INIT_PARAM(blockSize, "Cache block size"),
+    INIT_PARAM(assoc, "Associativity"),
+    INIT_PARAM(hitLatency, "The cache hit latency")
+END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
+
+CREATE_SIM_OBJECT(CacheInterference)
+{
+
+    CacheInterference::InterferenceProbabilityPolicy ipp;
+    string ipp_name = interference_probability_policy;
+    if(ipp_name == "float"){
+    	ipp = CacheInterference::IPP_FULL_RANDOM_FLOAT;
+    }
+    else if(ipp_name == "fixed"){
+    	ipp = CacheInterference::IPP_COUNTER_FIXED_INTMAN;
+    }
+    else if(ipp_name == "fixed-private"){
+    	ipp = CacheInterference::IPP_COUNTER_FIXED_PRIVATE;
+    }
+    else if(ipp_name == "sequential"){
+    	ipp = CacheInterference::IPP_SEQUENTIAL_INSERT;
+    }
+    else{
+    	fatal("Unknown interference probability policy provided");
+    }
+
+	return new CacheInterference(getInstanceName(),
+								 cpuCount,
+								 leaderSets,
+								 size,
+								 ipp_bits,
+								 ipp,
+								 interferenceManager,
+								 blockSize,
+								 assoc,
+								 hitLatency);
+}
+
+REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)
+
+#endif //DOXYGEN_SHOULD_SKIP_THIS

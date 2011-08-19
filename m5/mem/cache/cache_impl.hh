@@ -100,37 +100,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     useAggregateMLPEstimator = params.useAggMLPEstimator;
 
-    intProbabilityPolicy = IPP_INVALID;
-
-    // init shadowtags
-#ifdef USE_CACHE_LRU
-
-    if(isShared && params.cpu_count > 1){
-        shadowTags.resize(params.cpu_count, NULL);
-        for(int i=0;i<params.cpu_count;i++){
-            shadowTags[i] = new LRU(tags->getNumSets(),
-                                    this->getBlockSize(),
-                                    tags->getAssoc(),
-                                    hitLatency,
-                                    params.bankCount,
-                                    true,
-                                    -1, // division factor
-                                    -1, // max use ways
-                                    i);
-
-            shadowTags[i]->setCache(this, false);
-        }
-
-        intProbabilityPolicy = params.ipp;
-        int numBits = params.ippBits;
-        cacheInterference = new CacheInterference(params.shadowTagLeaderSets, tags->getNumSets(), params.bankCount, shadowTags, this, numBits);
-    }
-    else{
-        cacheInterference = NULL;
-    }
-#else
-    cacheInterference = NULL;
-#endif
+    cacheInterference = params.cacheInterference;
 
 //    if(params.useMTPPartitioning)
 //    {
@@ -258,9 +228,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 
 template<class TagStore, class Buffering, class Coherence>
 Cache<TagStore,Buffering,Coherence>::~Cache(){
-   for(int i=0;i<shadowTags.size();i++) delete shadowTags[i];
-//   delete mtp;
-   delete cacheInterference;
+
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -272,16 +240,6 @@ Cache<TagStore,Buffering,Coherence>::regStats()
     missQueue->regStats(name());
     coherence->regStats(name());
     prefetcher->regStats(name());
-
-    for(int i=0;i<shadowTags.size();i++){
-        stringstream tmp;
-        tmp << i;
-        shadowTags[i]->regStats(name()+".shadowtags.cpu"+tmp.str());
-    }
-
-    if(cacheInterference != NULL){
-    	cacheInterference->regStats(name()+".cacheinterference");
-    }
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -403,7 +361,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	//shadow tag access
 	if(cacheInterference != NULL){
-		cacheInterference->access(req, !blk);
+		cacheInterference->access(req, !blk, hitLatency, detailedSimulationStartTick);
 	}
 
 	accessSample++;
@@ -632,7 +590,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 			//shadow replacement
 			if(cacheInterference != NULL){
-				cacheInterference->handleResponse(req, writebacks);
+				cacheInterference->handleResponse(req, writebacks, this);
 			}
 
 			while (!writebacks.empty()) {

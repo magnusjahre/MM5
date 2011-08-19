@@ -227,6 +227,28 @@ def setUpCachePartitioning():
                 bank.partitioning.epoch_size = int(env["CACHE-PARTITIONING-EPOCH-SIZE"])
 
 
+def createCacheInterference(bank):
+    cacheInt = CacheInterference()
+    
+    cacheInt.size = str(L2_BANK_COUNT * bank.size)+"B"
+    cacheInt.assoc = bank.assoc
+    cacheInt.blockSize = bank.block_size
+    cacheInt.hitLatency = bank.latency
+    
+    cacheInt.cpuCount = int(env['NP']) 
+    cacheInt.interferenceManager = root.interferenceManager
+
+    if "SHADOW-TAG-LEADER-SETS" in env:
+        cacheInt.leaderSets = int(env["SHADOW-TAG-LEADER-SETS"]) 
+
+    if "IPP" in env:
+        cacheInt.interference_probability_policy = env["IPP"]
+            
+    if "IPP-BITS" in env:
+        cacheInt.ipp_bits = env["IPP-BITS"]
+    
+    return cacheInt
+
 def initSharedCache(bankcnt, optPart):
     
     if "SHARED-CACHE-BANK-SIZE" in env:
@@ -236,7 +258,7 @@ def initSharedCache(bankcnt, optPart):
     
     if int(env['NP']) == 4 or int(env['NP']) == 2:
         if banksize == None:
-            banksize = str(2*(2**10))+"kB"
+            banksize = str(2*(2**10))+"kB"        
         root.SharedCache = [SharedCache8M(size=banksize) for i in range(bankcnt)]
     elif int(env['NP']) == 8:
         if banksize == None:
@@ -276,27 +298,22 @@ def initSharedCache(bankcnt, optPart):
     if "WRITEBACK-OWNER-POLICY" in env:
         for bank in root.SharedCache:
             bank.writeback_owner_policy = env["WRITEBACK-OWNER-POLICY"]
-            
-    if "SHADOW-TAG-LEADER-SETS" in env:
-        for bank in root.SharedCache:
-            bank.shadow_tag_leader_sets = int(env["SHADOW-TAG-LEADER-SETS"])
-            
-    if "IPP" in env:
-        for bank in root.SharedCache:
-            bank.interference_probability_policy = env["IPP"]
-            
-    if "IPP-BITS" in env:
-        for bank in root.SharedCache:
-            bank.ipp_bits = env["IPP-BITS"]
    
     if "MAX-CACHE-WAYS" in env:
         if int(env["NP"]) != 1:
             panic("-EMAX-CACHE-WAYS only makes sense for single core experiments")
         for b in root.SharedCache:
             b.max_use_ways = int(env["MAX-CACHE-WAYS"])
-   
+    
+    if int(env['NP']) > 1:
+        root.cacheInterference = createCacheInterference(bank) 
+    
     for bank in root.SharedCache:
         bank.interference_manager = root.interferenceManager
+        
+        if int(env['NP']) > 1:
+            bank.cache_interference = root.cacheInterference
+        
         
    
 def setUpSharedCache(bankcnt, detailedStartTick, useMissBWPolicy):

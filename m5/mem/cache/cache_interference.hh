@@ -12,14 +12,27 @@
 #include "mem/mem_req.hh"
 #include "mem/cache/tags/lru.hh"
 #include "mem/policy/performance_measurement.hh"
+#include "mem/interference_manager.hh"
+
 #include <vector>
 #include <iostream>
 
 class BaseCache;
+class InterferenceManager;
 
-class CacheInterference{
+class CacheInterference : public SimObject{
 
 public:
+
+	enum InterferenceProbabilityPolicy{
+		IPP_FULL_RANDOM_FLOAT, // float
+		IPP_COUNTER_FIXED_INTMAN, // fixed
+		IPP_COUNTER_FIXED_PRIVATE, // fixed-private
+		IPP_SEQUENTIAL_INSERT,
+		IPP_INVALID
+	};
+
+	InterferenceProbabilityPolicy intProbabilityPolicy;
 
 
 	class MissCounter;
@@ -130,7 +143,7 @@ protected:
 	Stats::Vector<> estimatedShadowAccesses;
 	Stats::Vector<> estimatedShadowMisses;
 	Stats::Formula estimatedShadowMissRate;
-	Stats::Formula estimatedShadowInterferenceMisses;
+//	Stats::Formula estimatedShadowInterferenceMisses;
 
 	Stats::VectorDistribution<> interferenceMissDistanceDistribution;
 	Stats::VectorDistribution<> privateWritebackDistribution;
@@ -138,10 +151,10 @@ protected:
 private:
 
 	int numLeaderSets;
+	int size;
 	int totalSetNumber;
-	int numBanks;
-	BaseCache* cache;
 	int setsInConstituency;
+	int cpuCount;
 
 	int randomCounterBits;
 	std::vector<FixedWidthCounter> requestCounters;
@@ -175,33 +188,40 @@ private:
 
     bool isLeaderSet(int set);
 
-    void issuePrivateWriteback(int cpuID, Addr addr, int cacheSet = -1);
+    void issuePrivateWriteback(int cpuID, Addr addr, BaseCache* cache, int cacheSet = -1);
 
-    void tagAsInterferenceMiss(MemReqPtr& req);
+    void tagAsInterferenceMiss(MemReqPtr& req, int hitLat);
 
     bool addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter);
 
-    LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet);
+    LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet, int hitLat);
 
     LRUBlk* findShadowTagBlockNoUpdate(MemReqPtr& req, int cpuID);
 
     void doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isCacheMiss, bool isShadowHit);
 
-    void doShadowReplacement(MemReqPtr& req);
+    void doShadowReplacement(MemReqPtr& req, BaseCache* cache);
 
 public:
 
-	CacheInterference(){ }
-
-	CacheInterference(int _numLeaderSets, int _totalSetNumber, int _bankCount, std::vector<LRU*> _shadowTags, BaseCache* _cache, int _numBits);
+	CacheInterference(std::string _name,
+			          int _cpuCount,
+			          int _numLeaderSets,
+			          int _size,
+			          int _numBits,
+			          InterferenceProbabilityPolicy _ipp,
+			          InterferenceManager* _intman,
+			          int _blockSize,
+			          int _assoc,
+			          int _hitLat);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;
 	}
 
-	void access(MemReqPtr& req, bool isCacheMiss);
+	void access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart);
 
-	void handleResponse(MemReqPtr& req, MemReqList writebacks);
+	void handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCache* cache);
 
 	void computeInterferenceProbabilities(int cpuID);
 
@@ -213,7 +233,7 @@ public:
 		return doInterferenceInsertion[cpuID];
 	}
 
-	void regStats(std::string name);
+	void regStats();
 
 	std::vector<CacheMissMeasurements> getMissMeasurementSample();
 };
