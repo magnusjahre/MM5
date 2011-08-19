@@ -29,7 +29,8 @@ public:
     UtilityBasedPartitioning(std::string _name,
 						     int _associativity,
 						     Tick _epochSize,
-						     int _np);
+						     int _np,
+						     CacheInterference* ci);
 
     void handleRepartitioningEvent();
 

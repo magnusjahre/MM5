@@ -6,11 +6,21 @@ using namespace std;
 MultipleTimeSharingPartitions::MultipleTimeSharingPartitions(std::string _name,
                                                              int _associativity,
                                                              Tick _epochSize,
-                                                             int _np)
-: CachePartitioning(_name, _associativity, _epochSize, _np){
+                                                             int _np,
+                                                             CacheInterference* ci)
+: CachePartitioning(_name, _associativity, _epochSize, _np, ci){
 
     misscurves.resize(_np, vector<double>(_associativity, 0));
     mtpPhase = -1;
+
+    cpuCount = _np;
+}
+
+void
+MultipleTimeSharingPartitions::setPartitions(vector<int> partition){
+	for(int i=0;i<cacheBanks.size();i++){
+		cacheBanks[i]->setCachePartition(partition);
+	}
 }
 
 void
@@ -19,7 +29,7 @@ MultipleTimeSharingPartitions::setEqualShare(){
 
 	debugPrintPartition(initialPartition, "Initializing sharing with partition: ");
 
-	cache->setCachePartition(initialPartition);
+	setPartitions(initialPartition);
 }
 
 void
@@ -32,7 +42,9 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
         case -1:{
             mtpPhase = 0; //enter measuring phase
             setEqualShare();
-            cache->enablePartitioning();
+            for(int i=0;i<cacheBanks.size();i++){
+            	cacheBanks[i]->enablePartitioning();
+            }
             break;
         }
         case 0:{
@@ -44,7 +56,7 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
             }
 
             DPRINTF(CachePartitioning, "Miss rate curves:\n");
-            for(int i=0;i<cache->cpuCount;i++){
+            for(int i=0;i<cpuCount;i++){
                 DPRINTFR(CachePartitioning, "CPU %d:", i);
                 for(int j=0;j<misscurves[i].size();j++){
                     DPRINTFR(CachePartitioning, " %d:%f", j, misscurves[i][j]);
@@ -61,10 +73,10 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
                 DPRINTF(CachePartitioning, "No partitioning found\n");
 
                 // enforce static partitioning
-                int equalQuota = associativity / cache->cpuCount;
-                vector<int> staticPartition(cache->cpuCount, equalQuota);
+                int equalQuota = associativity / cpuCount;
+                vector<int> staticPartition(cpuCount, equalQuota);
 
-                cache->setCachePartition(staticPartition);
+                setPartitions(staticPartition);
                 curMTPPartition = -1;
 
             }
@@ -75,7 +87,7 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
 
 				// enforce the first MTP partition
 				curMTPPartition = 0;
-				cache->setCachePartition(mtpPartitions[curMTPPartition]);
+				setPartitions(mtpPartitions[curMTPPartition]);
 
 				debugPrintPartition(mtpPartitions[curMTPPartition], "Partition found, enforcing first partition: ");
             }
@@ -89,7 +101,7 @@ MultipleTimeSharingPartitions::handleRepartitioningEvent(){
             if(curMTPPartition < mtpPartitions.size()){
             	debugPrintPartition(mtpPartitions[curMTPPartition], "Updating partition, setting partition to: ");
 				assert(curMTPPartition >= 0 && curMTPPartition < mtpPartitions.size());
-				cache->setCachePartition(mtpPartitions[curMTPPartition]);
+				setPartitions(mtpPartitions[curMTPPartition]);
             }
             else{
             	DPRINTF(CachePartitioning, "Partitioning finished, returning to equal share\n");
@@ -114,12 +126,12 @@ MultipleTimeSharingPartitions::calculatePartitions(){
 
     // Initialization
     vector<vector<int> > partitions;
-    int baseSetSize = associativity / cache->cpuCount;
-    int minSafeSetIndex = (associativity / cache->cpuCount) -1;
+    int baseSetSize = associativity / cpuCount;
+    int minSafeSetIndex = (associativity / cpuCount) -1;
     int capacity = associativity;
 
-    vector<int> c_expand = vector<int>(cache->cpuCount, 0);
-    for(int i=0;i<cache->cpuCount;i++){
+    vector<int> c_expand = vector<int>(cpuCount, 0);
+    for(int i=0;i<cpuCount;i++){
         //NOTE: this implementation interpretes Chang and Sohi to mean the largest speedup relative to the guaranteed partition
         double tmpMin = misscurves[i][minSafeSetIndex];
         int minIndex = minSafeSetIndex;
@@ -133,25 +145,25 @@ MultipleTimeSharingPartitions::calculatePartitions(){
     }
 
     DPRINTF(CachePartitioning, "Initial c_expand:");
-    for(int i=0;i<cache->cpuCount;i++){
+    for(int i=0;i<cpuCount;i++){
         DPRINTFR(CachePartitioning, " P%d=%d", i, c_expand[i]);
     }
     DPRINTFR(CachePartitioning, "\n");
 
-    vector<int> c_shrink = vector<int>(cache->cpuCount, 0);
-    for(int i=0;i<cache->cpuCount;i++){
+    vector<int> c_shrink = vector<int>(cpuCount, 0);
+    for(int i=0;i<cpuCount;i++){
         c_shrink[i] = minSafeSetIndex;
         double base = misscurves[i][minSafeSetIndex];
         double expandSpeedup = base - misscurves[i][c_expand[i]];
 
         for(int j=minSafeSetIndex-1;j>=0;j--){
-            if(expandSpeedup >= (cache->cpuCount-1)*(misscurves[i][j] - base)) c_shrink[i] = j;
+            if(expandSpeedup >= (cpuCount-1)*(misscurves[i][j] - base)) c_shrink[i] = j;
             else break;
         }
     }
 
     DPRINTF(CachePartitioning, "Initial c_shrink:");
-    for(int i=0;i<cache->cpuCount;i++){
+    for(int i=0;i<cpuCount;i++){
         DPRINTFR(CachePartitioning, " P%d=%d", i, c_shrink[i]);
     }
     DPRINTFR(CachePartitioning, "\n");
@@ -160,7 +172,7 @@ MultipleTimeSharingPartitions::calculatePartitions(){
     // Step 1 - Remove supplier threads
     int supplierCount = 0;
     int thrashingCount = 0;
-    vector<bool> supplier = vector<bool>(cache->cpuCount, false);
+    vector<bool> supplier = vector<bool>(cpuCount, false);
     for(int i=0;i<supplier.size();i++){
         // Thread is supplier is max performance is attained with the guaranteed partition
         if(c_shrink[i] == minSafeSetIndex){
@@ -180,11 +192,11 @@ MultipleTimeSharingPartitions::calculatePartitions(){
     bool stable = false;
     while(thrashingCount > 0 && !stable){
         stable = true;
-        for(int i=0;i<cache->cpuCount;i++){
+        for(int i=0;i<cpuCount;i++){
             if(!supplier[i]){
                 //thread i is currently designated as thrashing
                 int usedByOtherThrashers = 0;
-                for(int j=0;j<cache->cpuCount;j++){
+                for(int j=0;j<cpuCount;j++){
                     if(!supplier[j] && j != i){
                         usedByOtherThrashers += c_shrink[j]+1;
                     }
@@ -219,15 +231,15 @@ MultipleTimeSharingPartitions::calculatePartitions(){
 
     // Step 3 - build partitions
     int partitionCount = thrashingCount;
-    mtpPartitions = vector<vector<int> >(partitionCount, vector<int>(cache->cpuCount, 0));
-    for(int i=0;i<partitionCount;i++) for(int j=0;j<cache->cpuCount;j++) mtpPartitions[i][j] = c_shrink[j]+1;
-    vector<bool> expanded = vector<bool>(cache->cpuCount, false);
+    mtpPartitions = vector<vector<int> >(partitionCount, vector<int>(cpuCount, 0));
+    for(int i=0;i<partitionCount;i++) for(int j=0;j<cpuCount;j++) mtpPartitions[i][j] = c_shrink[j]+1;
+    vector<bool> expanded = vector<bool>(cpuCount, false);
 
     int restCapacity = associativity;
-    for(int i=0;i<cache->cpuCount;i++) restCapacity = restCapacity - (c_shrink[i]+1);
+    for(int i=0;i<cpuCount;i++) restCapacity = restCapacity - (c_shrink[i]+1);
 
     vector<int> thrasherIDs;
-    for(int i=0;i<cache->cpuCount;i++) if(!supplier[i]) thrasherIDs.push_back(i);
+    for(int i=0;i<cpuCount;i++) if(!supplier[i]) thrasherIDs.push_back(i);
 
     for(int p=0;p<partitionCount;p++){
         int j=p;
@@ -268,13 +280,15 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
     Param<int> associativity;
     Param<int> epoch_size;
     Param<int> np;
+    SimObjectParam<CacheInterference* > cache_interference;
 END_DECLARE_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
 
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
     INIT_PARAM(associativity, "Cache associativity"),
     INIT_PARAM_DFLT(epoch_size, "Size of an epoch", 10000000),
-	INIT_PARAM(np, "Number of cores")
+	INIT_PARAM(np, "Number of cores"),
+	INIT_PARAM_DFLT(cache_interference, "Pointer to the cache interference object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(MultipleTimeSharingPartitions)
 
 
@@ -283,7 +297,8 @@ CREATE_SIM_OBJECT(MultipleTimeSharingPartitions)
     return new MultipleTimeSharingPartitions(getInstanceName(),
 											 associativity,
 											 epoch_size,
-											 np);
+											 np,
+											 cache_interference);
 }
 
 REGISTER_SIM_OBJECT("MultipleTimeSharingPartitions", MultipleTimeSharingPartitions)

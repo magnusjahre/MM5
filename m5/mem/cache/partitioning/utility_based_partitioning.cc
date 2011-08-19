@@ -10,8 +10,9 @@
 UtilityBasedPartitioning::UtilityBasedPartitioning(std::string _name,
 												   int _associativity,
 												   Tick _epochSize,
-												   int _np)
-: CachePartitioning(_name, _associativity, _epochSize, _np) {
+												   int _np,
+												   CacheInterference* ci)
+: CachePartitioning(_name, _associativity, _epochSize, _np, ci) {
 	first = true;
 
 	currentHitDistributions.resize(_np, vector<int>());
@@ -38,8 +39,10 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 	enumerateAllocations(vector<int>());
 
 	debugPrintPartition(bestAllocation, "Implementing best partition: ");
-	cache->setCachePartition(bestAllocation);
-	cache->enablePartitioning();
+	for(int i=0;i<cacheBanks.size();i++){
+		cacheBanks[i]->setCachePartition(bestAllocation);
+		cacheBanks[i]->enablePartitioning();
+	}
 
 	schedulePartitionEvent();
 }
@@ -91,13 +94,15 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
     Param<int> associativity;
     Param<int> epoch_size;
     Param<int> np;
+    SimObjectParam<CacheInterference* > cache_interference;
 END_DECLARE_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
 
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
     INIT_PARAM(associativity, "Cache associativity"),
     INIT_PARAM_DFLT(epoch_size, "Size of an epoch", 5000000),
-	INIT_PARAM(np, "Number of cores")
+	INIT_PARAM(np, "Number of cores"),
+	INIT_PARAM_DFLT(cache_interference, "Pointer to the cache interference object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
 
 
@@ -106,7 +111,8 @@ CREATE_SIM_OBJECT(UtilityBasedPartitioning)
     return new UtilityBasedPartitioning(getInstanceName(),
 											 associativity,
 											 epoch_size,
-											 np);
+											 np,
+											 cache_interference);
 }
 
 REGISTER_SIM_OBJECT("UtilityBasedPartitioning", UtilityBasedPartitioning)

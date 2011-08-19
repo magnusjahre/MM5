@@ -11,16 +11,20 @@ class MultipleTimeSharingPartitions : public CachePartitioning{
     std::vector<vector<int> > mtpPartitions;
     int mtpPhase;
     int curMTPPartition;
+    int cpuCount;
 
     void setEqualShare();
 
     bool calculatePartitions();
 
+    void setPartitions(vector<int> partition);
+
   public:
     MultipleTimeSharingPartitions(std::string _name,
                                   int _associativity,
                                   Tick _epochSize,
-                                  int _np);
+                                  int _np,
+                                  CacheInterference* ci);
 
     void handleRepartitioningEvent();
 

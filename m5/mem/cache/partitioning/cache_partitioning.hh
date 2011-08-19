@@ -8,6 +8,7 @@
 #include "sim/sim_object.hh"
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/tags/lru.hh"
+#include "mem/cache/cache_interference.hh"
 
 #ifndef CACHE_PARTITIONING_HH_
 #define CACHE_PARTITIONING_HH_
@@ -17,11 +18,12 @@ class CacheRepartitioningEvent;
 class CachePartitioning : public SimObject{
 
 protected:
-    BaseCache* cache;
+    std::vector<BaseCache*> cacheBanks;
     int associativity;
     std::vector<LRU*> shadowTags;
 	Tick epochSize;
 	int partitioningCpuCount;
+	CacheInterference* cacheInterference;
 
 	CacheRepartitioningEvent* repartEvent;
 
@@ -34,11 +36,12 @@ public:
 	CachePartitioning(std::string _name,
 					  int _associativity,
 					  Tick _epochSize,
-					  int _np);
+					  int _np,
+					  CacheInterference* ci);
 
 	~CachePartitioning();
 
-	void registerCache(BaseCache* _cache, std::vector<LRU*> _shadowTags);
+	void registerCache(BaseCache* _cache, int bankID);
 
 	virtual void handleRepartitioningEvent() = 0;
 

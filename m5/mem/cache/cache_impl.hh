@@ -114,8 +114,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     if(params.partitioning != NULL){
     	assert(isShared);
-    	assert(!shadowTags.empty());
-    	params.partitioning->registerCache(this, shadowTags);
+    	params.partitioning->registerCache(this, bankID);
     }
 
     if(params.isShared){
@@ -1570,9 +1569,11 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::unserialize(Checkpoint *cp, const std::string &section){
 	tags->unserialize(cp, section);
-	for(int i=0;i<shadowTags.size();i++){
-		shadowTags[i]->unserialize(cp, section);
-	}
+
+	// TODO: implement unserialization for shadow tags
+	//for(int i=0;i<shadowTags.size();i++){
+	//	shadowTags[i]->unserialize(cp, section);
+	//}
 }
 
 #ifdef CACHE_DEBUG

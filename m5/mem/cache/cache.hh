@@ -87,8 +87,6 @@ class Cache : public BaseCache
     /** Tag and data Storage */
     TagStore *tags;
 
-    std::vector<LRU*> shadowTags;
-
     /** Miss and Writeback handler */
     Buffering *missQueue;
 

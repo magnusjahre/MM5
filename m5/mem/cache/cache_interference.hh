@@ -133,6 +133,9 @@ public:
 		void reset();
 	};
 
+public:
+	std::vector<LRU*> shadowTags;
+
 protected:
     Stats::Vector<> extraMissLatency;
     Stats::Vector<> numExtraResponses;
@@ -159,8 +162,6 @@ private:
 	int randomCounterBits;
 	std::vector<FixedWidthCounter> requestCounters;
 	std::vector<FixedWidthCounter> responseCounters;
-
-	std::vector<LRU*> shadowTags;
 
 	std::vector<bool> doInterferenceInsertion;
 

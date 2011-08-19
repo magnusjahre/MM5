@@ -207,25 +207,28 @@ def setUpCachePartitioning():
     if env["CACHE-PARTITIONING"] == "Conventional":
         return
     
-    for bank in root.SharedCache:
+    if env["CACHE-PARTITIONING"] == "StaticUniform":
+        for bank in root.SharedCache:
+            bank.static_cache_quotas = [bank.assoc / int(env["NP"]) for i in range(int(env["NP"]))]
+        return   
+    
+    if env["CACHE-PARTITIONING"] == "MTP":
+        root.cachePartitioning = MultipleTimeSharingPartitions()
+    elif env["CACHE-PARTITIONING"] == "UCP":
+        root.cachePartitioning = UtilityBasedPartitioning()
+    else:
+        panic("Unknown cache partitioning scheme")         
+  
+    root.cachePartitioning.associativity = root.SharedCache[0].assoc
+    root.cachePartitioning.np = int(env["NP"])
+    root.cachePartitioning.cache_interference = root.cacheInterference
         
-        if env["CACHE-PARTITIONING"] == "StaticUniform":
-            bank.static_cache_quotas = [bank.assoc / int(env["NP"]) for i in range(int(env["NP"]))]            
-            
-        else:
-            if env["CACHE-PARTITIONING"] == "MTP":
-                bank.partitioning = MultipleTimeSharingPartitions()
-            elif env["CACHE-PARTITIONING"] == "UCP":
-                bank.partitioning = UtilityBasedPartitioning()
-            else:
-                panic("Unknown cache partitioning scheme")
-            
-            bank.partitioning.associativity = bank.assoc
-            bank.partitioning.np = int(env["NP"])
-            
-            if "CACHE-PARTITIONING-EPOCH-SIZE" in env:
-                bank.partitioning.epoch_size = int(env["CACHE-PARTITIONING-EPOCH-SIZE"])
-
+    if "CACHE-PARTITIONING-EPOCH-SIZE" in env:
+        root.cachePartitioning.epoch_size = int(env["CACHE-PARTITIONING-EPOCH-SIZE"])
+  
+    for bank in root.SharedCache:
+        bank.partitioning = root.cachePartitioning
+        
 
 def createCacheInterference(bank):
     cacheInt = CacheInterference()
@@ -287,6 +290,8 @@ def initSharedCache(bankcnt, optPart):
     else:
         panic("No cache defined for selected CPU count")
         
+    if int(env['NP']) > 1:
+        root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
     
     if optPart != None:
         for bank in root.SharedCache:
@@ -304,9 +309,6 @@ def initSharedCache(bankcnt, optPart):
             panic("-EMAX-CACHE-WAYS only makes sense for single core experiments")
         for b in root.SharedCache:
             b.max_use_ways = int(env["MAX-CACHE-WAYS"])
-    
-    if int(env['NP']) > 1:
-        root.cacheInterference = createCacheInterference(bank) 
     
     for bank in root.SharedCache:
         bank.interference_manager = root.interferenceManager

@@ -12,15 +12,18 @@ using namespace std;
 CachePartitioning::CachePartitioning(std::string _name,
 									 int _associativity,
 									 Tick _epochSize,
-									 int _np)
+									 int _np,
+									 CacheInterference* ci)
 : SimObject(_name){
-	cache = NULL;
+	cacheBanks.resize(_np, NULL);
 	associativity = _associativity;
 	partitioningCpuCount = _np;
 
     epochSize = _epochSize;
     assert(epochSize > 0);
 
+    cacheInterference = ci;
+    shadowTags = ci->shadowTags;
 
     repartEvent = new CacheRepartitioningEvent(this);
     repartEvent->schedule(1);
@@ -32,12 +35,9 @@ CachePartitioning::~CachePartitioning(){
 }
 
 void
-CachePartitioning::registerCache(BaseCache* _cache, std::vector<LRU*> _shadowTags){
-	assert(cache == NULL);
-	cache = _cache;
-
-	assert(shadowTags.empty());
-	shadowTags = _shadowTags;
+CachePartitioning::registerCache(BaseCache* _cache, int bankID){
+	assert(cacheBanks[bankID] == NULL);
+	cacheBanks[bankID] = _cache;
 }
 
 void
