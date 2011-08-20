@@ -1562,18 +1562,14 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::serialize(std::ostream &os){
-	tags->serialize(os);
+	assert(cpuCount == 1);
+	tags->serialize(os, name());
 }
 
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::unserialize(Checkpoint *cp, const std::string &section){
 	tags->unserialize(cp, section);
-
-	// TODO: implement unserialization for shadow tags
-	//for(int i=0;i<shadowTags.size();i++){
-	//	shadowTags[i]->unserialize(cp, section);
-	//}
 }
 
 #ifdef CACHE_DEBUG

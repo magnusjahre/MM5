@@ -20,8 +20,10 @@ CacheInterference::CacheInterference(std::string _name,
 		                             InterferenceManager* _intman,
 		                             int _blockSize,
 		                             int _assoc,
-		                             int _hitLat)
-: SimObject(_name){
+		                             int _hitLat,
+		                             int _divFac,
+		                             HierParams* hp)
+: BaseHier(_name, hp){
 
 	size = _size;
 
@@ -38,9 +40,10 @@ CacheInterference::CacheInterference(std::string _name,
 								_hitLat,
 								1,
 								true,
-								-1, // division factor
+								_divFac,
 								-1, // max use ways
 								i);
+		shadowTags[i]->setCacheInterference(this);
 	}
 
 	numLeaderSets = _numLeaderSets;
@@ -594,6 +597,20 @@ CacheInterference::getMissMeasurementSample(){
 	return missMeasurements;
 }
 
+
+void
+CacheInterference::serialize(std::ostream &os){
+	assert(cpuCount == 1);
+	shadowTags[0]->serialize(os, name());
+}
+
+void
+CacheInterference::unserialize(Checkpoint *cp, const std::string &section){
+	for(int i=0;i<cpuCount;i++){
+		shadowTags[i]->unserialize(cp, section);
+	}
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
@@ -606,6 +623,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
     Param<int> blockSize;
     Param<int> assoc;
     Param<int> hitLatency;
+    Param<int> divisionFactor;
 END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
@@ -617,7 +635,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM(interferenceManager, "Pointer to the interference manager"),
     INIT_PARAM(blockSize, "Cache block size"),
     INIT_PARAM(assoc, "Associativity"),
-    INIT_PARAM(hitLatency, "The cache hit latency")
+    INIT_PARAM(hitLatency, "The cache hit latency"),
+    INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode")
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
 CREATE_SIM_OBJECT(CacheInterference)
@@ -641,6 +660,8 @@ CREATE_SIM_OBJECT(CacheInterference)
     	fatal("Unknown interference probability policy provided");
     }
 
+    HierParams* hp = new HierParams("InterferenceHier", false, true, cpuCount);
+
 	return new CacheInterference(getInstanceName(),
 								 cpuCount,
 								 leaderSets,
@@ -650,7 +671,9 @@ CREATE_SIM_OBJECT(CacheInterference)
 								 interferenceManager,
 								 blockSize,
 								 assoc,
-								 hitLatency);
+								 hitLatency,
+								 divisionFactor,
+								 hp);
 }
 
 REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)

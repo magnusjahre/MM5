@@ -13,4 +13,5 @@ class CacheInterference(SimObject):
     interferenceManager= Param.InterferenceManager("Pointer to the interference manager")
     blockSize= Param.Int("Cache block size")
     assoc= Param.Int("Associativity")
-    hitLatency= Param.Latency("The cache hit latency")
+    hitLatency = Param.Latency("The cache hit latency")
+    divisionFactor = Param.Int("The number of cores in shared mode when run in private mode")

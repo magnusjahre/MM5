@@ -43,9 +43,11 @@
 #include "mem/mem_req.hh" // for inlined functions
 #include <assert.h>
 #include "mem/cache/tags/base_tags.hh"
+#include "mem/cache/cache_interference.hh"
 
 class BaseCache;
 class LRU;
+class CacheInterference;
 
 /**
  * LRU cache block.
@@ -145,6 +147,8 @@ protected:
 	std::vector<int> getUsedBlocksPerCore(unsigned int set);
 	LRUBlk* findLRUBlkForCPU(int cpuID, unsigned int set);
 	LRUBlk* findLRUOverQuotaBlk(std::vector<int> blocksInUse, unsigned int set);
+
+	CacheInterference* cacheInterference;
 
 public:
 	/**
@@ -394,8 +398,12 @@ public:
 
 	std::string generateIniName(std::string cachename, int set, int pos);
 
-	virtual void serialize(std::ostream &os);
+	virtual void serialize(std::ostream &os, std::string name);
 	virtual void unserialize(Checkpoint *cp, const std::string &section);
+
+	void setCacheInterference(CacheInterference* ci){
+		cacheInterference = ci;
+	}
 };
 
 #endif

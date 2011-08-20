@@ -170,7 +170,7 @@ protected:
 
     }
 
-    virtual void serialize(std::ostream &os){
+    virtual void serialize(std::ostream &os, std::string name){
 
     }
 

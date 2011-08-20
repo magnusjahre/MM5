@@ -112,6 +112,9 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 
 	// the provided addresses are byte addresses, so the provided block address can be used directly
 
+	cache = NULL;
+	cacheInterference = NULL;
+
 	// Check parameters
 	if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
 		fatal("Block size must be at least 4 and a power of 2");
@@ -645,17 +648,16 @@ LRU::generateIniName(string cachename, int set, int pos){
 }
 
 void
-LRU::serialize(std::ostream &os){
-
-	assert(cache->cpuCount == 1);
+LRU::serialize(std::ostream &os, std::string name){
 
 	int dumpSets = assoc;
-	if(cache->isShared){
-		dumpSets = assoc / divFactor;
+	if(cache != NULL){
+		if(cache->isShared) dumpSets = assoc / divFactor;
 	}
+	if(cache == NULL) dumpSets = assoc / divFactor;
 
 	stringstream filenamestream;
-	filenamestream << cache->name() << "-content.bin";
+	filenamestream << name << "-content.bin";
 	string filename(filenamestream.str());
 	SERIALIZE_SCALAR(filename);
 
@@ -697,7 +699,13 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 	int* fileBlocks = (int*) Serializable::readEntry(sizeof(int), contentfile);
 	int readAssoc = assoc;
-	if(cache->isShared && cache->cpuCount == 1) readAssoc = assoc / divFactor;
+	if(cache != NULL){
+		if(cache->isShared && cache->cpuCount == 1) readAssoc = assoc / divFactor;
+	}
+	else{
+		assert(cacheInterference != NULL);
+		if(cacheInterference->cpuCount == 1) readAssoc = assoc / divFactor;
+	}
 
 	if(*fileBlocks < numSets*readAssoc){
 		fatal("File %s contains too few blocks for cache, got blocks %d, in cache %d", filename, *fileBlocks, numSets*readAssoc);
@@ -726,7 +734,7 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 				tagsInUse++;
 			}
 
-			if(cache->cpuCount > 1){
+			if((cache != NULL ? cache->cpuCount : cacheInterference->cpuCount) > 1){
 				int blockAddrCPUID = -1;
 				if(cache->isShared){
 					blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
@@ -739,7 +747,14 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 				if(blockAddrCPUID != -1){
 					Addr paddr = regenerateBlkAddr(sets[i].blks[j]->tag, sets[i].blks[j]->set);
-					Addr relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
+					Addr relocatedAddr = 0;
+					if(cache != NULL){
+						relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cache->cpuCount);
+					}
+					else{
+						assert(cacheInterference != NULL);
+						relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cacheInterference->cpuCount);
+					}
 
 					sets[i].blks[j]->tag = extractTag(relocatedAddr);
 					sets[i].blks[j]->set = extractSet(relocatedAddr);
@@ -749,7 +764,7 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 	}
 
 	// fix LRU stack to match single program baseline
-	if(cache->cpuCount > 1 && isShadow){
+	if((cache != NULL ? cache->cpuCount :cacheInterference->cpuCount) > 1 && isShadow){
 		assert(shadowID != -1);
 
 		for(int i=0;i<numSets;i++){

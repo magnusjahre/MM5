@@ -240,6 +240,12 @@ def createCacheInterference(bank):
     
     cacheInt.cpuCount = int(env['NP']) 
     cacheInt.interferenceManager = root.interferenceManager
+    
+    if int(env['NP']) == 1:
+        assert "MEMORY-ADDRESS-PARTS" in env
+        cacheInt.divisionFactor = int(env["MEMORY-ADDRESS-PARTS"])
+    else:
+        cacheInt.divisionFactor = int(env["NP"])
 
     if "SHADOW-TAG-LEADER-SETS" in env:
         cacheInt.leaderSets = int(env["SHADOW-TAG-LEADER-SETS"]) 
@@ -290,8 +296,7 @@ def initSharedCache(bankcnt, optPart):
     else:
         panic("No cache defined for selected CPU count")
         
-    if int(env['NP']) > 1:
-        root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
+    root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
     
     if optPart != None:
         for bank in root.SharedCache:
@@ -312,9 +317,7 @@ def initSharedCache(bankcnt, optPart):
     
     for bank in root.SharedCache:
         bank.interference_manager = root.interferenceManager
-        
-        if int(env['NP']) > 1:
-            bank.cache_interference = root.cacheInterference
+        bank.cache_interference = root.cacheInterference
         
         
    

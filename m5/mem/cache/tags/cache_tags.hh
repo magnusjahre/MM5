@@ -358,8 +358,8 @@ class CacheTags
         ct->dumpHitStats();
     }
 
-    void serialize(std::ostream &os){
-    	ct->serialize(os);
+    void serialize(std::ostream &os, std::string name){
+    	ct->serialize(os, name);
     }
 
     void unserialize(Checkpoint *cp, const std::string &section){

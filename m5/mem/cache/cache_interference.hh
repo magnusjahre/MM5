@@ -19,8 +19,10 @@
 
 class BaseCache;
 class InterferenceManager;
+class LRU;
+class LRUBlk;
 
-class CacheInterference : public SimObject{
+class CacheInterference : public BaseHier{
 
 public:
 
@@ -135,6 +137,7 @@ public:
 
 public:
 	std::vector<LRU*> shadowTags;
+	int cpuCount;
 
 protected:
     Stats::Vector<> extraMissLatency;
@@ -157,7 +160,6 @@ private:
 	int size;
 	int totalSetNumber;
 	int setsInConstituency;
-	int cpuCount;
 
 	int randomCounterBits;
 	std::vector<FixedWidthCounter> requestCounters;
@@ -214,7 +216,9 @@ public:
 			          InterferenceManager* _intman,
 			          int _blockSize,
 			          int _assoc,
-			          int _hitLat);
+			          int _hitLat,
+			          int _divFac,
+			          HierParams* _hp);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;
@@ -237,6 +241,10 @@ public:
 	void regStats();
 
 	std::vector<CacheMissMeasurements> getMissMeasurementSample();
+
+    virtual void serialize(std::ostream &os);
+
+    virtual void unserialize(Checkpoint *cp, const std::string &section);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */
