@@ -399,7 +399,7 @@ public:
 	std::string generateIniName(std::string cachename, int set, int pos);
 
 	virtual void serialize(std::ostream &os, std::string name);
-	virtual void unserialize(Checkpoint *cp, const std::string &section);
+	virtual void unserialize(Checkpoint *cp, const std::string &section, std::string _filename = "");
 
 	void setCacheInterference(CacheInterference* ci){
 		cacheInterference = ci;

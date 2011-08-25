@@ -174,7 +174,7 @@ protected:
 
     }
 
-    virtual void unserialize(Checkpoint *cp, const std::string &section){
+    virtual void unserialize(Checkpoint *cp, const std::string &section, std::string _filename = ""){
 
     }
 };

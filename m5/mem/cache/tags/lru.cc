@@ -686,11 +686,10 @@ LRU::regenerateChkBlkAddr(Addr set, Addr tag, int origTagShift){
 }
 
 void
-LRU::unserialize(Checkpoint *cp, const std::string &section){
+LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 
-	string filename;
-
-	UNSERIALIZE_SCALAR(filename);
+	string filename = _filename;
+	if(filename == "") UNSERIALIZE_SCALAR(filename);
 
 	ifstream contentfile(filename.c_str(), ios::binary);
 	if(!contentfile.is_open()){
@@ -705,6 +704,7 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 	else{
 		assert(cacheInterference != NULL);
 		if(cacheInterference->cpuCount == 1) readAssoc = assoc / divFactor;
+		else readAssoc = assoc / cacheInterference->cpuCount;
 	}
 
 	if(*fileBlocks < numSets*readAssoc){
@@ -736,7 +736,7 @@ LRU::unserialize(Checkpoint *cp, const std::string &section){
 
 			if((cache != NULL ? cache->cpuCount : cacheInterference->cpuCount) > 1){
 				int blockAddrCPUID = -1;
-				if(cache->isShared){
+				if(cache == NULL || cache->isShared){
 					blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
 					if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
 				}

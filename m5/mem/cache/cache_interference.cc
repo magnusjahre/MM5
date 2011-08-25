@@ -606,8 +606,10 @@ CacheInterference::serialize(std::ostream &os){
 
 void
 CacheInterference::unserialize(Checkpoint *cp, const std::string &section){
+	string* filenames = new string[cpuCount];
+	UNSERIALIZE_ARRAY(filenames, cpuCount);
 	for(int i=0;i<cpuCount;i++){
-		shadowTags[i]->unserialize(cp, section);
+		shadowTags[i]->unserialize(cp, section, filenames[i]);
 	}
 }
 
