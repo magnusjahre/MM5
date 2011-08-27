@@ -82,7 +82,7 @@ private:
 	std::vector<RequestTrace> estimateTraces;
 	std::vector<RequestTrace> latencyTraces;
 
-	std::vector<CacheInterference* > cacheInterferenceObjs;
+	CacheInterference* cacheInterference;
 
 	std::vector<double> traceInterference(int fromCPU, std::vector<double> avgLats);
 

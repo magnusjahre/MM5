@@ -19,26 +19,29 @@ public:
 	int interferenceMisses;
 	int accesses;
 	int sharedCacheWritebacks;
+	std::vector<int> privateCumulativeCacheMisses;
 
 	CacheMissMeasurements()
 	: readMisses(0), wbMisses(0), interferenceMisses(0), accesses(0), sharedCacheWritebacks(0){
 	}
 
-	CacheMissMeasurements(int _readMisses, int _wbMisses, int _interferenceMisses, int _accesses, int _scwb)
-	: readMisses(_readMisses), wbMisses(_wbMisses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb){
+	CacheMissMeasurements(int _readMisses, int _wbMisses, int _interferenceMisses, int _accesses, int _scwb, std::vector<int> _privateCumulativeCacheMisses)
+	: readMisses(_readMisses), wbMisses(_wbMisses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb), privateCumulativeCacheMisses(_privateCumulativeCacheMisses){
 	}
 
-	void add(CacheMissMeasurements newValues){
-		readMisses += newValues.readMisses;
-		wbMisses += newValues.wbMisses;
-		interferenceMisses += newValues.interferenceMisses;
-		accesses += newValues.accesses;
-		sharedCacheWritebacks += newValues.sharedCacheWritebacks;
-	}
+//	void add(CacheMissMeasurements newValues){
+//		readMisses += newValues.readMisses;
+//		wbMisses += newValues.wbMisses;
+//		interferenceMisses += newValues.interferenceMisses;
+//		accesses += newValues.accesses;
+//		sharedCacheWritebacks += newValues.sharedCacheWritebacks;
+//	}
 
 	double getInterferenceMissesPerMiss();
 
 	double getMissRate();
+
+	void printMissCurve();
 };
 
 class PerformanceMeasurement{

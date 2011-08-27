@@ -399,3 +399,11 @@ CacheMissMeasurements::getMissRate(){
 	return missRate;
 }
 
+void
+CacheMissMeasurements::printMissCurve(){
+	for(int i=0;i<privateCumulativeCacheMisses.size();i++){
+		cout << "("<< i << ", " << privateCumulativeCacheMisses[i] << ") ";
+	}
+	cout << "\n";
+}
+

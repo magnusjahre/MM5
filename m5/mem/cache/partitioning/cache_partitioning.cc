@@ -9,13 +9,15 @@
 
 using namespace std;
 
+#define BANK_COUNT 4
+
 CachePartitioning::CachePartitioning(std::string _name,
 									 int _associativity,
 									 Tick _epochSize,
 									 int _np,
 									 CacheInterference* ci)
 : SimObject(_name){
-	cacheBanks.resize(_np, NULL);
+	cacheBanks.resize(4, NULL);
 	associativity = _associativity;
 	partitioningCpuCount = _np;
 

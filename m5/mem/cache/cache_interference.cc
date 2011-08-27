@@ -463,7 +463,7 @@ CacheInterference::isLeaderSet(int set){
 
 LRUBlk*
 CacheInterference::findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet, int hitLat){
-	return shadowTags[cpuID]->findBlock(req, hitLat, isLeaderSet);
+	return shadowTags[cpuID]->findBlock(req, hitLat, isLeaderSet, setsInConstituency);
 }
 
 LRUBlk*
@@ -576,11 +576,17 @@ CacheInterference::getMissMeasurementSample(){
 	std::vector<CacheMissMeasurements> missMeasurements;
 
 	for(int i=0;i<cpuCount;i++){
+		vector<int> hits = shadowTags[i]->getHitDistribution();
+		vector<int> cumulativeMisses = vector<int>(hits.size(), 0);
+		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
+		shadowTags[i]->resetHitCounters();
+
 		CacheMissMeasurements tmp(readMissAccumulator[i],
 							      wbMissAccumulator[i],
 								  interferenceMissAccumulator[i],
 								  accessAccumulator[i],
-								  writebackAccumulator[i]);
+								  writebackAccumulator[i],
+								  cumulativeMisses);
 
 		readMissAccumulator[i] = 0;
 		wbMissAccumulator[i] = 0;

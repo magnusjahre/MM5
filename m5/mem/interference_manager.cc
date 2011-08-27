@@ -56,6 +56,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	instTraceRequests.resize(_cpu_count, 0);
 
 	missBandwidthPolicy = NULL;
+	cacheInterference = NULL;
 
 	traceStarted = false;
 
@@ -340,13 +341,13 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
 		resetInterferenceMeasurements(req->adaptiveMHASenderID);
 
-		for(int i=0;i<cacheInterferenceObjs.size(); i++){
-			cacheInterferenceObjs[i]->computeInterferenceProbabilities(req->adaptiveMHASenderID);
 
-			if(!cacheInterferenceObjs[i]->interferenceInsertionsInitiated(req->adaptiveMHASenderID)){
-				cacheInterferenceObjs[i]->initiateInterferenceInsertions(req->adaptiveMHASenderID);
-			}
+		cacheInterference->computeInterferenceProbabilities(req->adaptiveMHASenderID);
+
+		if(!cacheInterference->interferenceInsertionsInitiated(req->adaptiveMHASenderID)){
+			cacheInterference->initiateInterferenceInsertions(req->adaptiveMHASenderID);
 		}
+
 	}
 }
 
@@ -509,15 +510,12 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 		RateMeasurement rm = sharedCaches[i]->getMissRate();
 		totalMisses += rm.nominator;
 		totalAccesses += rm.denominator;
-
-		if(sharedCaches[i]->cacheInterference != NULL){
-			std::vector<CacheMissMeasurements> currentCacheMeasurements
-			= sharedCaches[i]->cacheInterference->getMissMeasurementSample();
-
-			for(int j=0;j<cpuCount;j++) currentMeasurement.perCoreCacheMeasurements[j].add(currentCacheMeasurements[j]);
-		}
 	}
 	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
+
+	assert(cacheInterference != NULL);
+	vector<CacheMissMeasurements> currentCacheMeasurements = cacheInterference->getMissMeasurementSample();
+	for(int j=0;j<cpuCount;j++) currentMeasurement.perCoreCacheMeasurements[j] = currentCacheMeasurements[j];
 
 	for(int i=0;i<cpuCount;i++){
 
@@ -541,7 +539,8 @@ InterferenceManager::registerSharedCache(BaseCache* cache){
 
 void
 InterferenceManager::registerCacheInterferenceObj(CacheInterference* ci){
-	cacheInterferenceObjs.push_back(ci);
+	assert(cacheInterference == NULL);
+	cacheInterference = ci;
 }
 
 void

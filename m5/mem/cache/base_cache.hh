@@ -126,6 +126,8 @@ private:
 
 protected:
 
+	CacheInterference* cacheInterference;
+
 	int associativity;
 
 	/** The master interface, typically nearer to Main Memory */
@@ -170,8 +172,6 @@ protected:
 	std::vector<cacheOccupancy> occupancy;
 
 public:
-
-	CacheInterference* cacheInterference;
 
 	enum WritebackOwnerPolicy {
 		WB_POLICY_UNKNOWN,

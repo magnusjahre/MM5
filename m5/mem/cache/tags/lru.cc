@@ -266,7 +266,7 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 }
 
 LRUBlk*
-LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet)
+LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet, int setsInConst)
 {
 	Addr addr = req->paddr;
 	int asid = req->asid;
@@ -282,7 +282,7 @@ LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet)
 
 		if(blk != NULL){
 			assert(hitIndex >= 0 && hitIndex < assoc);
-			if(isLeaderSet) leaderSetHitDistribution[hitIndex]++;
+			if(isLeaderSet) leaderSetHitDistribution[hitIndex] += setsInConst;
 		}
 		else{
 			assert(hitIndex == -1);

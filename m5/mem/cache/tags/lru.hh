@@ -222,7 +222,7 @@ public:
 	 * @param lat The access latency.
 	 * @return Pointer to the cache block if found.
 	 */
-	LRUBlk* findBlock(MemReqPtr &req, int &lat, bool isLeaderSet = false);
+	LRUBlk* findBlock(MemReqPtr &req, int &lat, bool isLeaderSet = false, int setsInConst = 1);
 
 	/**
 	 * Finds the given address in the cache and update replacement data.
