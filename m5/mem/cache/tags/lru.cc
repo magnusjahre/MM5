@@ -736,7 +736,17 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 
 			if((cache != NULL ? cache->cpuCount : cacheInterference->cpuCount) > 1){
 				int blockAddrCPUID = -1;
-				if(cache == NULL || cache->isShared){
+				if(isShadow){
+					if(sets[i].blks[j]->isValid()){
+						assert(shadowID >= 0);
+						blockAddrCPUID = shadowID;
+					}
+					else{
+						assert(sets[i].blks[j]->origRequestingCpuID == -1);
+					}
+
+				}
+				else if(cache->isShared){
 					blockAddrCPUID = sets[i].blks[j]->origRequestingCpuID;
 					if(blockAddrCPUID == -1) assert(!sets[i].blks[j]->isValid());
 				}
@@ -758,40 +768,6 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 
 					sets[i].blks[j]->tag = extractTag(relocatedAddr);
 					sets[i].blks[j]->set = extractSet(relocatedAddr);
-				}
-			}
-		}
-	}
-
-	// fix LRU stack to match single program baseline
-	if((cache != NULL ? cache->cpuCount :cacheInterference->cpuCount) > 1 && isShadow){
-		assert(shadowID != -1);
-
-		for(int i=0;i<numSets;i++){
-
-			std::list<LRUBlk*> thisCoreBlks;
-			std::list<LRUBlk*> otherBlks;
-			for(int j=0;j<assoc;j++){
-				if(sets[i].blks[j]->origRequestingCpuID == shadowID){
-					thisCoreBlks.push_back(sets[i].blks[j]);
-				}
-				else{
-					otherBlks.push_back(sets[i].blks[j]);
-				}
-			}
-
-			for(int j=0;j<assoc;j++){
-				if(!thisCoreBlks.empty()){
-					sets[i].blks[j] = thisCoreBlks.front();
-					thisCoreBlks.pop_front();
-				}
-				else{
-					assert(!otherBlks.empty());
-					sets[i].blks[j] = otherBlks.front();
-					otherBlks.pop_front();
-
-					// invalidate these blocks so that they don't trigger writebacks
-					sets[i].blks[j]->status = 0;
 				}
 			}
 		}
