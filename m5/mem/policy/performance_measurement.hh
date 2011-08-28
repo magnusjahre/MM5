@@ -52,6 +52,28 @@ private:
 	int period;
 	double uncontrollableMissRequestRate;
 
+	class CacheMissModel{
+	public:
+		int a;
+		int b;
+		double gradient;
+
+		CacheMissModel(){
+			a = -1;
+			b = -1;
+			gradient = 0.0;
+		}
+
+		CacheMissModel(int _a, int _b, double _gradient)
+		: a(_a), b(_b), gradient(_gradient){
+
+		}
+
+		void dump();
+	};
+
+	std::vector<CacheMissModel> cacheMissModels;
+
 public:
 	std::vector<int> committedInstructions;
 	std::vector<int> requestsInSample;
@@ -110,6 +132,8 @@ public:
 
 	void updateConstants();
 
+	double getMisses(int cpuID, double ways);
+
 	double getUncontrollableMissReqRate(){
 		return uncontrollableMissRequestRate;
 	}
@@ -120,6 +144,10 @@ private:
 	void updateBeta(int cpuID);
 
 	void setBandwidthBound();
+
+	void calibrateMissModel();
+
+	double ratio(int a, int b);
 };
 
 

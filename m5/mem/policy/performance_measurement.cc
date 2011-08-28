@@ -52,6 +52,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	maxReadRequestRate = 0.0;
 	uncontrollableMissRequestRate = 0.0;
+
+	cacheMissModels.resize(cpuCount, CacheMissModel());
 }
 
 void
@@ -242,6 +244,8 @@ PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
 void
 PerformanceMeasurement::updateConstants(){
 	setBandwidthBound();
+	calibrateMissModel();
+
 	for(int i=0;i<cpuCount;i++){
 		updateAlpha(i);
 		updateBeta(i);
@@ -369,6 +373,73 @@ PerformanceMeasurement::updateBeta(int cpuID){
 }
 
 double
+PerformanceMeasurement::ratio(int a, int b){
+	return (double) ((double) a / (double) b);
+}
+
+void
+PerformanceMeasurement::calibrateMissModel(){
+	double threshold = 1.05; //TODO: parameterize
+
+	for(int i=0;i<cpuCount;i++){
+		int a = perCoreCacheMeasurements[i].privateCumulativeCacheMisses.size()-1;
+		int b = a;
+
+		for(int j=1;j<perCoreCacheMeasurements[i].privateCumulativeCacheMisses.size()-1;j++){
+			int curMisses = perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j];
+			int prevMisses = perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j-1];
+
+			if(ratio(prevMisses, curMisses) > threshold){
+				a = j-1;
+				break;
+			}
+		}
+		for(int j=a+1;j<perCoreCacheMeasurements[i].privateCumulativeCacheMisses.size()-1;j++){
+			int curMisses = perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j];
+			int prevMisses = perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j-1];
+			int nextMisses = perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j+1];
+
+			if(ratio(prevMisses, curMisses) > threshold && ratio(curMisses, nextMisses) < threshold){
+				b = j;
+			}
+		}
+
+		double gradient = 0.0;
+		if(b != a){
+			gradient = ratio(perCoreCacheMeasurements[i].privateCumulativeCacheMisses[b] - perCoreCacheMeasurements[i].privateCumulativeCacheMisses[a], b - a);
+		}
+
+		assert(a != -1 && b != -1);
+		cacheMissModels[i] = CacheMissModel(a, b, gradient);
+		DPRINTF(MissBWPolicy, "Cache Miss Calibration: Computed a=%d, b=%d and gradient %f for CPU %d\n",
+				a,
+				b,
+				gradient,
+				i);
+	}
+}
+
+double
+PerformanceMeasurement::getMisses(int cpuID, double ways){
+	assert(ways >= 0.0 && ways <= perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses.size());
+	if(ways < cacheMissModels[cpuID].a){
+		return perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses[cacheMissModels[cpuID].a];
+	}
+	else if(ways >= cacheMissModels[cpuID].a && ways <= cacheMissModels[cpuID].b){
+		double aMisses = perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses[cacheMissModels[cpuID].a];
+		return aMisses + cacheMissModels[cpuID].gradient * (ways - cacheMissModels[cpuID].a);
+	}
+
+	assert(ways > cacheMissModels[cpuID].b);
+	return perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses[cacheMissModels[cpuID].b];
+}
+
+void
+PerformanceMeasurement::CacheMissModel::dump(){
+	cout << "a=" << a << ", b=" << b << ", gradient=" << gradient << "\n";
+}
+
+double
 CacheMissMeasurements::getInterferenceMissesPerMiss(){
 
 	double dblIntMiss = (double) interferenceMisses;
@@ -406,4 +477,5 @@ CacheMissMeasurements::printMissCurve(){
 	}
 	cout << "\n";
 }
+
 
