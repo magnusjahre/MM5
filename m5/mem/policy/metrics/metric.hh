@@ -22,19 +22,9 @@ public:
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
 
-	virtual std::vector<double> computeOptimalPeriod(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np){
-		fatal("Metric has not implemented computeOptimalPeriod");
-		return std::vector<double>();
-	}
-
 	virtual std::vector<double> gradient(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, int np, std::vector<double> point){
 		fatal("Metric has not implemented gradient");
 	    return std::vector<double>();
-	}
-
-	virtual double getInitLambda(PerformanceMeasurement* measurements, std::vector<double> aloneCycles, double x0){
-		fatal("Metric has not implemented getInitLambda");
-		return 0.0;
 	}
 
 	virtual double computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles){

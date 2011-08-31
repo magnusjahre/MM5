@@ -112,24 +112,6 @@ ModelThrottlingPolicy::doEvaluation(int cpuID){
 	return false;
 }
 
-//std::vector<double>
-//ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measurements){
-//	optimalPeriods = performanceMetric->computeOptimalPeriod(measurements, aloneCycles, cpuCount);
-//
-//	vector<double> optimalRequestRates = vector<double>(cpuCount, 0.0);
-//
-//	assert(optimalPeriods.size() == optimalRequestRates.size());
-//	for(int i=0;i<optimalPeriods.size();i++){
-//		optimalRequestRates[i] = ((double) measurements->requestsInSample[i]) / optimalPeriods[i];
-//	}
-//
-//	traceVector("Got optimal periods: ", optimalPeriods);
-//	traceVector("Request count: ", measurements->requestsInSample);
-//	traceVector("Returning optimal request rates: ", optimalRequestRates);
-//
-//	return optimalRequestRates;
-//}
-
 double
 ModelThrottlingPolicy::checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient){
 	double xvecval = 0.0;
