@@ -11,6 +11,7 @@
 
 #define SEARCH_DECIMALS 12
 #define METRIC_DECIMALS 4
+#define SHARED_CACHE_WAYS 16
 
 ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 InterferenceManager* _intManager,
@@ -34,6 +35,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 
 	optimalPeriods.resize(_cpuCount, 0.0);
 	optimalBWShares = vector<double>(cpuCount+1, 0.0);
+	optimalWayAllocs = vector<int>(cpuCount, 0.0);
 
 	predictedCPI.resize(_cpuCount, 0.0);
 
@@ -136,11 +138,11 @@ std::vector<double>
 ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, PerformanceMeasurement* measurements){
 	lprec *lp;
 
-	if ((lp = make_lp(0,cpuCount)) == NULL) fatal("Couldn't create LP");
+	if ((lp = make_lp(0,cpuCount*2)) == NULL) fatal("Couldn't create LP");
 	set_outputfile(lp, (char*) "lp-trace.txt");
 
-	REAL* rowbuffer = (REAL*) malloc((cpuCount+1)*sizeof(REAL));
-	rowbuffer[0] = 0.0; //element 0 is ignored
+	REAL* rowbuffer = (REAL*) malloc((cpuCount*2+1)*sizeof(REAL));
+	for(int i=0;i<=cpuCount*2;i++) rowbuffer[i] = 0.0;
 
 	// sum of bandwidth shares must be less than 1.0
 	for(int i=1;i<=cpuCount;i++) rowbuffer[i] = 1.0;
@@ -167,12 +169,22 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
 		set_upbo(lp, i, upbo);
 	}
 
-    for(int i=1;i<=cpuCount;i++) rowbuffer[i] = gradient[i-1];
-    set_obj_fn(lp, rowbuffer);
+	// set cache sum constraint
+	for(int i=0;i<=cpuCount*2;i++) rowbuffer[i] = 0.0;
+	for(int i=cpuCount+1;i<=cpuCount*2;i++){
+		rowbuffer[i] = 1.0;
+	}
+	if (!add_constraint(lp, rowbuffer, LE, SHARED_CACHE_WAYS)) fatal("Couldn't add cache sum constraint");
 
-    for(int i=1;i<=cpuCount;i++){
+	for(int i=cpuCount+1;i<=cpuCount*2;i++){
+		set_lowbo(lp, i , 1.0);
+	}
 
+	// set objective function
+    for(int i=1;i<=cpuCount*2;i++){
+    	rowbuffer[i] = gradient[i-1];
     }
+    set_obj_fn(lp, rowbuffer);
 
     set_maxim(lp);
 
@@ -184,9 +196,16 @@ ModelThrottlingPolicy::findNewTrialPoint(std::vector<double> gradient, Performan
     	return vector<double>();
     }
 
-    vector<double> retval = vector<double>(cpuCount, 0.0);
+    vector<double> retval = vector<double>(cpuCount*2, 0.0);
+
+    // retrieve bandwidth allocations
     for(int i=0;i<cpuCount;i++){
     	retval[i] = get_var_primalresult(lp, i+2);
+    }
+
+    // retrieve cache allocations
+    for(int i=0;i<cpuCount;i++){
+    	retval[i+cpuCount] = get_var_primalresult(lp, 3+i+cpuCount*2);
     }
 
     traceVerboseVector("xstar is: ", retval);
@@ -285,19 +304,24 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 
 	measurements->updateConstants();
 
-	vector<double> xvals = vector<double>(cpuCount, 1.0 / (double) cpuCount);
+	vector<double> xvals = vector<double>(cpuCount*2, 1.0 / (double) cpuCount);
+	for(int i=cpuCount;i<2*cpuCount;i++) xvals[i] = (double) ((double) SHARED_CACHE_WAYS / (double) cpuCount);
 
-	vector<double> xstar = vector<double>(cpuCount, 0.0);
-	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+	vector<double> fairShare = xvals;
+
+	vector<double> xstar = vector<double>(cpuCount*2, 0.0);
 
 	traceVector("Initial xvector is: ", xvals);
+
+	vector<double> thisGradient = performanceMetric->gradient(measurements, aloneCycles, cpuCount, xvals);
+
 	traceVector("Initial gradient is: ", thisGradient);
 
 	double gradsum = 0;
 	for(int i=0;i<thisGradient.size();i++) gradsum += thisGradient[i];
 	if(gradsum == 0){
-		DPRINTF(MissBWPolicy, "All gradient values are zero, returning no allocation\n");
-		return vector<double>(cpuCount, -1.0);
+		DPRINTF(MissBWPolicy, "All gradient values are zero, fair share allocation\n");
+		return fairShare;
 	}
 
 
@@ -329,7 +353,7 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 		}
 	}
 
-
+	traceVector("Optimal solution vector is: ", xvals);
 
 	double maxbw = measurements->maxReadRequestRate + measurements->getUncontrollableMissReqRate();
 	for(int i=0;i<cpuCount;i++) optimalBWShares[i] = (xvals[i] * measurements->maxReadRequestRate)  / maxbw;
@@ -340,6 +364,13 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 	for(int i=0;i<=cpuCount;i++) optimalReqRates[i] = optimalBWShares[i] * maxbw;
 
 	traceVector("Optimal request rates are: ", optimalReqRates);
+
+	for(int i=0;i<cpuCount;i++){
+		optimalWayAllocs[i] = (int) xvals[i+cpuCount];
+	}
+	fixCacheAllocations();
+
+	traceVector("Optimal cache partitions are: ", optimalWayAllocs);
 
 	if(implStrat == BW_IMPL_THROTTLE){
 		double minimalAllocation = 1.0 / 2000.0; //FIXME: parameterize
@@ -371,6 +402,19 @@ ModelThrottlingPolicy::findOptimalArrivalRates(PerformanceMeasurement* measureme
 }
 
 void
+ModelThrottlingPolicy::fixCacheAllocations(){
+	int waysum = 0;
+	for(int i=0;i<optimalWayAllocs.size();i++) waysum += optimalWayAllocs[i];
+
+	int iterations = 0;
+	while(waysum < SHARED_CACHE_WAYS){
+		optimalWayAllocs[iterations%cpuCount] += 1;
+		waysum +=1;
+	}
+	traceVector("Corrected way allocation is: ", optimalWayAllocs);
+}
+
+void
 ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, double writeRate){
 
 	if(implStrat == BW_IMPL_THROTTLE){
@@ -395,6 +439,12 @@ ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, doubl
 	}
 	else{
 		fatal("Unknown bandwidth allocation implementation strategy");
+	}
+
+	for(int i=0;i<sharedCaches.size();i++){
+		traceVector("Implementing optimal cache partition:", optimalWayAllocs);
+		sharedCaches[i]->setCachePartition(optimalWayAllocs);
+		sharedCaches[i]->enablePartitioning();
 	}
 }
 
@@ -443,11 +493,15 @@ ModelThrottlingPolicy::traceModelValues(PerformanceMeasurement* measurements, ve
 		procshares.push_back(optimalBWShares[i]);
 	}
 
+	for(int i=0;i<cpuCount;i++){
+		procshares.push_back(optimalWayAllocs[i]);
+	}
+
 	vals.push_back(performanceMetric->computeFunction(measurements, procshares, aloneCycles));
 	modelValueTrace.addTrace(vals);
 
 	for(int i=0;i<cpuCount;i++){
-		predictedCPI[i] = ((measurements->alphas[i] / optimalBWShares[i]) + measurements->betas[i]) / (double) measurements->committedInstructions[i];
+		predictedCPI[i] = (((measurements->alphas[i] * measurements->getMisses(i, optimalWayAllocs[i]) ) / optimalBWShares[i]) + measurements->betas[i]) / (double) measurements->committedInstructions[i];
 	}
 }
 

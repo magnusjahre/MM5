@@ -132,7 +132,11 @@ public:
 
 	void updateConstants();
 
-	double getMisses(int cpuID, double ways);
+	double getMisses(int cpuID, double inWays);
+
+	double getMissGradient(int cpuID);
+
+	bool inFlatSection(int cpuID, double inWays);
 
 	double getUncontrollableMissReqRate(){
 		return uncontrollableMissRequestRate;

@@ -250,7 +250,7 @@ PerformanceMeasurement::updateConstants(){
 		updateAlpha(i);
 		updateBeta(i);
 
-		double modelPeriod = (alphas[i] / currentBWShare[i]) + betas[i];
+		double modelPeriod = ((alphas[i] * perCoreCacheMeasurements[i].readMisses) / currentBWShare[i]) + betas[i];
 		DPRINTF(MissBWPolicy, "Model Calibration: model period is %f, actual period %d, error %f, alphas/bwshare=%f\n",
 				modelPeriod,
 				period,
@@ -311,7 +311,7 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	double avgMinWaitPerMiss = curBWShare * avgWaitPerMiss;
 
-	alphas[cpuID] = overlap * thisMisses * avgMinWaitPerMiss;
+	alphas[cpuID] = overlap * avgMinWaitPerMiss;
 
 	DPRINTF(MissBWPolicy, "Current BW share is %f, estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
 			curBWShare,
@@ -420,7 +420,8 @@ PerformanceMeasurement::calibrateMissModel(){
 }
 
 double
-PerformanceMeasurement::getMisses(int cpuID, double ways){
+PerformanceMeasurement::getMisses(int cpuID, double inWays){
+	double ways = inWays-1;
 	assert(ways >= 0.0 && ways <= perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses.size());
 	if(ways < cacheMissModels[cpuID].a){
 		return perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses[cacheMissModels[cpuID].a];
@@ -432,6 +433,18 @@ PerformanceMeasurement::getMisses(int cpuID, double ways){
 
 	assert(ways > cacheMissModels[cpuID].b);
 	return perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses[cacheMissModels[cpuID].b];
+}
+
+double
+PerformanceMeasurement::getMissGradient(int cpuID){
+	return cacheMissModels[cpuID].gradient;
+}
+
+bool
+PerformanceMeasurement::inFlatSection(int cpuID, double inWays){
+	double ways = inWays-1;
+	assert(ways >= 0.0 && ways <= perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses.size());
+	return ways < cacheMissModels[cpuID].a || ways > cacheMissModels[cpuID].b;
 }
 
 void

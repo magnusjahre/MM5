@@ -18,6 +18,7 @@ private:
 
 	std::vector<double> optimalPeriods;
 	vector<double> optimalBWShares;
+	vector<int> optimalWayAllocs;
 
 	vector<double> predictedCPI;
 
@@ -82,6 +83,8 @@ private:
 	double getTotalMisses(int cpuid, PerformanceMeasurement* measurements);
 
 	double checkConvergence(std::vector<double> xstar, std::vector<double> xvec, std::vector<double> gradient);
+
+	void fixCacheAllocations();
 
 	class StaticAllocationEvent : public Event{
 	private:
