@@ -313,8 +313,9 @@ PerformanceMeasurement::updateAlpha(int cpuID){
 
 	alphas[cpuID] = overlap * avgMinWaitPerMiss;
 
-	DPRINTF(MissBWPolicy, "Current BW share is %f, estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
+	DPRINTF(MissBWPolicy, "Current BW share is %f, wait per request %f, estimated average wait time per miss is %f, estimated minimum wait time per miss is %f, returning alpha %d\n",
 			curBWShare,
+			avgWaitCalPerReq,
 			avgWaitPerMiss,
 			avgMinWaitPerMiss,
 			alphas[cpuID]);
@@ -444,7 +445,7 @@ bool
 PerformanceMeasurement::inFlatSection(int cpuID, double inWays){
 	double ways = inWays-1;
 	assert(ways >= 0.0 && ways <= perCoreCacheMeasurements[cpuID].privateCumulativeCacheMisses.size());
-	return ways < cacheMissModels[cpuID].a || ways > cacheMissModels[cpuID].b;
+	return !(ways >= cacheMissModels[cpuID].a && ways <= cacheMissModels[cpuID].b);
 }
 
 void

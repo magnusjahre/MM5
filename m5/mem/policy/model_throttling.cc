@@ -410,6 +410,7 @@ ModelThrottlingPolicy::fixCacheAllocations(){
 	while(waysum < SHARED_CACHE_WAYS){
 		optimalWayAllocs[iterations%cpuCount] += 1;
 		waysum +=1;
+		iterations+=1;
 	}
 	traceVector("Corrected way allocation is: ", optimalWayAllocs);
 }

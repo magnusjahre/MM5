@@ -44,7 +44,7 @@ STPPolicy::gradient(PerformanceMeasurement* measurements, std::vector<double> al
 	for(int i=0;i<np;i++){
 		assert(measurements->betas[i] >= 0);
 		if(measurements->betas[i] == 0){
-			gradient[i] = 0;
+			gradient[i+np] = 0;
 		}
 		else{
 			if(measurements->inFlatSection(i, point[i+np])){
