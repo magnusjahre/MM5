@@ -147,7 +147,7 @@ BasePolicy::registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs){
 		_cache->enableOccupancyList();
 	}
 
-	if(!searchTrace.isInitialized()) initSearchTrace(cpuCount, searchAlgorithm);
+	//if(!searchTrace.isInitialized()) initSearchTrace(cpuCount, searchAlgorithm);
 }
 
 void
