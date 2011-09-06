@@ -111,9 +111,10 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	{
 
 	// the provided addresses are byte addresses, so the provided block address can be used directly
-
 	cache = NULL;
 	cacheInterference = NULL;
+
+	bankID = 0;
 
 	// Check parameters
 	if (blkSize < 4 || ((blkSize & (blkSize - 1)) != 0)) {
@@ -188,12 +189,12 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 		}
 	}
 
-	if(isShadow){
+	if(_isShadow){
 		leaderSetHitDistribution.resize(assoc, 0);
 	}
 
 	if(_maxUseWays != -1){
-		if(isShadow) fatal("Maximum use ways does not make sense for shadow tags");
+		if(_isShadow) fatal("Maximum use ways does not make sense for shadow tags");
 		if(_maxUseWays < 1 || _maxUseWays > assoc) fatal("Max use ways must be a number between 1 and the cache associativity");
 		maxUseWays = _maxUseWays;
 	}
@@ -204,7 +205,7 @@ LRU::LRU(int _numSets, int _blkSize, int _assoc, int _hit_latency, int _bank_cou
 	leaderSetAccesses = 0;
 	doPartitioning = false;
 
-	if(isShadow && doPartitioning){
+	if(_isShadow && doPartitioning){
 		fatal("Partitioning does not make sense for shadow tags");
 	}
 }
@@ -763,7 +764,7 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 					}
 					else{
 						assert(cacheInterference != NULL);
-						relocatedAddr = cache->relocateAddrForCPU(blockAddrCPUID, paddr, cacheInterference->cpuCount);
+						relocatedAddr = cacheInterference->relocateAddrForCPU(blockAddrCPUID, paddr, cacheInterference->cpuCount);
 					}
 
 					sets[i].blks[j]->tag = extractTag(relocatedAddr);
