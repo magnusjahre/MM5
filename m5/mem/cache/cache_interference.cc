@@ -249,7 +249,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	if(curTick >= detailedSimStart
        && doInterferenceInsertion[req->adaptiveMHASenderID]
-	   && cpuCount > 1){
+	   && cpuCount > 1
+	   && isCacheMiss){
 
 		if(numberOfSets == numLeaderSets){
 			if(shadowHit && isCacheMiss){
@@ -258,6 +259,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		}
 		else{
 			if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd), req->adaptiveMHASenderID, true)){
+				assert(isCacheMiss);
 				tagAsInterferenceMiss(req, hitLat);
 			}
 		}
