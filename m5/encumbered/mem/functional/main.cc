@@ -674,8 +674,13 @@ MainMemory::serialize(std::ostream &os){
 	flushPageTable();
 
 	stringstream filenamestream;
-	filenamestream << "pagefile-content" << cpuID << ".bin";
-	string filename(filenamestream.str());
+	filenamestream << "diskpages-cpt" << cpuID << ".bin";
+	string diskpagefilename(filenamestream.str());
+	SERIALIZE_SCALAR(diskpagefilename);
+
+	stringstream filenamestream2;
+	filenamestream2 << "pagefile-content" << cpuID << ".bin";
+	string filename(filenamestream2.str());
 	SERIALIZE_SCALAR(filename);
 
 	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
@@ -706,73 +711,43 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(break_thread);
 	UNSERIALIZE_SCALAR(break_size);
 
-	fatal("process unserialize not impl");
+	// remove any previously allocated pages
+	for(int i = 0; i< memPageTabSize; i++){
+		if(ptab[i].tag != INVALID_TAG){
+			ptab[i].tag = INVALID_TAG;
+			::memset(ptab[i].page, 0, VMPageSize);
+		}
+	}
 
-//	// remove any previously allocated pages
-//	for(int i = 0; i< memPageTabSize; i++){
-//		if(ptab[i] != NULL){
-//
-//			entry* pte = ptab[i];
-//			while(pte != NULL){
-//				entry* delPTE = pte;
-//				if(delPTE->page != NULL) delete [] delPTE->page;
-//				pte = delPTE->next;
-//				delete delPTE;
-//			}
-//
-//			ptab[i] = NULL;
-//		}
-//	}
-//
-//	string filename;
-//	UNSERIALIZE_SCALAR(filename);
-//
-//	ifstream pagefile(filename.c_str(),  ios::binary);
-//	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
-//
-//	int numIndexes = *((int*) readEntry(sizeof(int), pagefile));
-//	int writtenIndexes = 0;
-//
-//	while(writtenIndexes < numIndexes){
-//		int index = *((int*) readEntry(sizeof(int), pagefile));
-//		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
-//		std::vector<entry*> tmpLinkedList;
-//		if(entryCnt > MAX_ENTRY_COUNT){
-//			fatal("Got %d entries for linked list index, assuming file corruption", entryCnt);
-//		}
-//		for(int i=0;i<entryCnt;i++){
-//			Addr tag = * ((Addr*) readEntry(sizeof(Addr), pagefile));
-//			uint8_t* bufferedPage = (uint8_t*) readEntry(VMPageSize* sizeof(uint8_t), pagefile);
-//
-//			uint8_t* page = new uint8_t[VMPageSize];
-//			if(!page) fatal("MainMemory::newpage: out of virtual memory");
-//			::memset(page, 0, VMPageSize);
-//			for(int j=0;j<VMPageSize;j++) page[j] = bufferedPage[j];
-//
-//			entry* newEntry = new entry(tag, page);
-//			if(!newEntry) fatal("MainMemory::newpage: out of virtual memory");
-//
-//			tmpLinkedList.push_back(newEntry);
-//		}
-//		assert(pagefile.good());
-//
-//		if(!tmpLinkedList.empty()){
-//
-//			// populate next pointers and insert into hash table
-//			for(int j=tmpLinkedList.size()-2; j>=0; j--){
-//				tmpLinkedList[j]->next = tmpLinkedList[j+1];
-//			}
-//			ptab[index] = tmpLinkedList[0];
-//		}
-//
-//		writtenIndexes += 1;
-//	}
-//
-//	pagefile.close();
-//
-//#ifdef DO_SERIALIZE_VALIDATION
-//	dumpPages(false);
-//#endif
+	// clear diskpages and open checkpointed diskpages
+	curFileEnd = 0;
+	diskEntries.clear();
+	diskpages.close();
+
+	string diskpagefilename;
+	UNSERIALIZE_SCALAR(diskpagefilename);
+	diskpages.open(diskpagefilename.c_str(), ios::binary | ios::out | ios::in);
+	if(!diskpages.is_open()) fatal("could not read file %s", diskpagefilename.c_str());
+
+	// read diskpage metadata
+	string filename;
+	UNSERIALIZE_SCALAR(filename);
+	ifstream pagefile(filename.c_str(),  ios::binary);
+	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
+
+	int numIndexes = *((int*) readEntry(sizeof(int), pagefile));
+
+	while(curFileEnd < numIndexes){
+		DiskEntry d;
+		d.pageAddress = *((Addr*) readEntry(sizeof(Addr), pagefile));
+		d.offset = *((int*) readEntry(sizeof(int), pagefile));
+
+		diskEntries.push_back(d);
+
+		curFileEnd += 1;
+	}
+
+	pagefile.close();
 }
 
 #ifdef DO_SERIALIZE_VALIDATION
