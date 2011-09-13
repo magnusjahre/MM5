@@ -157,11 +157,6 @@ MainMemory::translate(Addr addr)
 		ptab_accesses++;
 	}
 
-	if (ptab[ptab_set(addr)].tag == INVALID_TAG) {
-		ptab[ptab_set(addr)].tag = ptab_tag(addr);
-		return ptab[ptab_set(addr)].page;
-	}
-
 	swapPages(addr);
 	return ptab[ptab_set(addr)].page;
 }
@@ -169,8 +164,10 @@ MainMemory::translate(Addr addr)
 void
 MainMemory::swapPages(Addr newAddr){
 
-	Addr oldAddr = page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr));
-	writeDiskEntry(oldAddr);
+	if (ptab[ptab_set(newAddr)].tag != INVALID_TAG) {
+		Addr oldAddr = page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr));
+		writeDiskEntry(oldAddr);
+	}
 
 	int newAddrIndex = findDiskEntry(newAddr);
 
@@ -186,7 +183,7 @@ MainMemory::swapPages(Addr newAddr){
 int
 MainMemory::findDiskEntry(Addr newAddr){
 	for(int i=0;i<diskEntries.size();i++){
-		if(ptab_set(newAddr) == diskEntries[i].set && ptab_tag(newAddr) == diskEntries[i].tag){
+		if(page_addr(newAddr) == diskEntries[i].pageAddress){
 			return i;
 		}
 	}
@@ -200,8 +197,7 @@ MainMemory::writeDiskEntry(Addr oldAddr){
 	DiskEntry d;
 	if(oldAddrIndex == -1){
 		d.offset = curFileEnd * VMPageSize;
-		d.tag = ptab_tag(oldAddr);
-		d.set = ptab_set(oldAddr);
+		d.pageAddress = page_addr(oldAddr);
 
 		diskEntries.push_back(d);
 		curFileEnd++;
@@ -212,17 +208,33 @@ MainMemory::writeDiskEntry(Addr oldAddr){
 
 	assert(diskpages.good());
 	diskpages.seekp(d.offset);
-	diskpages.write((char*) ptab[d.set].page, VMPageSize);
+	diskpages.write((char*) ptab[ptab_set(d.pageAddress)].page, VMPageSize);
 	assert(diskpages.good());
 }
 
 
 void
 MainMemory::readDiskEntry(int diskEntryIndex){
+	//cout << std::dec << curTick << ": reading disk entry " << std::dec << diskEntryIndex << ", page addr " << std::hex << diskEntries[diskEntryIndex].pageAddress << ", set " << std::dec << ptab_set(diskEntries[diskEntryIndex].pageAddress) << "\n";
 	assert(diskpages.good());
 	diskpages.seekp(diskEntries[diskEntryIndex].offset);
-	diskpages.read((char*) ptab[diskEntries[diskEntryIndex].set].page, VMPageSize);
+	diskpages.read((char*) ptab[ptab_set(diskEntries[diskEntryIndex].pageAddress)].page, VMPageSize);
 	assert(diskpages.good());
+}
+
+void
+MainMemory::flushPageTable(){
+	for(int i=0;i<memPageTabSize;i++){
+		if(ptab[i].tag != INVALID_TAG){
+			Addr addr = i*VMPageSize;
+			writeDiskEntry(addr);
+
+			ptab[i].tag = INVALID_TAG;
+			::memset(ptab[i].page, 0, VMPageSize);
+		}
+
+		assert(ptab[i].tag == INVALID_TAG);
+	}
 }
 
 // locate host page for virtual address ADDR, returns NULL if unallocated
@@ -659,55 +671,26 @@ MainMemory::serialize(std::ostream &os){
 	SERIALIZE_SCALAR(break_thread);
 	SERIALIZE_SCALAR(break_size);
 
-	fatal("process serialize not impl");
+	flushPageTable();
 
-//
-//	stringstream filenamestream;
-//	filenamestream << "pages" << cpuID << ".bin";
-//	string filename(filenamestream.str());
-//	SERIALIZE_SCALAR(filename);
-//
-//	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
-//
-//	int indexCnt = 0;
-//	for(int i = 0; i< memPageTabSize; i++){
-//		if(ptab[i] != NULL){
-//			indexCnt++;
-//		}
-//	}
-//
-//	writeEntry(&indexCnt, sizeof(int), pagefile);
-//
-//	int writtenIndexes = 0;
-//	for(int i = 0; i< memPageTabSize; i++){
-//		if(ptab[i] != NULL){
-//			writtenIndexes++;
-//
-//			writeEntry(&i, sizeof(int), pagefile);
-//
-//			entry* firstPtr = ptab[i];
-//			entry* pte = firstPtr;
-//
-//			int listCnt = 0;
-//			while(pte != NULL){
-//				listCnt++;
-//				pte = pte->next;
-//			}
-//
-//			writeEntry(&listCnt, sizeof(int), pagefile);
-//
-//			pte = firstPtr;
-//			while(pte != NULL){
-//				writeEntry(&(pte->tag), sizeof(Addr), pagefile);
-//				writeEntry(pte->page, VMPageSize * sizeof(uint8_t), pagefile);
-//				pte = pte->next;
-//			}
-//		}
-//	}
-//
-//	assert(writtenIndexes == indexCnt);
-//
-//	pagefile.close();
+	stringstream filenamestream;
+	filenamestream << "pagefile-content" << cpuID << ".bin";
+	string filename(filenamestream.str());
+	SERIALIZE_SCALAR(filename);
+
+	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
+	int entries = diskEntries.size();
+	writeEntry(&entries, sizeof(int), pagefile);
+	for(int i=0;i<diskEntries.size();i++){
+		assert(diskEntries[i].pageAddress != INVALID_TAG);
+		Addr address =diskEntries[i].pageAddress;
+		int offset = diskEntries[i].offset;
+
+		writeEntry(&address, sizeof(Addr), pagefile);
+		writeEntry(&offset, sizeof(int), pagefile);
+	}
+
+	pagefile.close();
 }
 
 std::string

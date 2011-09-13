@@ -177,12 +177,11 @@ protected:
 	};
 
 	struct DiskEntry{
-		Addr set;
-		Addr tag;
+		Addr pageAddress;
 		int offset;
 
 		DiskEntry()
-		: set(INVALID_TAG), tag(INVALID_TAG), offset(-1){
+		: pageAddress(INVALID_TAG), offset(-1){
 
 		}
 	};
@@ -200,6 +199,8 @@ protected:
 
 	void writeDiskEntry(Addr oldAddr);
 	void readDiskEntry(int diskEntryIndex);
+
+	void flushPageTable();
 
 #ifdef DO_SERIALIZE_VALIDATION
 	void dumpPages(bool onSerialize);
@@ -226,6 +227,7 @@ protected:
 	Addr offset(Addr addr);
 	Addr ptab_set(Addr addr);
 	Addr ptab_tag(Addr addr);
+	Addr page_addr(Addr addr);
 	Addr page_addr(Addr tag, Addr set);
 
 	uint8_t *page(Addr addr);
@@ -305,6 +307,10 @@ public:
 inline Addr
 MainMemory::offset(Addr addr)
 { return addr & (VMPageSize - 1); }
+
+inline Addr
+MainMemory::page_addr(Addr addr)
+{ return addr & ~(VMPageSize-1); }
 
 // compute page table set
 inline Addr
