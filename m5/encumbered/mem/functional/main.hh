@@ -101,6 +101,8 @@
 //#define MEM_PTAB_SIZE		(32*1024)
 //#define MEM_LOG_PTAB_SIZE	15
 
+#define INVALID_TAG 0xFFFFFFFFFFFFFFFF
+
 /*
  * Model of infinite virtual memory for a standalone application
  */
@@ -116,12 +118,7 @@ private:
 
 	int memPageTabSize;
 	int memPageTabSizeLog2;
-	std::string pagefileName;
 	int cpuID;
-
-	inline bool firstIsPage(Addr addr){
-		return ptab[ptab_set(addr)] && ptab[ptab_set(addr)]->tag == ptab_tag(addr);
-	}
 
 	/*
 	 *
@@ -170,27 +167,39 @@ protected:
 	// page table entry
 	struct entry
 	{
-		entry *next;		// next translation in this bucket
 		Addr tag;			// virtual page number tag
 		uint8_t *page;		// page pointer
 
-		bool inMemory;
-		std::fstream::pos_type fileStartPosition;
-
-		entry(Addr _tag, uint8_t* _page)
-		: next(NULL), tag(_tag), page(_page), inMemory(true), fileStartPosition(-1){
+		entry()
+		: tag(INVALID_TAG), page(NULL){
 
 		}
 	};
 
-	char* buffer;
-	std::fstream::pos_type currentFileEndPos;
-	uint8_t* writeEntryToFile(entry* entry);
-	void swapEntries(entry* curHead, entry* newHead);
+	struct DiskEntry{
+		Addr set;
+		Addr tag;
+		int offset;
+
+		DiskEntry()
+		: set(INVALID_TAG), tag(INVALID_TAG), offset(-1){
+
+		}
+	};
+
 	int countPages(Addr vaddr, int64_t size, Addr new_vaddr);
 	int getNumMemPages();
-	void printList(int set);
-	entry** ptab;	// inverted page table
+
+	entry* ptab;	// inverted page table
+	std::vector<DiskEntry> diskEntries;
+	std::fstream diskpages;
+	int curFileEnd;
+
+	void swapPages(Addr newAddr);
+	int findDiskEntry(Addr newAddr);
+
+	void writeDiskEntry(Addr oldAddr);
+	void readDiskEntry(int diskEntryIndex);
 
 #ifdef DO_SERIALIZE_VALIDATION
 	void dumpPages(bool onSerialize);
@@ -221,7 +230,6 @@ protected:
 
 	uint8_t *page(Addr addr);
 	uint8_t *translate(Addr addr);
-	uint8_t *newpage(Addr addr);
 
 	// Check for access faults to page data
 	Fault page_check(Addr addr, int size) const;
@@ -321,11 +329,7 @@ inline Fault
 MainMemory::page_read(Addr addr, uint8_t *data, int size)
 {
 	uint8_t *p = page(addr);
-
-	if (p)
-		::memcpy(data, p + offset(addr), size);
-	else
-		::memset(data, 0, size);
+	::memcpy(data, p + offset(addr), size);
 
 	mem_addr_test(addr);
 	return No_Fault;
@@ -335,10 +339,6 @@ inline Fault
 MainMemory::page_write(Addr addr, const uint8_t *data, int size)
 {
 	uint8_t *p = page(addr);
-
-	// allocate page for address if we don't have one.
-	if (!p)
-		p = newpage(addr);
 
 	::memcpy(p + offset(addr), data, size);
 
@@ -351,10 +351,6 @@ MainMemory::page_set(Addr addr, uint8_t val, int size)
 {
 	uint8_t *p = page(addr);
 
-	// allocate page for address if we don't have one.
-	if (!p)
-		p = newpage(addr);
-
 	::memset(p + offset(addr), val, size);
 
 	mem_addr_test(addr);
@@ -366,12 +362,7 @@ inline Fault
 MainMemory::page_read(Addr addr, T &data)
 {
 	uint8_t *p = page(addr);
-
-	if (p)
-		data = *((T *)(p + offset(addr)));
-	else
-		// page not yet allocated, return zero value
-		data = T();
+	data = *((T *)(p + offset(addr)));
 
 	mem_addr_test(addr);
 	return No_Fault;
@@ -381,12 +372,6 @@ template <class T>
 inline Fault
 MainMemory::page_write(Addr addr, T data)
 {
-	uint8_t *p = page(addr);
-
-	// allocate page for address if we don't have one.
-	if (!p)
-		p = newpage(addr);
-
 	*((T *)(page(addr) + offset(addr))) = data;
 
 	mem_addr_test(addr);

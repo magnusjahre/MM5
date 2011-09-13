@@ -111,36 +111,28 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 	memPageTabSize = _maxMemMB*128; // Since VMPageSize is 8192
 	memPageTabSizeLog2 = FloorLog2(memPageTabSize);
 
-	ptab = new entry*[memPageTabSize];
+	ptab = new entry[memPageTabSize];
 
 	for (int i = 0; i < memPageTabSize; ++i){
-		ptab[i] = NULL;
+		ptab[i].page = new uint8_t[VMPageSize];
+		::memset(ptab[i].page, 0, VMPageSize);
 	}
 
 	break_address = 0;
 	break_thread = 1;
 	break_size = 4;
 
-	buffer = new char[VMPageSize];
-	::memset(buffer, 0, VMPageSize);
-	currentFileEndPos = 0;
-
-	//	stringstream filename;
-	//	filename << "pagefile" << _cpuID << ".bin";
-	//	pagefileName = filename.str();
-	//	ofstream pagefile(pagefileName.c_str(), ios::binary);
-	//	pagefile << "";
-	//	pagefile.flush();
-	//	pagefile.close();
+	curFileEnd = 0;
+	stringstream tmp;
+	tmp << "diskpages" << cpuID << ".bin";
+	diskpages.open(tmp.str().c_str(), ios::binary | ios::trunc | ios::out | ios::in);
 }
 
 MainMemory::~MainMemory()
 {
+	diskpages.close();
 	for (int i = 0; i < memPageTabSize; i++) {
-		if (ptab[i]) {
-			free(ptab[i]->page);
-			free(ptab[i]);
-		}
+		free(ptab[i].page);
 	}
 	delete ptab;
 }
@@ -151,63 +143,13 @@ MainMemory::startup()
 	takeStats = true;
 }
 
-uint8_t*
-MainMemory::writeEntryToFile(entry* entry){
-	ofstream pagefile(pagefileName.c_str(), ios::binary | ios::app);
-	assert(pagefile.is_open());
-
-	uint8_t* pagePtr = entry->page;
-	entry->page = NULL;
-	entry->inMemory = false;
-	entry->fileStartPosition = currentFileEndPos;
-
-	assert(sizeof(char) == sizeof(uint8_t));
-	pagefile.write((char*) pagePtr, VMPageSize);
-	pagefile.flush();
-	pagefile.close();
-	currentFileEndPos += VMPageSize;
-
-	::memset(pagePtr, 0, VMPageSize);
-
-	// return the reusable page
-	return pagePtr;
-
-}
-
-void
-MainMemory::swapEntries(entry* curHead, entry* newHead){
-	fstream pagefile(pagefileName.c_str(), ios::binary | ios::ate | ios::in | ios::out);
-	assert(pagefile.is_open());
-
-	assert(newHead->fileStartPosition != (fstream::pos_type) -1);
-
-	pagefile.seekg(newHead->fileStartPosition);
-	pagefile.read(buffer, VMPageSize);
-
-	assert(sizeof(char) == sizeof(uint8_t));
-	pagefile.seekp(newHead->fileStartPosition);
-	pagefile.write((char*) curHead->page, VMPageSize);
-	pagefile.flush();
-	pagefile.close();
-
-	newHead->page = curHead->page;
-	for(int i=0;i<VMPageSize;i++){
-		newHead->page[i] = (uint8_t) buffer[i];
-	}
-
-	curHead->inMemory = false;
-	curHead->fileStartPosition = newHead->fileStartPosition;
-	curHead->page = NULL;
-
-	newHead->inMemory = true;
-	newHead->fileStartPosition = -1;
-}
-
 // translate address to host page
 uint8_t *
 MainMemory::translate(Addr addr)
 {
-	entry *pte, *prev;
+
+	// this method should only be called if the page mapping is wrong
+	assert(ptab[ptab_set(addr)].tag != ptab_tag(addr));
 
 	if (takeStats) {
 		// got here via a first level miss in the page tables
@@ -215,82 +157,72 @@ MainMemory::translate(Addr addr)
 		ptab_accesses++;
 	}
 
-	// locate accessed PTE
-	for (prev = NULL, pte = ptab[ptab_set(addr)]; pte != NULL; prev = pte, pte = pte->next) {
-		if (pte->tag == ptab_tag(addr)) {
-
-			assert(pte->inMemory);
-			//			assert(!pte->inMemory);
-			//			swapEntries(ptab[ptab_set(addr)], pte);
-			//			assert(pte->inMemory && pte->page != NULL);
-
-			// move this PTE to head of the bucket list
-			if (prev) {
-				prev->next = pte->next;
-				pte->next = ptab[ptab_set(addr)];
-				ptab[ptab_set(addr)] = pte;
-			}
-
-			return pte->page;
-		}
+	if (ptab[ptab_set(addr)].tag == INVALID_TAG) {
+		ptab[ptab_set(addr)].tag = ptab_tag(addr);
+		return ptab[ptab_set(addr)].page;
 	}
 
-	// no translation found, return NULL
-	return NULL;
+	swapPages(addr);
+	return ptab[ptab_set(addr)].page;
 }
 
-// allocate a memory page
-uint8_t *
-MainMemory::newpage(Addr addr)
-{
-	uint8_t *page;
-	entry *pte;
+void
+MainMemory::swapPages(Addr newAddr){
 
-	//	if(!firstIsPage(addr) && ptab[ptab_set(addr)] != 0){
-	//		page = writeEntryToFile(ptab[ptab_set(addr)]);
-	//		assert(page != NULL);
-	//
-	//		pte = new entry(ptab_tag(addr), page);
-	//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (3)");
-	//
-	//		assert(ptab[ptab_set(addr)]->page == NULL);
-	//		pte->next = ptab[ptab_set(addr)];
-	//		ptab[ptab_set(addr)] = pte;
-	//	}
-	//	else{
-	//	// see misc.c for details on the getcore() function
-	//		assert(ptab[ptab_set(addr)] == NULL);
-	//
-	//		allocations++;
-	//		page = new uint8_t[VMPageSize];
-	//		if (!page) fatal("MainMemory::newpage: out of virtual memory");
-	//
-	//		::memset(page, 0, VMPageSize);
-	//
-	//		// generate a new PTE
-	//		pte = new entry(ptab_tag(addr), page);
-	//		if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
-	//
-	//		ptab[ptab_set(addr)] = pte;
-	//	}
+	Addr oldAddr = page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr));
+	writeDiskEntry(oldAddr);
 
-	page = new uint8_t[VMPageSize];
-	if (!page) fatal("MainMemory::newpage: out of virtual memory");
+	int newAddrIndex = findDiskEntry(newAddr);
 
-	::memset(page, 0, VMPageSize);
+	ptab[ptab_set(newAddr)].tag = ptab_tag(newAddr);
+	if(newAddrIndex == -1){
+		::memset(ptab[ptab_set(newAddr)].page, 0, VMPageSize);
+	}
+	else{
+		readDiskEntry(newAddrIndex);
+	}
+}
 
-	pte = new entry(ptab_tag(addr), page);
-	if (!pte) fatal("MainMemory::newpage: out of virtual memory (2)");
+int
+MainMemory::findDiskEntry(Addr newAddr){
+	for(int i=0;i<diskEntries.size();i++){
+		if(ptab_set(newAddr) == diskEntries[i].set && ptab_tag(newAddr) == diskEntries[i].tag){
+			return i;
+		}
+	}
+	return -1;
+}
 
-	pte->next = ptab[ptab_set(addr)];
-	ptab[ptab_set(addr)] = pte;
+void
+MainMemory::writeDiskEntry(Addr oldAddr){
+	int oldAddrIndex = findDiskEntry(oldAddr);
 
-	if (takeStats) {
-		// one more page allocated
-		page_count++;
+	DiskEntry d;
+	if(oldAddrIndex == -1){
+		d.offset = curFileEnd * VMPageSize;
+		d.tag = ptab_tag(oldAddr);
+		d.set = ptab_set(oldAddr);
+
+		diskEntries.push_back(d);
+		curFileEnd++;
+	}
+	else{
+		d = diskEntries[oldAddrIndex];
 	}
 
-	return page;
+	assert(diskpages.good());
+	diskpages.seekp(d.offset);
+	diskpages.write((char*) ptab[d.set].page, VMPageSize);
+	assert(diskpages.good());
+}
+
+
+void
+MainMemory::readDiskEntry(int diskEntryIndex){
+	assert(diskpages.good());
+	diskpages.seekp(diskEntries[diskEntryIndex].offset);
+	diskpages.read((char*) ptab[diskEntries[diskEntryIndex].set].page, VMPageSize);
+	assert(diskpages.good());
 }
 
 // locate host page for virtual address ADDR, returns NULL if unallocated
@@ -300,13 +232,13 @@ MainMemory::page(Addr addr)
 
 	accesses++;
 	// first attempt to hit in first entry, otherwise call xlation fn
-	if (firstIsPage(addr))
+	if (ptab[ptab_set(addr)].tag == ptab_tag(addr))
 	{
 		if (takeStats) {
 			// hit - return the page address on host
 			ptab_accesses++;
 		}
-		return ptab[ptab_set(addr)]->page;
+		return ptab[ptab_set(addr)].page;
 	}
 	else
 	{
@@ -319,103 +251,100 @@ MainMemory::page(Addr addr)
 int
 MainMemory::countPages(Addr vaddr, int64_t size, Addr new_vaddr){
 
-	int pagesToMove = 0;
-	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
-		entry* e = ptab[ptab_set(vaddr)];
-		bool found = false;
-		while(e != NULL){
-			if(e->tag == ptab_tag(vaddr)){
-				assert(!found);
-				pagesToMove++;
-				found = true;
-			}
-			e = e->next;
-		}
-	}
-	return pagesToMove;
+	//	int pagesToMove = 0;
+	//	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
+	//		entry* e = ptab[ptab_set(vaddr)];
+	//		bool found = false;
+	//		while(e != NULL){
+	//			if(e->tag == ptab_tag(vaddr)){
+	//				assert(!found);
+	//				pagesToMove++;
+	//				found = true;
+	//			}
+	//			e = e->next;
+	//		}
+	//	}
+	//	return pagesToMove;
+
+	fatal("count pages not impl");
+	return 0;
 }
 
 int
 MainMemory::getNumMemPages(){
-	int mempages = 0;
-	for(int i = 0; i< memPageTabSize; i++){
-		entry* e = ptab[i];
-		while(e != NULL){
-			mempages++;
-			e = e->next;
-		}
-	}
-	return mempages;
-}
+//	int mempages = 0;
+//	for(int i = 0; i< memPageTabSize; i++){
+//		entry* e = ptab[i];
+//		while(e != NULL){
+//			mempages++;
+//			e = e->next;
+//		}
+//	}
+//	return mempages;
 
-void
-MainMemory::printList(int set){
-	cout << "Set " << set << " status @ " << curTick << ": ";
-	entry* e = ptab[set];
-	while(e != NULL){
-		cout << e->tag << "(" << e << ") --> ";
-		e = e->next;
-	}
-	cout << "NULL\n";
+	fatal("getNumMemPages not implemented");
+	return 0;
 }
 
 void
 MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
-	assert(vaddr % TheISA::VMPageSize == 0);
-	assert(new_vaddr % TheISA::VMPageSize == 0);
+//	assert(vaddr % TheISA::VMPageSize == 0);
+//	assert(new_vaddr % TheISA::VMPageSize == 0);
+//
+//	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
+//
+//	int prevMemPages = getNumMemPages();
+//
+//	DPRINTF(SyscallVerbose, "There are %d pages in memory\n", prevMemPages);
+//
+//	int pagesToMove = countPages(vaddr, size, new_vaddr);
+//
+//	DPRINTF(SyscallVerbose, "%d pages are in the range to be moved\n", pagesToMove);
+//
+//	int movedPages = 0;
+//	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
+//		entry* e = ptab[ptab_set(vaddr)];
+//		entry* prev = NULL;
+//		bool found = false;
+//		while(e != NULL){
+//			if(e->tag == ptab_tag(vaddr)){
+//
+//				entry* elementToMove = e;
+//
+//				if(prev == NULL){
+//					ptab[ptab_set(vaddr)] = e->next;
+//					prev = NULL;
+//				}
+//				else{
+//					prev->next = e->next;
+//				}
+//				e = e->next;
+//
+//				assert(!found);
+//				found = true;
+//				elementToMove->tag = ptab_tag(new_vaddr);
+//				elementToMove->next = ptab[ptab_set(new_vaddr)];
+//				ptab[ptab_set(new_vaddr)] = elementToMove;
+//
+//				movedPages++;
+//			}
+//			else{
+//				prev = e;
+//				e = e->next;
+//			}
+//		}
+//	}
+//
+//	DPRINTF(SyscallVerbose, "moved %d pages to new addresses, should move %d pages\n", movedPages, pagesToMove);
+//	assert(pagesToMove == movedPages);
+//
+//
+//	int postMemPages = getNumMemPages();
+//
+//	DPRINTF(SyscallVerbose, "%d pages in memory at start, %d pages at end\n", prevMemPages, postMemPages);
+//	assert(prevMemPages == postMemPages);
 
-	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
-
-	int prevMemPages = getNumMemPages();
-
-	DPRINTF(SyscallVerbose, "There are %d pages in memory\n", prevMemPages);
-
-	int pagesToMove = countPages(vaddr, size, new_vaddr);
-
-	DPRINTF(SyscallVerbose, "%d pages are in the range to be moved\n", pagesToMove);
-
-	int movedPages = 0;
-	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
-		entry* e = ptab[ptab_set(vaddr)];
-		entry* prev = NULL;
-		bool found = false;
-		while(e != NULL){
-			if(e->tag == ptab_tag(vaddr)){
-
-				entry* elementToMove = e;
-
-				if(prev == NULL){
-					ptab[ptab_set(vaddr)] = e->next;
-					prev = NULL;
-				}
-				else{
-					prev->next = e->next;
-				}
-				e = e->next;
-
-				assert(!found);
-				found = true;
-				elementToMove->tag = ptab_tag(new_vaddr);
-				elementToMove->next = ptab[ptab_set(new_vaddr)];
-				ptab[ptab_set(new_vaddr)] = elementToMove;
-
-				movedPages++;
-			}
-			else{
-				prev = e;
-				e = e->next;
-			}
-		}
-	}
-
-	DPRINTF(SyscallVerbose, "moved %d pages to new addresses, should move %d pages\n", movedPages, pagesToMove);
-	assert(pagesToMove == movedPages);
-
-
-	int postMemPages = getNumMemPages();
-
-	DPRINTF(SyscallVerbose, "%d pages in memory at start, %d pages at end\n", prevMemPages, postMemPages);
-	assert(prevMemPages == postMemPages);
+	fatal("remap not implemented");
 
 }
 
@@ -730,52 +659,55 @@ MainMemory::serialize(std::ostream &os){
 	SERIALIZE_SCALAR(break_thread);
 	SERIALIZE_SCALAR(break_size);
 
-	stringstream filenamestream;
-	filenamestream << "pages" << cpuID << ".bin";
-	string filename(filenamestream.str());
-	SERIALIZE_SCALAR(filename);
+	fatal("process serialize not impl");
 
-	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
-
-	int indexCnt = 0;
-	for(int i = 0; i< memPageTabSize; i++){
-		if(ptab[i] != NULL){
-			indexCnt++;
-		}
-	}
-
-	writeEntry(&indexCnt, sizeof(int), pagefile);
-
-	int writtenIndexes = 0;
-	for(int i = 0; i< memPageTabSize; i++){
-		if(ptab[i] != NULL){
-			writtenIndexes++;
-
-			writeEntry(&i, sizeof(int), pagefile);
-
-			entry* firstPtr = ptab[i];
-			entry* pte = firstPtr;
-
-			int listCnt = 0;
-			while(pte != NULL){
-				listCnt++;
-				pte = pte->next;
-			}
-
-			writeEntry(&listCnt, sizeof(int), pagefile);
-
-			pte = firstPtr;
-			while(pte != NULL){
-				writeEntry(&(pte->tag), sizeof(Addr), pagefile);
-				writeEntry(pte->page, VMPageSize * sizeof(uint8_t), pagefile);
-				pte = pte->next;
-			}
-		}
-	}
-
-	assert(writtenIndexes == indexCnt);
-
-	pagefile.close();
+//
+//	stringstream filenamestream;
+//	filenamestream << "pages" << cpuID << ".bin";
+//	string filename(filenamestream.str());
+//	SERIALIZE_SCALAR(filename);
+//
+//	ofstream pagefile(filename.c_str(), ios::binary | ios::trunc);
+//
+//	int indexCnt = 0;
+//	for(int i = 0; i< memPageTabSize; i++){
+//		if(ptab[i] != NULL){
+//			indexCnt++;
+//		}
+//	}
+//
+//	writeEntry(&indexCnt, sizeof(int), pagefile);
+//
+//	int writtenIndexes = 0;
+//	for(int i = 0; i< memPageTabSize; i++){
+//		if(ptab[i] != NULL){
+//			writtenIndexes++;
+//
+//			writeEntry(&i, sizeof(int), pagefile);
+//
+//			entry* firstPtr = ptab[i];
+//			entry* pte = firstPtr;
+//
+//			int listCnt = 0;
+//			while(pte != NULL){
+//				listCnt++;
+//				pte = pte->next;
+//			}
+//
+//			writeEntry(&listCnt, sizeof(int), pagefile);
+//
+//			pte = firstPtr;
+//			while(pte != NULL){
+//				writeEntry(&(pte->tag), sizeof(Addr), pagefile);
+//				writeEntry(pte->page, VMPageSize * sizeof(uint8_t), pagefile);
+//				pte = pte->next;
+//			}
+//		}
+//	}
+//
+//	assert(writtenIndexes == indexCnt);
+//
+//	pagefile.close();
 }
 
 std::string
@@ -791,71 +723,73 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(break_thread);
 	UNSERIALIZE_SCALAR(break_size);
 
-	// remove any previously allocated pages
-	for(int i = 0; i< memPageTabSize; i++){
-		if(ptab[i] != NULL){
+	fatal("process unserialize not impl");
 
-			entry* pte = ptab[i];
-			while(pte != NULL){
-				entry* delPTE = pte;
-				if(delPTE->page != NULL) delete [] delPTE->page;
-				pte = delPTE->next;
-				delete delPTE;
-			}
-
-			ptab[i] = NULL;
-		}
-	}
-
-	string filename;
-	UNSERIALIZE_SCALAR(filename);
-
-	ifstream pagefile(filename.c_str(),  ios::binary);
-	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
-
-	int numIndexes = *((int*) readEntry(sizeof(int), pagefile));
-	int writtenIndexes = 0;
-
-	while(writtenIndexes < numIndexes){
-		int index = *((int*) readEntry(sizeof(int), pagefile));
-		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
-		std::vector<entry*> tmpLinkedList;
-		if(entryCnt > MAX_ENTRY_COUNT){
-			fatal("Got %d entries for linked list index, assuming file corruption", entryCnt);
-		}
-		for(int i=0;i<entryCnt;i++){
-			Addr tag = * ((Addr*) readEntry(sizeof(Addr), pagefile));
-			uint8_t* bufferedPage = (uint8_t*) readEntry(VMPageSize* sizeof(uint8_t), pagefile);
-
-			uint8_t* page = new uint8_t[VMPageSize];
-			if(!page) fatal("MainMemory::newpage: out of virtual memory");
-			::memset(page, 0, VMPageSize);
-			for(int j=0;j<VMPageSize;j++) page[j] = bufferedPage[j];
-
-			entry* newEntry = new entry(tag, page);
-			if(!newEntry) fatal("MainMemory::newpage: out of virtual memory");
-
-			tmpLinkedList.push_back(newEntry);
-		}
-		assert(pagefile.good());
-
-		if(!tmpLinkedList.empty()){
-
-			// populate next pointers and insert into hash table
-			for(int j=tmpLinkedList.size()-2; j>=0; j--){
-				tmpLinkedList[j]->next = tmpLinkedList[j+1];
-			}
-			ptab[index] = tmpLinkedList[0];
-		}
-
-		writtenIndexes += 1;
-	}
-
-	pagefile.close();
-
-#ifdef DO_SERIALIZE_VALIDATION
-	dumpPages(false);
-#endif
+//	// remove any previously allocated pages
+//	for(int i = 0; i< memPageTabSize; i++){
+//		if(ptab[i] != NULL){
+//
+//			entry* pte = ptab[i];
+//			while(pte != NULL){
+//				entry* delPTE = pte;
+//				if(delPTE->page != NULL) delete [] delPTE->page;
+//				pte = delPTE->next;
+//				delete delPTE;
+//			}
+//
+//			ptab[i] = NULL;
+//		}
+//	}
+//
+//	string filename;
+//	UNSERIALIZE_SCALAR(filename);
+//
+//	ifstream pagefile(filename.c_str(),  ios::binary);
+//	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
+//
+//	int numIndexes = *((int*) readEntry(sizeof(int), pagefile));
+//	int writtenIndexes = 0;
+//
+//	while(writtenIndexes < numIndexes){
+//		int index = *((int*) readEntry(sizeof(int), pagefile));
+//		int entryCnt = *((int*) readEntry(sizeof(int), pagefile));
+//		std::vector<entry*> tmpLinkedList;
+//		if(entryCnt > MAX_ENTRY_COUNT){
+//			fatal("Got %d entries for linked list index, assuming file corruption", entryCnt);
+//		}
+//		for(int i=0;i<entryCnt;i++){
+//			Addr tag = * ((Addr*) readEntry(sizeof(Addr), pagefile));
+//			uint8_t* bufferedPage = (uint8_t*) readEntry(VMPageSize* sizeof(uint8_t), pagefile);
+//
+//			uint8_t* page = new uint8_t[VMPageSize];
+//			if(!page) fatal("MainMemory::newpage: out of virtual memory");
+//			::memset(page, 0, VMPageSize);
+//			for(int j=0;j<VMPageSize;j++) page[j] = bufferedPage[j];
+//
+//			entry* newEntry = new entry(tag, page);
+//			if(!newEntry) fatal("MainMemory::newpage: out of virtual memory");
+//
+//			tmpLinkedList.push_back(newEntry);
+//		}
+//		assert(pagefile.good());
+//
+//		if(!tmpLinkedList.empty()){
+//
+//			// populate next pointers and insert into hash table
+//			for(int j=tmpLinkedList.size()-2; j>=0; j--){
+//				tmpLinkedList[j]->next = tmpLinkedList[j+1];
+//			}
+//			ptab[index] = tmpLinkedList[0];
+//		}
+//
+//		writtenIndexes += 1;
+//	}
+//
+//	pagefile.close();
+//
+//#ifdef DO_SERIALIZE_VALIDATION
+//	dumpPages(false);
+//#endif
 }
 
 #ifdef DO_SERIALIZE_VALIDATION
