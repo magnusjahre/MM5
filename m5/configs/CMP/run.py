@@ -1002,6 +1002,9 @@ else:
 # Workloads
 ###############################################################################
 
+if "PROCESS-MEM" in env:
+    LiveProcess.maxMemMB = int(env["PROCESS-MEM"])
+
 prog = []
 
 if env['BENCHMARK'].startswith("fair"):
@@ -1026,6 +1029,7 @@ else:
 for i in range(int(env['NP'])):
     root.simpleCPU[i].workload = prog[i]
     root.detailedCPU[i].workload = prog[i]
+    
 
 ###############################################################################
 # Statistics
