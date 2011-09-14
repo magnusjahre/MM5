@@ -205,21 +205,9 @@ protected:
 	int uint8ToInt(uint8_t val);
 #endif
 
-	// memory object stats
-	bool takeStats;
-	Stats::Scalar<> page_count;		// total number of pages allocated
-	Stats::Scalar<> ptab_misses;	// total first level page tbl misses
-	Stats::Scalar<> ptab_accesses;	// total page table accesses
-
-	Stats::Formula page_mem;
-	Stats::Formula ptab_miss_rate;
-
 	Stats::Scalar<> accesses;
 	Stats::Scalar<> misses;
 	Stats::Formula missRate;
-
-	Stats::Scalar<> allocations;
-	Stats::Formula allocationPercentage;
 
 	Addr offset(Addr addr);
 	Addr ptab_set(Addr addr);
@@ -293,8 +281,6 @@ public:
 
 public:
 	virtual void regStats();
-	virtual void regFormulas();
-	virtual void startup();
 
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);

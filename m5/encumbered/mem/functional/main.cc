@@ -99,7 +99,7 @@ using namespace std;
 
 // create a flat memory space and initialize memory system
 MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
-: FunctionalMemory(n), takeStats(false)
+: FunctionalMemory(n)
 {
 
 	cpuID = _cpuID;
@@ -137,12 +137,6 @@ MainMemory::~MainMemory()
 	delete ptab;
 }
 
-void
-MainMemory::startup()
-{
-	takeStats = true;
-}
-
 // translate address to host page
 uint8_t *
 MainMemory::translate(Addr addr)
@@ -150,12 +144,6 @@ MainMemory::translate(Addr addr)
 
 	// this method should only be called if the page mapping is wrong
 	assert(ptab[ptab_set(addr)].tag != ptab_tag(addr));
-
-	if (takeStats) {
-		// got here via a first level miss in the page tables
-		ptab_misses++;
-		ptab_accesses++;
-	}
 
 	swapPages(page_addr(addr));
 	return ptab[ptab_set(addr)].page;
@@ -282,10 +270,6 @@ MainMemory::page(Addr addr)
 	// first attempt to hit in first entry, otherwise call xlation fn
 	if (ptab[ptab_set(addr)].tag == ptab_tag(addr))
 	{
-		if (takeStats) {
-			// hit - return the page address on host
-			ptab_accesses++;
-		}
 		return ptab[ptab_set(addr)].page;
 	}
 	else
@@ -558,21 +542,6 @@ void MainMemory::regStats()
 {
 	using namespace Stats;
 
-	page_count
-	.name(name() + ".page_count")
-	.desc("total number of pages allocated")
-	;
-
-	ptab_misses
-	.name(name() + ".ptab_misses")
-	.desc("total first level page table misses")
-	;
-
-	ptab_accesses
-	.name(name() + ".ptab_accesses")
-	.desc("total page table accessess")
-	;
-
 	accesses
 	.name(name() + ".accesses")
 	.desc("Number of page table accesses (simulator performance stat)")
@@ -587,37 +556,7 @@ void MainMemory::regStats()
 	.name(name() + ".miss_rate")
 	.desc("Number page table miss rate (simulator performance stat)")
 	;
-	missRate = accesses / misses;
-
-	allocations
-	.name(name() + ".page_allocations")
-	.desc("Number of memory pages allocated (simulator performance stat)")
-	;
-
-	allocationPercentage
-	.name(name() + ".page_allocation_percentage")
-	.desc("Precenttage of memory pages allocated out of the maximum count (simulator performance stat)")
-	;
-
-	allocationPercentage = allocations / memPageTabSize;
-}
-
-void MainMemory::regFormulas()
-{
-	using namespace Stats;
-
-	page_mem
-	.name(name() + ".page_mem")
-	.desc("total size of memory pages allocated")
-	;
-	page_mem = page_count * VMPageSize / 1024;
-
-	ptab_miss_rate
-	.name(name() + ".ptab_miss_rate")
-	.desc("first level page table miss rate")
-	.precision(4)
-	;
-	ptab_miss_rate = ptab_misses / ptab_accesses;
+	missRate = misses / accesses;
 }
 
 void
