@@ -180,7 +180,8 @@ class Process : public SimObject
 	    int stdout_fd,
 	    int stderr_fd,
 	    int _memSizeMB,
-	    int _cpuID);
+	    int _cpuID,
+	    int _victimEntries);
 
     // post initialization startup
     virtual void startup();
@@ -272,7 +273,8 @@ class LiveProcess : public Process
 		std::vector<std::string> &argv,
 		std::vector<std::string> &envp,
 		int _memSizeMB,
-		int _cpuID);
+		int _cpuID,
+		int _victimEntries);
 
   public:
     // this function is used to create the LiveProcess object, since
@@ -284,7 +286,8 @@ class LiveProcess : public Process
 			       std::vector<std::string> &argv,
 			       std::vector<std::string> &envp,
 			       int _maxMemMB,
-			       int _cpuID);
+			       int _cpuID,
+			       int _victimEntries);
 };
 
 

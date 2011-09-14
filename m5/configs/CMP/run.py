@@ -1005,6 +1005,9 @@ else:
 if "PROCESS-MEM" in env:
     LiveProcess.maxMemMB = int(env["PROCESS-MEM"])
 
+if "PROCESS-VE" in env:
+    LiveProcess.victimEntries = int(env["PROCESS-VE"])
+
 prog = []
 
 if env['BENCHMARK'].startswith("fair"):

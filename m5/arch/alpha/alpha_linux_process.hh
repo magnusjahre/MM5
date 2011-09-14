@@ -46,7 +46,8 @@ class AlphaLinuxProcess : public LiveProcess
 		      std::vector<std::string> &argv,
 		      std::vector<std::string> &envp,
 		      int _maxMemMB,
-		      int _cpuID);
+		      int _cpuID,
+		      int _victimEntries);
 
     /// Syscall emulation function.
     virtual void syscall(ExecContext *xc);

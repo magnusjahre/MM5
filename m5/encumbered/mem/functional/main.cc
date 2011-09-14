@@ -98,7 +98,7 @@ using namespace std;
 #define MAX_ENTRY_COUNT 1000
 
 // create a flat memory space and initialize memory system
-MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
+MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID, int _victimEntries)
 : FunctionalMemory(n)
 {
 
@@ -113,8 +113,9 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 
 	ptab = new entry[memPageTabSize];
 
+	pblob = new uint8_t[VMPageSize*memPageTabSize];
 	for (int i = 0; i < memPageTabSize; ++i){
-		ptab[i].page = new uint8_t[VMPageSize];
+		ptab[i].page = pblob + (i*VMPageSize);
 		::memset(ptab[i].page, 0, VMPageSize);
 	}
 
@@ -126,14 +127,24 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID)
 	stringstream tmp;
 	tmp << "diskpages" << cpuID << ".bin";
 	diskpages.open(tmp.str().c_str(), ios::binary | ios::trunc | ios::out | ios::in);
+
+	if(_victimEntries < 1) fatal("You need to provide at least 1 victim buffer");
+	blob = new uint8_t[VMPageSize*_victimEntries];
+	for(int i=0;i<_victimEntries;i++){
+		VictimEntry ve = VictimEntry();
+		ve.page = blob+(i*VMPageSize);
+		::memset(ve.page, 0, VMPageSize);
+		victimBuffer.push_back(ve);
+	}
+
+	allocatedVictims = 0;
 }
 
 MainMemory::~MainMemory()
 {
 	diskpages.close();
-	for (int i = 0; i < memPageTabSize; i++) {
-		free(ptab[i].page);
-	}
+	delete blob;
+	delete pblob;
 	delete ptab;
 }
 
@@ -141,7 +152,6 @@ MainMemory::~MainMemory()
 uint8_t *
 MainMemory::translate(Addr addr)
 {
-
 	// this method should only be called if the page mapping is wrong
 	assert(ptab[ptab_set(addr)].tag != ptab_tag(addr));
 
@@ -150,18 +160,83 @@ MainMemory::translate(Addr addr)
 }
 
 void
+MainMemory::insertVictim(Addr newAddr, Addr oldAddr){
+
+	int useIndex = -1;
+	if(allocatedVictims < victimBuffer.size()){ // insert into free slots
+		useIndex = allocatedVictims;
+		DPRINTF(FuncMem, "Free victim slots, allocating at %d (max %d)\n", useIndex, victimBuffer.size());
+		allocatedVictims++;
+	}
+	else{
+		assert(victimBuffer.size() > 0);
+		int oldestID = 0;
+		Tick oldestTick = victimBuffer[0].timestamp;
+		for(int i=1;i<victimBuffer.size();i++){
+			if(victimBuffer[i].timestamp < oldestTick){
+				oldestTick = victimBuffer[i].timestamp;
+				oldestID = i;
+			}
+		}
+
+		DPRINTF(FuncMem, "Oldest page is %x (at %d), writing to disk\n", victimBuffer[oldestID].page, victimBuffer[oldestID].timestamp);
+
+		writeDiskEntry(victimBuffer[oldestID].pageAddress, victimBuffer[oldestID].page);
+		useIndex = oldestID;
+	}
+
+	assert(useIndex != -1);
+	uint8_t* tmp = victimBuffer[useIndex].page;
+	victimBuffer[useIndex].pageAddress = page_addr(oldAddr);
+	victimBuffer[useIndex].page = ptab[ptab_set(oldAddr)].page;
+	victimBuffer[useIndex].timestamp = curTick;
+
+	ptab[ptab_set(oldAddr)].page = tmp;
+	ptab[ptab_set(newAddr)].tag = ptab_tag(newAddr);
+
+	DPRINTF(FuncMem, "Page %x is now installed on position %d in victim buffer, page ptr %x\n",
+			oldAddr,
+			useIndex,
+			(uint64_t) victimBuffer[useIndex].page);
+}
+
+void
 MainMemory::swapPages(Addr newAddr){
 	assert(newAddr % VMPageSize == 0);
 
 	if (ptab[ptab_set(newAddr)].tag != INVALID_TAG) {
 
-		DPRINTF(FuncMem, "Swapping page %x with %x for set %d\n",
+		DPRINTF(FuncMem, "Page %x needs to be removed to make space for %x in set %d\n",
 				page_addr(page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr))),
 				page_addr(newAddr),
 				ptab_set(newAddr));
 
 		Addr oldAddr = page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr));
-		writeDiskEntry(oldAddr);
+		assert(oldAddr % VMPageSize == 0);
+
+		int newVictimID = checkVictimBuffer(newAddr);
+		if(newVictimID >= 0){ // victim buffer hit, swap
+			uint8_t* tmp = victimBuffer[newVictimID].page;
+
+			assert(ptab_set(newAddr) == ptab_set(oldAddr));
+
+			victimBuffer[newVictimID].pageAddress = page_addr(oldAddr);
+			victimBuffer[newVictimID].page = ptab[ptab_set(oldAddr)].page;
+			victimBuffer[newVictimID].timestamp = curTick;
+
+			DPRINTF(FuncMem, "Swapped contents of victim buffer %d, old page %x, new page %x\n",
+								newVictimID,
+								(uint64_t) ptab[ptab_set(oldAddr)].page,
+								(uint64_t) tmp);
+
+			ptab[ptab_set(newAddr)].page = tmp;
+			ptab[ptab_set(newAddr)].tag = ptab_tag(newAddr);
+
+			return;
+		}
+		else{
+			insertVictim(newAddr, oldAddr);
+		}
 	}
 	else{
 		DPRINTF(FuncMem, "Installing page %x in empty set %d\n",
@@ -169,9 +244,9 @@ MainMemory::swapPages(Addr newAddr){
 				ptab_set(newAddr));
 	}
 
-	int newAddrIndex = findDiskEntry(newAddr);
-
 	ptab[ptab_set(newAddr)].tag = ptab_tag(newAddr);
+	int newAddrIndex = findDiskEntry(newAddr);
+	assert(ptab_set(newAddr) < memPageTabSize);
 	if(newAddrIndex == -1){
 		DPRINTF(FuncMem, "New page addr %x does not exist on disk, resetting memory content for set %d\n",
 				page_addr(newAddr),
@@ -195,8 +270,17 @@ MainMemory::findDiskEntry(Addr newAddr){
 	return -1;
 }
 
+int
+MainMemory::checkVictimBuffer(Addr newAddr){
+	assert(newAddr % VMPageSize == 0);
+	for(int i=0;i<victimBuffer.size();i++){
+		if(newAddr == victimBuffer[i].pageAddress) return i;
+	}
+	return -1;
+}
+
 void
-MainMemory::writeDiskEntry(Addr oldAddr){
+MainMemory::writeDiskEntry(Addr oldAddr, uint8_t* page){
 	assert(oldAddr % VMPageSize == 0);
 	int oldAddrIndex = findDiskEntry(oldAddr);
 
@@ -222,7 +306,7 @@ MainMemory::writeDiskEntry(Addr oldAddr){
 
 	assert(diskpages.good());
 	diskpages.seekp(d.offset);
-	diskpages.write((char*) ptab[ptab_set(d.pageAddress)].page, VMPageSize);
+	diskpages.write((char*) page, VMPageSize);
 	assert(diskpages.good());
 }
 
@@ -246,11 +330,25 @@ MainMemory::flushPageTable(){
 
 	DPRINTF(FuncMem, "---- Flushing page table to disk...\n");
 
+	for(int i=0;i<victimBuffer.size();i++){
+		if(victimBuffer[i].pageAddress != INVALID_TAG){
+			assert(page_addr(victimBuffer[i].pageAddress) % VMPageSize == 0);
+			writeDiskEntry(victimBuffer[i].pageAddress, victimBuffer[i].page);
+
+			victimBuffer[i].pageAddress = INVALID_TAG;
+			::memset(victimBuffer[i].page, 0, VMPageSize);
+			victimBuffer[i].timestamp = 0;
+
+			allocatedVictims--;
+		}
+	}
+	assert(allocatedVictims == 0);
+
 	for(int i=0;i<memPageTabSize;i++){
 		if(ptab[i].tag != INVALID_TAG){
 			assert(page_addr(ptab[i].tag, i) % VMPageSize == 0);
 			Addr addr = page_addr(page_addr(ptab[i].tag, i));
-			writeDiskEntry(addr);
+			writeDiskEntry(addr, ptab[i].page);
 
 			ptab[i].tag = INVALID_TAG;
 			::memset(ptab[i].page, 0, VMPageSize);
@@ -707,7 +805,7 @@ END_INIT_SIM_OBJECT_PARAMS(MainMemory)
 CREATE_SIM_OBJECT(MainMemory)
 {
 	// Should not be created in this way, 42 is not a power of two and creation will fail
-	return new MainMemory(getInstanceName(), 42, 1);
+	return new MainMemory(getInstanceName(), 42, 1, 42);
 }
 
 REGISTER_SIM_OBJECT("MainMemory", MainMemory)

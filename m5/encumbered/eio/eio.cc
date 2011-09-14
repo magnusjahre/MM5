@@ -638,7 +638,7 @@ EioProcess::EioProcess(const string &name, int stdout_fd, int stderr_fd,
 		       const string &eio_file, const string &chkpt_file)
     : Process(name,
 	      -1, // stdin_fd unused: all input redirecte from EIO trace
-	      stdout_fd, stderr_fd, 42, 0)
+	      stdout_fd, stderr_fd, 42, 0, 42)
 {
     /* open the EIO file stream */
     eio_fd = eio_open(eio_file);

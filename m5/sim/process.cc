@@ -76,12 +76,13 @@ Process::Process(const string &nm,
 		 int stdout_fd,
 		 int stderr_fd,
 		 int _memSizeMB,
-		 int _cpuID)
+		 int _cpuID,
+		 int _victimEntries)
     : SimObject(nm)
 {
 
 	// allocate memory space
-	memory = new MainMemory(name() + ".MainMem", _memSizeMB, _cpuID);
+	memory = new MainMemory(name() + ".MainMem", _memSizeMB, _cpuID, _victimEntries);
 
     // allocate initial register file
     init_regs = new RegFile;
@@ -494,8 +495,8 @@ copyStringArray(vector<string> &strings, Addr array_ptr, Addr data_ptr,
 LiveProcess::LiveProcess(const string &nm, ObjectFile *objFile,
 			 int stdin_fd, int stdout_fd, int stderr_fd,
 			 vector<string> &argv, vector<string> &envp,
-			 int _memSizeMB, int _cpuID)
-    : Process(nm, stdin_fd, stdout_fd, stderr_fd, _memSizeMB, _cpuID)
+			 int _memSizeMB, int _cpuID, int _victimEntries)
+    : Process(nm, stdin_fd, stdout_fd, stderr_fd, _memSizeMB, _cpuID, _victimEntries)
 {
     prog_fname = argv[0];
 
@@ -622,7 +623,7 @@ LiveProcess::create(const string &nm,
 		    int stdin_fd, int stdout_fd, int stderr_fd,
 		    string executable,
 		    vector<string> &argv, vector<string> &envp,
-		    int _maxMemMB, int _cpuID)
+		    int _maxMemMB, int _cpuID, int _victimEntries)
 {
     LiveProcess *process = NULL;
     ObjectFile *objFile = createObjectFile(executable);
@@ -636,13 +637,13 @@ LiveProcess::create(const string &nm,
     	case ObjectFile::Tru64:
     		process = new AlphaTru64Process(nm, objFile,
     				stdin_fd, stdout_fd, stderr_fd,
-    				argv, envp, _maxMemMB, _cpuID);
+    				argv, envp, _maxMemMB, _cpuID, _victimEntries);
     		break;
 
     	case ObjectFile::Linux:
     		process = new AlphaLinuxProcess(nm, objFile,
     				stdin_fd, stdout_fd, stderr_fd,
-    				argv, envp, _maxMemMB, _cpuID);
+    				argv, envp, _maxMemMB, _cpuID, _victimEntries);
     		break;
 
     	default:
@@ -669,6 +670,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(LiveProcess)
     VectorParam<string> env;
     Param<int> maxMemMB;
     Param<int> cpuID;
+    Param<int> victimEntries;
 
 END_DECLARE_SIM_OBJECT_PARAMS(LiveProcess)
 
@@ -680,8 +682,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(LiveProcess)
     INIT_PARAM(input, "filename for stdin (dflt: use sim stdin)"),
     INIT_PARAM(output, "filename for stdout/stderr (dflt: use sim stdout)"),
     INIT_PARAM(env, "environment settings"),
-    INIT_PARAM_DFLT(maxMemMB, "Maximum memory consumption of functional memory in MB", 256),
-    INIT_PARAM(cpuID, "The ID of the CPU this process is running on")
+    INIT_PARAM_DFLT(maxMemMB, "Maximum memory consumption of functional memory in MB", 128),
+    INIT_PARAM(cpuID, "The ID of the CPU this process is running on"),
+    INIT_PARAM_DFLT(victimEntries, "Number of 8K pages in victim buffer", 64)
 
 END_INIT_SIM_OBJECT_PARAMS(LiveProcess)
 
@@ -711,7 +714,7 @@ CREATE_SIM_OBJECT(LiveProcess)
 	return LiveProcess::create(getInstanceName(),
 			stdin_fd, stdout_fd, stderr_fd,
 			(string)executable == "" ? cmd[0] : executable,
-					cmd, env, maxMemMB, cpuID);
+					cmd, env, maxMemMB, cpuID, victimEntries);
 }
 
 REGISTER_SIM_OBJECT("LiveProcess", LiveProcess)

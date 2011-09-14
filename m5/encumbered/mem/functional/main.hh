@@ -120,6 +120,9 @@ private:
 	int memPageTabSizeLog2;
 	int cpuID;
 
+	uint8_t* pblob;
+	uint8_t* blob;
+
 	/*
 	 *
 	 */
@@ -186,15 +189,32 @@ protected:
 		}
 	};
 
+	struct VictimEntry{
+		Addr pageAddress;
+		Tick timestamp;
+		uint8_t *page;
+
+		VictimEntry()
+		: pageAddress(INVALID_TAG), timestamp(0), page(NULL){
+
+		}
+	};
+
 	entry* ptab;	// inverted page table
 	std::vector<DiskEntry> diskEntries;
 	std::fstream diskpages;
 	int curFileEnd;
 
+	int allocatedVictims;
+	std::vector<VictimEntry> victimBuffer;
+
 	void swapPages(Addr newAddr);
 	int findDiskEntry(Addr newAddr);
 
-	void writeDiskEntry(Addr oldAddr);
+	int checkVictimBuffer(Addr newAddr);
+	void insertVictim(Addr newAddr, Addr oldAddr);
+
+	void writeDiskEntry(Addr oldAddr, uint8_t* page);
 	void readDiskEntry(int diskEntryIndex);
 
 	void flushPageTable();
@@ -255,7 +275,7 @@ protected:
 	std::string generateID(const char* prefix, int index, int linkedListNum);
 
 public:
-	MainMemory(const std::string &n, int _maxMemMB, int _cpuID);
+	MainMemory(const std::string &n, int _maxMemMB, int _cpuID, int _victimEntries);
 	virtual ~MainMemory();
 
 	// Read/Write arbitrary amounts of data to simulated memory space
