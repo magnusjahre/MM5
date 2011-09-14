@@ -157,22 +157,38 @@ MainMemory::translate(Addr addr)
 		ptab_accesses++;
 	}
 
-	swapPages(addr);
+	swapPages(page_addr(addr));
 	return ptab[ptab_set(addr)].page;
 }
 
 void
 MainMemory::swapPages(Addr newAddr){
+	assert(newAddr % VMPageSize == 0);
 
 	if (ptab[ptab_set(newAddr)].tag != INVALID_TAG) {
+
+		DPRINTF(FuncMem, "Swapping page %x with %x for set %d\n",
+				page_addr(page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr))),
+				page_addr(newAddr),
+				ptab_set(newAddr));
+
 		Addr oldAddr = page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr));
 		writeDiskEntry(oldAddr);
+	}
+	else{
+		DPRINTF(FuncMem, "Installing page %x in empty set %d\n",
+				page_addr(newAddr),
+				ptab_set(newAddr));
 	}
 
 	int newAddrIndex = findDiskEntry(newAddr);
 
 	ptab[ptab_set(newAddr)].tag = ptab_tag(newAddr);
 	if(newAddrIndex == -1){
+		DPRINTF(FuncMem, "New page addr %x does not exist on disk, resetting memory content for set %d\n",
+				page_addr(newAddr),
+				ptab_set(newAddr));
+
 		::memset(ptab[ptab_set(newAddr)].page, 0, VMPageSize);
 	}
 	else{
@@ -182,6 +198,7 @@ MainMemory::swapPages(Addr newAddr){
 
 int
 MainMemory::findDiskEntry(Addr newAddr){
+	assert(newAddr % VMPageSize == 0);
 	for(int i=0;i<diskEntries.size();i++){
 		if(page_addr(newAddr) == diskEntries[i].pageAddress){
 			return i;
@@ -192,19 +209,28 @@ MainMemory::findDiskEntry(Addr newAddr){
 
 void
 MainMemory::writeDiskEntry(Addr oldAddr){
+	assert(oldAddr % VMPageSize == 0);
 	int oldAddrIndex = findDiskEntry(oldAddr);
 
 	DiskEntry d;
 	if(oldAddrIndex == -1){
+
 		d.offset = curFileEnd * VMPageSize;
 		d.pageAddress = page_addr(oldAddr);
 
 		diskEntries.push_back(d);
 		curFileEnd++;
+
+		DPRINTF(FuncMem, "Page addr %x does not exist on disk, creating entry at offset %d, disk entries size %d\n",
+				d.pageAddress,
+				d.offset,
+				diskEntries.size());
 	}
 	else{
 		d = diskEntries[oldAddrIndex];
 	}
+
+	DPRINTF(FuncMem, "Writing page addr %x to disk at offset %d\n", d.pageAddress, d.offset);
 
 	assert(diskpages.good());
 	diskpages.seekp(d.offset);
@@ -215,7 +241,12 @@ MainMemory::writeDiskEntry(Addr oldAddr){
 
 void
 MainMemory::readDiskEntry(int diskEntryIndex){
-	//cout << std::dec << curTick << ": reading disk entry " << std::dec << diskEntryIndex << ", page addr " << std::hex << diskEntries[diskEntryIndex].pageAddress << ", set " << std::dec << ptab_set(diskEntries[diskEntryIndex].pageAddress) << "\n";
+
+	DPRINTF(FuncMem, "Reading page addr %x to disk at offset %d to set %d\n",
+			diskEntries[diskEntryIndex].pageAddress,
+			diskEntries[diskEntryIndex].offset,
+			ptab_set(diskEntries[diskEntryIndex].pageAddress));
+
 	assert(diskpages.good());
 	diskpages.seekp(diskEntries[diskEntryIndex].offset);
 	diskpages.read((char*) ptab[ptab_set(diskEntries[diskEntryIndex].pageAddress)].page, VMPageSize);
@@ -224,9 +255,13 @@ MainMemory::readDiskEntry(int diskEntryIndex){
 
 void
 MainMemory::flushPageTable(){
+
+	DPRINTF(FuncMem, "---- Flushing page table to disk...\n");
+
 	for(int i=0;i<memPageTabSize;i++){
 		if(ptab[i].tag != INVALID_TAG){
-			Addr addr = i*VMPageSize;
+			assert(page_addr(ptab[i].tag, i) % VMPageSize == 0);
+			Addr addr = page_addr(page_addr(ptab[i].tag, i));
 			writeDiskEntry(addr);
 
 			ptab[i].tag = INVALID_TAG;
@@ -235,6 +270,7 @@ MainMemory::flushPageTable(){
 
 		assert(ptab[i].tag == INVALID_TAG);
 	}
+	DPRINTF(FuncMem, "---- Flushing done\n");
 }
 
 // locate host page for virtual address ADDR, returns NULL if unallocated
@@ -260,104 +296,28 @@ MainMemory::page(Addr addr)
 	}
 }
 
-int
-MainMemory::countPages(Addr vaddr, int64_t size, Addr new_vaddr){
-
-	//	int pagesToMove = 0;
-	//	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
-	//		entry* e = ptab[ptab_set(vaddr)];
-	//		bool found = false;
-	//		while(e != NULL){
-	//			if(e->tag == ptab_tag(vaddr)){
-	//				assert(!found);
-	//				pagesToMove++;
-	//				found = true;
-	//			}
-	//			e = e->next;
-	//		}
-	//	}
-	//	return pagesToMove;
-
-	fatal("count pages not impl");
-	return 0;
-}
-
-int
-MainMemory::getNumMemPages(){
-//	int mempages = 0;
-//	for(int i = 0; i< memPageTabSize; i++){
-//		entry* e = ptab[i];
-//		while(e != NULL){
-//			mempages++;
-//			e = e->next;
-//		}
-//	}
-//	return mempages;
-
-	fatal("getNumMemPages not implemented");
-	return 0;
-}
-
 void
 MainMemory::remap(Addr vaddr, int64_t size, Addr new_vaddr){
-//	assert(vaddr % TheISA::VMPageSize == 0);
-//	assert(new_vaddr % TheISA::VMPageSize == 0);
-//
-//	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
-//
-//	int prevMemPages = getNumMemPages();
-//
-//	DPRINTF(SyscallVerbose, "There are %d pages in memory\n", prevMemPages);
-//
-//	int pagesToMove = countPages(vaddr, size, new_vaddr);
-//
-//	DPRINTF(SyscallVerbose, "%d pages are in the range to be moved\n", pagesToMove);
-//
-//	int movedPages = 0;
-//	for (; size > 0; size -= TheISA::VMPageSize, vaddr += TheISA::VMPageSize, new_vaddr += TheISA::VMPageSize){
-//		entry* e = ptab[ptab_set(vaddr)];
-//		entry* prev = NULL;
-//		bool found = false;
-//		while(e != NULL){
-//			if(e->tag == ptab_tag(vaddr)){
-//
-//				entry* elementToMove = e;
-//
-//				if(prev == NULL){
-//					ptab[ptab_set(vaddr)] = e->next;
-//					prev = NULL;
-//				}
-//				else{
-//					prev->next = e->next;
-//				}
-//				e = e->next;
-//
-//				assert(!found);
-//				found = true;
-//				elementToMove->tag = ptab_tag(new_vaddr);
-//				elementToMove->next = ptab[ptab_set(new_vaddr)];
-//				ptab[ptab_set(new_vaddr)] = elementToMove;
-//
-//				movedPages++;
-//			}
-//			else{
-//				prev = e;
-//				e = e->next;
-//			}
-//		}
-//	}
-//
-//	DPRINTF(SyscallVerbose, "moved %d pages to new addresses, should move %d pages\n", movedPages, pagesToMove);
-//	assert(pagesToMove == movedPages);
-//
-//
-//	int postMemPages = getNumMemPages();
-//
-//	DPRINTF(SyscallVerbose, "%d pages in memory at start, %d pages at end\n", prevMemPages, postMemPages);
-//	assert(prevMemPages == postMemPages);
+	assert(vaddr % TheISA::VMPageSize == 0);
+	assert(new_vaddr % TheISA::VMPageSize == 0);
 
-	fatal("remap not implemented");
+	DPRINTF(SyscallVerbose, "moving pages from vaddr %08p to %08p, size = %d\n", vaddr, new_vaddr, size);
+	DPRINTF(FuncMem, "---- Remaping pages from vaddr %x to %x, size = %d\n", vaddr, new_vaddr, size);
 
+	flushPageTable();
+	for(int i=0;i<memPageTabSize;i++) assert(ptab[i].tag == INVALID_TAG);
+
+	for(int i=0;i<diskEntries.size();i++){
+		if(diskEntries[i].pageAddress >= vaddr && diskEntries[i].pageAddress < vaddr + size){
+			Addr offset = diskEntries[i].pageAddress - vaddr;
+			assert(offset >= 0);
+
+			DPRINTF(FuncMem, "Moving page %d to %d\n", diskEntries[i].pageAddress, new_vaddr + offset);
+
+			diskEntries[i].pageAddress = new_vaddr + offset;
+		}
+	}
+	DPRINTF(FuncMem, "---- Remap done!\n");
 }
 
 void

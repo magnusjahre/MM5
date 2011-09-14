@@ -186,9 +186,6 @@ protected:
 		}
 	};
 
-	int countPages(Addr vaddr, int64_t size, Addr new_vaddr);
-	int getNumMemPages();
-
 	entry* ptab;	// inverted page table
 	std::vector<DiskEntry> diskEntries;
 	std::fstream diskpages;
