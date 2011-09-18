@@ -502,12 +502,19 @@ def copyCheckpointFiles(directory):
         if name != "m5.cpt" and name != "m5.cpt.old":
             
             if not os.path.isdir(directory+"/"+name):
-                print >> sys.stderr, "Linking file "+name+" to current directory"
+                print >> sys.stderr, "Linking/copying file "+name+" to current directory"
                 #shutil.copy(directory+"/"+name, ".")
                 #shutil.copy(directory+"/"+name, name+".clean
-                if os.path.exists(name):
-                    os.remove(name)
-                os.symlink(directory+"/"+name, name)
+                if name.startswith("diskpages"):
+                    newname = name.replace("diskpages", "diskpages-cpt")
+                    if os.path.exists(newname):
+                        os.remove(newname)
+                    shutil.copy(directory+"/"+name, newname)
+                    continue
+                else:
+                    if os.path.exists(name):
+                        os.remove(name)
+                    os.symlink(directory+"/"+name, name)
                 
                 cleanname = name+".clean"
                 if os.path.exists(cleanname):
