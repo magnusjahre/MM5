@@ -181,7 +181,7 @@ protected:
 
 	struct DiskEntry{
 		Addr pageAddress;
-		int offset;
+		uint64_t offset;
 
 		DiskEntry()
 		: pageAddress(INVALID_TAG), offset(-1){
@@ -203,7 +203,7 @@ protected:
 	entry* ptab;	// inverted page table
 	std::vector<DiskEntry> diskEntries;
 	std::fstream diskpages;
-	int curFileEnd;
+	uint64_t curFileEnd;
 
 	int allocatedVictims;
 	std::vector<VictimEntry> victimBuffer;

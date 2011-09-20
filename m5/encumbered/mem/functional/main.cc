@@ -686,10 +686,10 @@ MainMemory::serialize(std::ostream &os){
 	for(int i=0;i<diskEntries.size();i++){
 		assert(diskEntries[i].pageAddress != INVALID_TAG);
 		Addr address =diskEntries[i].pageAddress;
-		int offset = diskEntries[i].offset;
+		uint64_t offset = diskEntries[i].offset;
 
 		writeEntry(&address, sizeof(Addr), pagefile);
-		writeEntry(&offset, sizeof(int), pagefile);
+		writeEntry(&offset, sizeof(uint64_t), pagefile);
 	}
 
 	pagefile.close();
@@ -737,7 +737,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	while(curFileEnd < numIndexes){
 		DiskEntry d;
 		d.pageAddress = *((Addr*) readEntry(sizeof(Addr), pagefile));
-		d.offset = *((int*) readEntry(sizeof(int), pagefile));
+		d.offset = *((uint64_t*) readEntry(sizeof(uint64_t), pagefile));
 
 		diskEntries.push_back(d);
 
