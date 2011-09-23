@@ -181,6 +181,7 @@ MainMemory::insertVictim(Addr newAddr, Addr oldAddr){
 
 		DPRINTF(FuncMem, "Oldest page is %x (at %d), writing to disk\n", victimBuffer[oldestID].page, victimBuffer[oldestID].timestamp);
 
+		diskWrites++;
 		writeDiskEntry(victimBuffer[oldestID].pageAddress, victimBuffer[oldestID].page);
 		useIndex = oldestID;
 	}
@@ -255,6 +256,7 @@ MainMemory::swapPages(Addr newAddr){
 		::memset(ptab[ptab_set(newAddr)].page, 0, VMPageSize);
 	}
 	else{
+		diskReads++;
 		readDiskEntry(newAddrIndex);
 	}
 }
@@ -650,11 +652,33 @@ void MainMemory::regStats()
 	.desc("Number of page table misses (simulator performance stat)")
 	;
 
+	diskReads
+	.name(name() + ".disk_reads")
+	.desc("Number of pages read back from harddisk (simulator performance stat)")
+	;
+
+	diskWrites
+	.name(name() + ".disk_writes")
+	.desc("Number of pages written to the harddisk (simulator performance stat)")
+	;
+
 	missRate
 	.name(name() + ".miss_rate")
 	.desc("Number page table miss rate (simulator performance stat)")
 	;
 	missRate = misses / accesses;
+
+	readRate
+	.name(name() + ".read_rate")
+	.desc("Fraction of disk reads over misses (simulator performance stat)")
+	;
+	readRate = diskReads / misses;
+
+	writeRate
+	.name(name() + ".write_rate")
+	.desc("Fraction of disk writes over misses (simulator performance stat)")
+	;
+	writeRate = diskWrites / misses;
 }
 
 void

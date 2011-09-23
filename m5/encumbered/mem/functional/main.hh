@@ -227,7 +227,11 @@ protected:
 
 	Stats::Scalar<> accesses;
 	Stats::Scalar<> misses;
+	Stats::Scalar<> diskWrites;
+	Stats::Scalar<> diskReads;
 	Stats::Formula missRate;
+	Stats::Formula readRate;
+	Stats::Formula writeRate;
 
 	Addr offset(Addr addr);
 	Addr ptab_set(Addr addr);
