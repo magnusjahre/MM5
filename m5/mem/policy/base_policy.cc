@@ -647,10 +647,12 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Estimated Private Latency");
 		headers.push_back("Shared IPC");
 		headers.push_back("Estimated Alone IPC");
+		headers.push_back("Shared Overlap");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
 		headers.push_back("Measured Alone IPC");
+		headers.push_back("Alone Overlap");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -711,12 +713,15 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(avgPrivateLatEstimate);
 		data.push_back(sharedIPC);
 		data.push_back(aloneIPCEstimate);
+		data.push_back(computedOverlap[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) totalCycles;
+		double aloneOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
 
 		data.push_back(avgSharedLat);
 		data.push_back(aloneIPC);
+		data.push_back(aloneOverlap);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
@@ -798,5 +803,4 @@ BasePolicy::parseOptimizationMetric(std::string metricName){
 DEFINE_SIM_OBJECT_CLASS_NAME("BasePolicy", BasePolicy);
 
 #endif
-
 
