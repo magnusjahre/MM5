@@ -442,10 +442,18 @@ ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, doubl
 		fatal("Unknown bandwidth allocation implementation strategy");
 	}
 
-	for(int i=0;i<sharedCaches.size();i++){
-		traceVector("Implementing optimal cache partition:", optimalWayAllocs);
-		sharedCaches[i]->setCachePartition(optimalWayAllocs);
-		sharedCaches[i]->enablePartitioning();
+	int allocsum = 0;
+	for(int i=0;i<optimalWayAllocs.size();i++) allocsum += optimalWayAllocs[i];
+
+	if(allocsum > 0){
+		for(int i=0;i<sharedCaches.size();i++){
+			traceVector("Implementing optimal cache partition:", optimalWayAllocs);
+			sharedCaches[i]->setCachePartition(optimalWayAllocs);
+			sharedCaches[i]->enablePartitioning();
+		}
+	}
+	else{
+		DPRINTF(MissBWPolicy, "No ways allocated, skipping way allocation \n");
 	}
 }
 
