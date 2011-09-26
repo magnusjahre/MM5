@@ -400,6 +400,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		if(currentAvgSharedLat == 0 || currentRequests == 0){
 			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, latency or num requests is 0, returning 0\n");
+			computedOverlap[cpuID] = 0;
 			return 0;
 		}
 
@@ -717,7 +718,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) totalCycles;
-		double aloneOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
+		double aloneOverlap = 0;
+		if(reqs != 0){
+			aloneOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
+		}
 
 		data.push_back(avgSharedLat);
 		data.push_back(aloneIPC);
