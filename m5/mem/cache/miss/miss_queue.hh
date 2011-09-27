@@ -60,6 +60,7 @@ class MissQueue
     bool mqWasPrevQueue;
     bool changeQueue;
     Tick prevTime;
+    Tick lastMissAt;
 
     RequestTrace latencyTrace;
     RequestTrace interferenceTrace;
@@ -204,6 +205,9 @@ class MissQueue
     Stats::Formula avg_bus_entry_latency;
     Stats::Formula avg_bus_queue_latency;
     Stats::Formula avg_bus_service_latency;
+
+    Stats::Scalar<> cycles_between_misses;
+    Stats::Formula avg_cycles_between_misses;
 
   private:
     /** Pointer to the MSHR that has no targets. */

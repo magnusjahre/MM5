@@ -66,6 +66,8 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 	}
 
 	throttleControl = _tc;
+
+	lastMissAt = 0;
 }
 
 void
@@ -512,6 +514,18 @@ MissQueue::regStats(const string &name)
 	avg_bus_queue_latency = bus_queue_latency / num_roundtrip_responses;
 	avg_bus_service_latency = bus_service_latency / num_roundtrip_responses;
 
+	cycles_between_misses
+		.name(name +".cycles_between_misses")
+		.desc("Number of cycles between each misses")
+		;
+
+	avg_cycles_between_misses
+		.name(name +".avg_cycles_between_misses")
+		.desc("Number of cycles between each misses")
+		;
+
+	avg_cycles_between_misses = cycles_between_misses / mshr_misses[Read];
+
 	mq.regStats(".mq");
 	wb.regStats(".wb");
 }
@@ -679,6 +693,11 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 		}
 		else {
 			mshr_misses[req->cmd.toIndex()][req->thread_num]++;
+
+			if(req->cmd == Read){
+				cycles_between_misses += curTick - lastMissAt;
+				lastMissAt = curTick;
+			}
 		}
 	} else {
 		//Count uncacheable accesses
