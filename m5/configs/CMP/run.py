@@ -11,6 +11,7 @@ import simpoints
 import os
 import shutil
 import pickle
+import subprocess
 from DetailedConfig import *
 
 from resourcePartition import ResourcePartition
@@ -507,9 +508,18 @@ def copyCheckpointFiles(directory):
                 #shutil.copy(directory+"/"+name, name+".clean
                 if name.startswith("diskpages"):
                     newname = name.replace("diskpages", "diskpages-cpt")
-                    if os.path.exists(newname):
-                        os.remove(newname)
-                    shutil.copy(directory+"/"+name, newname)
+                    nozipname = newname.replace(".zip","")
+                    if os.path.exists(name):
+                        os.remove(name)
+                    if os.path.exists(name.replace(".zip","")):
+                        os.remove(name.replace(".zip",""))
+                        
+                    if name.endswith(".zip"):
+                        print >> sys.stderr, "Uncompressing "+name
+                        subprocess.call(["unzip", directory+"/"+name])
+                        os.rename("diskpages0.bin", nozipname) 
+                    else:
+                        shutil.copy(directory+"/"+name, newname)
                     continue
                 else:
                     if os.path.exists(name):
