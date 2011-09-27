@@ -209,6 +209,8 @@ class MissQueue
     Stats::Scalar<> cycles_between_misses;
     Stats::Formula avg_cycles_between_misses;
 
+    Stats::Distribution<> cycles_between_misses_distribution;
+
   private:
     /** Pointer to the MSHR that has no targets. */
     MSHR* noTargetMSHR;

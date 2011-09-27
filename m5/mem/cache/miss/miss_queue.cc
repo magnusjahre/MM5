@@ -526,6 +526,13 @@ MissQueue::regStats(const string &name)
 
 	avg_cycles_between_misses = cycles_between_misses / mshr_misses[Read];
 
+	cycles_between_misses_distribution
+			.init(0, 1000, 25)
+			.name(name +".cycles_between_misses_distribution")
+			.desc("Histogram of cycles between misses")
+			.flags(total | pdf | cdf)
+			;
+
 	mq.regStats(".mq");
 	wb.regStats(".wb");
 }
@@ -696,6 +703,7 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 
 			if(req->cmd == Read){
 				cycles_between_misses += curTick - lastMissAt;
+				cycles_between_misses_distribution.sample(curTick - lastMissAt);
 				lastMissAt = curTick;
 			}
 		}
