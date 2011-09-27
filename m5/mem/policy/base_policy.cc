@@ -639,9 +639,10 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Cummulative Committed Instructions");
 	headers.push_back("Cycles in Sample");
 	headers.push_back("Stall Cycles");
+	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
-	headers.push_back("Avg Misses while Stalled");
-	headers.push_back("Responses while Stalled");
+	//headers.push_back("Avg Misses while Stalled");
+	//headers.push_back("Responses while Stalled");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -688,8 +689,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(totalCycles);
 	data.push_back(stallCycles);
-	data.push_back(reqs);
-	data.push_back(mws);
+	data.push_back(totalCycles - stallCycles);
+	//data.push_back(reqs);
+	//data.push_back(mws);
 	data.push_back(responsesWhileStalled);
 
 	if(cpuCount > 1){
