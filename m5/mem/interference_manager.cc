@@ -242,6 +242,12 @@ InterferenceManager::regStats(){
 		.name(name() + ".cpu_stall_cycles")
 		.desc("total number of clock cycles the CPU was stalled");
 
+	cpuComputeCycles
+		.name(name() + ".cpu_compute_cycles")
+		.desc("total number of clock cycles the CPU used for computation");
+
+	cpuComputeCycles = simTicks - cpuStallCycles;
+
 	numCpuStalls
 		.init(intManCPUCount)
 		.name(name() + ".num_of_cpu_stalls")

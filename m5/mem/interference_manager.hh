@@ -144,6 +144,7 @@ protected:
 	Stats::Vector<> numCpuStalls;
 	Stats::Formula cpuStallPercentage;
 	Stats::Formula avgCpuStallLength;
+	Stats::Formula cpuComputeCycles;
 
 public:
 
