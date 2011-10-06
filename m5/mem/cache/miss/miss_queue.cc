@@ -527,7 +527,7 @@ MissQueue::regStats(const string &name)
 	avg_cycles_between_misses = cycles_between_misses / mshr_misses[Read];
 
 	cycles_between_misses_distribution
-			.init(0, 1000, 25)
+			.init(0, 7000, 25)
 			.name(name +".cycles_between_misses_distribution")
 			.desc("Histogram of cycles between misses")
 			.flags(total | pdf | cdf)
