@@ -340,63 +340,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 									     double sharedMisses,
 									     double privateMisses){
 
-	if(perfEstMethod == RATIO_MWS){
+	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
 
-		if(currentMWS == 0 || currentAvgSharedLat == 0 || newMWS == 0 || newAvgSharedLat == 0) return currentStallTime;
-
-		double currentRatio = currentAvgSharedLat / currentMWS;
-		double newRatio = newAvgSharedLat / newMWS;
-
-		double stallTimeFactor = newRatio / currentRatio;
-
-		return currentStallTime * stallTimeFactor;
-	}
-	else if(perfEstMethod == LATENCY_MLP){
-
-		double curMLRProduct = currentMLP * currentAvgSharedLat * currentRequests;
-		double newMLRProduct = newMLP * newAvgSharedLat * newRequests;
-
-		double deltaStallCycles = newMLRProduct - curMLRProduct;
-		double newStallTime = currentStallTime + deltaStallCycles;
-
-//		if(newStallTime > period) return period;
-		if(newStallTime < 0) return 0;
-
-		return newStallTime;
-	}
-	else if(perfEstMethod == LATENCY_MLP_SREQ){
-
-		DPRINTF(MissBWPolicyExtra, "Running stall-request latency MLP method with %f mlp, %f avg shared lat and %f responses while stalled\n",
-				              currentMLP,
-				              currentAvgSharedLat,
-				              responsesWhileStalled);
-
-		double curMLRProduct = currentMLP * currentAvgSharedLat * responsesWhileStalled;
-
-		DPRINTF(MissBWPolicyExtra, "Estimated new values are %f mlp, %f avg shared lat and %f responses while stalled\n",
-							  newMLP,
-							  newAvgSharedLat,
-							  responsesWhileStalled);
-
-
-		double newMLRProduct = newMLP * newAvgSharedLat * responsesWhileStalled;
-
-		double deltaStallCycles = newMLRProduct - curMLRProduct;
-		double newStallTime = currentStallTime + deltaStallCycles;
-
-		DPRINTF(MissBWPolicyExtra, "Current MLR product is %f, new MLR product is %f, current stall time is %f, new stall time %f\n",
-							  curMLRProduct,
-							  newMLRProduct,
-							  currentStallTime,
-							  newStallTime);
-
-		if(newStallTime < 0){
-			DPRINTF(MissBWPolicy, "Negative stall time (%f), returning 0\n", newStallTime);
-			return 0;
-		}
-
-		DPRINTF(MissBWPolicyExtra, "Returning new stall time %f\n", newStallTime);
-		return newStallTime;
+	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ){
+		fatal("deprecated performance estimation mode");
 	}
 	else if(perfEstMethod == NO_MLP || perfEstMethod == NO_MLP_CACHE){
 
@@ -406,34 +353,26 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			return 0;
 		}
 
-
-		double deltaLat = 0.0;
+		double cacheAdjust = 1.0;
 		if(perfEstMethod == NO_MLP_CACHE){
-			double cacheHitLat = 40.0; //FIXME: set to correct value
-			double adjustedPrivateMisses = privateMisses;
-			if(adjustedPrivateMisses > sharedMisses) adjustedPrivateMisses = sharedMisses;
+			if(privateMisses > sharedMisses) privateMisses = sharedMisses;
+			if(privateMisses < 0) privateMisses = 0;
 
-			double sharedMemLat = currentAvgSharedLat - cacheHitLat;
-			double sharedHits = currentRequests - sharedMisses;
-			double privateHits = currentRequests - adjustedPrivateMisses;
-			if(privateHits < 0) privateHits = 0;
+			double privMissRate = privateMisses / currentRequests;
+			double sharedMissRate = sharedMisses / currentRequests;
 
-			deltaLat = (sharedHits - privateHits) * cacheHitLat + (sharedMisses - adjustedPrivateMisses) * sharedMemLat;
-			DPRINTF(MissBWPolicyExtra, "Computed cache miss lat %f, hit lat %f, shared cache (r=%f,h=%f,m=%f), private estimate (r=%f,h=%f,m=%f)\n",
-					sharedMemLat, cacheHitLat,
-					currentRequests, sharedHits, sharedMisses,
-					currentRequests, privateHits, adjustedPrivateMisses);
+			cacheAdjust = sharedMissRate / privMissRate;
 
-			fatal("no-mlp-cache does not work");
+			DPRINTF(MissBWPolicyExtra, "Computed cache miss adjustment %f from shared mode miss rate %f and private mode miss rate %f\n",
+					cacheAdjust, sharedMissRate, privMissRate);
 		}
 
-		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * currentRequests - deltaLat);
+		computedOverlap[cpuID] = (currentStallTime / (currentAvgSharedLat * currentRequests)) * cacheAdjust;
 
-		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, %f stall cycles and delta latency is %f, uncorrected overlap is %f, current total lat %d\n",
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, %f stall cycle, uncorrected overlap is %f, current total lat %d\n",
 				currentAvgSharedLat,
 				currentRequests,
 				currentStallTime,
-				deltaLat,
 				currentStallTime / (currentAvgSharedLat * currentRequests),
 				currentAvgSharedLat * currentRequests);
 
@@ -719,9 +658,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(totalCycles);
 	data.push_back(stallCycles);
 	data.push_back(totalCycles - stallCycles);
-	//data.push_back(reqs);
+	data.push_back(reqs);
 	//data.push_back(mws);
-	data.push_back(responsesWhileStalled);
+	//data.push_back(responsesWhileStalled);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
