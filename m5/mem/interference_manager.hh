@@ -82,8 +82,6 @@ private:
 	std::vector<RequestTrace> estimateTraces;
 	std::vector<RequestTrace> latencyTraces;
 
-	CacheInterference* cacheInterference;
-
 	std::vector<double> traceInterference(int fromCPU, std::vector<double> avgLats);
 
 	std::vector<double> traceLatency(int fromCPU);
@@ -99,6 +97,9 @@ private:
 	std::vector<bool> cpuIsStalled;
 
 public:
+
+	CacheInterference* cacheInterference;
+
 	typedef enum{
 			InterconnectEntry,
 			InterconnectRequestQueue,

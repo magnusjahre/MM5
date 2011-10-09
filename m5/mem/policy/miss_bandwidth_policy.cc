@@ -382,6 +382,7 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 
 	for(int i=0;i<cpuCount;i++){
 
+		double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
 		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
 				                                      mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)],
@@ -392,7 +393,9 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 													  sharedLatencyEstimates[i],
 													  currentMeasurements->requestsInSample[i],
 													  currentMeasurements->responsesWhileStalled[i],
-													  i);
+													  i,
+													  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
+													  privateMisses);
 
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);

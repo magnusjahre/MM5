@@ -79,6 +79,9 @@ CacheInterference::CacheInterference(std::string _name,
 	samplePrivateMisses.resize(cpuCount, MissCounter(0));
 	sampleSharedMisses.resize(cpuCount, MissCounter(0));
 
+	commitTracePrivateMisses.resize(cpuCount, MissCounter(0));
+	commitTraceSharedMisses.resize(cpuCount, MissCounter(0));
+
 	interferenceMissProbabilities.resize(cpuCount, InterferenceMissProbability(true, randomCounterBits));
 
 	samplePrivateWritebacks.resize(cpuCount, MissCounter(0));
@@ -226,6 +229,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
 				samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+				commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 			}
 			estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
@@ -242,6 +246,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	if(curTick >= detailedSimStart){
 		if(isCacheMiss){
 			sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
+			commitTraceSharedMisses[req->adaptiveMHASenderID].increment(req);
 		}
 	}
 

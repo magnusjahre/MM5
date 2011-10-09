@@ -174,6 +174,9 @@ private:
 	std::vector<MissCounter> samplePrivateMisses;
 	std::vector<MissCounter> sampleSharedMisses;
 
+	std::vector<MissCounter> commitTracePrivateMisses;
+	std::vector<MissCounter> commitTraceSharedMisses;
+
 	std::vector<MissCounter> sampleSharedResponses;
 	std::vector<MissCounter> samplePrivateWritebacks;
 
@@ -245,6 +248,18 @@ public:
     virtual void serialize(std::ostream &os);
 
     virtual void unserialize(Checkpoint *cp, const std::string &section);
+
+    int getPrivateCommitTraceMisses(int cpuID){
+    	int misses = commitTracePrivateMisses[cpuID].value;
+    	commitTracePrivateMisses[cpuID].reset();
+    	return misses;
+    }
+
+    int getSharedCommitTraceMisses(int cpuID){
+    	int misses = commitTraceSharedMisses[cpuID].value;
+    	commitTraceSharedMisses[cpuID].reset();
+    	return misses;
+    }
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

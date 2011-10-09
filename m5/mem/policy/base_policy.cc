@@ -336,7 +336,9 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 									     double newAvgSharedLat,
 									     double newRequests,
 									     double responsesWhileStalled,
-									     int cpuID){
+									     int cpuID,
+									     double sharedMisses,
+									     double privateMisses){
 
 	if(perfEstMethod == RATIO_MWS){
 
@@ -396,7 +398,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		DPRINTF(MissBWPolicyExtra, "Returning new stall time %f\n", newStallTime);
 		return newStallTime;
 	}
-	else if(perfEstMethod == NO_MLP){
+	else if(perfEstMethod == NO_MLP || perfEstMethod == NO_MLP_CACHE){
 
 		if(currentAvgSharedLat == 0 || currentRequests == 0){
 			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, latency or num requests is 0, returning 0\n");
@@ -404,22 +406,45 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			return 0;
 		}
 
-		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * currentRequests);
 
-		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f and %f stall cycles\n",
-      					           currentAvgSharedLat,
-      					           currentRequests,
-      					           currentStallTime);
+		double deltaLat = 0.0;
+		if(perfEstMethod == NO_MLP_CACHE){
+			double cacheHitLat = 40.0; //FIXME: set to correct value
+			double adjustedPrivateMisses = privateMisses;
+			if(adjustedPrivateMisses > sharedMisses) adjustedPrivateMisses = sharedMisses;
+
+			double sharedMemLat = currentAvgSharedLat - cacheHitLat;
+			double sharedHits = currentRequests - sharedMisses;
+			double privateHits = currentRequests - adjustedPrivateMisses;
+			if(privateHits < 0) privateHits = 0;
+
+			deltaLat = (sharedHits - privateHits) * cacheHitLat + (sharedMisses - adjustedPrivateMisses) * sharedMemLat;
+			DPRINTF(MissBWPolicyExtra, "Computed cache miss lat %f, hit lat %f, shared cache (r=%f,h=%f,m=%f), private estimate (r=%f,h=%f,m=%f)\n",
+					sharedMemLat, cacheHitLat,
+					currentRequests, sharedHits, sharedMisses,
+					currentRequests, privateHits, adjustedPrivateMisses);
+
+			fatal("no-mlp-cache does not work");
+		}
+
+		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * currentRequests - deltaLat);
+
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, %f stall cycles and delta latency is %f, uncorrected overlap is %f, current total lat %d\n",
+				currentAvgSharedLat,
+				currentRequests,
+				currentStallTime,
+				deltaLat,
+				currentStallTime / (currentAvgSharedLat * currentRequests),
+				currentAvgSharedLat * currentRequests);
 
 		DPRINTF(MissBWPolicyExtra, "Estimated MLP constant to be %f\n", computedOverlap[cpuID]);
-
 
 		double adjustedMLP = (computedOverlap[cpuID] * newMLP) / currentMLP;
 
 		DPRINTF(MissBWPolicyExtra, "Computed adjusted MLP to be %f with current MLP %f and new MLP %f\n",
-								    adjustedMLP,
-								    currentMLP,
-								    newMLP);
+				adjustedMLP,
+				currentMLP,
+				newMLP);
 
 		double newStallTime = adjustedMLP * newAvgSharedLat * newRequests;
 
@@ -448,6 +473,7 @@ BasePolicy::updateAloneIPCEstimate(){
 			double stallParallelism = currentMeasurements->avgMissesWhileStalled[i][maxMSHRs];
 			double curMLP = currentMeasurements->mlpEstimate[i][maxMSHRs];
 			double curReqs = currentMeasurements->requestsInSample[i];
+			double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
 			double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
 														  stallParallelism,
 														  curMLP,
@@ -458,7 +484,9 @@ BasePolicy::updateAloneIPCEstimate(){
 														  currentMeasurements->estimatedPrivateLatencies[i],
 														  curReqs,
 														  currentMeasurements->responsesWhileStalled[i],
-														  i);
+														  i,
+														  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
+														  privateMisses);
 
 			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
@@ -649,12 +677,13 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Estimated Private Latency");
 		headers.push_back("Shared IPC");
 		headers.push_back("Estimated Alone IPC");
-		headers.push_back("Shared Overlap");
+		headers.push_back("Measured Shared Overlap");
+		headers.push_back("Estimated Alone Overlap");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
 		headers.push_back("Measured Alone IPC");
-		headers.push_back("Alone Overlap");
+		headers.push_back("Measured Alone Overlap");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -705,7 +734,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      avgPrivateLatEstimate,
 				                                      reqs,
 				                                      responsesWhileStalled,
-				                                      cpuID);
+				                                      cpuID,
+				                                      intManager->cacheInterference->getSharedCommitTraceMisses(cpuID),
+				                                      intManager->cacheInterference->getPrivateCommitTraceMisses(cpuID));
 
 		double nonStallCycles = (double) totalCycles - (double) stallCycles;
 
@@ -716,6 +747,12 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(avgPrivateLatEstimate);
 		data.push_back(sharedIPC);
 		data.push_back(aloneIPCEstimate);
+
+		double sharedOverlap = 0;
+		if(reqs != 0){
+			sharedOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
+		}
+		data.push_back(sharedOverlap);
 		data.push_back(computedOverlap[cpuID]);
 	}
 	else{
@@ -775,6 +812,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "ratio-mws") return RATIO_MWS;
 	if(methodName == "latency-mlp-sreq") return LATENCY_MLP_SREQ;
 	if(methodName == "no-mlp") return NO_MLP;
+	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

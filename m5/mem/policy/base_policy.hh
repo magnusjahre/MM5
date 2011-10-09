@@ -44,7 +44,8 @@ public:
         LATENCY_MLP,
         LATENCY_MLP_SREQ,
         RATIO_MWS,
-        NO_MLP
+        NO_MLP,
+        NO_MLP_CACHE
     } PerformanceEstimationMethod;
 
     typedef enum{
@@ -180,7 +181,9 @@ protected:
 		                       double newAvgSharedLat,
 		                       double newRequests,
 		                       double responsesWhileStalled,
-		                       int cpuID);
+		                       int cpuID,
+		                       double sharedMisses,
+		                       double privateMisses);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 
