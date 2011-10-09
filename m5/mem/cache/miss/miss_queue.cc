@@ -615,7 +615,7 @@ MissQueue::setPrefetcher(BasePrefetcher *_prefetcher)
 void
 MissQueue::addBurstStats(MemReqPtr &req){
 
-	assert(req->cmd == Read);
+	assert(req->cmd == Read || req->cmd == Soft_Prefetch || req->cmd == Write);
 
 	int burstIndex = 0;
 	if(cache->isShared){
@@ -625,7 +625,7 @@ MissQueue::addBurstStats(MemReqPtr &req){
 
 	if((curTick - lastBurstMissAt[burstIndex]) > 100){
 		if(burstSizeAccumulator[burstIndex] > 0){
-			burstSizeDistribution[burstIndex].sample(burstSizeAccumulator[burstIndex]);
+			burstSizeDistribution[burstIndex].sample(burstSizeAccumulator[burstIndex], burstSizeAccumulator[burstIndex]);
 		}
 		lastBurstMissAt[burstIndex] = curTick;
 		burstSizeAccumulator[burstIndex] = 1;
