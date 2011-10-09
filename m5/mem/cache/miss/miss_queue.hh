@@ -67,6 +67,9 @@ class MissQueue
 
     ThrottleControl* throttleControl;
 
+    std::vector<Tick> lastBurstMissAt;
+    std::vector<int> burstSizeAccumulator;
+
   protected:
     /** The MSHRs. */
     MSHRQueue mq;
@@ -211,6 +214,8 @@ class MissQueue
 
     Stats::Distribution<> cycles_between_misses_distribution;
 
+    Stats::VectorDistribution<> burstSizeDistribution;
+
   private:
     /** Pointer to the MSHR that has no targets. */
     MSHR* noTargetMSHR;
@@ -232,6 +237,8 @@ class MissQueue
      * @return A pointer to the new write buffer.
      */
     MSHR* allocateWrite(MemReqPtr &req, int size, Tick time);
+
+    void addBurstStats(MemReqPtr &req);
 
   public:
     /**

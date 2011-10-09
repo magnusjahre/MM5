@@ -533,6 +533,23 @@ MissQueue::regStats(const string &name)
 			.flags(total | pdf | cdf)
 			;
 
+	if(cache->isShared){
+		burstSizeDistribution
+				.init(cache->cpuCount, 1, 16, 1)
+				.name(name + ".burst_size_distribution")
+				.desc("The distribution of burst sizes")
+				.flags(total | pdf | cdf)
+				;
+	}
+	else{
+		burstSizeDistribution
+				.init(1, 1, 16, 1)
+				.name(name + ".burst_size_distribution")
+				.desc("The distribution of burst sizes")
+				.flags(total | pdf | cdf)
+				;
+	}
+
 	mq.regStats(".mq");
 	wb.regStats(".wb");
 }
@@ -544,6 +561,15 @@ MissQueue::setCache(BaseCache *_cache)
 	blkSize = cache->getBlockSize();
 	mq.setCache(cache);
 	wb.setCache(cache);
+
+	if(_cache->isShared){
+		lastBurstMissAt.resize(_cache->cpuCount, 0);
+		burstSizeAccumulator.resize(_cache->cpuCount, 0);
+	}
+	else{
+		lastBurstMissAt.resize(1, 0);
+		burstSizeAccumulator.resize(1, 0);
+	}
 
 #ifdef DO_REQUEST_TRACE
 	if(!cache->isShared && cache->adaptiveMHA != NULL){
@@ -586,6 +612,31 @@ MissQueue::setPrefetcher(BasePrefetcher *_prefetcher)
 	prefetcher = _prefetcher;
 }
 
+void
+MissQueue::addBurstStats(MemReqPtr &req){
+
+	assert(req->cmd == Read);
+
+	int burstIndex = 0;
+	if(cache->isShared){
+		assert(req->adaptiveMHASenderID >= 0);
+		burstIndex = req->adaptiveMHASenderID;
+	}
+
+	if((curTick - lastBurstMissAt[burstIndex]) > 100){
+		if(burstSizeAccumulator[burstIndex] > 0){
+			burstSizeDistribution[burstIndex].sample(burstSizeAccumulator[burstIndex]);
+		}
+		lastBurstMissAt[burstIndex] = curTick;
+		burstSizeAccumulator[burstIndex] = 1;
+
+	}
+	else{
+		burstSizeAccumulator[burstIndex]++;
+	}
+
+}
+
 MSHR*
 MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 {
@@ -596,6 +647,8 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 		assert(mshr->directoryOriginalCmd == InvalidCmd);
 		mshr->directoryOriginalCmd = req->cmd;
 	}
+
+	addBurstStats(req);
 
 	mshr->order = order++;
 	if (!req->isUncacheable() ){//&& !req->isNoAllocate()) {
