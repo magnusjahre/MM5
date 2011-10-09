@@ -229,7 +229,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
 				samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-				commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 			}
 			estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
 		}
@@ -246,7 +246,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	if(curTick >= detailedSimStart){
 		if(isCacheMiss){
 			sampleSharedMisses[req->adaptiveMHASenderID].increment(req);
-			commitTraceSharedMisses[req->adaptiveMHASenderID].increment(req);
+			if(req->cmd == Read) commitTraceSharedMisses[req->adaptiveMHASenderID].increment(req);
 		}
 	}
 
