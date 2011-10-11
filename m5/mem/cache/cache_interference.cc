@@ -347,7 +347,7 @@ CacheInterference::doShadowReplacement(MemReqPtr& req, BaseCache* cache){
 		if(numLeaderSets == totalSetNumber){
 			shadowTagWritebacks[req->adaptiveMHASenderID]++;
 
-			if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS){
+			if(cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS && cpuCount > 1){
 				Addr wbAddr = shadowTags[req->adaptiveMHASenderID]->regenerateBlkAddr(shadowBlk->tag, shadowBlk->set);
 				issuePrivateWriteback(req->adaptiveMHASenderID, wbAddr, cache);
 			}
