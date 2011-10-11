@@ -54,6 +54,9 @@ class IL1(BaseL1Cache):
 
 class DL1(BaseL1Cache):
     is_read_only = False
+    
+    if "L1-CACHE-TARGETS" in env:
+        tgts_per_mshr = int(env["L1-CACHE-TARGETS"])
 
 class L2Bank(BaseCache):
     size = '2MB' # 1MB * 4 banks = 4MB total cache size
