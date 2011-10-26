@@ -12,7 +12,6 @@ class BaseL1Cache(BaseCache):
     assoc = 2
     block_size = 64
     write_buffers = 4
-    tgts_per_mshr = 4
     
     #if mshrParamName in env:
     #    mshrs = int(env[mshrParamName])
@@ -51,10 +50,12 @@ class BaseL1Cache(BaseCache):
 class IL1(BaseL1Cache):
     mshrs = 16 # do not change instruction MSHRs
     is_read_only = True
+    tgts_per_mshr = 4
 
 class DL1(BaseL1Cache):
     is_read_only = False
     
+    tgts_per_mshr = 32
     if "L1-CACHE-TARGETS" in env:
         tgts_per_mshr = int(env["L1-CACHE-TARGETS"])
 
