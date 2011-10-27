@@ -431,6 +431,10 @@ class Cache : public BaseCache
     	return missQueue->getInstTraceMLP();
     }
 
+    virtual double getAvgBurstSize(){
+    	return missQueue->getAvgBurstSize();
+    }
+
     virtual int getResponsesWhileStalled(){
     	return missQueue->getResponsesWhileStalled();
     }

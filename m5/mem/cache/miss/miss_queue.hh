@@ -70,6 +70,9 @@ class MissQueue
     std::vector<Tick> lastBurstMissAt;
     std::vector<int> burstSizeAccumulator;
 
+    int avgBurstSizeAccumulator;
+    int numDetectedBursts;
+
   protected:
     /** The MSHRs. */
     MSHRQueue mq;
@@ -463,6 +466,8 @@ class MissQueue
     std::vector<double> getServicedMissesWhileStalledEstimate(){
     	return mq.getServicedMissesWhileStalledEstimate();
     }
+
+    double getAvgBurstSize();
 
     double getInstTraceMWS(){
     	return mq.getInstTraceMWS();

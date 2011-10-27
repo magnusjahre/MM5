@@ -602,6 +602,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 
 	double mlp = lastPrivateCaches[cpuID]->getInstTraceMLP();
 
+	double avgBurstSize = lastPrivateCaches[cpuID]->getAvgBurstSize();
+
 	int responsesWhileStalled  = lastPrivateCaches[cpuID]->getInstTraceRespWhileStalled();
 
 	// get alone latency prediction
@@ -624,7 +626,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 														 stallCycles,
 														 ticksInSample,
 														 committedInstructions,
-														 responsesWhileStalled);
+														 responsesWhileStalled,
+														 avgBurstSize);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;

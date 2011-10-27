@@ -302,6 +302,10 @@ public:
     	fatal("Makes no sense");
     }
 
+    double getAvgBurstSize(){
+    	fatal("Makes no sense");
+    }
+
     int getResponsesWhileStalled(){
     	fatal("Makes no sense");
     }

@@ -589,6 +589,8 @@ public:
 
 	virtual double  getInstTraceMLP() = 0;
 
+	virtual double getAvgBurstSize() = 0;
+
 	virtual int getResponsesWhileStalled() = 0;
 
 	virtual int getInstTraceRespWhileStalled() = 0;

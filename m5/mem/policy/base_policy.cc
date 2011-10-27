@@ -608,6 +608,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
+	headers.push_back("Measured MLP");
+	headers.push_back("Measured Avg Burst Size");
 	//headers.push_back("Avg Misses while Stalled");
 	//headers.push_back("Responses while Stalled");
 
@@ -634,18 +636,18 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 
 void
 BasePolicy::doCommittedInstructionTrace(int cpuID,
-		                                         double avgSharedLat,
-		                                         double avgPrivateLatEstimate,
-		                                         double mws,
-		                                         double mlp,
-		                                         int reqs,
-		                                         int stallCycles,
-		                                         int totalCycles,
-		                                         int committedInsts,
-		                                         int responsesWhileStalled){
+		                                double avgSharedLat,
+		                                double avgPrivateLatEstimate,
+		                                double mws,
+		                                double mlp,
+		                                int reqs,
+		                                int stallCycles,
+		                                int totalCycles,
+		                                int committedInsts,
+		                                int responsesWhileStalled,
+		                                double avgBurstSize){
 
 	vector<RequestTraceEntry> data;
-
 
 	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles since last, %d committed insts\n",
 			              cpuID,
@@ -659,8 +661,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(stallCycles);
 	data.push_back(totalCycles - stallCycles);
 	data.push_back(reqs);
-	//data.push_back(mws);
-	//data.push_back(responsesWhileStalled);
+	data.push_back(mlp);
+	data.push_back(avgBurstSize);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,

@@ -68,6 +68,9 @@ writeAllocate(write_allocate), order(0), prefetchMiss(prefetch_miss)
 	throttleControl = _tc;
 
 	lastMissAt = 0;
+
+	avgBurstSizeAccumulator = 0;
+	numDetectedBursts = 0;
 }
 
 void
@@ -626,6 +629,8 @@ MissQueue::addBurstStats(MemReqPtr &req){
 	if((curTick - lastBurstMissAt[burstIndex]) > 100){
 		if(burstSizeAccumulator[burstIndex] > 0){
 			burstSizeDistribution[burstIndex].sample(burstSizeAccumulator[burstIndex], burstSizeAccumulator[burstIndex]);
+			avgBurstSizeAccumulator += burstSizeAccumulator[burstIndex];
+			numDetectedBursts++;
 		}
 		lastBurstMissAt[burstIndex] = curTick;
 		burstSizeAccumulator[burstIndex] = 1;
@@ -635,6 +640,15 @@ MissQueue::addBurstStats(MemReqPtr &req){
 		burstSizeAccumulator[burstIndex]++;
 	}
 
+}
+
+double
+MissQueue::getAvgBurstSize(){
+	assert(!cache->isShared);
+	double avgBurstSize = (double) avgBurstSizeAccumulator / (double) numDetectedBursts;
+	avgBurstSizeAccumulator = 0;
+	numDetectedBursts = 0;
+	return avgBurstSize;
 }
 
 MSHR*

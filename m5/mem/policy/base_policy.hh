@@ -228,7 +228,8 @@ public:
 				                     int stallCycles,
 				                     int totalCycles,
 				                     int committedInsts,
-				                     int responsesWhileStalled);
+				                     int responsesWhileStalled,
+				                     double avgBurstSize);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
