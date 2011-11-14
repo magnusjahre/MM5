@@ -610,8 +610,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Requests");
 	headers.push_back("Measured MLP");
 	headers.push_back("Measured Avg Burst Size");
-	//headers.push_back("Avg Misses while Stalled");
-	//headers.push_back("Responses while Stalled");
+	headers.push_back("Private Shared Cache MLP");
+	headers.push_back("Shared Shared Cache MLP");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -645,7 +645,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                int totalCycles,
 		                                int committedInsts,
 		                                int responsesWhileStalled,
-		                                double avgBurstSize){
+		                                double avgBurstSize,
+					                    double privateSharedCacheMLP,
+					                    double sharedSharedCacheMLP){
 
 	vector<RequestTraceEntry> data;
 
@@ -663,6 +665,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(reqs);
 	data.push_back(mlp);
 	data.push_back(avgBurstSize);
+	data.push_back(privateSharedCacheMLP);
+	data.push_back(sharedSharedCacheMLP);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,

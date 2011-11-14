@@ -103,6 +103,15 @@ CacheInterference::CacheInterference(std::string _name,
 	interferenceMissAccumulator.resize(cpuCount, 0);
 	accessAccumulator.resize(cpuCount, 0);
 
+	lastBurstMissAt.resize(cpuCount, 0);
+	sharedBurstSizeAccumulator.resize(cpuCount, 0);
+	sharedBurstSizeSum.resize(cpuCount, 0.0);
+	sharedBurstCount.resize(cpuCount, 0);
+
+	aloneBurstSizeAccumulator.resize(cpuCount, 0);
+	aloneBurstSizeSum.resize(cpuCount, 0);
+	aloneBurstCount.resize(cpuCount, 0);
+
 	srand(240000);
 }
 
@@ -252,6 +261,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
 
+	measureOverlap(req, isCacheMiss, !shadowHit);
+
 	if(curTick >= detailedSimStart
        && doInterferenceInsertion[req->adaptiveMHASenderID]
 	   && cpuCount > 1
@@ -267,6 +278,52 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				assert(isCacheMiss);
 				tagAsInterferenceMiss(req, hitLat);
 			}
+		}
+	}
+}
+
+double
+CacheInterference::getAloneOverlap(int cpuID){
+	double tmp = aloneBurstSizeSum[cpuID] / aloneBurstCount[cpuID];
+	aloneBurstSizeSum[cpuID] = 0.0;
+	aloneBurstCount[cpuID] = 0.0;
+	return 1.0/tmp;
+}
+
+double
+CacheInterference::getSharedOverlap(int cpuID){
+	double tmp = sharedBurstSizeSum[cpuID] / sharedBurstCount[cpuID];
+	sharedBurstSizeSum[cpuID] = 0.0;
+	sharedBurstCount[cpuID] = 0.0;
+	return 1.0/tmp;
+}
+
+void
+CacheInterference::measureOverlap(MemReqPtr &req, bool isCacheMiss, bool shadowMiss){
+
+	assert(req->cmd == Read || req->cmd == Writeback);
+	assert(shadowTags[req->adaptiveMHASenderID]->getNumSets() == numLeaderSets);
+	if(req->cmd == Read && isCacheMiss){
+		assert(req->adaptiveMHASenderID >= 0);
+		int burstIndex = req->adaptiveMHASenderID;
+
+		if((curTick - lastBurstMissAt[burstIndex]) > 100){
+			if(sharedBurstSizeAccumulator[burstIndex] > 0){
+				sharedBurstSizeSum[burstIndex] += sharedBurstSizeAccumulator[burstIndex];
+				sharedBurstCount[burstIndex]++;
+
+				aloneBurstSizeSum[burstIndex] += aloneBurstSizeAccumulator[burstIndex];
+				aloneBurstCount[burstIndex]++;
+			}
+			lastBurstMissAt[burstIndex] = curTick;
+			sharedBurstSizeAccumulator[burstIndex] = 1;
+			if(shadowMiss) aloneBurstSizeAccumulator[burstIndex] = 1;
+			else aloneBurstSizeAccumulator[burstIndex] = 0;
+
+		}
+		else{
+			sharedBurstSizeAccumulator[burstIndex]++;
+			if(shadowMiss) aloneBurstSizeAccumulator[burstIndex]++;
 		}
 	}
 }

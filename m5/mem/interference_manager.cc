@@ -606,6 +606,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 
 	int responsesWhileStalled  = lastPrivateCaches[cpuID]->getInstTraceRespWhileStalled();
 
+	double aloneSharedCacheOverlap = cacheInterference->getAloneOverlap(cpuID);
+	double sharedSharedCacheOverlap = cacheInterference->getSharedOverlap(cpuID);
+
 	// get alone latency prediction
 	double avgSharedLatency = 0;
 	double avgInterferenceLatency = 0;
@@ -627,7 +630,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 														 ticksInSample,
 														 committedInstructions,
 														 responsesWhileStalled,
-														 avgBurstSize);
+														 avgBurstSize,
+														 aloneSharedCacheOverlap,
+														 sharedSharedCacheOverlap);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
