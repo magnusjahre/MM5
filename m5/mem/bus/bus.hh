@@ -131,7 +131,6 @@ class Bus : public BaseHier
 
     MemoryBusTraceData* bandwidthTraceData;
 
-
   public:
     /** Width of the bus in bytes. */
     int width;
@@ -732,6 +731,13 @@ private:
 	std::vector<int> privWbPerCPUData;
 	std::vector<int> shWbPerCPUData;
 
+	int queuedWriteAcc;
+	int queuedReadAcc;
+
+	int noIdleQueuedWriteAcc;
+	int noIdleQueuedReadAcc;
+	Tick notIdleTicks;
+
     RequestTrace bandwidthTrace;
 
     void reset();
@@ -742,6 +748,8 @@ public:
 	void addData(MemReqPtr& req, Tick time);
 
 	void writeTraceLine();
+
+	void addQueueSizeStats(int reads, int writes);
 };
 
 #endif // __BUS_HH__

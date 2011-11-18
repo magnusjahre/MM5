@@ -350,7 +350,8 @@ Bus::regStats()
 
 void
 Bus::addQueueLengthSample(){
-	int numQueuedReqs = memoryController->getWaitingReadCount() + memoryController->getWaitingReadCount();
+	int numQueuedReqs = memoryController->getWaitingReadCount() + memoryController->getWaitingWriteCount();
+	bandwidthTraceData->addQueueSizeStats(memoryController->getWaitingReadCount(), memoryController->getWaitingWriteCount());
 	queueSizeDistribution.sample(numQueuedReqs);
 }
 
@@ -1294,6 +1295,11 @@ MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
     	headers.push_back(RequestTrace::buildTraceName("Shared Writeback Bandwidth CPU", i));
     }
 
+    headers.push_back("Avg read queue size");
+    headers.push_back("Avg write queue size");
+    headers.push_back("Not idle avg read queue size");
+    headers.push_back("Not idle avg write queue size");
+
     bandwidthTrace.initalizeTrace(headers);
 
     reset();
@@ -1354,9 +1360,26 @@ MemoryBusTraceData::writeTraceLine(){
 		data.push_back( (double) shWbPerCPUData[i] / ticksSinceLast);
 	}
 
+	data.push_back( (double) queuedReadAcc / ticksSinceLast);
+	data.push_back( (double) queuedWriteAcc / ticksSinceLast);
+	data.push_back( (double) noIdleQueuedReadAcc / (double) notIdleTicks);
+	data.push_back( (double) noIdleQueuedWriteAcc / (double) notIdleTicks);
+
 	bandwidthTrace.addTrace(data);
 
 	reset();
+}
+
+void
+MemoryBusTraceData::addQueueSizeStats(int reads, int writes){
+	queuedReadAcc += reads;
+	queuedWriteAcc += writes;
+
+	if(reads > 0 || writes > 0){
+		notIdleTicks++;
+		noIdleQueuedReadAcc += reads;
+		noIdleQueuedWriteAcc += writes;
+	}
 }
 
 void
@@ -1370,6 +1393,13 @@ MemoryBusTraceData::reset(){
 	readPerCPUData = vector<int>(np, 0);
 	privWbPerCPUData = vector<int>(np, 0);
 	shWbPerCPUData = vector<int>(np, 0);
+
+	queuedReadAcc = 0;
+	queuedWriteAcc = 0;
+
+	noIdleQueuedWriteAcc = 0;
+	noIdleQueuedReadAcc = 0;
+	notIdleTicks = 0;
 
 	totalCycles = 0;
 	runLast = curTick;
