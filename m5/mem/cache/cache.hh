@@ -50,6 +50,7 @@
 #include "mem/config/cache.hh"
 
 #include "mem/cache/partitioning/cache_partitioning.hh"
+#include "mem/memory_overlap_estimator.hh"
 
 // forward declarations
 class Bus;
@@ -73,6 +74,8 @@ class Cache : public BaseCache
 
     int accessSample;
     int missSample;
+
+    MemoryOverlapEstimator* overlapEstimator;
 
   public:
     /** Define the type of cache block to use. */
@@ -182,6 +185,7 @@ class Cache : public BaseCache
 		  std::vector<int> staticQuotas;
 		  CachePartitioning* partitioning;
 		  CacheInterference* cacheInterference;
+		  MemoryOverlapEstimator* overlapEstimator;
 
 		  Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 				  bool do_copy, BaseCache::Params params,
@@ -195,7 +199,7 @@ class Cache : public BaseCache
 				  int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman,
 				  BasePolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets,
 				  bool _useAggMLPEstimator,
-				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning, CacheInterference* _cacheInterference)
+				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning, CacheInterference* _cacheInterference, MemoryOverlapEstimator* _oe)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
 		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
 		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -207,7 +211,7 @@ class Cache : public BaseCache
 		  memoryAddressOffset(_memoryAddressOffset), memoryAddressParts(_memoryAddressParts),
 		  interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy),
 		  shadowTagLeaderSets(_shadowLeaderSets),
-		  useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas), partitioning(_partitioning), cacheInterference(_cacheInterference)
+		  useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas), partitioning(_partitioning), cacheInterference(_cacheInterference), overlapEstimator(_oe)
 		  {
 		  }
 	  };

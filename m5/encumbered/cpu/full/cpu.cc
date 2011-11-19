@@ -374,7 +374,8 @@ FullCPU::FullCPU(Params *p,
 		 PipeTrace *_ptrace,
 		 AdaptiveMHA* _amha,
 		 InterferenceManager* _intMan,
-		 int _quitOnCPUID)
+		 int _quitOnCPUID,
+		 MemoryOverlapEstimator* _overlapEst)
     : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -700,6 +701,9 @@ FullCPU::FullCPU(Params *p,
 	restartHaltedProcesses = true; // TODO: parameterize
 
 	quitOnCPUID = _quitOnCPUID;
+
+	overlapEstimator = _overlapEst;
+	isStalled = false;
 }
 
 
@@ -1228,6 +1232,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
     SimObjectParam<InterferenceManager* > interferenceManager;
     Param<int> quit_on_cpu_id;
+    SimObjectParam<MemoryOverlapEstimator* > overlapEstimator;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1375,7 +1380,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
     INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0),
 
     INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL),
-    INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1)
+    INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1),
+    INIT_PARAM_DFLT(overlapEstimator, "overlap estimator pointer", NULL)
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
 
@@ -1576,7 +1582,8 @@ CREATE_SIM_OBJECT(FullCPU)
 		      (PipeTrace *)ptrace,
 			  adaptiveMHA,
 			  interferenceManager,
-			  quit_on_cpu_id);
+			  quit_on_cpu_id,
+			  overlapEstimator);
 
     return cpu;
 }

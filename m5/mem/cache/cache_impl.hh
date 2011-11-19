@@ -135,6 +135,8 @@ Cache(const std::string &_name, HierParams *hier_params,
         }
     }
 
+    overlapEstimator = params.overlapEstimator;
+
     detailedSimulationStartTick = params.detailedSimStartTick;
 
     useAdaptiveMHA = false;
@@ -251,6 +253,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	MemReqList writebacks;
 	int size = blkSize;
 	int lat = hitLatency;
+
+	if(overlapEstimator != NULL) overlapEstimator->issuedMemoryRequest(req);
 
 	if(useDirectory && doData()){
 		fatal("Directory protocol does not handle data transfers");
@@ -653,6 +657,8 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	else{
 		if(cacheInterference != NULL) fatal("A response may not be represented in the shadow tags! (2)");
 	}
+
+	if(overlapEstimator != NULL) overlapEstimator->completedMemoryRequest(req, curTick+hitLatency);
 
 }
 

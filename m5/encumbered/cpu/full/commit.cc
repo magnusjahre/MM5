@@ -407,6 +407,11 @@ FullCPU::commit()
 
 			tmpBlockedCycles++;
 
+			if(!isStalled){
+				overlapEstimator->stalledForMemory();
+				isStalled = true;
+			}
+
 			//HACK: the hit latency should be retrived from the L1 cache
 			if(tmpBlockedCycles > 3) l1MissStallCycles++;
 
@@ -498,6 +503,11 @@ FullCPU::commit()
 	if(stallMessageIssued){
 		stallMessageIssued = false;
 		interferenceManager->clearStalledForMemory(CPUParamsCpuID);
+	}
+
+	if(isStalled){
+		overlapEstimator->executionResumed();
+		isStalled = false;
 	}
 
 	//

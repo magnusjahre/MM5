@@ -206,6 +206,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<ThrottleControl *> throttle_control;
 
     SimObjectParam<CacheInterference *> cache_interference;
+    SimObjectParam<MemoryOverlapEstimator *> overlapEstimator;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
@@ -313,7 +314,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(partitioning, "Object responsible for doing cache partitioning", NULL),
     INIT_PARAM_DFLT(do_mshr_trace, "Trace the occupancy of all MSHRs (caution!)", false),
     INIT_PARAM_DFLT(throttle_control, "A pointer to the throttle control object", NULL),
-    INIT_PARAM_DFLT(cache_interference, "A pointer to the cache interference object", NULL)
+    INIT_PARAM_DFLT(cache_interference, "A pointer to the cache interference object", NULL),
+    INIT_PARAM_DFLT(overlapEstimator, "A pointer to the overlap estimator object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -370,7 +372,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        bank_count, adaptive_mha,\
             detailed_sim_start_tick, simulate_contention, memory_address_offset, memory_address_parts,\
             interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, \
-            use_aggregate_mlp_estimator, static_cache_quotas, partitioning, cache_interference); \
+            use_aggregate_mlp_estimator, static_cache_quotas, partitioning, cache_interference, overlapEstimator); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

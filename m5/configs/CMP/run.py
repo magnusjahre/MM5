@@ -755,10 +755,12 @@ sss = -1
 if "SIMPOINT-SAMPLE-SIZE" in env:
     sss = int(env["SIMPOINT-SAMPLE-SIZE"])
 
+root.overlapEstimators = [MemoryOverlapEstimator(id=i) for i in  xrange(int(env['NP']))]
+
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
-root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA,interferenceManager=root.interferenceManager) for i in xrange(int(env['NP'])) ]
+root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA,interferenceManager=root.interferenceManager,overlapEstimator=root.overlapEstimators[i]) for i in xrange(int(env['NP'])) ]
 
 if env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
@@ -776,7 +778,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
-    root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i]) for i in range(int(env['NP'])) ]
+    root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in range(int(env['NP'])) ]
     root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i]) for i in xrange(int(env['NP'])) ]
     
 

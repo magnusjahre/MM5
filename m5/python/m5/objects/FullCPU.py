@@ -121,3 +121,4 @@ class FullCPU(BaseCPU):
     adaptiveMHA = Param.AdaptiveMHA("Adaptive MHA object")
     interferenceManager = Param.InterferenceManager("The interference manager")
     quit_on_cpu_id = Param.Int("Quit when this CPU reaches a certain number of instructions")
+    overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")

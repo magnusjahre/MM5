@@ -65,8 +65,6 @@ template <class MemType, class BusType>
 MemAccessResult
 SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 {
-    int retval;
-
     assert(!req->isSatisfied());
 
     if (this->inRange(req->paddr)) {
@@ -79,7 +77,7 @@ SlaveInterface<MemType, BusType>::access(MemReqPtr &req)
 	    memTrace->writeReq(req);
 	}
 
-	retval = mem->access(req);
+	mem->access(req);
 
 	assert(!this->isBlocked() || mem->isBlocked());
 

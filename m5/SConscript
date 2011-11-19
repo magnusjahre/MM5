@@ -176,6 +176,7 @@ base_sources = Split('''
 	mem/requesttrace.cc
 	mem/datadump.cc
 	mem/memory_interface.cc
+	mem/memory_overlap_estimator.cc
 	mem/bus/base_interface.cc
 	mem/bus/bus.cc
 	mem/bus/bus_bridge.cc

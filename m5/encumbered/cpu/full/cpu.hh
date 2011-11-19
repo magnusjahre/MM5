@@ -57,6 +57,7 @@
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
+#include "mem/memory_overlap_estimator.hh"
 
 
 class BaseIQ;
@@ -98,6 +99,9 @@ private:
 	RequestTrace committedInstTrace;
 
 	int quitOnCPUID;
+
+	bool isStalled;
+	MemoryOverlapEstimator* overlapEstimator;
 
 public:
 	////////////////////////////////////////////
@@ -278,7 +282,8 @@ public:
 
 			AdaptiveMHA* _amha,
 			InterferenceManager* _intMan,
-			int _quitOnCPUID
+			int _quitOnCPUID,
+			MemoryOverlapEstimator* _overlapEst
 	);
 
 

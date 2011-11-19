@@ -120,3 +120,4 @@ class BaseCache(BaseMem):
     throttle_control = Param.ThrottleControl("A pointer to the throttle control object")
     
     cache_interference = Param.CacheInterference("Cache interference object")
+    overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")
