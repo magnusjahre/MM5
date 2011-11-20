@@ -13,6 +13,31 @@
 
 class MemoryOverlapEstimator : public SimObject{
 
+private:
+	class EstimationEntry{
+	public:
+		Addr address;
+		Tick issuedAt;
+		Tick completedAt;
+
+		EstimationEntry(Addr _a, Tick _issuedAt){
+			address = _a;
+			issuedAt = _issuedAt;
+			completedAt = 0;
+		}
+
+		int latency(){
+			assert(completedAt != 0);
+			return completedAt - issuedAt;
+		}
+	};
+
+	std::vector<EstimationEntry> pendingRequests;
+	std::vector<EstimationEntry> completedRequests;
+
+	Tick stalledAt;
+	bool isStalled;
+
 public:
 	MemoryOverlapEstimator(std::string name, int id);
 

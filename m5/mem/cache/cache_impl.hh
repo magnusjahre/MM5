@@ -254,8 +254,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 	int size = blkSize;
 	int lat = hitLatency;
 
-	if(overlapEstimator != NULL) overlapEstimator->issuedMemoryRequest(req);
-
 	if(useDirectory && doData()){
 		fatal("Directory protocol does not handle data transfers");
 	}
@@ -387,6 +385,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		hits[req->cmd.toIndex()][req->thread_num]++;
 		// clear dirty bit if write through
 		if (!req->cmd.isNoResponse()){
+			if(overlapEstimator != NULL && req->cmd == Read){
+				overlapEstimator->issuedMemoryRequest(req);
+				overlapEstimator->completedMemoryRequest(req, curTick+lat);
+			}
 			respond(req, curTick+lat);
 		}
 		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
@@ -657,8 +659,6 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	else{
 		if(cacheInterference != NULL) fatal("A response may not be represented in the shadow tags! (2)");
 	}
-
-	if(overlapEstimator != NULL) overlapEstimator->completedMemoryRequest(req, curTick+hitLatency);
 
 }
 

@@ -675,6 +675,10 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 	if (req->cmd != Hard_Prefetch) {
 		//If we need to request the bus (not on HW prefetch), do so
 		assert(req->adaptiveMHASenderID != -1);
+		if(cache->overlapEstimator != NULL && req->cmd == Read){
+			cache->overlapEstimator->issuedMemoryRequest(req);
+		}
+
 		if(throttleControl != NULL){
 			assert(req->cmd == Read);
 			cache->setMasterRequest(Request_MSHR, throttleControl->determineIssueTime(time, req->adaptiveMHASenderID));
@@ -1016,6 +1020,10 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 
 		if(!cache->isShared && cache->adaptiveMHA != NULL){
 			measureInterference(req);
+		}
+
+		if(cache->overlapEstimator != NULL && !req->writeMiss){
+			cache->overlapEstimator->completedMemoryRequest(req, time);
 		}
 
 		if(!cache->isShared && cache->interferenceManager != NULL){

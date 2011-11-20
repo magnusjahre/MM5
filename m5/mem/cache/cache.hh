@@ -50,7 +50,6 @@
 #include "mem/config/cache.hh"
 
 #include "mem/cache/partitioning/cache_partitioning.hh"
-#include "mem/memory_overlap_estimator.hh"
 
 // forward declarations
 class Bus;
@@ -74,8 +73,6 @@ class Cache : public BaseCache
 
     int accessSample;
     int missSample;
-
-    MemoryOverlapEstimator* overlapEstimator;
 
   public:
     /** Define the type of cache block to use. */

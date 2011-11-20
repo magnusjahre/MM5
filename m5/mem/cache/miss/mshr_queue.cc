@@ -212,8 +212,8 @@ MSHRQueue::regStats(const char* subname){
 
 	avg_mlp_cost_per_miss = mlp_cost_accumulator / mlp_cost_total_misses;
 
-	int maxval = 250;
-	if(isMissQueue) maxval = 5000;
+//	int maxval = 250;
+//	if(isMissQueue) maxval = 5000;
 
 //	mlp_cost_distribution
 //		.init(0, maxval, 250)

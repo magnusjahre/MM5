@@ -48,6 +48,7 @@
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/interference_manager.hh"
 #include "cache_interference.hh"
+#include "mem/memory_overlap_estimator.hh"
 
 #include "mem/cache/coherence/directory.hh"
 #include "mem/cache/cache_blk.hh"
@@ -172,6 +173,8 @@ protected:
 	std::vector<cacheOccupancy> occupancy;
 
 public:
+
+	MemoryOverlapEstimator* overlapEstimator;
 
 	enum WritebackOwnerPolicy {
 		WB_POLICY_UNKNOWN,

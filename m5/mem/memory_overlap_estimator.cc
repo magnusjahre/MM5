@@ -10,29 +10,75 @@
 
 using namespace std;
 
+#define CACHE_BLK_SIZE 64
+
 MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
 : SimObject(name){
-
+	isStalled = false;
+	stalledAt = 0;
 }
 
 void
 MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
-	fatal("request issued not implemented");
+
+	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick));
+	cout << curTick << ": issued request for addr " << (req->paddr & ~(CACHE_BLK_SIZE-1)) << "\n";
 }
 
 void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt){
-	fatal("request completed not implemented");
+
+	cout << curTick << ": Request for addr " << (req->paddr & ~(CACHE_BLK_SIZE-1)) << ", cmd "<< req->cmd <<", completed at " << finishedAt << "\n";
+
+	int useIndex = -1;
+	for(int i=0;i<pendingRequests.size();i++){
+		if((req->paddr & ~(CACHE_BLK_SIZE-1)) == pendingRequests[i].address){
+			assert(useIndex == -1);
+			useIndex = i;
+		}
+	}
+	assert(useIndex != -1);
+
+	pendingRequests[useIndex].completedAt = finishedAt;
+	completedRequests.push_back(pendingRequests[useIndex]);
+	pendingRequests.erase(pendingRequests.begin()+useIndex);
+
+	cout << curTick << ": Pending " << pendingRequests.size() << ", completed " << completedRequests.size() << "\n";
+	if(curTick == 928){
+		for(int i=0;i<pendingRequests.size();i++){
+			cout << (pendingRequests[i].address & ~(CACHE_BLK_SIZE-1)) << "\n";
+		}
+	}
 }
 
 void
 MemoryOverlapEstimator::stalledForMemory(){
-	fatal("stalled for memory not implemented");
+	assert(!isStalled);
+	isStalled = true;
+	stalledAt = curTick;
+	cout << curTick << ": STALLING\n";
 }
 
 void
 MemoryOverlapEstimator::executionResumed(){
-	fatal("execution resumed not implemented");
+	assert(isStalled);
+	isStalled = false;
+
+	cout << curTick << ": RESUMING\n";
+
+	while(!completedRequests.empty() && completedRequests.front().completedAt < stalledAt){
+		cout << "Req " << completedRequests.front().address << " completed before stall\n";
+		completedRequests.erase(completedRequests.begin());
+	}
+
+	vector<EstimationEntry> burst;
+	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
+		burst.push_back(completedRequests.front());
+		cout << "Request in burst, start at " << completedRequests.front().issuedAt << " fin at " << completedRequests.front().completedAt << ", latency " << completedRequests.front().latency() << "\n";
+		completedRequests.erase(completedRequests.begin());
+	}
+
+	cout << curTick << ": burst of size " << burst.size() << "\n";
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
