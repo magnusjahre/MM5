@@ -174,6 +174,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 	req->adaptiveMHASenderID = r->adaptiveMHASenderID;
 	req->interferenceAccurateSenderID = r->interferenceAccurateSenderID;
 
+	req->isStore = r->isStore;
 
 	req->data = new uint8_t[r->size];
 	if (r->data != NULL) {
@@ -272,6 +273,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 
 	to->adaptiveMHASenderID = from->adaptiveMHASenderID;
 	to->interferenceAccurateSenderID = from->interferenceAccurateSenderID;
+	to->isStore = from->isStore;
 
 	if (from->data != NULL) {
 		to->data = new uint8_t[from->size];

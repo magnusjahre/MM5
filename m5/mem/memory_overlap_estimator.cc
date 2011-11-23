@@ -20,13 +20,15 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
 
 void
 MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
-
+	assert(!req->isStore);
 	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick));
-	cout << curTick << ": issued request for addr " << (req->paddr & ~(CACHE_BLK_SIZE-1)) << "\n";
+	cout << curTick << ": issued request for addr " << (req->paddr & ~(CACHE_BLK_SIZE-1)) << ", store " << (req->isStore ? "set" : "not set") << "\n";
 }
 
 void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt){
+
+	assert(!req->isStore);
 
 	cout << curTick << ": Request for addr " << (req->paddr & ~(CACHE_BLK_SIZE-1)) << ", cmd "<< req->cmd <<", completed at " << finishedAt << "\n";
 

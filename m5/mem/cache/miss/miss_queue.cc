@@ -1022,7 +1022,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 			measureInterference(req);
 		}
 
-		if(cache->overlapEstimator != NULL && !req->writeMiss){
+		if(cache->overlapEstimator != NULL && !req->isStore){
 			cache->overlapEstimator->completedMemoryRequest(req, time);
 		}
 

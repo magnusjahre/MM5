@@ -266,6 +266,8 @@ class MemReq : public FastAlloc, public RefCounted
     int nfqWBID;
     bool isSharedWB;
 
+    bool isStore;
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -349,7 +351,8 @@ class MemReq : public FastAlloc, public RefCounted
     ringBaselineTransLat(-1),
     isSWPrefetch(false),
     nfqWBID(-1),
-    isSharedWB(false)
+    isSharedWB(false),
+    isStore(false)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -435,6 +438,7 @@ class MemReq : public FastAlloc, public RefCounted
         isSWPrefetch = r.isSWPrefetch;
         nfqWBID = r.nfqWBID;
         isSharedWB = r.isSharedWB;
+        isStore = r.isStore;
     }
 
     /**

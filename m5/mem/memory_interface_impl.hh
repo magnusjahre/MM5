@@ -92,6 +92,10 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
 
     req->enteredMemSysAt = curTick;
 
+    if(mem->isCache() && req->cmd == Write){
+    	req->isStore = true;
+    }
+
     if(mem->isMultiprogWorkload && mem->isCache()){
 
         /* move each application into its separate address space */
