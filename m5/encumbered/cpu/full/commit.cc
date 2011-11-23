@@ -106,7 +106,7 @@ FullCPU::requestInROB(MemReqPtr& req, int blockSize){
 		}
 	}
 
-	return true;
+	return found;
 }
 
 int
@@ -140,10 +140,10 @@ FullCPU::commit()
 
 	// in case there are NO unfinished instructions
 	InstSeqNum seq_overall = InstSeqNum(-1);
-	InstSeqNum seq_thread[SMT_MAX_THREADS];
+	//InstSeqNum seq_thread[SMT_MAX_THREADS];
 
-	unsigned blame = 0;   // thread numbers
-	unsigned blame_overall = 0;
+	//unsigned blame = 0;   // thread numbers
+	//unsigned blame_overall = 0;
 
 	//
 	//  This code causes the simulator to halt if it doesn't commit
@@ -226,7 +226,7 @@ FullCPU::commit()
 
 		reason_thread[i] = COMMIT_CAUSE_NOT_SET;
 		detail_thread[i] = 0;
-		seq_thread[i] = 0;
+		//seq_thread[i] = 0;
 
 		completed[i] = 0;
 		committed_thread[i] = 0;
@@ -364,7 +364,7 @@ FullCPU::commit()
 					seq_overall = rs->seq;
 
 					reason_overall = reason_thread[thread];
-					blame_overall  = thread;
+					//blame_overall  = thread;
 					detail_overall = detail_thread[thread];
 				}
 
@@ -386,7 +386,7 @@ FullCPU::commit()
 	//  We'll blame the oldest uncommitted instruction by default
 	//
 	reason = reason_overall;
-	blame  = blame_overall;
+	//blame  = blame_overall;
 	detail = detail_overall;
 
 	if (num_eligible == 0) {
@@ -604,17 +604,17 @@ FullCPU::commit()
 				//
 				if (committed == commit_width) {
 					reason = COMMIT_BW;
-					blame = thread;
+					//blame = thread;
 					done = true;
 				} else if (num_eligible == 0) {
 					reason = COMMIT_NO_INSN;
-					blame = thread;
+					//blame = thread;
 					done = true;
 				}
 			} else {
 				//  We can't commit this instruction... reason is set in
 				//  eligible_to_commit(), so just set thread
-				blame = thread;
+				//blame = thread;
 
 				// we're done with this thread
 				clist_idx[thread] = clist_num[thread];
