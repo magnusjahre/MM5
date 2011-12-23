@@ -36,6 +36,7 @@ private:
 	std::vector<EstimationEntry> completedRequests;
 
 	Tick stalledAt;
+	Tick resumedAt;
 	bool isStalled;
 
 public:
