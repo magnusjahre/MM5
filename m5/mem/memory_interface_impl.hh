@@ -92,7 +92,9 @@ MemoryInterface<Mem>::access(MemReqPtr &req)
 
     req->enteredMemSysAt = curTick;
 
-    if(mem->isCache() && req->cmd == Write){
+    if(mem->isCache() && req->cmd != Read){
+    	assert(req->cmd == Write || req->cmd == Soft_Prefetch);
+    	// NOTE: prefetches are also "stores" since they do not stall the processor
     	req->isStore = true;
     }
 
