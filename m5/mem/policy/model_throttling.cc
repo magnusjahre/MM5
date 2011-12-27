@@ -35,7 +35,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 
 	optimalPeriods.resize(_cpuCount, 0.0);
 	optimalBWShares = vector<double>(cpuCount+1, 0.0);
-	optimalWayAllocs = vector<int>(cpuCount, 0.0);
+	optimalWayAllocs = vector<int>(cpuCount, 0);
 
 	predictedCPI.resize(_cpuCount, 0.0);
 
