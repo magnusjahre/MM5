@@ -10,6 +10,7 @@
 
 #include "sim/sim_object.hh"
 #include "mem/mem_req.hh"
+#include "base/statistics.hh"
 
 class MemoryOverlapEstimator : public SimObject{
 
@@ -19,16 +20,23 @@ private:
 		Addr address;
 		Tick issuedAt;
 		Tick completedAt;
+		MemCmd origCmd;
 
-		EstimationEntry(Addr _a, Tick _issuedAt){
+		EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
 			address = _a;
 			issuedAt = _issuedAt;
+			origCmd = _origCmd;
 			completedAt = 0;
 		}
 
 		int latency(){
 			assert(completedAt != 0);
 			return completedAt - issuedAt;
+		}
+
+		bool isStore(){
+			if(origCmd == Write || origCmd == Soft_Prefetch) return true;
+			return false;
 		}
 	};
 
@@ -39,12 +47,25 @@ private:
 	Tick resumedAt;
 	bool isStalled;
 
+protected:
+	Stats::Scalar<> privateStallCycles;
+	Stats::Scalar<> sharedStallCycles;
+	Stats::Scalar<> sharedRequestCount;
+	Stats::Scalar<> sharedLoadCount;
+	Stats::Scalar<> totalLoadLatency;
+
+	Stats::Scalar<> burstAccumulator;
+	Stats::Scalar<> numSharedStalls;
+	Stats::Formula avgBurstSize;
+
 public:
 	MemoryOverlapEstimator(std::string name, int id);
 
+	void regStats();
+
 	void issuedMemoryRequest(MemReqPtr& req);
 
-	void completedMemoryRequest(MemReqPtr& req, Tick finishedAt);
+	void completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad);
 
 	void stalledForMemory();
 

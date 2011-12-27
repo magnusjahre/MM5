@@ -385,10 +385,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		hits[req->cmd.toIndex()][req->thread_num]++;
 		// clear dirty bit if write through
 		if (!req->cmd.isNoResponse()){
-			if(overlapEstimator != NULL && req->cmd == Read){
-				overlapEstimator->issuedMemoryRequest(req);
-				overlapEstimator->completedMemoryRequest(req, curTick+lat);
-			}
+//			if(overlapEstimator != NULL && req->cmd == Read){
+//				overlapEstimator->issuedMemoryRequest(req);
+//				overlapEstimator->completedMemoryRequest(req, curTick+lat, false);
+//			}
 			respond(req, curTick+lat);
 		}
 		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);

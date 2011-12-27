@@ -284,11 +284,16 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 	}
 
 	bool firstIsRead = (req->cmd == DirRedirectRead);
+	bool hiddenLoad = false;
 
 	while (mshr->hasTargets()) {
 
 		MemReqPtr target = mshr->getTarget();
 		MemCmd cmd = target->cmd;
+
+		if(req->isStore && !target->isStore){
+			hiddenLoad = true;
+		}
 
 		target->flags |= SATISFIED;
 
@@ -368,6 +373,11 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 
 		mshr->popTarget();
 		cache->respondToMiss(target, completion_time, mshr->hasTargets());
+	}
+
+	assert(req->cmd == Read);
+	if(cache->overlapEstimator != NULL){
+		cache->overlapEstimator->completedMemoryRequest(req, response_base, hiddenLoad);
 	}
 
 	if (blk && cache->doData()) {

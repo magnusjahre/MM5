@@ -280,8 +280,6 @@ InterferenceManager::resetStats(){
 void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
 
-	if(req->isStore) return;
-
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
@@ -299,8 +297,6 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 void
 InterferenceManager::incrementInterferenceRequestCount(LatencyType t, MemReqPtr& req){
 
-	if(req->isStore) return;
-
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
@@ -312,8 +308,6 @@ void
 InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
-
-	if(req->isStore) return;
 
 	latencySum[req->adaptiveMHASenderID][t] += latency;
 	latencies[t][req->adaptiveMHASenderID] += latency;
@@ -328,8 +322,6 @@ InterferenceManager::incrementLatencyRequestCount(LatencyType t, MemReqPtr& req)
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
-	if(req->isStore) return;
-
 	numLatencyReqs[req->adaptiveMHASenderID][t]++;
 }
 
@@ -337,8 +329,6 @@ void
 InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency){
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
-
-	if(req->isStore) return;
 
 	runningLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
 	totalRequestCount[req->adaptiveMHASenderID]++;

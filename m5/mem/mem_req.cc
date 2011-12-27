@@ -46,6 +46,8 @@ buildWritebackReq(Addr addr, int asid, ExecContext *xc, int size,
 	req->asid = asid;
 	req->size = size;
 	req->data = new uint8_t[size];
+	req->isStore = true;
+
 	if (data) {
 		memcpy(req->data, data, size);
 	}

@@ -12,6 +12,7 @@
 using namespace std;
 
 #define CACHE_BLK_SIZE 64
+#define SHARED_PRIVATE_LATENCY_LIMIT 35
 
 MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
 : SimObject(name){
@@ -21,17 +22,51 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
 }
 
 void
-MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
-	assert(!req->isStore);
+MemoryOverlapEstimator::regStats(){
 
-	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",req->paddr, req->cmd);
-	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick));
+	privateStallCycles
+		.name(name() + ".private_stall_cycles")
+		.desc("number of memory stall cycles due to the private memory system");
+
+	sharedStallCycles
+		.name(name() + ".shared_stall_cycles")
+		.desc("number of memory stall cycles due to the shared memory system");
+
+	sharedRequestCount
+		.name(name() + ".shared_requests")
+		.desc("number of requests to the shared memory system");
+
+	sharedLoadCount
+		.name(name() + ".shared_loads")
+		.desc("number of shared requests that are loads");
+
+	totalLoadLatency
+		.name(name() + ".total_load_latency")
+		.desc("sum of the latency of all shared mem sys loads");
+
+	burstAccumulator
+		.name(name() + ".shared_burst_accumulator")
+		.desc("Accumulated burst sizes (shared reqs only)");
+
+	numSharedStalls
+		.name(name() + ".num_shared_stalls")
+		.desc("Number of stalls due to shared events");
+
+	avgBurstSize
+		.name(name() + ".avg_shared_burst_size")
+		.desc("Average size of a shared memory system burst");
+
+	avgBurstSize = burstAccumulator / numSharedStalls;
 }
 
 void
-MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt){
+MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
+	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",req->paddr, req->cmd);
+	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
+}
 
-	assert(!req->isStore);
+void
+MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad){
 
 	int useIndex = -1;
 	for(int i=0;i<pendingRequests.size();i++){
@@ -42,14 +77,35 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt){
 	}
 	assert(useIndex != -1);
 
-	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s, latency %d\n",
-				req->paddr,
-				req->cmd,
-				finishedAt - pendingRequests[useIndex].issuedAt);
-
 	pendingRequests[useIndex].completedAt = finishedAt;
-	completedRequests.push_back(pendingRequests[useIndex]);
-	pendingRequests.erase(pendingRequests.begin()+useIndex);
+
+	if(pendingRequests[useIndex].latency() > SHARED_PRIVATE_LATENCY_LIMIT){
+		sharedRequestCount++;
+	}
+
+	if(pendingRequests[useIndex].isStore() && !hiddenLoad){
+		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, does not hide a load\n",
+						req->paddr,
+						req->cmd,
+						pendingRequests[useIndex].origCmd,
+						finishedAt - pendingRequests[useIndex].issuedAt);
+	}
+	else{
+		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, adding to completed reqs\n",
+					req->paddr,
+					req->cmd,
+					pendingRequests[useIndex].origCmd,
+					finishedAt - pendingRequests[useIndex].issuedAt);
+
+		if(pendingRequests[useIndex].latency() > SHARED_PRIVATE_LATENCY_LIMIT){
+			sharedLoadCount++;
+			totalLoadLatency += pendingRequests[useIndex].latency();
+		}
+
+		completedRequests.push_back(pendingRequests[useIndex]);
+	}
+
+	pendingRequests.erase(pendingRequests.begin()+	useIndex);
 }
 
 void
@@ -67,6 +123,14 @@ MemoryOverlapEstimator::executionResumed(){
 	isStalled = false;
 	resumedAt = curTick;
 
+	Tick stallLength = curTick - stalledAt;
+	if(stallLength <= SHARED_PRIVATE_LATENCY_LIMIT){
+		privateStallCycles += stallLength;
+	}
+	else{
+		sharedStallCycles += stallLength;
+	}
+
 	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles\n", curTick - stalledAt);
 
 	while(!completedRequests.empty() && completedRequests.front().completedAt < stalledAt){
@@ -74,15 +138,22 @@ MemoryOverlapEstimator::executionResumed(){
 		completedRequests.erase(completedRequests.begin());
 	}
 
-	vector<EstimationEntry> burst;
+	int burstSize = 0;
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d\n",
 				completedRequests.front().address,
 				completedRequests.front().latency());
 
-		burst.push_back(completedRequests.front());
+		if(completedRequests.front().latency() > SHARED_PRIVATE_LATENCY_LIMIT){
+			burstSize++;
+		}
 		completedRequests.erase(completedRequests.begin());
 
+	}
+
+	if(burstSize > 0){
+		burstAccumulator += burstSize;
+		numSharedStalls++;
 	}
 }
 
