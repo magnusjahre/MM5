@@ -156,7 +156,8 @@ baseFlags = [
     'MemoryControllerInterference',
     'MissBWPolicy',
     'MissBWPolicyExtra',
-    'FuncMem'
+    'FuncMem',
+    'OverlapEstimator'
     ]
 
 #
