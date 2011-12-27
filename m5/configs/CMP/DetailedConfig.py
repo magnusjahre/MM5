@@ -53,7 +53,8 @@ class DetailedCPU(FullCPU):
         assert env["SW-PREFETCH-POLICY"] in ["enable", "squash"]
         sw_prefetch_policy = env["SW-PREFETCH-POLICY"]
     else:
-        sw_prefetch_policy = "enable"
+        #sw_prefetch_policy = "enable"
+        sw_prefetch_policy = "squash"
     
     def setCache(self, dcache, icache):
         self.dcache = dcache
