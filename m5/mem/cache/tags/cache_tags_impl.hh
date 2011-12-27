@@ -565,35 +565,36 @@ template <class Tags, class Compression>
 MemReqPtr
 CacheTags<Tags,Compression>::writebackBlk(BlkType *blk)
 {
-    assert(blk && blk->isValid() && blk->isModified());
-    int data_size = blkSize;
-    if (cache->doData()) {
-	data_size = blk->size;
-	if (!storeCompressed) {
-	    // not already compressed
-	    // need to compress to ship it
-	    assert(data_size == blkSize);
-	    uint8_t *tmp_data = new uint8_t[blkSize];
-	    data_size = compress.compress(tmp_data,blk->data,
-					  data_size);
-	    delete [] tmp_data;
+	assert(blk && blk->isValid() && blk->isModified());
+	int data_size = blkSize;
+	if (cache->doData()) {
+		data_size = blk->size;
+		if (!storeCompressed) {
+			// not already compressed
+			// need to compress to ship it
+			assert(data_size == blkSize);
+			uint8_t *tmp_data = new uint8_t[blkSize];
+			data_size = compress.compress(tmp_data,blk->data,
+					data_size);
+			delete [] tmp_data;
+		}
 	}
-    }
 
-    MemReqPtr writeback =
-	buildWritebackReq(ct->regenerateBlkAddr(blk->tag, blk->set),
-			  blk->asid, blk->xc, blkSize,
-			  (cache->doData()) ? blk->data : 0,
-			  data_size);
+	MemReqPtr writeback =
+			buildWritebackReq(ct->regenerateBlkAddr(blk->tag, blk->set),
+					blk->asid, blk->xc, blkSize,
+					(cache->doData()) ? blk->data : 0,
+							data_size);
 
-    if(!cache->isShared){
-        cache->setSenderID(writeback);
-    }
+	if(!cache->isShared){
+		cache->setSenderID(writeback);
+	}
 
-    writeback->isSharedWB = cache->isShared;
+	writeback->isSharedWB = cache->isShared;
+	writeback->isStore = true;
 
-    blk->status &= ~BlkDirty;
-    return writeback;
+	blk->status &= ~BlkDirty;
+	return writeback;
 }
 
 template <class Tags, class Compression>
