@@ -269,6 +269,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		req->isSWPrefetch = true;
 	}
 
+	if(isShared){
+		req->beenInSharedMemSys = true;
+	}
+
 	// update hit statistics
 	// NOTE: this must be done here to avoid errors from waiting til after the block is moved to the MRU position
 	tags->updateSetHitStats(req);

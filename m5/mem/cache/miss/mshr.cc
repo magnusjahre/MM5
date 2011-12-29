@@ -116,6 +116,7 @@ MSHR::allocate(MemCmd cmd, Addr _addr, int _asid, int size,
 		req->isSharedWB = target->isSharedWB;
 
 		req->isStore = target->isStore;
+		req->beenInSharedMemSys = target->beenInSharedMemSys;
 
 		if(cache->isShared){
 			for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->interferenceBreakdown[i] += target->interferenceBreakdown[i];
@@ -172,6 +173,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
     req->isSharedWB = target->isSharedWB;
 
     req->isStore = target->isStore;
+    req->beenInSharedMemSys = target->beenInSharedMemSys;
 
     allocatedAt = curTick;
     mlpCost = 0;

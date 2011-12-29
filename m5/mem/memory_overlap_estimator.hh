@@ -22,12 +22,14 @@ private:
 		Tick issuedAt;
 		Tick completedAt;
 		MemCmd origCmd;
+		bool isSharedReq;
 
 		EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
 			address = _a;
 			issuedAt = _issuedAt;
 			origCmd = _origCmd;
 			completedAt = 0;
+			isSharedReq = false;
 		}
 
 		int latency(){
