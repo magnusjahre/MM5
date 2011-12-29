@@ -942,7 +942,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;
 
-			overlapEstimator->traceOverlap(stat_com_inst[thread].value());
+			overlapEstimator->traceOverlap((int) stat_com_inst[thread].value());
 		}
 		assert(committedTraceCounter <= IPC_TRACE_FREQUENCY);
 	}
