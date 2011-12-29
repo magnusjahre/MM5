@@ -12,6 +12,9 @@
 #include "mem/mem_req.hh"
 #include "base/statistics.hh"
 #include "mem/requesttrace.hh"
+#include "mem/interference_manager.hh"
+
+class InterferenceManager;
 
 class MemoryOverlapEstimator : public SimObject{
 
@@ -50,6 +53,8 @@ private:
 	Tick resumedAt;
 	bool isStalled;
 
+	int cpuID;
+
 	RequestTrace overlapTrace;
 
 	Tick stallCycleAccumulator;
@@ -57,6 +62,8 @@ private:
 	int totalRequestAccumulator;
 	int sharedRequestAccumulator;
 	Tick sharedLatencyAccumulator;
+
+	InterferenceManager* interferenceManager;
 
 protected:
 	Stats::Scalar<> privateStallCycles;
@@ -70,7 +77,7 @@ protected:
 	Stats::Formula avgBurstSize;
 
 public:
-	MemoryOverlapEstimator(std::string name, int id);
+	MemoryOverlapEstimator(std::string name, int id, InterferenceManager* _interferenceManager);
 
 	void regStats();
 

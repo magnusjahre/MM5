@@ -88,6 +88,7 @@ class RateMeasurement;
 class BasePolicy;
 class AdaptiveMHA;
 class MSHROccupancy;
+class MemoryOverlapEstimator;
 
 /**
  * A basic cache interface. Implements some common functions for speed.

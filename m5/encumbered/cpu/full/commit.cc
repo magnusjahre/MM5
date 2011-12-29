@@ -393,7 +393,7 @@ FullCPU::commit()
 		//
 		//  Assign blame
 		//
-		int stallDetectionDelay = 35;
+		//int stallDetectionDelay = 35;
 		switch(reason) {
 		case COMMIT_BW:
 		case COMMIT_NO_INSN:
@@ -413,19 +413,13 @@ FullCPU::commit()
 				isStalled = true;
 			}
 
-			issueStallMessageCounter++;
-			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
-				stallMessageIssued = true;
-				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
+//			issueStallMessageCounter++;
+//			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
+//				stallMessageIssued = true;
+//				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
+//			}
 
-				stallCycleTraceCounter += stallDetectionDelay;
-				noCommitCycles++;
-			}
-
-			if(stallMessageIssued){
-				stallCycleTraceCounter++;
-				noCommitCycles++;
-			}
+			noCommitCycles++;
 
 			//HACK: the hit latency should be retrived from the L1 cache
 			if(tmpBlockedCycles > 3) l1MissStallCycles++;
@@ -499,11 +493,11 @@ FullCPU::commit()
 
 	// entering main commit loop, reset tmp blocked cycle counter
 	tmpBlockedCycles = 0;
-	issueStallMessageCounter = 0;
-	if(stallMessageIssued){
-		stallMessageIssued = false;
-		interferenceManager->clearStalledForMemory(CPUParamsCpuID);
-	}
+//	issueStallMessageCounter = 0;
+//	if(stallMessageIssued){
+//		stallMessageIssued = false;
+//		interferenceManager->clearStalledForMemory(CPUParamsCpuID);
+//	}
 
 	if(isStalled){
 		overlapEstimator->executionResumed();
@@ -936,8 +930,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			data.push_back(ipc);
 			committedInstTrace.addTrace(data);
 
-			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, stallCycleTraceCounter, ticksInSample);
-			stallCycleTraceCounter = 0;
+			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, ticksInSample);
 
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;

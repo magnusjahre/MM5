@@ -74,6 +74,7 @@ class MemInterface;
 
 class AdaptiveMHA;
 class InterferenceManager;
+class MemoryOverlapEstimator;
 
 class FullCPU : public BaseCPU
 {

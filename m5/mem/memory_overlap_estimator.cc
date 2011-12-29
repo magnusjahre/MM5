@@ -13,11 +13,14 @@ using namespace std;
 
 #define CACHE_BLK_SIZE 64
 
-MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
+MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager)
 : SimObject(name){
 	isStalled = false;
 	stalledAt = 0;
 	resumedAt = 0;
+
+	cpuID = id;
+	interferenceManager = _interferenceManager;
 
 	overlapTrace = RequestTrace(name, "", 1);
 
@@ -202,6 +205,9 @@ MemoryOverlapEstimator::executionResumed(){
 
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
+
+		assert(interferenceManager != NULL);
+		interferenceManager->addStallCycles(cpuID, stallLength, true);
 	}
 	else{
 		privateStallCycles += stallLength;
@@ -212,15 +218,17 @@ MemoryOverlapEstimator::executionResumed(){
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
     Param<int> id;
+	SimObjectParam<InterferenceManager *> interference_manager;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
-	INIT_PARAM(id, "ID of this estimator")
+	INIT_PARAM(id, "ID of this estimator"),
+	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
 {
-    return new MemoryOverlapEstimator(getInstanceName(), id);
+    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

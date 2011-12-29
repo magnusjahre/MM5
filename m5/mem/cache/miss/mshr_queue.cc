@@ -464,13 +464,13 @@ MSHRQueue::deallocateOne(MSHR* mshr)
 //		mlp_active_cycles += latency;
 	}
 
-	if(isMissQueue && !cache->isShared && cache->interferenceManager != NULL){
-
-		if(cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
-			responsesWhileStalled++;
-			instTraceRespWhileStalled++;
-		}
-	}
+//	if(isMissQueue && !cache->isShared && cache->interferenceManager != NULL){
+//
+//		if(cache->interferenceManager->isStalledForMemory(cache->cacheCpuID)){
+//			responsesWhileStalled++;
+//			instTraceRespWhileStalled++;
+//		}
+//	}
 
 	if(isMissQueue && doMSHRTrace){
 		assert(mshr->mshrID != -1);

@@ -93,8 +93,9 @@ private:
 	std::vector<RequestTrace> aloneMissTrace;
 
 	std::vector<Tick> cpuStallAccumulator;
-	std::vector<Tick> cpuStalledAt;
-	std::vector<bool> cpuIsStalled;
+	std::vector<Tick> cpuComTraceStallCycles;
+//	std::vector<Tick> cpuStalledAt;
+//	std::vector<bool> cpuIsStalled;
 
 public:
 
@@ -184,11 +185,13 @@ public:
 
 	void registerBus(Bus* bus);
 
-	void setStalledForMemory(int cpuID, int detectionDelay);
-	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);
-	bool isStalledForMemory(int cpuID);
+//	void setStalledForMemory(int cpuID, int detectionDelay);
+//	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);
+//	bool isStalledForMemory(int cpuID);
 
-	void doCommitTrace(int cpuID, int committedInstructions, int stallCycles, Tick ticksInSample);
+	void addStallCycles(int cpuID, Tick cpuStalledFor, bool incrementNumStalls);
+
+	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample);
 
 	void enableMSHROccupancyTrace();
 

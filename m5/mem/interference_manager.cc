@@ -111,8 +111,9 @@ InterferenceManager::InterferenceManager(std::string _name,
 	}
 
 	cpuStallAccumulator.resize(_cpu_count, 0);
-	cpuStalledAt.resize(_cpu_count, 0);
-	cpuIsStalled.resize(_cpu_count, false);
+	cpuComTraceStallCycles.resize(_cpu_count, 0);
+//	cpuStalledAt.resize(_cpu_count, 0);
+//	cpuIsStalled.resize(_cpu_count, false);
 }
 
 void
@@ -474,11 +475,11 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	for(int i=0;i<fullCPUs.size();i++){
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
 
-		if(cpuIsStalled[i]){
-			// make sure no stalls crosses sample boundaries
-			clearStalledForMemory(i, false);
-			setStalledForMemory(i, 0);
-		}
+//		if(cpuIsStalled[i]){
+//			// make sure no stalls crosses sample boundaries
+//			clearStalledForMemory(i, false);
+//			setStalledForMemory(i, 0);
+//		}
 
 		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
 		cpuStallAccumulator[i] = 0;
@@ -584,35 +585,43 @@ InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	fullCPUs[cpuID] = cpu;
 }
 
-bool
-InterferenceManager::isStalledForMemory(int cpuID){
-	return cpuIsStalled[cpuID];
-}
+//bool
+//InterferenceManager::isStalledForMemory(int cpuID){
+//	return cpuIsStalled[cpuID];
+//}
+//
+//void
+//InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
+//	assert(!cpuIsStalled[cpuID]);
+//
+//	cpuStalledAt[cpuID] = curTick - detectionDelay;
+//	cpuIsStalled[cpuID] = true;
+//}
+
+//void
+//InterferenceManager::clearStalledForMemory(int cpuID, bool incrementNumStalls){
+//	assert(cpuIsStalled[cpuID]);
+//
+//	Tick cpuStalledFor = curTick - cpuStalledAt[cpuID];
+//
+//	cpuStallAccumulator[cpuID] += cpuStalledFor;
+//	cpuStallCycles[cpuID] += cpuStalledFor;
+//	if(incrementNumStalls) numCpuStalls[cpuID]++;
+//
+//	cpuStalledAt[cpuID] = 0;
+//	cpuIsStalled[cpuID] = false;
+//}
 
 void
-InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
-	assert(!cpuIsStalled[cpuID]);
-
-	cpuStalledAt[cpuID] = curTick - detectionDelay;
-	cpuIsStalled[cpuID] = true;
-}
-
-void
-InterferenceManager::clearStalledForMemory(int cpuID, bool incrementNumStalls){
-	assert(cpuIsStalled[cpuID]);
-
-	Tick cpuStalledFor = curTick - cpuStalledAt[cpuID];
-
+InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool incrementNumStalls){
 	cpuStallAccumulator[cpuID] += cpuStalledFor;
+	cpuComTraceStallCycles[cpuID] += cpuStalledFor;
 	cpuStallCycles[cpuID] += cpuStalledFor;
 	if(incrementNumStalls) numCpuStalls[cpuID]++;
-
-	cpuStalledAt[cpuID] = 0;
-	cpuIsStalled[cpuID] = false;
 }
 
 void
-InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int stallCycles, Tick ticksInSample){
+InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample){
 
 	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
 
@@ -642,7 +651,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 														 mws,
 														 mlp,
 														 instTraceRequests[cpuID],
-														 stallCycles,
+														 cpuComTraceStallCycles[cpuID],
 														 ticksInSample,
 														 committedInstructions,
 														 responsesWhileStalled,
@@ -654,6 +663,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, int sta
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
 	instTraceLatencySum[cpuID] = 0;
+	cpuComTraceStallCycles[cpuID] = 0;
 }
 
 void
