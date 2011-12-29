@@ -19,6 +19,50 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id)
 	isStalled = false;
 	stalledAt = 0;
 	resumedAt = 0;
+
+	overlapTrace = RequestTrace(name, "", 1);
+
+	vector<string> headers;
+	headers.push_back("Committed instructions");
+	headers.push_back("Total stall cycles");
+	headers.push_back("Shared stall cycles");
+	headers.push_back("Total Requests");
+	headers.push_back("Shared Loads");
+	headers.push_back("Average Shared Load Latency");
+
+	overlapTrace.initalizeTrace(headers);
+
+	stallCycleAccumulator = 0;
+	sharedStallCycleAccumulator = 0;
+	totalRequestAccumulator = 0;
+	sharedRequestAccumulator = 0;
+	sharedLatencyAccumulator = 0;
+}
+
+void
+MemoryOverlapEstimator::traceOverlap(int committedInstructions){
+	vector<RequestTraceEntry> data;
+
+	data.push_back(committedInstructions);
+	data.push_back(stallCycleAccumulator);
+	data.push_back(sharedStallCycleAccumulator);
+	data.push_back(totalRequestAccumulator);
+	data.push_back(sharedRequestAccumulator);
+
+	if(sharedRequestAccumulator > 0){
+		data.push_back((double) sharedLatencyAccumulator / (double) sharedRequestAccumulator);
+	}
+	else{
+		data.push_back(0);
+	}
+
+	stallCycleAccumulator = 0;
+	sharedStallCycleAccumulator = 0;
+	totalRequestAccumulator = 0;
+	sharedRequestAccumulator = 0;
+	sharedLatencyAccumulator = 0;
+
+	overlapTrace.addTrace(data);
 }
 
 void
@@ -79,6 +123,8 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 	pendingRequests[useIndex].completedAt = finishedAt;
 
+	totalRequestAccumulator++;
+
 	if(pendingRequests[useIndex].latency() > SHARED_PRIVATE_LATENCY_LIMIT){
 		sharedRequestCount++;
 	}
@@ -99,7 +145,9 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 		if(pendingRequests[useIndex].latency() > SHARED_PRIVATE_LATENCY_LIMIT){
 			sharedLoadCount++;
+			sharedRequestAccumulator++;
 			totalLoadLatency += pendingRequests[useIndex].latency();
+			sharedLatencyAccumulator += pendingRequests[useIndex].latency();
 		}
 
 		completedRequests.push_back(pendingRequests[useIndex]);
@@ -124,11 +172,14 @@ MemoryOverlapEstimator::executionResumed(){
 	resumedAt = curTick;
 
 	Tick stallLength = curTick - stalledAt;
+	stallCycleAccumulator += stallLength;
+
 	if(stallLength <= SHARED_PRIVATE_LATENCY_LIMIT){
 		privateStallCycles += stallLength;
 	}
 	else{
 		sharedStallCycles += stallLength;
+		sharedStallCycleAccumulator += stallLength;
 	}
 
 	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles\n", curTick - stalledAt);

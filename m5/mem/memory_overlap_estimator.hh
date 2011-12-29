@@ -11,6 +11,7 @@
 #include "sim/sim_object.hh"
 #include "mem/mem_req.hh"
 #include "base/statistics.hh"
+#include "mem/requesttrace.hh"
 
 class MemoryOverlapEstimator : public SimObject{
 
@@ -47,6 +48,14 @@ private:
 	Tick resumedAt;
 	bool isStalled;
 
+	RequestTrace overlapTrace;
+
+	Tick stallCycleAccumulator;
+	Tick sharedStallCycleAccumulator;
+	int totalRequestAccumulator;
+	int sharedRequestAccumulator;
+	Tick sharedLatencyAccumulator;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -70,6 +79,8 @@ public:
 	void stalledForMemory();
 
 	void executionResumed();
+
+	void traceOverlap(int committedInstructions);
 
 };
 
