@@ -315,8 +315,8 @@ FullCPU::commit()
 					//  eligible_to_commit() function
 					//
 					reason_thread[thread] = reason;
-				} else if (inst->isLoad() && !rs->eaCompPending
-						&& rs->issued) {
+				//} else if (inst->isLoad() && !rs->eaCompPending && rs->issued) {
+				} else if (inst->isLoad()) {
 					// It's a load that's been issued from the LSQ,
 					// so it's a memory stall... (not necessarily a miss,
 					// despite the name)

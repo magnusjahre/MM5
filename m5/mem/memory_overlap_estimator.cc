@@ -114,10 +114,9 @@ MemoryOverlapEstimator::initStallTrace(){
 	headers.push_back("Committed instructions");
 	headers.push_back("Ticks in Sample");
 	headers.push_back("Commit cycles");
-	headers.push_back("Store BW Stalls");
+	headers.push_back("Storebuffer Stalls");
 	headers.push_back("Functional Unit Stalls");
-	headers.push_back("Private Memory Stalls");
-	headers.push_back("Shared Memory Stalls");
+	headers.push_back("Memory Related Stalls");
 	headers.push_back("Other Stalls");
 
 	stallTrace.initalizeTrace(headers);
@@ -135,8 +134,7 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 	data.push_back(commitCycles);
 	data.push_back(stallCycles[STALL_STORE_BUFFER]);
 	data.push_back(stallCycles[STALL_FUNC_UNIT]);
-	data.push_back(stallCycles[STALL_PRIVATE_DMEM]);
-	data.push_back(stallCycles[STALL_SHARED_DMEM]);
+	data.push_back(stallCycles[STALL_DMEM]);
 	data.push_back(stallCycles[STALL_OTHER]);
 
 	stallTrace.addTrace(data);
@@ -300,15 +298,15 @@ MemoryOverlapEstimator::executionResumed(){
 
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
-
-		assert(interferenceManager != NULL);
-		interferenceManager->addStallCycles(cpuID, stallLength, true);
-		addStall(STALL_SHARED_DMEM, stallLength, true);
 	}
 	else{
 		privateStallCycles += stallLength;
-		addStall(STALL_PRIVATE_DMEM, stallLength, true);
 	}
+
+	addStall(STALL_DMEM, stallLength, true);
+
+	assert(interferenceManager != NULL);
+	interferenceManager->addStallCycles(cpuID, stallLength, true);
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

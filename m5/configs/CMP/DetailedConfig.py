@@ -33,7 +33,7 @@ class DetailedCPU(FullCPU):
     lsq_size = 32
     rob_size = 128
     rob_caps = [0, 0, 0, 0]
-    storebuffer_size = 32
+    storebuffer_size = 64
     #width = 8
     #issue_bandwidth = [8, 8] # creates large error: sensitivity analysis
     width = 4
