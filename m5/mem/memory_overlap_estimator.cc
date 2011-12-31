@@ -22,7 +22,46 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	cpuID = id;
 	interferenceManager = _interferenceManager;
 
-	overlapTrace = RequestTrace(name, "", 1);
+	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
+	lastTraceAt = 1;
+	commitCycles = 0;
+
+	initOverlapTrace();
+	initStallTrace();
+
+	lastActivityCycle = 0;
+}
+
+void
+MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
+
+	assert(!isStalled);
+
+	if(memStall){
+		//memory stalls are detected one cycle late
+		assert(lastActivityCycle == curTick-cycles-1);
+		lastActivityCycle = curTick-1;
+	}
+	else{
+		assert(lastActivityCycle == curTick-1);
+		lastActivityCycle = curTick;
+	}
+
+	stallCycles[cause] += cycles;
+}
+
+void
+MemoryOverlapEstimator::addCommitCycle(){
+
+	assert(!isStalled);
+	assert(lastActivityCycle == curTick-1);
+	lastActivityCycle = curTick;
+	commitCycles++;
+}
+
+void
+MemoryOverlapEstimator::initOverlapTrace(){
+	overlapTrace = RequestTrace(name(), "OverlapTrace", 1);
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -68,6 +107,57 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 }
 
 void
+MemoryOverlapEstimator::initStallTrace(){
+	stallTrace = RequestTrace(name(), "StallTrace", 1);
+
+	vector<string> headers;
+	headers.push_back("Committed instructions");
+	headers.push_back("Ticks in Sample");
+	headers.push_back("Commit cycles");
+	headers.push_back("Store BW Stalls");
+	headers.push_back("Functional Unit Stalls");
+	headers.push_back("Private Memory Stalls");
+	headers.push_back("Shared Memory Stalls");
+	headers.push_back("Other Stalls");
+
+	stallTrace.initalizeTrace(headers);
+}
+
+void
+MemoryOverlapEstimator::traceStalls(int committedInstructions){
+	vector<RequestTraceEntry> data;
+
+	Tick cyclesSinceLast = curTick - lastTraceAt;
+	lastTraceAt = curTick;
+
+	data.push_back(committedInstructions);
+	data.push_back(cyclesSinceLast);
+	data.push_back(commitCycles);
+	data.push_back(stallCycles[STALL_STORE_BUFFER]);
+	data.push_back(stallCycles[STALL_FUNC_UNIT]);
+	data.push_back(stallCycles[STALL_PRIVATE_DMEM]);
+	data.push_back(stallCycles[STALL_SHARED_DMEM]);
+	data.push_back(stallCycles[STALL_OTHER]);
+
+	stallTrace.addTrace(data);
+
+	Tick sum = commitCycles;
+	for(int i=0;i<NUM_STALL_CAUSES;i++){
+		sum += stallCycles[i];
+	}
+	assert(sum == cyclesSinceLast);
+
+	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
+	commitCycles = 0;
+}
+
+void
+MemoryOverlapEstimator::sampleCPU(int committedInstructions){
+	traceOverlap(committedInstructions);
+	traceStalls(committedInstructions);
+}
+
+void
 MemoryOverlapEstimator::regStats(){
 
 	privateStallCycles
@@ -103,6 +193,10 @@ MemoryOverlapEstimator::regStats(){
 		.desc("Average size of a shared memory system burst");
 
 	avgBurstSize = burstAccumulator / numSharedStalls;
+
+	totalStalls
+		.name(name() + ".num_stalls")
+		.desc("Number of memory related stalls");
 }
 
 void
@@ -165,6 +259,7 @@ MemoryOverlapEstimator::stalledForMemory(){
 	assert(!isStalled);
 	isStalled = true;
 	stalledAt = curTick;
+	totalStalls++;
 
 	DPRINTF(OverlapEstimator, "Stalling...\n");
 }
@@ -208,9 +303,11 @@ MemoryOverlapEstimator::executionResumed(){
 
 		assert(interferenceManager != NULL);
 		interferenceManager->addStallCycles(cpuID, stallLength, true);
+		addStall(STALL_SHARED_DMEM, stallLength, true);
 	}
 	else{
 		privateStallCycles += stallLength;
+		addStall(STALL_PRIVATE_DMEM, stallLength, true);
 	}
 }
 

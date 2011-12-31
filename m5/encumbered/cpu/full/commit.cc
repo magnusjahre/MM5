@@ -152,13 +152,9 @@ FullCPU::commit()
 	if (++crash_counter > CRASH_COUNT) {
 		ccprintf(cerr, "DEADLOCK at CPU %s\n", name());
 
-		//FIXME: uncomment these lines
 		dumpIQ();
-		//         cout << "iq dump fin\n";
 		LSQ->dump();
-		//         cout << "lsq dump fin\n";
 		ROB.dump();
-		//         cout << "rob dump fin\n";
 		panic("We stopped committing instructions!!!");
 	}
 
@@ -199,6 +195,8 @@ FullCPU::commit()
 		if (num_inactive_threads == number_of_threads) {
 			crash_counter = 0;
 		}
+
+		if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 		return;
 	}
 
@@ -393,15 +391,18 @@ FullCPU::commit()
 		//
 		//  Assign blame
 		//
-		//int stallDetectionDelay = 35;
 		switch(reason) {
 		case COMMIT_BW:
 		case COMMIT_NO_INSN:
-		case COMMIT_STOREBUF:
 		case COMMIT_MEMBAR:
+			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+			break;
+		case COMMIT_STOREBUF:
+			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_STORE_BUFFER, 1);
 			break;
 		case COMMIT_FU:
 			floss_state.commit_fu[0][0] = OpClass(detail);
+			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_FUNC_UNIT, 1);
 			break;
 		case COMMIT_DMISS:
 			commit_total_mem_stall_time++;
@@ -413,12 +414,6 @@ FullCPU::commit()
 				isStalled = true;
 			}
 
-//			issueStallMessageCounter++;
-//			if(issueStallMessageCounter > stallDetectionDelay && !stallMessageIssued){
-//				stallMessageIssued = true;
-//				interferenceManager->setStalledForMemory(CPUParamsCpuID, stallDetectionDelay);
-//			}
-
 			noCommitCycles++;
 
 			//HACK: the hit latency should be retrived from the L1 cache
@@ -428,6 +423,7 @@ FullCPU::commit()
 			break;
 		case COMMIT_CAUSE_NOT_SET:
 			done = true;  // dummy
+			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 			break;
 		default:
 			fatal("commit causes screwed up");
@@ -493,12 +489,6 @@ FullCPU::commit()
 
 	// entering main commit loop, reset tmp blocked cycle counter
 	tmpBlockedCycles = 0;
-//	issueStallMessageCounter = 0;
-//	if(stallMessageIssued){
-//		stallMessageIssued = false;
-//		interferenceManager->clearStalledForMemory(CPUParamsCpuID);
-//	}
-
 	if(isStalled){
 		overlapEstimator->executionResumed();
 		isStalled = false;
@@ -507,6 +497,8 @@ FullCPU::commit()
 	//
 	//  Main commit loop
 	//
+
+	int numCommitted = 0;
 	done = false;
 	do {
 		ROBStation *rs = 0;
@@ -573,6 +565,7 @@ FullCPU::commit()
 					++committed;
 					++committed_thread[thread];
 
+					numCommitted++;
 					crash_counter = 0;
 				} else {
 					//
@@ -641,6 +634,9 @@ FullCPU::commit()
 
 	} while (!done);
 
+	if(!isStalled);
+	if(numCommitted > 0) overlapEstimator->addCommitCycle();
+	else overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 
 	//
 	//  Assign blame
@@ -935,7 +931,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;
 
-			overlapEstimator->traceOverlap((int) stat_com_inst[thread].value());
+			overlapEstimator->sampleCPU((int) stat_com_inst[thread].value());
 		}
 		assert(committedTraceCounter <= IPC_TRACE_FREQUENCY);
 	}

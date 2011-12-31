@@ -56,6 +56,7 @@ private:
 	int cpuID;
 
 	RequestTrace overlapTrace;
+	RequestTrace stallTrace;
 
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
@@ -65,16 +66,42 @@ private:
 
 	InterferenceManager* interferenceManager;
 
+	Tick lastTraceAt;
+
+	Tick lastActivityCycle;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
 	Stats::Scalar<> sharedRequestCount;
 	Stats::Scalar<> sharedLoadCount;
 	Stats::Scalar<> totalLoadLatency;
+	Stats::Scalar<> totalStalls;
 
 	Stats::Scalar<> burstAccumulator;
 	Stats::Scalar<> numSharedStalls;
 	Stats::Formula avgBurstSize;
+
+public:
+
+	enum StallCause{
+		STALL_STORE_BUFFER,
+		STALL_PRIVATE_DMEM,
+		STALL_SHARED_DMEM,
+		STALL_FUNC_UNIT,
+		STALL_OTHER,
+		NUM_STALL_CAUSES
+	};
+
+private:
+	Tick stallCycles[NUM_STALL_CAUSES];
+	Tick commitCycles;
+
+private:
+	void initOverlapTrace();
+	void traceOverlap(int committedInstructions);
+	void initStallTrace();
+	void traceStalls(int committedInstructions);
 
 public:
 	MemoryOverlapEstimator(std::string name, int id, InterferenceManager* _interferenceManager);
@@ -89,7 +116,11 @@ public:
 
 	void executionResumed();
 
-	void traceOverlap(int committedInstructions);
+	void sampleCPU(int committedInstructions);
+
+	void addStall(StallCause cause, Tick cycles, bool memStall = false);
+
+	void addCommitCycle();
 
 };
 
