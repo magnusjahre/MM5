@@ -231,7 +231,8 @@ public:
 				                     int responsesWhileStalled,
 				                     double avgBurstSize,
 				                     double privateSharedCacheMLP,
-				                     double sharedSharedCacheMLP);
+				                     double sharedSharedCacheMLP,
+				                     int commitCycles);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

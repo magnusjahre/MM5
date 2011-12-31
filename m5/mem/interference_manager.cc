@@ -114,6 +114,14 @@ InterferenceManager::InterferenceManager(std::string _name,
 	cpuComTraceStallCycles.resize(_cpu_count, 0);
 //	cpuStalledAt.resize(_cpu_count, 0);
 //	cpuIsStalled.resize(_cpu_count, false);
+
+	commitTraceCommitCycles.resize(_cpu_count, 0);
+}
+
+void
+InterferenceManager::addCommitCycle(int cpuID){
+	//FIXME: use these estimates in policy decisions as well
+	commitTraceCommitCycles[cpuID]++;
 }
 
 void
@@ -657,13 +665,16 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 responsesWhileStalled,
 														 avgBurstSize,
 														 aloneSharedCacheOverlap,
-														 sharedSharedCacheOverlap);
+														 sharedSharedCacheOverlap,
+														 commitTraceCommitCycles[cpuID]);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
 	instTraceLatencySum[cpuID] = 0;
 	cpuComTraceStallCycles[cpuID] = 0;
+
+	commitTraceCommitCycles[cpuID] = 0;
 }
 
 void

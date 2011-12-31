@@ -45,6 +45,9 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 	else{
 		assert(lastActivityCycle == curTick-1);
 		lastActivityCycle = curTick;
+
+		assert(interferenceManager != NULL);
+		interferenceManager->addCommitCycle(cpuID);
 	}
 
 	stallCycles[cause] += cycles;
@@ -57,6 +60,9 @@ MemoryOverlapEstimator::addCommitCycle(){
 	assert(lastActivityCycle == curTick-1);
 	lastActivityCycle = curTick;
 	commitCycles++;
+
+	assert(interferenceManager != NULL);
+	interferenceManager->addCommitCycle(cpuID);
 }
 
 void

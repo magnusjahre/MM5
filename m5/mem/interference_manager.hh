@@ -73,6 +73,8 @@ private:
 	std::vector<int> interferenceMisses;
 	std::vector<int> regularMisses;
 
+	std::vector<Tick> commitTraceCommitCycles;
+
 	int intManCPUCount;
 
 	bool traceStarted;
@@ -198,6 +200,8 @@ public:
 	std::vector<MSHROccupancy>* getMSHROccupancyList(int cpuID);
 
 	void clearMSHROccupancyLists();
+
+	void addCommitCycle(int cpuID);
 };
 
 #endif

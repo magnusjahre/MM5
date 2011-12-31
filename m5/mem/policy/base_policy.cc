@@ -604,7 +604,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	vector<string> headers;
 
 	headers.push_back("Cummulative Committed Instructions");
-	headers.push_back("Cycles in Sample");
+	headers.push_back("Total Cycles");
 	headers.push_back("Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
@@ -642,26 +642,28 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                double mlp,
 		                                int reqs,
 		                                int stallCycles,
-		                                int totalCycles,
+		                                int cyclesInSample,
 		                                int committedInsts,
 		                                int responsesWhileStalled,
 		                                double avgBurstSize,
 					                    double privateSharedCacheMLP,
-					                    double sharedSharedCacheMLP){
+					                    double sharedSharedCacheMLP,
+					                    int commitCycles){
 
 	vector<RequestTraceEntry> data;
 
-	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles since last, %d committed insts\n",
+	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles in sample, %d commit cycles, %d committed insts\n",
 			              cpuID,
-			              totalCycles,
+			              cyclesInSample,
+			              commitCycles,
 			              committedInsts);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
-	data.push_back(totalCycles);
+	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
-	data.push_back(totalCycles - stallCycles);
+	data.push_back(commitCycles);
 	data.push_back(reqs);
 	data.push_back(mlp);
 	data.push_back(avgBurstSize);
@@ -683,10 +685,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      intManager->cacheInterference->getSharedCommitTraceMisses(cpuID),
 				                                      intManager->cacheInterference->getPrivateCommitTraceMisses(cpuID));
 
-		double nonStallCycles = (double) totalCycles - (double) stallCycles;
-
-		double sharedIPC = (double) committedInsts / (double) totalCycles;
-		double aloneIPCEstimate = (double) committedInsts / (nonStallCycles + newStallEstimate);
+		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
+		double aloneIPCEstimate = (double) committedInsts / (commitCycles + newStallEstimate);
 
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateLatEstimate);
@@ -701,7 +701,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(computedOverlap[cpuID]);
 	}
 	else{
-		double aloneIPC = (double) committedInsts / (double) totalCycles;
+		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneOverlap = 0;
 		if(reqs != 0){
 			aloneOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
