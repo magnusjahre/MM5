@@ -319,6 +319,12 @@ MemoryOverlapEstimator::executionResumed(){
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID, stallLength, true);
+
+	DPRINTF(OverlapEstimator, "Current stall breakdown: store buffer %d, func unit %d, mem %d, other %d\n",
+			stallCycles[STALL_STORE_BUFFER],
+			stallCycles[STALL_FUNC_UNIT],
+			stallCycles[STALL_DMEM],
+			stallCycles[STALL_OTHER]);
 }
 
 void
