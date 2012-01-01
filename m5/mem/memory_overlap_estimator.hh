@@ -121,6 +121,8 @@ public:
 
 	void addCommitCycle();
 
+	void cpuStarted(Tick firstTick);
+
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

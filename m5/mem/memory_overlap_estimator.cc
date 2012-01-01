@@ -33,6 +33,12 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 }
 
 void
+MemoryOverlapEstimator::cpuStarted(Tick firstTick){
+	lastActivityCycle = firstTick-1;
+	stallCycles[STALL_OTHER] += firstTick-1;
+}
+
+void
 MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 
 	assert(!isStalled);

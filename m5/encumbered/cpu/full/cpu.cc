@@ -766,6 +766,7 @@ FullCPU::takeOverFrom(BaseCPU *oldCPU)
     // Set all status's to active, schedule the
     // CPU's tick event.
     tickEvent.schedule(curTick);
+    overlapEstimator->cpuStarted(curTick);
     for (int i = 0; i < execContexts.size(); ++i) {
 
         // Fix by Magnus
