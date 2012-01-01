@@ -123,6 +123,12 @@ public:
 
 	void cpuStarted(Tick firstTick);
 
+	void incrementPrivateRequestCount(MemReqPtr& req);
+
+	void addPrivateLatency(MemReqPtr& req, int latency);
+
+	void addL1Access(MemReqPtr& req, int latency, bool hit);
+
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

@@ -38,6 +38,12 @@ InterferenceManager::InterferenceManager(std::string _name,
 	interferenceBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
 	currentRequests.resize(_cpu_count, 0);
 
+	privateLatencyAccumulator.resize(_cpu_count, 0);
+	privateRequests.resize(_cpu_count, 0);
+	l1HitAccumulator.resize(_cpu_count, 0);
+	l1HitRequests.resize(_cpu_count, 0);
+
+
 	latencySum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
 	numLatencyReqs.resize(_cpu_count, vector<int>(NUM_LAT_TYPES, 0));
 
@@ -290,6 +296,7 @@ void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
 
 	if(req->isStore) return;
+	if(req->instructionMiss) return;
 
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
@@ -309,6 +316,7 @@ void
 InterferenceManager::incrementInterferenceRequestCount(LatencyType t, MemReqPtr& req){
 
 	if(req->isStore) return;
+	if(req->instructionMiss) return;
 
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
@@ -323,6 +331,7 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	assert(req->adaptiveMHASenderID != -1);
 
 	if(req->isStore) return;
+	if(req->instructionMiss) return;
 
 	latencySum[req->adaptiveMHASenderID][t] += latency;
 	latencies[t][req->adaptiveMHASenderID] += latency;
@@ -338,6 +347,7 @@ InterferenceManager::incrementLatencyRequestCount(LatencyType t, MemReqPtr& req)
 	assert(req->adaptiveMHASenderID != -1);
 
 	if(req->isStore) return;
+	if(req->instructionMiss) return;
 
 	numLatencyReqs[req->adaptiveMHASenderID][t]++;
 }
@@ -348,6 +358,7 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	assert(req->adaptiveMHASenderID != -1);
 
 	if(req->isStore) return;
+	if(req->instructionMiss) return;
 
 	runningLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
 	totalRequestCount[req->adaptiveMHASenderID]++;
@@ -593,33 +604,6 @@ InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	fullCPUs[cpuID] = cpu;
 }
 
-//bool
-//InterferenceManager::isStalledForMemory(int cpuID){
-//	return cpuIsStalled[cpuID];
-//}
-//
-//void
-//InterferenceManager::setStalledForMemory(int cpuID, int detectionDelay){
-//	assert(!cpuIsStalled[cpuID]);
-//
-//	cpuStalledAt[cpuID] = curTick - detectionDelay;
-//	cpuIsStalled[cpuID] = true;
-//}
-
-//void
-//InterferenceManager::clearStalledForMemory(int cpuID, bool incrementNumStalls){
-//	assert(cpuIsStalled[cpuID]);
-//
-//	Tick cpuStalledFor = curTick - cpuStalledAt[cpuID];
-//
-//	cpuStallAccumulator[cpuID] += cpuStalledFor;
-//	cpuStallCycles[cpuID] += cpuStalledFor;
-//	if(incrementNumStalls) numCpuStalls[cpuID]++;
-//
-//	cpuStalledAt[cpuID] = 0;
-//	cpuIsStalled[cpuID] = false;
-//}
-
 void
 InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool incrementNumStalls){
 	cpuStallAccumulator[cpuID] += cpuStalledFor;
@@ -629,7 +613,34 @@ InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool incremen
 }
 
 void
+InterferenceManager::addPrivateLatency(LatencyType t, MemReqPtr& req, int latency){
+	if(req->isStore) return;
+	if(req->instructionMiss) return;
+	assert(req->adaptiveMHASenderID != -1);
+
+	privateLatencyAccumulator[req->adaptiveMHASenderID] += latency;
+}
+
+void
+InterferenceManager::incrementPrivateRequestCount(MemReqPtr& req){
+	if(req->isStore) return;
+
+	assert(!req->instructionMiss);
+	assert(req->adaptiveMHASenderID != -1);
+
+	privateRequests[req->adaptiveMHASenderID]++;
+}
+
+void
+InterferenceManager::addL1Hit(int cpuID, Tick latency){
+	l1HitAccumulator[cpuID] += latency;
+	l1HitRequests[cpuID]++;
+}
+
+void
 InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample){
+
+
 
 	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
 
@@ -651,6 +662,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
+	double sumPrivateLatency = (double) privateLatencyAccumulator[cpuID] + (double) l1HitAccumulator[cpuID];
+	double avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
 
 	if(missBandwidthPolicy != NULL){
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
@@ -666,7 +679,10 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 avgBurstSize,
 														 aloneSharedCacheOverlap,
 														 sharedSharedCacheOverlap,
-														 commitTraceCommitCycles[cpuID]);
+														 commitTraceCommitCycles[cpuID],
+														 sumPrivateLatency,
+														 avgPrivateLat,
+														 privateRequests[cpuID]);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -675,6 +691,12 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	cpuComTraceStallCycles[cpuID] = 0;
 
 	commitTraceCommitCycles[cpuID] = 0;
+
+	privateLatencyAccumulator[cpuID] = 0;
+	privateRequests[cpuID] = 0;
+
+	l1HitAccumulator[cpuID] = 0;
+	l1HitRequests[cpuID] = 0;
 }
 
 void

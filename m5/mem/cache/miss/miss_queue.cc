@@ -1028,6 +1028,10 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 			cache->interferenceManager->incrementTotalReqCount(req, curTick - (req->time + cache->getHitLatency()));
 		}
 
+		if(!cache->isShared && cache->overlapEstimator != NULL){
+			cache->overlapEstimator->incrementPrivateRequestCount(req);
+		}
+
 		// targets were handled in the cache tags
 		if (mshr == noTargetMSHR) {
 			// we always clear at least one target

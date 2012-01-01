@@ -38,7 +38,8 @@ class PeerToPeerLink : public AddressDependentIC{
                        int _cpu_count,
                        HierParams *_hier,
                        AdaptiveMHA* _adaptiveMHA,
-                       Tick _detailedSimStart);
+                       Tick _detailedSimStart,
+                       InterferenceManager* _intman);
         
         virtual void send(MemReqPtr& req, Tick time, int fromID);
         

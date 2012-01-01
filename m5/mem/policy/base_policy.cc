@@ -327,75 +327,47 @@ BasePolicy::computeCurrentMetricValue(){
 
 double
 BasePolicy::estimateStallCycles(double currentStallTime,
-									     double currentMWS,
-									     double currentMLP,
-									     double currentAvgSharedLat,
-									     double currentRequests,
-									     double newMWS,
-									     double newMLP,
-									     double newAvgSharedLat,
-									     double newRequests,
-									     double responsesWhileStalled,
-									     int cpuID,
-									     double sharedMisses,
-									     double privateMisses){
+							    double currentAvgSharedLat,
+								double newAvgSharedLat,
+								double sharedRequests,
+								double sumPrivateLatency,
+								int cpuID){
 
 	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
 
-	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ){
+	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ || perfEstMethod == NO_MLP_CACHE){
 		fatal("deprecated performance estimation mode");
 	}
-	else if(perfEstMethod == NO_MLP || perfEstMethod == NO_MLP_CACHE){
+	else if(perfEstMethod == NO_MLP ){
 
-		if(currentAvgSharedLat == 0 || currentRequests == 0){
-			DPRINTF(MissBWPolicyExtra, "Running no-MLP method, latency or num requests is 0, returning 0\n");
-			computedOverlap[cpuID] = 0;
-			return 0;
-		}
+		assert(sumPrivateLatency > 0);
 
-		double cacheAdjust = 1.0;
-		if(perfEstMethod == NO_MLP_CACHE){
-			if(privateMisses > sharedMisses) privateMisses = sharedMisses;
-			if(privateMisses < 0) privateMisses = 0;
+		computedOverlap[cpuID] = currentStallTime / (sumPrivateLatency + (currentAvgSharedLat * sharedRequests));
 
-			double privMissRate = privateMisses / currentRequests;
-			double sharedMissRate = sharedMisses / currentRequests;
-
-			cacheAdjust = sharedMissRate / privMissRate;
-
-			DPRINTF(MissBWPolicyExtra, "Computed cache miss adjustment %f from shared mode miss rate %f and private mode miss rate %f\n",
-					cacheAdjust, sharedMissRate, privMissRate);
-		}
-
-		computedOverlap[cpuID] = (currentStallTime / (currentAvgSharedLat * currentRequests)) * cacheAdjust;
-
-		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, %f stall cycle, uncorrected overlap is %f, current total lat %d\n",
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private cycles %f, %f stall cycle, overlap is %f\n",
 				currentAvgSharedLat,
-				currentRequests,
+				sharedRequests,
+				sumPrivateLatency,
 				currentStallTime,
-				currentStallTime / (currentAvgSharedLat * currentRequests),
-				currentAvgSharedLat * currentRequests);
+				computedOverlap[cpuID]);
 
-		DPRINTF(MissBWPolicyExtra, "Estimated MLP constant to be %f\n", computedOverlap[cpuID]);
+		assert(computedOverlap[cpuID] <= 1.0);
+		assert(computedOverlap[cpuID] >= 0.0);
 
-		double adjustedMLP = (computedOverlap[cpuID] * newMLP) / currentMLP;
+		double privateStallCycles = computedOverlap[cpuID] * sumPrivateLatency;
+		double sharedStallCycles = currentStallTime - privateStallCycles;
 
-		DPRINTF(MissBWPolicyExtra, "Computed adjusted MLP to be %f with current MLP %f and new MLP %f\n",
-				adjustedMLP,
-				currentMLP,
-				newMLP);
+		DPRINTF(MissBWPolicyExtra, "Estimated %d private stall cycles and %d shared stall cycles\n",
+				privateStallCycles,
+				sharedStallCycles);
 
-		double newStallTime = adjustedMLP * newAvgSharedLat * newRequests;
+		double newStallTime = privateStallCycles +  computedOverlap[cpuID] * newAvgSharedLat * sharedRequests;
 
-		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f and new requests %f\n",
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f\n",
 							        newStallTime,
-							        newAvgSharedLat,
-							        newRequests);
+							        newAvgSharedLat);
 
-		if(newStallTime < 0){
-			DPRINTF(MissBWPolicy, "Negative stall time (%f), returning 0\n", newStallTime);
-			return 0;
-		}
+		assert(newStallTime >= 0);
 
 		return newStallTime;
 	}
@@ -406,64 +378,66 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 void
 BasePolicy::updateAloneIPCEstimate(){
-	for(int i=0;i<cpuCount;i++){
-		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
-
-			double stallParallelism = currentMeasurements->avgMissesWhileStalled[i][maxMSHRs];
-			double curMLP = currentMeasurements->mlpEstimate[i][maxMSHRs];
-			double curReqs = currentMeasurements->requestsInSample[i];
-			double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
-			double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
-														  stallParallelism,
-														  curMLP,
-														  currentMeasurements->sharedLatencies[i],
-														  curReqs,
-														  stallParallelism,
-														  curMLP,
-														  currentMeasurements->estimatedPrivateLatencies[i],
-														  curReqs,
-														  currentMeasurements->responsesWhileStalled[i],
-														  i,
-														  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
-														  privateMisses);
-
-			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
-			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
-					              i,
-					              aloneIPCEstimates[i],
-					              currentMeasurements->committedInstructions[i],
-					              currentMeasurements->getNonStallCycles(i, period),
-								  newStallEstimate);
-
-			if(currentMeasurements->estimatedPrivateLatencies[i] < currentMeasurements->sharedLatencies[i]){
-				double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
-				double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
-				double visibleIntCycles = computedOverlap[i] * totalInterferenceCycles;
-				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
-
-				assert(period > visibleIntCycles);
-				assert(visibleIntCycles >= 0);
-				aloneCycles[i] = ((double) period - visibleIntCycles);
-
-				DPRINTF(MissBWPolicy, "Estimating alone IPC to %f and alone cycles to %f\n",
-						avgLatencyAloneIPCModel[i],
-						aloneCycles[i]);
-
-			}
-			else{
-				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period);
-				aloneCycles[i] = (double) period;
-
-				DPRINTF(MissBWPolicy, "The estimated private latency %d is greater than the measured shared latency %d, concluding no interference with alone IPC %f and alone cycles %f\n",
-						currentMeasurements->estimatedPrivateLatencies[i],
-						currentMeasurements->sharedLatencies[i],
-						avgLatencyAloneIPCModel[i],
-						aloneCycles[i]);
-
-			}
-
-		}
-	}
+	fatal("call to estimateStallCycles must be reimplemented");
+//	for(int i=0;i<cpuCount;i++){
+//		if(caches[i]->getCurrentMSHRCount(true) == maxMSHRs){
+//
+//			double stallParallelism = currentMeasurements->avgMissesWhileStalled[i][maxMSHRs];
+//			double curMLP = currentMeasurements->mlpEstimate[i][maxMSHRs];
+//			double curReqs = currentMeasurements->requestsInSample[i];
+//			double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
+//			double newStallEstimate =
+//			estimateStallCycles(currentMeasurements->cpuStallCycles[i],
+//														  stallParallelism,
+//														  curMLP,
+//														  currentMeasurements->sharedLatencies[i],
+//														  curReqs,
+//														  stallParallelism,
+//														  curMLP,
+//														  currentMeasurements->estimatedPrivateLatencies[i],
+//														  curReqs,
+//														  currentMeasurements->responsesWhileStalled[i],
+//														  i,
+//														  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
+//														  privateMisses);
+//
+//			aloneIPCEstimates[i] = currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
+//			DPRINTF(MissBWPolicy, "Updating alone IPC estimate for cpu %i to %f, %d committed insts, %d non-stall cycles, %f new stall cycle estimate\n",
+//					              i,
+//					              aloneIPCEstimates[i],
+//					              currentMeasurements->committedInstructions[i],
+//					              currentMeasurements->getNonStallCycles(i, period),
+//								  newStallEstimate);
+//
+//			if(currentMeasurements->estimatedPrivateLatencies[i] < currentMeasurements->sharedLatencies[i]){
+//				double avgInterference = currentMeasurements->sharedLatencies[i] - currentMeasurements->estimatedPrivateLatencies[i];
+//				double totalInterferenceCycles = avgInterference * currentMeasurements->requestsInSample[i];
+//				double visibleIntCycles = computedOverlap[i] * totalInterferenceCycles;
+//				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period - visibleIntCycles);
+//
+//				assert(period > visibleIntCycles);
+//				assert(visibleIntCycles >= 0);
+//				aloneCycles[i] = ((double) period - visibleIntCycles);
+//
+//				DPRINTF(MissBWPolicy, "Estimating alone IPC to %f and alone cycles to %f\n",
+//						avgLatencyAloneIPCModel[i],
+//						aloneCycles[i]);
+//
+//			}
+//			else{
+//				avgLatencyAloneIPCModel[i]= (double) currentMeasurements->committedInstructions[i] / ((double) period);
+//				aloneCycles[i] = (double) period;
+//
+//				DPRINTF(MissBWPolicy, "The estimated private latency %d is greater than the measured shared latency %d, concluding no interference with alone IPC %f and alone cycles %f\n",
+//						currentMeasurements->estimatedPrivateLatencies[i],
+//						currentMeasurements->sharedLatencies[i],
+//						avgLatencyAloneIPCModel[i],
+//						aloneCycles[i]);
+//
+//			}
+//
+//		}
+//	}
 }
 
 void
@@ -608,10 +582,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
-	headers.push_back("Measured MLP");
-	headers.push_back("Measured Avg Burst Size");
-	headers.push_back("Private Shared Cache MLP");
-	headers.push_back("Shared Shared Cache MLP");
+	headers.push_back("Avg Private Memsys Latency");
+	headers.push_back("Private Requests");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -648,7 +620,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                double avgBurstSize,
 					                    double privateSharedCacheMLP,
 					                    double sharedSharedCacheMLP,
-					                    int commitCycles){
+					                    int commitCycles,
+					                    double sumPrivateMemsysCyclesWithL1,
+					                    double avgPrivateMemsysCyclesWithoutL1,
+					                    int privateRequests){
 
 	vector<RequestTraceEntry> data;
 
@@ -665,25 +640,16 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(stallCycles);
 	data.push_back(commitCycles);
 	data.push_back(reqs);
-	data.push_back(mlp);
-	data.push_back(avgBurstSize);
-	data.push_back(privateSharedCacheMLP);
-	data.push_back(sharedSharedCacheMLP);
+	data.push_back(avgPrivateMemsysCyclesWithoutL1);
+	data.push_back(privateRequests);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
-				                                      mws,
-				                                      mlp,
 				                                      avgSharedLat,
-				                                      reqs,
-				                                      mws,
-				                                      mlp,
 				                                      avgPrivateLatEstimate,
 				                                      reqs,
-				                                      responsesWhileStalled,
-				                                      cpuID,
-				                                      intManager->cacheInterference->getSharedCommitTraceMisses(cpuID),
-				                                      intManager->cacheInterference->getPrivateCommitTraceMisses(cpuID));
+				                                      sumPrivateMemsysCyclesWithL1,
+				                                      cpuID);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + newStallEstimate);
@@ -694,18 +660,21 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneIPCEstimate);
 
 		double sharedOverlap = 0;
-		if(reqs != 0){
-			sharedOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
+		if(sumPrivateMemsysCyclesWithL1 > 0){
+			sharedOverlap = (double) stallCycles / (double) (sumPrivateMemsysCyclesWithL1 + (avgSharedLat*reqs));
 		}
+		assert(sharedOverlap <= 1.0);
 		data.push_back(sharedOverlap);
 		data.push_back(computedOverlap[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneOverlap = 0;
-		if(reqs != 0){
-			aloneOverlap = (double) stallCycles / (double) (avgSharedLat*reqs);
+		if(sumPrivateMemsysCyclesWithL1 > 0){
+			aloneOverlap = (double) stallCycles / (double) (sumPrivateMemsysCyclesWithL1 +  (avgSharedLat*reqs));
 		}
+
+		assert(aloneOverlap <= 1.0);
 
 		data.push_back(avgSharedLat);
 		data.push_back(aloneIPC);

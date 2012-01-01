@@ -258,6 +258,13 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		fatal("Directory protocol does not handle data transfers");
 	}
 
+	if(isReadOnly){
+		req->instructionMiss = true;
+	}
+	else{
+		if(overlapEstimator != NULL) req->instructionMiss = false;
+	}
+
 	if(!isShared){
 		setSenderID(req);
 	}
@@ -360,8 +367,15 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		accessesPerCPU[cacheCpuID]++;
 	}
 
-	if(isShared && req->cmd == Read){
-		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+	if(req->cmd == Read){
+		if(interferenceManager != NULL){
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+		}
+		if(overlapEstimator != NULL){
+			//TODO: may want to handle MSHR hits explicitly
+			overlapEstimator->addL1Access(req, hitLatency, blk != NULL);
+		}
 	}
 
 	//shadow tag access
@@ -546,8 +560,14 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 		}
 	}
 
-	if(isShared && req->cmd == Read){
-		interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+	if(req->cmd == Read){
+		if(interferenceManager != NULL){
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+		}
+		if(overlapEstimator != NULL){
+			overlapEstimator->addPrivateLatency(req, hitLatency);
+		}
 	}
 
 	MemReqPtr copy_request;

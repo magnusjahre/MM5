@@ -382,20 +382,23 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 
 	for(int i=0;i<cpuCount;i++){
 
-		double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
-		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
-				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
-				                                      mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)],
-													  currentMeasurements->sharedLatencies[i],
-													  currentMeasurements->requestsInSample[i],
-													  mostRecentMWSEstimate[i][currentMHA[i]],
-													  mostRecentMLPEstimate[i][currentMHA[i]],
-													  sharedLatencyEstimates[i],
-													  currentMeasurements->requestsInSample[i],
-													  currentMeasurements->responsesWhileStalled[i],
-													  i,
-													  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
-													  privateMisses);
+		double newStallEstimate = 0.0;
+		fatal("estimateStallCycles call must be fixed");
+
+//		double privateMisses = currentMeasurements->perCoreCacheMeasurements[i].readMisses - currentMeasurements->perCoreCacheMeasurements[i].interferenceMisses;
+//		double newStallEstimate = estimateStallCycles(currentMeasurements->cpuStallCycles[i],
+//				                                      mostRecentMWSEstimate[i][caches[i]->getCurrentMSHRCount(true)],
+//				                                      mostRecentMLPEstimate[i][caches[i]->getCurrentMSHRCount(true)],
+//													  currentMeasurements->sharedLatencies[i],
+//													  currentMeasurements->requestsInSample[i],
+//													  mostRecentMWSEstimate[i][currentMHA[i]],
+//													  mostRecentMLPEstimate[i][currentMHA[i]],
+//													  sharedLatencyEstimates[i],
+//													  currentMeasurements->requestsInSample[i],
+//													  currentMeasurements->responsesWhileStalled[i],
+//													  i,
+//													  currentMeasurements->perCoreCacheMeasurements[i].readMisses,
+//													  privateMisses);
 
 		sharedIPCEstimates[i]= (double) currentMeasurements->committedInstructions[i] / (currentMeasurements->getNonStallCycles(i, period) + newStallEstimate);
 		speedups[i] = computeSpeedup(sharedIPCEstimates[i], i);

@@ -57,6 +57,12 @@ private:
 	std::vector<std::vector<double> > interferenceBreakdownAccumulator;
 	std::vector<int> currentRequests;
 
+	std::vector<double> privateLatencyAccumulator;
+	std::vector<int> privateRequests;
+
+	std::vector<double> l1HitAccumulator;
+	std::vector<int> l1HitRequests;
+
 	std::vector<std::vector<Tick> > interferenceSum;
 	std::vector<std::vector<int> > numInterferenceReqs;
 
@@ -163,6 +169,12 @@ public:
 	void incrementInterferenceRequestCount(LatencyType t, MemReqPtr& req);
 
 	void addLatency(LatencyType t, MemReqPtr& req, int latency);
+
+	void addPrivateLatency(LatencyType t, MemReqPtr& req, int latency);
+
+	void incrementPrivateRequestCount(MemReqPtr& req);
+
+	void addL1Hit(int cpuID, Tick latency);
 
 	void incrementLatencyRequestCount(LatencyType t, MemReqPtr& req);
 

@@ -321,6 +321,30 @@ MemoryOverlapEstimator::executionResumed(){
 	interferenceManager->addStallCycles(cpuID, stallLength, true);
 }
 
+void
+MemoryOverlapEstimator::incrementPrivateRequestCount(MemReqPtr& req){
+	interferenceManager->incrementPrivateRequestCount(req);
+}
+
+void
+MemoryOverlapEstimator::addPrivateLatency(MemReqPtr& req, int latency){
+	if(req->isStore) return;
+	if(req->instructionMiss) return;
+	interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, latency);
+}
+
+void
+MemoryOverlapEstimator::addL1Access(MemReqPtr& req, int latency, bool hit){
+	if(req->isStore) return;
+	if(hit){
+		assert(req->adaptiveMHASenderID != -1);
+		interferenceManager->addL1Hit(req->adaptiveMHASenderID, latency);
+	}
+	else{
+		interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, latency);
+	}
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)

@@ -777,7 +777,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
     
 else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
-    root.PointToPointLink = [PointToPointLink() for i in range(int(env['NP']))]
+    root.PointToPointLink = [PointToPointLink(interference_manager=root.interferenceManager) for i in range(int(env['NP']))]
     root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in range(int(env['NP'])) ]
     root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i]) for i in xrange(int(env['NP'])) ]
     

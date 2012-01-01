@@ -12,7 +12,8 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                                int _cpu_count,
                                HierParams *_hier,
                                AdaptiveMHA* _adaptiveMHA,
-                               Tick _detailedSimStart)
+                               Tick _detailedSimStart,
+                               InterferenceManager* _intman)
     : AddressDependentIC(_name,
                          _width,
                          _clock,
@@ -21,7 +22,7 @@ PeerToPeerLink::PeerToPeerLink(const std::string &_name,
                          _cpu_count,
                          _hier,
                          _adaptiveMHA,
-                         NULL)
+                         _intman)
 {
     initQueues(_cpu_count, 2);
     queueSize = 32;
@@ -74,10 +75,13 @@ PeerToPeerLink::send(MemReqPtr& req, Tick time, int fromID){
         return;
     }
 
-    if(req->finishedInCacheAt < curTick){
-        entryDelay += curTick - req->finishedInCacheAt;
+    if(allInterfaces[fromID]->isMaster()){
+		if(req->finishedInCacheAt < curTick){
+			entryDelay += curTick - req->finishedInCacheAt;
+			if(req->cmd == Read) interferenceManager->addPrivateLatency(InterferenceManager::InterconnectEntry, req, curTick - req->finishedInCacheAt);
+		}
+		entryRequests++;
     }
-    entryRequests++;
 
     req->inserted_into_crossbar = curTick;
 
@@ -120,6 +124,12 @@ PeerToPeerLink::arbitrate(Tick time){
         totalArbQueueCycles += curTick - mreq->inserted_into_crossbar;
         arbitratedRequests++;
 
+        if(mreq->cmd == Read){
+        	assert(interferenceManager != NULL);
+        	interferenceManager->addPrivateLatency(InterferenceManager::InterconnectRequestQueue, mreq, curTick - mreq->inserted_into_crossbar);
+        	interferenceManager->addPrivateLatency(InterferenceManager::InterconnectRequestTransfer, mreq, transferDelay);
+        }
+
         ADIDeliverEvent* delivery = new ADIDeliverEvent(this, mreq, true);
         delivery->schedule(curTick + transferDelay);
     }
@@ -133,6 +143,11 @@ PeerToPeerLink::arbitrate(Tick time){
 
         totalArbQueueCycles += curTick - sreq->inserted_into_crossbar;
         arbitratedRequests++;
+
+        if(sreq->cmd == Read){
+        	interferenceManager->addPrivateLatency(InterferenceManager::InterconnectResponseQueue, sreq, curTick - sreq->inserted_into_crossbar);
+        	interferenceManager->addPrivateLatency(InterferenceManager::InterconnectResponseTransfer, sreq, transferDelay);
+        }
 
         p2pResponseQueue.pop_front();
         ADIDeliverEvent* delivery = new ADIDeliverEvent(this, sreq, false);
@@ -214,6 +229,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(PeerToPeerLink)
     SimObjectParam<HierParams *> hier;
     SimObjectParam<AdaptiveMHA *> adaptive_mha;
     Param<Tick> detailed_sim_start_tick;
+    SimObjectParam<InterferenceManager *> interference_manager;
 END_DECLARE_SIM_OBJECT_PARAMS(PeerToPeerLink)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
@@ -224,7 +240,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
     INIT_PARAM(cpu_count, "the number of CPUs in the system"),
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(adaptive_mha, "AdaptiveMHA object", NULL),
-    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts")
+    INIT_PARAM(detailed_sim_start_tick, "The tick detailed simulation starts"),
+    INIT_PARAM_DFLT(interference_manager, "InterferenceManager object", NULL)
 END_INIT_SIM_OBJECT_PARAMS(PeerToPeerLink)
 
 CREATE_SIM_OBJECT(PeerToPeerLink)
@@ -237,7 +254,8 @@ CREATE_SIM_OBJECT(PeerToPeerLink)
                               cpu_count,
                               hier,
                               adaptive_mha,
-                              detailed_sim_start_tick);
+                              detailed_sim_start_tick,
+                              interference_manager);
 }
 
 REGISTER_SIM_OBJECT("PeerToPeerLink", PeerToPeerLink)
