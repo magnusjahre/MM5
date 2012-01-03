@@ -635,10 +635,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
-	if(reqs <= 0) assert(avgSharedLat == 0.0);
-	else assert(avgSharedLat > 0.0);
-	if(privateRequests <= 0) assert(avgPrivateMemsysCyclesWithoutL1 == 0.0);
-	else assert(avgPrivateMemsysCyclesWithoutL1 > 0.0);
+//	if(reqs <= 0) assert(avgSharedLat == 0.0);
+//	else assert(avgSharedLat > 0.0);
+//	if(privateRequests <= 0) assert(avgPrivateMemsysCyclesWithoutL1 == 0.0);
+//	else assert(avgPrivateMemsysCyclesWithoutL1 > 0.0);
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(cyclesInSample);
