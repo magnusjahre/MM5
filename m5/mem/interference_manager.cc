@@ -668,7 +668,11 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
 	double sumPrivateLatency = (double) privateLatencyAccumulator[cpuID] + (double) l1HitAccumulator[cpuID] + l1BlockedAccumulator[cpuID];
-	double avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
+
+	double avgPrivateLat = 0.0;
+	if(privateRequests[cpuID] > 0){
+		avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
+	}
 
 	if(missBandwidthPolicy != NULL){
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
