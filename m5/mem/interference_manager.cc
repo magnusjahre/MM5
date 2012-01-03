@@ -42,7 +42,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	privateRequests.resize(_cpu_count, 0);
 	l1HitAccumulator.resize(_cpu_count, 0);
 	l1HitRequests.resize(_cpu_count, 0);
-
+	l1BlockedAccumulator.resize(_cpu_count, 0);
 
 	latencySum.resize(_cpu_count, vector<Tick>(NUM_LAT_TYPES, 0));
 	numLatencyReqs.resize(_cpu_count, vector<int>(NUM_LAT_TYPES, 0));
@@ -638,6 +638,11 @@ InterferenceManager::addL1Hit(int cpuID, Tick latency){
 }
 
 void
+InterferenceManager::addL1BlockedCycle(int cpuID){
+	l1BlockedAccumulator[cpuID]++;
+}
+
+void
 InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample){
 
 
@@ -662,7 +667,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
-	double sumPrivateLatency = (double) privateLatencyAccumulator[cpuID] + (double) l1HitAccumulator[cpuID];
+	double sumPrivateLatency = (double) privateLatencyAccumulator[cpuID] + (double) l1HitAccumulator[cpuID] + l1BlockedAccumulator[cpuID];
 	double avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
 
 	if(missBandwidthPolicy != NULL){
@@ -697,6 +702,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	l1HitAccumulator[cpuID] = 0;
 	l1HitRequests[cpuID] = 0;
+	l1BlockedAccumulator[cpuID] = 0;
 }
 
 void

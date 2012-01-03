@@ -62,6 +62,7 @@ private:
 
 	std::vector<double> l1HitAccumulator;
 	std::vector<int> l1HitRequests;
+	std::vector<double> l1BlockedAccumulator;
 
 	std::vector<std::vector<Tick> > interferenceSum;
 	std::vector<std::vector<int> > numInterferenceReqs;
@@ -214,6 +215,8 @@ public:
 	void clearMSHROccupancyLists();
 
 	void addCommitCycle(int cpuID);
+
+	void addL1BlockedCycle(int cpuID);
 };
 
 #endif

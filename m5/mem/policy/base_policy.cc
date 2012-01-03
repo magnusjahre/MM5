@@ -635,6 +635,11 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
+	if(reqs <= 0) assert(avgSharedLat == 0.0);
+	else assert(avgSharedLat > 0.0);
+	if(privateRequests <= 0) assert(avgPrivateMemsysCyclesWithoutL1 == 0.0);
+	else assert(avgPrivateMemsysCyclesWithoutL1 > 0.0);
+
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
@@ -653,6 +658,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + newStallEstimate);
+
 
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateLatEstimate);
