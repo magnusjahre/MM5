@@ -39,6 +39,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	currentRequests.resize(_cpu_count, 0);
 
 	privateLatencyAccumulator.resize(_cpu_count, 0);
+	privateLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
 	privateRequests.resize(_cpu_count, 0);
 	l1HitAccumulator.resize(_cpu_count, 0);
 	l1HitRequests.resize(_cpu_count, 0);
@@ -83,6 +84,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	estimateTraces.resize(_cpu_count, RequestTrace());
 	latencyTraces.resize(_cpu_count, RequestTrace());
 	aloneMissTrace.resize(_cpu_count, RequestTrace());
+	privateLatencyTraces.resize(_cpu_count, RequestTrace());
 
 	for(int i=0;i<_cpu_count;i++){
 
@@ -90,9 +92,12 @@ InterferenceManager::InterferenceManager(std::string _name,
 		etitle << "CPU" << i << "InterferenceTrace";
 		stringstream ltitle;
 		ltitle << "CPU" << i << "LatencyTrace";
+		stringstream ptitle;
+		ptitle << "CPU" << i << "PrivateLatencyTrace";
 
 		estimateTraces[i] = RequestTrace(etitle.str(),"", 1);
 		latencyTraces[i] = RequestTrace(ltitle.str(),"", 1);
+		privateLatencyTraces[i] = RequestTrace(ptitle.str(),"", 1);
 
 		vector<string> traceHeaders;
 		traceHeaders.push_back("Requests");
@@ -114,6 +119,18 @@ InterferenceManager::InterferenceManager(std::string _name,
 		mTraceHeaders.push_back("Interference Misses");
 
 		aloneMissTrace[i].initalizeTrace(mTraceHeaders);
+
+		vector<string> privateLatencyHeaders;
+		privateLatencyHeaders.push_back("Committed instructions");
+		privateLatencyHeaders.push_back("L1 hits");
+		privateLatencyHeaders.push_back("L1 misses");
+		privateLatencyHeaders.push_back("Entry cycles");
+		privateLatencyHeaders.push_back("L1 access cycles");
+		privateLatencyHeaders.push_back("Interconnect entry");
+		privateLatencyHeaders.push_back("Interconnect queue");
+		privateLatencyHeaders.push_back("Interconnect transfer");
+		privateLatencyHeaders.push_back("L2 access cycles");
+		privateLatencyTraces[i].initalizeTrace(privateLatencyHeaders);
 	}
 
 	cpuStallAccumulator.resize(_cpu_count, 0);
@@ -619,6 +636,7 @@ InterferenceManager::addPrivateLatency(LatencyType t, MemReqPtr& req, int latenc
 	assert(req->adaptiveMHASenderID != -1);
 
 	privateLatencyAccumulator[req->adaptiveMHASenderID] += latency;
+	privateLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
 }
 
 void
@@ -643,9 +661,29 @@ InterferenceManager::addL1BlockedCycle(int cpuID){
 }
 
 void
+InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions){
+
+	vector<RequestTraceEntry> data;
+
+	data.push_back(committedInstructions);
+	data.push_back(l1HitRequests[fromCPU]);
+	data.push_back(privateRequests[fromCPU]);
+	data.push_back(l1BlockedAccumulator[fromCPU]);
+	data.push_back((double) l1HitAccumulator[fromCPU] / (double) l1HitRequests[fromCPU]);
+	data.push_back((double) privateLatencyBreakdownAccumulator[fromCPU][InterconnectEntry] / (double)privateRequests[fromCPU]);
+	data.push_back((double) (privateLatencyBreakdownAccumulator[fromCPU][InterconnectRequestQueue] + privateLatencyBreakdownAccumulator[fromCPU][InterconnectResponseQueue]) / (double) privateRequests[fromCPU]);
+	data.push_back((double) (privateLatencyBreakdownAccumulator[fromCPU][InterconnectRequestTransfer] + privateLatencyBreakdownAccumulator[fromCPU][InterconnectResponseTransfer]) / privateRequests[fromCPU]);
+	data.push_back((double) privateLatencyBreakdownAccumulator[fromCPU][CacheCapacity] / (double) privateRequests[fromCPU]);
+
+	privateLatencyTraces[fromCPU].addTrace(data);
+
+	for(int i=0;i<NUM_LAT_TYPES;i++) privateLatencyBreakdownAccumulator[fromCPU][i] = 0;
+}
+
+void
 InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample){
 
-
+	tracePrivateLatency(cpuID, committedInstructions);
 
 	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
 

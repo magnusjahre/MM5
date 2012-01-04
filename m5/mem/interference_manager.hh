@@ -58,6 +58,7 @@ private:
 	std::vector<int> currentRequests;
 
 	std::vector<double> privateLatencyAccumulator;
+	std::vector<std::vector<double> > privateLatencyBreakdownAccumulator;
 	std::vector<int> privateRequests;
 
 	std::vector<double> l1HitAccumulator;
@@ -90,10 +91,13 @@ private:
 
 	std::vector<RequestTrace> estimateTraces;
 	std::vector<RequestTrace> latencyTraces;
+	std::vector<RequestTrace> privateLatencyTraces;
 
 	std::vector<double> traceInterference(int fromCPU, std::vector<double> avgLats);
 
 	std::vector<double> traceLatency(int fromCPU);
+
+	void tracePrivateLatency(int fromCPU, int committedInstructions);
 
 	void traceMisses(int fromCPU);
 
