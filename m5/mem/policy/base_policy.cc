@@ -340,16 +340,21 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	}
 	else if(perfEstMethod == NO_MLP ){
 
-		assert(sumPrivateLatency > 0);
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private cycles %f, %f stall cycles\n",
+						currentAvgSharedLat,
+						sharedRequests,
+						sumPrivateLatency,
+						currentStallTime);
+
+		if(sumPrivateLatency == 0){
+			assert((int) currentStallTime == 0);
+			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning 0\n");
+			return 0;
+		}
 
 		computedOverlap[cpuID] = currentStallTime / (sumPrivateLatency + (currentAvgSharedLat * sharedRequests));
 
-		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private cycles %f, %f stall cycle, overlap is %f\n",
-				currentAvgSharedLat,
-				sharedRequests,
-				sumPrivateLatency,
-				currentStallTime,
-				computedOverlap[cpuID]);
+		DPRINTF(MissBWPolicyExtra, "Computed overlap %d\n", computedOverlap[cpuID]);
 
 		assert(computedOverlap[cpuID] <= 1.0);
 		assert(computedOverlap[cpuID] >= 0.0);
