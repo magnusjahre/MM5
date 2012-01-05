@@ -155,6 +155,16 @@ protected:
 	Stats::Formula avgTotalInterference;
 	Stats::Formula avgInterferencePercentage;
 
+	Stats::Vector<> totalPrivateMemsysLatency;
+	Stats::Vector<> privateMemsysRequests;
+	Stats::Formula avgPrivateMemsysLatency;
+
+	Stats::Vector<> totalL1HitLatency;
+	Stats::Vector<> totalL1HitRequests;
+	Stats::Formula avgL1HitLatency;
+
+	Stats::Vector<> totalMemsysEntryLatency;
+
 	Stats::Vector<> cpuStallCycles;
 	Stats::Vector<> numCpuStalls;
 	Stats::Formula cpuStallPercentage;

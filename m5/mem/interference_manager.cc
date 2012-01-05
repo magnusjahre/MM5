@@ -296,6 +296,44 @@ InterferenceManager::regStats(){
 		.desc("The average length of a CPU stall");
 
 	avgCpuStallLength = cpuStallCycles / numCpuStalls;
+
+
+	totalPrivateMemsysLatency
+		.init(intManCPUCount)
+		.name(name() + ".total_private_memsys_latency")
+		.desc("total latency through the private memory system");
+
+	privateMemsysRequests
+		.init(intManCPUCount)
+		.name(name() + ".total_private_memsys_requests")
+		.desc("number of private memory system requests");
+
+	avgPrivateMemsysLatency
+		.name(name() + ".avg_private_memsys_latency")
+		.desc("average latency through the private memory system");
+
+	avgPrivateMemsysLatency = totalPrivateMemsysLatency / privateMemsysRequests;
+
+	totalL1HitLatency
+	.init(intManCPUCount)
+	.name(name() + ".total_l1_hit_latency")
+	.desc("total latency for L1 hits");
+
+	totalL1HitRequests
+	.init(intManCPUCount)
+	.name(name() + ".total_l1_hit_requests")
+	.desc("number of L1 hit requests");
+
+	avgL1HitLatency
+	.name(name() + ".avg_l1_hit_latency")
+	.desc("average l1 hit latency");
+
+	avgL1HitLatency = totalL1HitLatency / totalL1HitRequests;
+
+	totalMemsysEntryLatency
+		.init(intManCPUCount)
+		.name(name() + ".total_memsys_entry_latency")
+		.desc("number of cycles where a blocked L1 cache delays a load");
 }
 
 void
@@ -637,6 +675,8 @@ InterferenceManager::addPrivateLatency(LatencyType t, MemReqPtr& req, int latenc
 
 	privateLatencyAccumulator[req->adaptiveMHASenderID] += latency;
 	privateLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
+
+	totalPrivateMemsysLatency[req->adaptiveMHASenderID] += latency;
 }
 
 void
@@ -647,17 +687,22 @@ InterferenceManager::incrementPrivateRequestCount(MemReqPtr& req){
 	assert(req->adaptiveMHASenderID != -1);
 
 	privateRequests[req->adaptiveMHASenderID]++;
+	privateMemsysRequests[req->adaptiveMHASenderID]++;
 }
 
 void
 InterferenceManager::addL1Hit(int cpuID, Tick latency){
 	l1HitAccumulator[cpuID] += latency;
 	l1HitRequests[cpuID]++;
+
+	totalL1HitLatency[cpuID] += latency;
+	totalL1HitRequests[cpuID]++;
 }
 
 void
 InterferenceManager::addL1BlockedCycle(int cpuID){
 	l1BlockedAccumulator[cpuID]++;
+	totalMemsysEntryLatency[cpuID]++;
 }
 
 void
