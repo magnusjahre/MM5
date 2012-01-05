@@ -302,7 +302,7 @@ void
 CacheInterference::measureOverlap(MemReqPtr &req, bool isCacheMiss, bool shadowMiss){
 
 	assert(req->cmd == Read || req->cmd == Writeback);
-	assert(shadowTags[req->adaptiveMHASenderID]->getNumSets() == numLeaderSets);
+	//assert(shadowTags[req->adaptiveMHASenderID]->getNumSets() == numLeaderSets);
 	if(req->cmd == Read && isCacheMiss){
 		assert(req->adaptiveMHASenderID >= 0);
 		int burstIndex = req->adaptiveMHASenderID;
