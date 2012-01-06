@@ -136,6 +136,9 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
 
     overlapEstimator = params.overlapEstimator;
+    if(overlapEstimator != NULL){
+    	overlapEstimator->registerL1DataCache(cacheCpuID, this);
+    }
 
     detailedSimulationStartTick = params.detailedSimStartTick;
 

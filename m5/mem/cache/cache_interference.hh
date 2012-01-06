@@ -192,15 +192,10 @@ private:
 	std::vector<int> interferenceMissAccumulator;
 	std::vector<int> accessAccumulator;
 
-	std::vector<Tick> lastBurstMissAt;
-
-	std::vector<int> sharedBurstSizeAccumulator;
-	std::vector<double> sharedBurstSizeSum;
-	std::vector<double> sharedBurstCount;
-
-	std::vector<int> aloneBurstSizeAccumulator;
-	std::vector<double> aloneBurstSizeSum;
-	std::vector<double> aloneBurstCount;
+	std::vector<Tick> lastPendingLoadChangeAt;
+	std::vector<int> pendingLoads;
+	std::vector<double> overlapAccumulator;
+	std::vector<Tick> overlapCycles;
 
     bool isLeaderSet(int set);
 
@@ -218,7 +213,7 @@ private:
 
     void doShadowReplacement(MemReqPtr& req, BaseCache* cache);
 
-    void measureOverlap(MemReqPtr &req, bool isCacheMiss, bool shadowMiss);
+    void measureOverlap(MemReqPtr &req, bool possibleIncrease);
 
 public:
 
@@ -273,8 +268,7 @@ public:
     	return misses;
     }
 
-    double getAloneOverlap(int cpuID);
-    double getSharedOverlap(int cpuID);
+    double getOverlap(int cpuID);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

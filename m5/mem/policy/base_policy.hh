@@ -215,20 +215,17 @@ public:
 	void doCommittedInstructionTrace(int cpuID,
 				                     double avgSharedLat,
 				                     double avgPrivateLatEstimate,
-				                     double mws,
-				                     double mlp,
 				                     int reqs,
 				                     int stallCycles,
 				                     int totalCycles,
 				                     int committedInsts,
-				                     int responsesWhileStalled,
-				                     double avgBurstSize,
-				                     double privateSharedCacheMLP,
-				                     double sharedSharedCacheMLP,
 				                     int commitCycles,
 				                     double sumPrivateMemsysCyclesWithL1,
 				                     double avgPrivateMemsysCyclesWithoutL1,
-				                     int privateRequests);
+				                     int privateRequests,
+				                     double l1overlap,
+				                     double l2overlap,
+				                     double memoverla);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

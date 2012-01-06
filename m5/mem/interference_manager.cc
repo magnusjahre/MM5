@@ -29,6 +29,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	fullCPUs.resize(_cpu_count, NULL);
 	lastPrivateCaches.resize(_cpu_count, NULL);
+	l1DataCaches.resize(_cpu_count, NULL);
 	requestsSinceLastSample.resize(_cpu_count, 0);
 	maxMSHRs = 0;
 
@@ -654,6 +655,12 @@ InterferenceManager::registerLastLevelPrivateCache(BaseCache* cache, int cpuID, 
 }
 
 void
+InterferenceManager::registerL1DataCache(int cpuID, BaseCache* cache){
+	assert(l1DataCaches[cpuID] == NULL);
+	l1DataCaches[cpuID] = cache;
+}
+
+void
 InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	assert(fullCPUs[cpuID] == NULL);
 	fullCPUs[cpuID] = cpu;
@@ -730,16 +737,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	tracePrivateLatency(cpuID, committedInstructions);
 
-	double mws = lastPrivateCaches[cpuID]->getInstTraceMWS();
-
-	double mlp = lastPrivateCaches[cpuID]->getInstTraceMLP();
-
-	double avgBurstSize = lastPrivateCaches[cpuID]->getAvgBurstSize();
-
-	int responsesWhileStalled  = lastPrivateCaches[cpuID]->getInstTraceRespWhileStalled();
-
-	double aloneSharedCacheOverlap = cacheInterference->getAloneOverlap(cpuID);
-	double sharedSharedCacheOverlap = cacheInterference->getSharedOverlap(cpuID);
+	double l1overlap = l1DataCaches[cpuID]->getInstTraceMLP();
+	double l2overlap = lastPrivateCaches[cpuID]->getInstTraceMLP();
+	double memoverlap = cacheInterference->getOverlap(cpuID);
 
 	// get alone latency prediction
 	double avgSharedLatency = 0;
@@ -761,20 +761,17 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
 														 predictedAloneLat,
-														 mws,
-														 mlp,
 														 instTraceRequests[cpuID],
 														 cpuComTraceStallCycles[cpuID],
 														 ticksInSample,
 														 committedInstructions,
-														 responsesWhileStalled,
-														 avgBurstSize,
-														 aloneSharedCacheOverlap,
-														 sharedSharedCacheOverlap,
 														 commitTraceCommitCycles[cpuID],
 														 sumPrivateLatency,
 														 avgPrivateLat,
-														 privateRequests[cpuID]);
+														 privateRequests[cpuID],
+														 l1overlap,
+														 l2overlap,
+														 memoverlap);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;

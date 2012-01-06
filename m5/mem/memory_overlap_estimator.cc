@@ -351,6 +351,11 @@ MemoryOverlapEstimator::addL1Access(MemReqPtr& req, int latency, bool hit){
 	}
 }
 
+void
+MemoryOverlapEstimator::registerL1DataCache(int cpuID, BaseCache* cache){
+	interferenceManager->registerL1DataCache(cpuID, cache);
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)

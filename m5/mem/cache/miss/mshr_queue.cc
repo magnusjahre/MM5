@@ -53,6 +53,7 @@ MSHRQueue::MSHRQueue(int num_mshrs, bool _isMissQueue, bool _doMSHRTrace, int re
 	occupancyListEnabled = false;
 
 	lastMSHRChangeAt = 0;
+	lastAllocatedForLoads = 0;
 	allocated = 0;
 	inServiceMSHRs = 0;
 	allocatedTargets = 0;
@@ -721,11 +722,25 @@ MSHRQueue::allocatedMSHRsChanged(bool increased){
 				}
 			}
 			aggregateMLPAccumulatorTicks += allocLength;
+		}
 
-			instTraceMLPAccumulator += (mlpcost * allocLength);
+		int allocatedForLoads = 0;
+		MSHR::ConstIterator i = allocatedList.begin();
+		MSHR::ConstIterator end = allocatedList.end();
+		for (; i != end; ++i) {
+			MSHR *mshr = *i;
+			if(!mshr->req->isStore){
+				allocatedForLoads++;
+			}
+		}
+
+		if(lastAllocatedForLoads > 0){
+			double overlap = 1.0 / lastAllocatedForLoads;
+			instTraceMLPAccumulator += (overlap * allocLength);
 			instTraceMLPCount += allocLength;
 		}
 
+		lastAllocatedForLoads = allocatedForLoads;
 		lastMSHRChangeAt = curTick;
 	}
 #endif

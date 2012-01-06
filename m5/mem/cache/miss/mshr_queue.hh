@@ -93,6 +93,7 @@ class MSHRQueue {
 	void missArrived(MemCmd cmd);
 
 	Tick lastMSHRChangeAt;
+	int lastAllocatedForLoads;
 	void allocatedMSHRsChanged(bool increased);
 
 	bool isMissQueue;

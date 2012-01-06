@@ -586,9 +586,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Cycles");
 	headers.push_back("Stall Cycles");
 	headers.push_back("Compute Cycles");
-	headers.push_back("Total Requests");
-	headers.push_back("Avg Private Memsys Latency");
 	headers.push_back("Private Requests");
+	headers.push_back("Avg Private Memsys Latency");
+	headers.push_back("Total Requests");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -604,6 +604,10 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Measured Alone Overlap");
 	}
 
+	headers.push_back("L1 <-> L2 Overlap");
+	headers.push_back("L2 <-> L3 Overlap");
+	headers.push_back("L3 <-> Mem Overlap");
+
 	comInstModelTraces.resize(cpuCount, RequestTrace());
 	for(int i=0;i<cpuCount;i++){
 		comInstModelTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("CommittedInsts", i).c_str(), 1);
@@ -615,20 +619,17 @@ void
 BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                double avgSharedLat,
 		                                double avgPrivateLatEstimate,
-		                                double mws,
-		                                double mlp,
 		                                int reqs,
 		                                int stallCycles,
 		                                int cyclesInSample,
 		                                int committedInsts,
-		                                int responsesWhileStalled,
-		                                double avgBurstSize,
-					                    double privateSharedCacheMLP,
-					                    double sharedSharedCacheMLP,
 					                    int commitCycles,
 					                    double sumPrivateMemsysCyclesWithL1,
 					                    double avgPrivateMemsysCyclesWithoutL1,
-					                    int privateRequests){
+					                    int privateRequests,
+					                    double l1overlap,
+					                    double l2overlap,
+					                    double memoverlap){
 
 	vector<RequestTraceEntry> data;
 
@@ -639,11 +640,6 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 			              committedInsts);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
-
-//	if(reqs <= 0) assert(avgSharedLat == 0.0);
-//	else assert(avgSharedLat > 0.0);
-//	if(privateRequests <= 0) assert(avgPrivateMemsysCyclesWithoutL1 == 0.0);
-//	else assert(avgPrivateMemsysCyclesWithoutL1 > 0.0);
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(cyclesInSample);
@@ -691,6 +687,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneIPC);
 		data.push_back(aloneOverlap);
 	}
+
+	data.push_back(l1overlap);
+	data.push_back(l2overlap);
+	data.push_back(memoverlap);
 
 	comInstModelTraces[cpuID].addTrace(data);
 }

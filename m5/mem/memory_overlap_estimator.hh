@@ -15,6 +15,7 @@
 #include "mem/interference_manager.hh"
 
 class InterferenceManager;
+class BaseCache;
 
 class MemoryOverlapEstimator : public SimObject{
 
@@ -128,6 +129,8 @@ public:
 	void addPrivateLatency(MemReqPtr& req, int latency);
 
 	void addL1Access(MemReqPtr& req, int latency, bool hit);
+
+	void registerL1DataCache(int cpuID, BaseCache* cache);
 
 };
 

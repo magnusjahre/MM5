@@ -103,14 +103,10 @@ CacheInterference::CacheInterference(std::string _name,
 	interferenceMissAccumulator.resize(cpuCount, 0);
 	accessAccumulator.resize(cpuCount, 0);
 
-	lastBurstMissAt.resize(cpuCount, 0);
-	sharedBurstSizeAccumulator.resize(cpuCount, 0);
-	sharedBurstSizeSum.resize(cpuCount, 0.0);
-	sharedBurstCount.resize(cpuCount, 0);
-
-	aloneBurstSizeAccumulator.resize(cpuCount, 0);
-	aloneBurstSizeSum.resize(cpuCount, 0);
-	aloneBurstCount.resize(cpuCount, 0);
+	lastPendingLoadChangeAt.resize(cpuCount, 0);
+	pendingLoads.resize(cpuCount, 0);
+	overlapAccumulator.resize(cpuCount, 0.0);
+	overlapCycles.resize(cpuCount, 0);
 
 	srand(240000);
 }
@@ -261,7 +257,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	doAccessStatistics(numberOfSets, req, isCacheMiss, shadowHit);
 
-	measureOverlap(req, isCacheMiss, !shadowHit);
+	if(isCacheMiss) measureOverlap(req, true);
 
 	if(curTick >= detailedSimStart
        && doInterferenceInsertion[req->adaptiveMHASenderID]
@@ -282,50 +278,45 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	}
 }
 
-double
-CacheInterference::getAloneOverlap(int cpuID){
-	double tmp = aloneBurstSizeSum[cpuID] / aloneBurstCount[cpuID];
-	aloneBurstSizeSum[cpuID] = 0.0;
-	aloneBurstCount[cpuID] = 0.0;
-	return 1.0/tmp;
-}
-
-double
-CacheInterference::getSharedOverlap(int cpuID){
-	double tmp = sharedBurstSizeSum[cpuID] / sharedBurstCount[cpuID];
-	sharedBurstSizeSum[cpuID] = 0.0;
-	sharedBurstCount[cpuID] = 0.0;
-	return 1.0/tmp;
-}
-
 void
-CacheInterference::measureOverlap(MemReqPtr &req, bool isCacheMiss, bool shadowMiss){
+CacheInterference::measureOverlap(MemReqPtr &req, bool possibleIncrease){
 
 	assert(req->cmd == Read || req->cmd == Writeback);
-	//assert(shadowTags[req->adaptiveMHASenderID]->getNumSets() == numLeaderSets);
-	if(req->cmd == Read && isCacheMiss){
+	if(req->cmd == Read && !req->isStore){
 		assert(req->adaptiveMHASenderID >= 0);
-		int burstIndex = req->adaptiveMHASenderID;
 
-		if((curTick - lastBurstMissAt[burstIndex]) > 100){
-			if(sharedBurstSizeAccumulator[burstIndex] > 0){
-				sharedBurstSizeSum[burstIndex] += sharedBurstSizeAccumulator[burstIndex];
-				sharedBurstCount[burstIndex]++;
+		if(pendingLoads[req->adaptiveMHASenderID] > 0){
+			double overlap = 1.0 / pendingLoads[req->adaptiveMHASenderID];
+			Tick duration = (curTick - lastPendingLoadChangeAt[req->adaptiveMHASenderID]);
+			overlapAccumulator[req->adaptiveMHASenderID] += overlap * duration;
+			overlapCycles[req->adaptiveMHASenderID] += duration;
+		}
 
-				aloneBurstSizeSum[burstIndex] += aloneBurstSizeAccumulator[burstIndex];
-				aloneBurstCount[burstIndex]++;
-			}
-			lastBurstMissAt[burstIndex] = curTick;
-			sharedBurstSizeAccumulator[burstIndex] = 1;
-			if(shadowMiss) aloneBurstSizeAccumulator[burstIndex] = 1;
-			else aloneBurstSizeAccumulator[burstIndex] = 0;
-
+		if(possibleIncrease){
+			pendingLoads[req->adaptiveMHASenderID]++;
 		}
 		else{
-			sharedBurstSizeAccumulator[burstIndex]++;
-			if(shadowMiss) aloneBurstSizeAccumulator[burstIndex]++;
+			pendingLoads[req->adaptiveMHASenderID]--;
 		}
+
+		lastPendingLoadChangeAt[req->adaptiveMHASenderID] = curTick;
 	}
+}
+
+double
+CacheInterference::getOverlap(int cpuID){
+	double overlap = 0.0;
+	if(overlapCycles[cpuID] > 0){
+		overlap = overlapAccumulator[cpuID] / overlapCycles[cpuID];
+	}
+	else{
+		assert(overlapAccumulator[cpuID] == 0.0);
+	}
+
+	overlapAccumulator[cpuID] = 0.0;
+	overlapCycles[cpuID] = 0;
+
+	return overlap;
 }
 
 void
@@ -446,6 +437,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCac
 	}
 
 	writebackAccumulator[req->adaptiveMHASenderID] += writebacks.size();
+
+	measureOverlap(req, false);
 
 	LRUBlk* currentBlk = findShadowTagBlockNoUpdate(req, req->adaptiveMHASenderID);
 	if(currentBlk == NULL){

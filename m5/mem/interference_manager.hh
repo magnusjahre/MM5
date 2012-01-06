@@ -49,6 +49,7 @@ private:
 	std::vector<BaseCache*> lastPrivateCaches;
 	std::vector<Bus*> memoryBuses;
 	std::vector<BaseCache* > sharedCaches;
+	std::vector<BaseCache* > l1DataCaches;
 	std::vector<int> requestsSinceLastSample;
 
 	std::vector<double> sharedLatencyAccumulator;
@@ -205,6 +206,7 @@ public:
 
 	void registerLastLevelPrivateCache(BaseCache* cache, int cpuID, int maxMSHRs);
 	void registerSharedCache(BaseCache* cache);
+	void registerL1DataCache(int cpuID, BaseCache* cache);
 
 	void registerCPU(FullCPU* cpu, int cpuID);
 
