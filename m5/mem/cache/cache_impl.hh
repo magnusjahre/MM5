@@ -442,6 +442,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		assert(req->adaptiveMHASenderID >= 0 && req->adaptiveMHASenderID < cpuCount);
 		missesPerCPU[req->adaptiveMHASenderID]++;
 
+		req->isSharedCacheMiss = true;
 		interferenceManager->addCacheResult(req);
 	}
 	else{

@@ -27,6 +27,7 @@ private:
 		Tick completedAt;
 		MemCmd origCmd;
 		bool isSharedReq;
+		bool isSharedCacheMiss;
 
 		EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
 			address = _a;
@@ -34,6 +35,7 @@ private:
 			origCmd = _origCmd;
 			completedAt = 0;
 			isSharedReq = false;
+			isSharedCacheMiss = false;
 		}
 
 		int latency(){
@@ -49,19 +51,20 @@ private:
 
 	class RequestGroupSignature{
 	private:
-		int numSharedAccesses;
+		int sharedCacheHits;
+		int sharedCacheMisses;
 		double avgPrivateAccesses;
 		double avgSharedLatency;
 		int entries;
 
 	public:
-		RequestGroupSignature(int sa);
+		RequestGroupSignature(int _sharedCacheHits, int _sharedCacheMisses);
 
-		bool match(int sa);
+		bool match(int _sharedCacheHits, int _sharedCacheMisses);
 
 		void add(double pa, double avgSharedLat);
 
-		void dump();
+		void populate(std::vector<RequestTraceEntry>* data);
 
 	};
 
@@ -78,6 +81,7 @@ private:
 
 	RequestTrace overlapTrace;
 	RequestTrace stallTrace;
+	RequestTrace requestGroupTrace;
 
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
@@ -123,7 +127,8 @@ private:
 	void initStallTrace();
 	void traceStalls(int committedInstructions);
 
-	void updateRequestGroups(int sa, int pa, Tick sl);
+	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl);
+	void initRequestGroupTrace();
 	void traceRequestGroups(int committedInstructions);
 
 public:

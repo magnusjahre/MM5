@@ -178,6 +178,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 
 	req->isStore = r->isStore;
 	req->beenInSharedMemSys = r->beenInSharedMemSys;
+	req->isSharedCacheMiss = r->isSharedCacheMiss;
 
 	req->data = new uint8_t[r->size];
 	if (r->data != NULL) {
@@ -278,6 +279,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 	to->interferenceAccurateSenderID = from->interferenceAccurateSenderID;
 	to->isStore = from->isStore;
 	to->beenInSharedMemSys = from->beenInSharedMemSys;
+	to->isSharedCacheMiss = from->isSharedCacheMiss;
 
 	if (from->data != NULL) {
 		to->data = new uint8_t[from->size];
