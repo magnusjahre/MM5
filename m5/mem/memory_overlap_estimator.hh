@@ -47,8 +47,28 @@ private:
 		}
 	};
 
+	class RequestGroupSignature{
+	private:
+		int numSharedAccesses;
+		double avgPrivateAccesses;
+		double avgSharedLatency;
+		int entries;
+
+	public:
+		RequestGroupSignature(int sa);
+
+		bool match(int sa);
+
+		void add(double pa, double avgSharedLat);
+
+		void dump();
+
+	};
+
 	std::vector<EstimationEntry> pendingRequests;
 	std::vector<EstimationEntry> completedRequests;
+
+	std::vector<RequestGroupSignature> groupSignatures;
 
 	Tick stalledAt;
 	Tick resumedAt;
@@ -102,6 +122,9 @@ private:
 	void traceOverlap(int committedInstructions);
 	void initStallTrace();
 	void traceStalls(int committedInstructions);
+
+	void updateRequestGroups(int sa, int pa, Tick sl);
+	void traceRequestGroups(int committedInstructions);
 
 public:
 	MemoryOverlapEstimator(std::string name, int id, InterferenceManager* _interferenceManager);

@@ -165,6 +165,7 @@ void
 MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceOverlap(committedInstructions);
 	traceStalls(committedInstructions);
+	traceRequestGroups(committedInstructions);
 }
 
 void
@@ -290,7 +291,9 @@ MemoryOverlapEstimator::executionResumed(){
 		completedRequests.erase(completedRequests.begin());
 	}
 
-	int burstSize = 0;
+	int sharedRequests = 0;
+	Tick sharedLatency = 0;
+	int privateRequests = 0;
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s\n",
 				completedRequests.front().address,
@@ -298,14 +301,19 @@ MemoryOverlapEstimator::executionResumed(){
 				(completedRequests.front().isSharedReq ? "shared": "private") );
 
 		if(completedRequests.front().isSharedReq){
-			burstSize++;
+			sharedRequests++;
+			sharedLatency += completedRequests.front().latency();
 		}
+		else{
+			privateRequests++;
+		}
+
 		completedRequests.erase(completedRequests.begin());
 
 	}
 
-	if(burstSize > 0){
-		burstAccumulator += burstSize;
+	if(sharedRequests > 0){
+		burstAccumulator += sharedRequests;
 		numSharedStalls++;
 
 		sharedStallCycles += stallLength;
@@ -316,6 +324,7 @@ MemoryOverlapEstimator::executionResumed(){
 	}
 
 	addStall(STALL_DMEM, stallLength, true);
+	updateRequestGroups(sharedRequests, privateRequests, sharedLatency);
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID, stallLength, true);
@@ -354,6 +363,65 @@ MemoryOverlapEstimator::addL1Access(MemReqPtr& req, int latency, bool hit){
 void
 MemoryOverlapEstimator::registerL1DataCache(int cpuID, BaseCache* cache){
 	interferenceManager->registerL1DataCache(cpuID, cache);
+}
+
+void
+MemoryOverlapEstimator::updateRequestGroups(int sa, int pa, Tick sl){
+
+	double avgSLat = (double) sl / (double) sa;
+
+	for(int i=0;i<groupSignatures.size();i++){
+		if(groupSignatures[i].match(sa)){
+			groupSignatures[i].add(pa, avgSLat);
+			return;
+		}
+	}
+
+	RequestGroupSignature rgs = RequestGroupSignature(sa);
+	rgs.add(pa, avgSLat);
+	groupSignatures.push_back(rgs);
+}
+
+void
+MemoryOverlapEstimator::traceRequestGroups(int committedInstructions){
+	for(int i=0;i<groupSignatures.size();i++){
+		groupSignatures[i].dump();
+	}
+	groupSignatures.clear();
+}
+
+MemoryOverlapEstimator::RequestGroupSignature::RequestGroupSignature(int sa){
+	numSharedAccesses = sa;
+
+	avgPrivateAccesses = 0.0;
+	avgSharedLatency = 0.0;
+	entries = 0;
+}
+
+bool
+MemoryOverlapEstimator::RequestGroupSignature::match(int sa){
+	if(sa == numSharedAccesses){
+		return true;
+	}
+	return false;
+}
+
+void
+MemoryOverlapEstimator::RequestGroupSignature::add(double pa, double avgSharedLat){
+
+	double curPrivReqTotal = avgPrivateAccesses * entries;
+	double curSharedTotal = avgSharedLatency * entries;
+
+	entries++;
+	if(curPrivReqTotal > 0 || pa > 0) avgPrivateAccesses = (curPrivReqTotal + pa) / (double) entries;
+	else avgPrivateAccesses = 0;
+	if(curSharedTotal > 0 || avgSharedLat > 0) avgSharedLatency = (curSharedTotal + avgSharedLat) / (double) entries;
+	else avgSharedLatency = 0;
+}
+
+void
+MemoryOverlapEstimator::RequestGroupSignature::dump(){
+	cout << curTick << ";" << numSharedAccesses << ";" << avgPrivateAccesses << ";" << avgSharedLatency << ";" << entries << "\n";
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
