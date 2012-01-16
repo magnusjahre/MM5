@@ -172,6 +172,8 @@ MemoryOverlapEstimator::initRequestGroupTrace(){
 	headers.push_back("Shared Cache Misses");
 	headers.push_back("Avg Private Requests");
 	headers.push_back("Avg Shared Latency");
+	headers.push_back("Avg Stall Length");
+	headers.push_back("Avg Issue To Stall");
 	headers.push_back("Frequency");
 
 	requestGroupTrace.initalizeTrace(headers);
@@ -228,7 +230,9 @@ MemoryOverlapEstimator::regStats(){
 
 void
 MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
-	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",req->paddr, req->cmd);
+	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",
+			(req->paddr & ~(CACHE_BLK_SIZE-1)),
+			req->cmd);
 	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
 }
 
@@ -303,25 +307,26 @@ MemoryOverlapEstimator::executionResumed(){
 
 	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles\n", stallLength);
 
-	while(!completedRequests.empty() && completedRequests.front().completedAt < stalledAt){
-		DPRINTF(OverlapEstimator, "Skipping request for address %d\n", completedRequests.front().address);
-		completedRequests.erase(completedRequests.begin());
-	}
-
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
 	Tick sharedLatency = 0;
+	double issueToStallLat = 0;
 	int privateRequests = 0;
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
-		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s\n",
+		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s, issue to stall %d\n",
 				completedRequests.front().address,
 				completedRequests.front().latency(),
-				(completedRequests.front().isSharedReq ? "shared": "private") );
+				(completedRequests.front().isSharedReq ? "shared": "private"),
+				stalledAt - completedRequests.front().issuedAt);
 
 		if(completedRequests.front().isSharedReq){
 			if(completedRequests.front().isSharedCacheMiss) sharedCacheMisses++;
 			else sharedCacheHits++;
 			sharedLatency += completedRequests.front().latency();
+
+			double tmpIssueToStall = stalledAt -completedRequests.front().issuedAt;
+			if(tmpIssueToStall < 0) tmpIssueToStall = 0;
+			issueToStallLat += tmpIssueToStall;
 		}
 		else{
 			privateRequests++;
@@ -338,7 +343,16 @@ MemoryOverlapEstimator::executionResumed(){
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
 
-		updateRequestGroups(sharedCacheHits, sharedCacheMisses, privateRequests, sharedLatency);
+		double avgIssueToStall = issueToStallLat / (sharedCacheHits+sharedCacheMisses);
+
+		DPRINTF(OverlapEstimator, "Shared stall detected, updating request group hits %d, misses %d, latency %d, stall %d, avg issue to stall %d\n",
+				sharedCacheHits,
+				sharedCacheMisses,
+				sharedLatency / (sharedCacheHits+sharedCacheMisses),
+				stallLength,
+				avgIssueToStall);
+
+		updateRequestGroups(sharedCacheHits, sharedCacheMisses, privateRequests, sharedLatency, stallLength, avgIssueToStall);
 	}
 	else{
 		privateStallCycles += stallLength;
@@ -386,19 +400,19 @@ MemoryOverlapEstimator::registerL1DataCache(int cpuID, BaseCache* cache){
 }
 
 void
-MemoryOverlapEstimator::updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl){
+MemoryOverlapEstimator::updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall){
 
 	double avgSLat = (double) sl / (double) (sharedHits + sharedMisses);
 
 	for(int i=0;i<groupSignatures.size();i++){
 		if(groupSignatures[i].match(sharedHits, sharedMisses)){
-			groupSignatures[i].add(pa, avgSLat);
+			groupSignatures[i].add(pa, avgSLat, stallLength, avgIssueToStall);
 			return;
 		}
 	}
 
 	RequestGroupSignature rgs = RequestGroupSignature(sharedHits, sharedMisses);
-	rgs.add(pa, avgSLat);
+	rgs.add(pa, avgSLat, stallLength, avgIssueToStall);
 	groupSignatures.push_back(rgs);
 }
 
@@ -419,6 +433,8 @@ MemoryOverlapEstimator::RequestGroupSignature::RequestGroupSignature(int _shared
 
 	avgPrivateAccesses = 0.0;
 	avgSharedLatency = 0.0;
+	avgStallLength = 0.0;
+	avgIssueToStall = 0.0;
 	entries = 0;
 }
 
@@ -431,16 +447,21 @@ MemoryOverlapEstimator::RequestGroupSignature::match(int _sharedCacheHits, int _
 }
 
 void
-MemoryOverlapEstimator::RequestGroupSignature::add(double pa, double avgSharedLat){
+MemoryOverlapEstimator::RequestGroupSignature::add(double pa, double avgSharedLat, double stallLength, double _avgIssueToStall){
 
 	double curPrivReqTotal = avgPrivateAccesses * entries;
 	double curSharedTotal = avgSharedLatency * entries;
+	double curStallTotal = avgStallLength * entries;
+	double curAvgIssueToStallTotal = avgIssueToStall * entries;
 
 	entries++;
 	if(curPrivReqTotal > 0 || pa > 0) avgPrivateAccesses = (curPrivReqTotal + pa) / (double) entries;
 	else avgPrivateAccesses = 0;
 	if(curSharedTotal > 0 || avgSharedLat > 0) avgSharedLatency = (curSharedTotal + avgSharedLat) / (double) entries;
 	else avgSharedLatency = 0;
+
+	avgStallLength = (stallLength + curStallTotal) / (double) entries;
+	avgIssueToStall = (_avgIssueToStall + curAvgIssueToStallTotal) / (double) entries;
 }
 
 void
@@ -449,6 +470,8 @@ MemoryOverlapEstimator::RequestGroupSignature::populate(std::vector<RequestTrace
 	data->push_back(sharedCacheMisses);
 	data->push_back(avgPrivateAccesses);
 	data->push_back(avgSharedLatency);
+	data->push_back(avgStallLength);
+	data->push_back(avgIssueToStall);
 	data->push_back(entries);
 }
 

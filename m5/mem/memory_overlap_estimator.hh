@@ -55,6 +55,8 @@ private:
 		int sharedCacheMisses;
 		double avgPrivateAccesses;
 		double avgSharedLatency;
+		double avgStallLength;
+		double avgIssueToStall;
 		int entries;
 
 	public:
@@ -62,7 +64,7 @@ private:
 
 		bool match(int _sharedCacheHits, int _sharedCacheMisses);
 
-		void add(double pa, double avgSharedLat);
+		void add(double pa, double avgSharedLat, double stallLength, double _avgIssueToStall);
 
 		void populate(std::vector<RequestTraceEntry>* data);
 
@@ -127,7 +129,7 @@ private:
 	void initStallTrace();
 	void traceStalls(int committedInstructions);
 
-	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl);
+	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall);
 	void initRequestGroupTrace();
 	void traceRequestGroups(int committedInstructions);
 
