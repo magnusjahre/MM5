@@ -410,7 +410,12 @@ FullCPU::commit()
 			tmpBlockedCycles++;
 
 			if(!isStalled){
-				overlapEstimator->stalledForMemory();
+
+				ROBStation *head = ROB.head();
+				assert(head->inst->isLoad());
+				Addr robCacheAddr = head->inst->eff_addr & ~(dcacheInterface->getBlockSize()-1);
+
+				overlapEstimator->stalledForMemory(robCacheAddr);
 				isStalled = true;
 			}
 

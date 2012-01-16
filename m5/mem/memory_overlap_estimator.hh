@@ -78,6 +78,7 @@ private:
 	Tick stalledAt;
 	Tick resumedAt;
 	bool isStalled;
+	Addr stalledOnAddr;
 
 	int cpuID;
 
@@ -142,7 +143,7 @@ public:
 
 	void completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad);
 
-	void stalledForMemory();
+	void stalledForMemory(Addr stalledOnCoreAddr);
 
 	void executionResumed();
 

@@ -18,6 +18,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	isStalled = false;
 	stalledAt = 0;
 	resumedAt = 0;
+	stalledOnAddr = 0;
 
 	cpuID = id;
 	interferenceManager = _interferenceManager;
@@ -287,13 +288,17 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 }
 
 void
-MemoryOverlapEstimator::stalledForMemory(){
+MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	assert(!isStalled);
 	isStalled = true;
 	stalledAt = curTick;
 	totalStalls++;
 
-	DPRINTF(OverlapEstimator, "Stalling...\n");
+	stalledOnAddr = stalledOnCoreAddr;
+
+	if(interferenceManager->getCPUCount() > 1) fatal("multi-core core address conversion not implemented");
+
+	DPRINTF(OverlapEstimator, "Stalling, oldest address is %d\n", stalledOnCoreAddr);
 }
 
 void
@@ -312,6 +317,7 @@ MemoryOverlapEstimator::executionResumed(){
 	Tick sharedLatency = 0;
 	double issueToStallLat = 0;
 	int privateRequests = 0;
+	bool stalledOnShared = false;
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s, issue to stall %d\n",
 				completedRequests.front().address,
@@ -320,13 +326,16 @@ MemoryOverlapEstimator::executionResumed(){
 				stalledAt - completedRequests.front().issuedAt);
 
 		if(completedRequests.front().isSharedReq){
+			if(completedRequests.front().address == stalledOnAddr){
+				stalledOnShared = true;
+				issueToStallLat = stalledAt -completedRequests.front().issuedAt;
+				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d\n",
+						issueToStallLat);
+			}
+
 			if(completedRequests.front().isSharedCacheMiss) sharedCacheMisses++;
 			else sharedCacheHits++;
 			sharedLatency += completedRequests.front().latency();
-
-			double tmpIssueToStall = stalledAt -completedRequests.front().issuedAt;
-			if(tmpIssueToStall < 0) tmpIssueToStall = 0;
-			issueToStallLat += tmpIssueToStall;
 		}
 		else{
 			privateRequests++;
@@ -336,7 +345,8 @@ MemoryOverlapEstimator::executionResumed(){
 
 	}
 
-	if((sharedCacheHits+sharedCacheMisses) > 0){
+	if(stalledOnShared > 0){
+
 		burstAccumulator += sharedCacheHits+sharedCacheMisses;
 		numSharedStalls++;
 
@@ -345,7 +355,7 @@ MemoryOverlapEstimator::executionResumed(){
 
 		double avgIssueToStall = issueToStallLat / (sharedCacheHits+sharedCacheMisses);
 
-		DPRINTF(OverlapEstimator, "Shared stall detected, updating request group hits %d, misses %d, latency %d, stall %d, avg issue to stall %d\n",
+		DPRINTF(OverlapEstimator, "Stall on shared request, updating request group hits %d, misses %d, latency %d, stall %d, avg issue to stall %d\n",
 				sharedCacheHits,
 				sharedCacheMisses,
 				sharedLatency / (sharedCacheHits+sharedCacheMisses),
@@ -355,6 +365,7 @@ MemoryOverlapEstimator::executionResumed(){
 		updateRequestGroups(sharedCacheHits, sharedCacheMisses, privateRequests, sharedLatency, stallLength, avgIssueToStall);
 	}
 	else{
+		DPRINTF(OverlapEstimator, "Stall on private request\n");
 		privateStallCycles += stallLength;
 	}
 
