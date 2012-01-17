@@ -20,6 +20,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	resumedAt = 0;
 	stalledOnAddr = 0;
 
+	stallIdentifyAlg = SHARED_STALL_ROB; //FIXME: parameterize
+	//stallIdentifyAlg = SHARED_STALL_EXISTS; //FIXME: parameterize
+
 	cpuID = id;
 	interferenceManager = _interferenceManager;
 
@@ -130,7 +133,8 @@ MemoryOverlapEstimator::initStallTrace(){
 	headers.push_back("Commit cycles");
 	headers.push_back("Storebuffer Stalls");
 	headers.push_back("Functional Unit Stalls");
-	headers.push_back("Memory Related Stalls");
+	headers.push_back("Private Memory Stalls");
+	headers.push_back("Shared Memory Stalls");
 	headers.push_back("Other Stalls");
 
 	stallTrace.initalizeTrace(headers);
@@ -148,7 +152,8 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 	data.push_back(commitCycles);
 	data.push_back(stallCycles[STALL_STORE_BUFFER]);
 	data.push_back(stallCycles[STALL_FUNC_UNIT]);
-	data.push_back(stallCycles[STALL_DMEM]);
+	data.push_back(stallCycles[STALL_DMEM_PRIVATE]);
+	data.push_back(stallCycles[STALL_DMEM_SHARED]);
 	data.push_back(stallCycles[STALL_OTHER]);
 
 	stallTrace.addTrace(data);
@@ -345,7 +350,7 @@ MemoryOverlapEstimator::executionResumed(){
 
 	}
 
-	if(stalledOnShared > 0){
+	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses)){
 
 		burstAccumulator += sharedCacheHits+sharedCacheMisses;
 		numSharedStalls++;
@@ -363,22 +368,35 @@ MemoryOverlapEstimator::executionResumed(){
 				avgIssueToStall);
 
 		updateRequestGroups(sharedCacheHits, sharedCacheMisses, privateRequests, sharedLatency, stallLength, avgIssueToStall);
+		addStall(STALL_DMEM_SHARED, stallLength, true);
 	}
 	else{
 		DPRINTF(OverlapEstimator, "Stall on private request\n");
 		privateStallCycles += stallLength;
+
+		addStall(STALL_DMEM_PRIVATE, stallLength, true);
 	}
 
-	addStall(STALL_DMEM, stallLength, true);
-
+	// FIXME: move to shared?
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID, stallLength, true);
+}
 
-	DPRINTF(OverlapEstimator, "Current stall breakdown: store buffer %d, func unit %d, mem %d, other %d\n",
-			stallCycles[STALL_STORE_BUFFER],
-			stallCycles[STALL_FUNC_UNIT],
-			stallCycles[STALL_DMEM],
-			stallCycles[STALL_OTHER]);
+bool
+MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs){
+	switch(stallIdentifyAlg){
+	case SHARED_STALL_EXISTS:
+		if(sharedReqs > 0) return true;
+		return false;
+		break;
+	case SHARED_STALL_ROB:
+		return oldestInstIsShared;
+		break;
+	default:
+		fatal("Unknown stall identification algorithm");
+	}
+
+	return false;
 }
 
 void

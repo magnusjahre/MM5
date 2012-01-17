@@ -114,15 +114,23 @@ public:
 
 	enum StallCause{
 		STALL_STORE_BUFFER,
-		STALL_DMEM,
+		STALL_DMEM_PRIVATE,
+		STALL_DMEM_SHARED,
 		STALL_FUNC_UNIT,
 		STALL_OTHER,
 		NUM_STALL_CAUSES
 	};
 
+	enum SharedStallIndentifier{
+		SHARED_STALL_ROB,
+		SHARED_STALL_EXISTS
+	};
+
 private:
 	Tick stallCycles[NUM_STALL_CAUSES];
 	Tick commitCycles;
+
+	SharedStallIndentifier stallIdentifyAlg;
 
 private:
 	void initOverlapTrace();
@@ -133,6 +141,8 @@ private:
 	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall);
 	void initRequestGroupTrace();
 	void traceRequestGroups(int committedInstructions);
+
+	bool isSharedStall(bool oldestInstIsShared, int sharedReqs);
 
 public:
 	MemoryOverlapEstimator(std::string name, int id, InterferenceManager* _interferenceManager);
