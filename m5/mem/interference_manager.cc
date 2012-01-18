@@ -140,6 +140,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 //	cpuIsStalled.resize(_cpu_count, false);
 
 	commitTraceCommitCycles.resize(_cpu_count, 0);
+	commitTracePrivateStall.resize(_cpu_count, 0);
 }
 
 void
@@ -667,11 +668,16 @@ InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 }
 
 void
-InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool incrementNumStalls){
-	cpuStallAccumulator[cpuID] += cpuStalledFor;
-	cpuComTraceStallCycles[cpuID] += cpuStalledFor;
-	cpuStallCycles[cpuID] += cpuStalledFor;
-	if(incrementNumStalls) numCpuStalls[cpuID]++;
+InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls){
+	if(isShared){
+		cpuStallAccumulator[cpuID] += cpuStalledFor;
+		cpuComTraceStallCycles[cpuID] += cpuStalledFor;
+		cpuStallCycles[cpuID] += cpuStalledFor;
+		if(incrementNumStalls) numCpuStalls[cpuID]++;
+	}
+	else{
+		commitTracePrivateStall[cpuID] += cpuStalledFor;
+	}
 }
 
 void
@@ -737,10 +743,6 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	tracePrivateLatency(cpuID, committedInstructions);
 
-	double l1overlap = l1DataCaches[cpuID]->getInstTraceMLP();
-	double l2overlap = lastPrivateCaches[cpuID]->getInstTraceMLP();
-	double memoverlap = cacheInterference->getOverlap(cpuID);
-
 	// get alone latency prediction
 	double avgSharedLatency = 0;
 	double avgInterferenceLatency = 0;
@@ -750,11 +752,10 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
-	double sumPrivateLatency = (double) privateLatencyAccumulator[cpuID] + (double) l1HitAccumulator[cpuID] + l1BlockedAccumulator[cpuID];
-
 	double avgPrivateLat = 0.0;
 	if(privateRequests[cpuID] > 0){
 		avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
+		avgPrivateLat += 3.0; //FIXME: hack for accounting for L1 access latency
 	}
 
 	if(missBandwidthPolicy != NULL){
@@ -766,12 +767,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 ticksInSample,
 														 committedInstructions,
 														 commitTraceCommitCycles[cpuID],
-														 sumPrivateLatency,
-														 avgPrivateLat,
-														 privateRequests[cpuID],
-														 l1overlap,
-														 l2overlap,
-														 memoverlap);
+														 commitTracePrivateStall[cpuID],
+														 avgPrivateLat);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -780,6 +777,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	cpuComTraceStallCycles[cpuID] = 0;
 
 	commitTraceCommitCycles[cpuID] = 0;
+	commitTracePrivateStall[cpuID] = 0;
 
 	privateLatencyAccumulator[cpuID] = 0;
 	privateRequests[cpuID] = 0;

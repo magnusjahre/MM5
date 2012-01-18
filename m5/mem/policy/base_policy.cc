@@ -327,10 +327,10 @@ BasePolicy::computeCurrentMetricValue(){
 
 double
 BasePolicy::estimateStallCycles(double currentStallTime,
+								double privateStallTime,
 							    double currentAvgSharedLat,
 								double newAvgSharedLat,
 								double sharedRequests,
-								double sumPrivateLatency,
 								int cpuID){
 
 	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
@@ -340,33 +340,26 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	}
 	else if(perfEstMethod == NO_MLP ){
 
-		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private cycles %f, %f stall cycles\n",
+		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
 						currentAvgSharedLat,
 						sharedRequests,
-						sumPrivateLatency,
+						privateStallTime,
 						currentStallTime);
 
-		if(sumPrivateLatency == 0){
+		if(sharedRequests == 0){
 			assert((int) currentStallTime == 0);
 			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning 0\n");
 			return 0;
 		}
 
-		computedOverlap[cpuID] = currentStallTime / (sumPrivateLatency + (currentAvgSharedLat * sharedRequests));
+		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * sharedRequests);
 
 		DPRINTF(MissBWPolicyExtra, "Computed overlap %d\n", computedOverlap[cpuID]);
 
 		assert(computedOverlap[cpuID] <= 1.0);
 		assert(computedOverlap[cpuID] >= 0.0);
 
-		double privateStallCycles = computedOverlap[cpuID] * sumPrivateLatency;
-		double sharedStallCycles = currentStallTime - privateStallCycles;
-
-		DPRINTF(MissBWPolicyExtra, "Estimated %d private stall cycles and %d shared stall cycles\n",
-				privateStallCycles,
-				sharedStallCycles);
-
-		double newStallTime = privateStallCycles +  computedOverlap[cpuID] * newAvgSharedLat * sharedRequests;
+		double newStallTime = privateStallTime +  computedOverlap[cpuID] * newAvgSharedLat * sharedRequests;
 
 		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f\n",
 							        newStallTime,
@@ -585,13 +578,13 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Cummulative Committed Instructions");
 	headers.push_back("Total Cycles");
 	headers.push_back("Stall Cycles");
+	headers.push_back("Private Stall Cycles");
 	headers.push_back("Compute Cycles");
-	headers.push_back("Private Requests");
-	headers.push_back("Avg Private Memsys Latency");
 	headers.push_back("Total Requests");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
+		headers.push_back("Average Shared Private Memsys Latency");
 		headers.push_back("Estimated Private Latency");
 		headers.push_back("Shared IPC");
 		headers.push_back("Estimated Alone IPC");
@@ -600,13 +593,10 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
+		headers.push_back("Average Alone Private Memsys Latency");
 		headers.push_back("Measured Alone IPC");
 		headers.push_back("Measured Alone Overlap");
 	}
-
-	headers.push_back("L1 <-> L2 Overlap");
-	headers.push_back("L2 <-> L3 Overlap");
-	headers.push_back("L3 <-> Mem Overlap");
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
 	for(int i=0;i<cpuCount;i++){
@@ -624,37 +614,34 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                int cyclesInSample,
 		                                int committedInsts,
 					                    int commitCycles,
-					                    double sumPrivateMemsysCyclesWithL1,
-					                    double avgPrivateMemsysCyclesWithoutL1,
-					                    int privateRequests,
-					                    double l1overlap,
-					                    double l2overlap,
-					                    double memoverlap){
+					                    Tick privateStallCycles,
+					                    double avgPrivateMemsysLat){
 
 	vector<RequestTraceEntry> data;
 
-	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles in sample, %d commit cycles, %d committed insts\n",
+	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles in sample, %d commit cycles, %d committed insts, private stall %d, shared stall %d\n",
 			              cpuID,
 			              cyclesInSample,
 			              commitCycles,
-			              committedInsts);
+			              committedInsts,
+			              privateStallCycles,
+			              stallCycles);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
 	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
+	data.push_back(privateStallCycles);
 	data.push_back(commitCycles);
 	data.push_back(reqs);
-	data.push_back(avgPrivateMemsysCyclesWithoutL1);
-	data.push_back(privateRequests);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
-				                                      avgSharedLat,
+													  privateStallCycles,
+				                                      avgSharedLat + avgPrivateMemsysLat,
 				                                      avgPrivateLatEstimate,
 				                                      reqs,
-				                                      sumPrivateMemsysCyclesWithL1,
 				                                      cpuID);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
@@ -662,13 +649,14 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 
 		data.push_back(avgSharedLat);
+		data.push_back(avgPrivateMemsysLat);
 		data.push_back(avgPrivateLatEstimate);
 		data.push_back(sharedIPC);
 		data.push_back(aloneIPCEstimate);
 
 		double sharedOverlap = 0;
-		if(sumPrivateMemsysCyclesWithL1 > 0){
-			sharedOverlap = (double) stallCycles / (double) (sumPrivateMemsysCyclesWithL1 + (avgSharedLat*reqs));
+		if(reqs > 0){
+			sharedOverlap = (double) stallCycles / (double) ((avgSharedLat+avgPrivateMemsysLat)*reqs);
 		}
 		assert(sharedOverlap <= 1.0);
 		data.push_back(sharedOverlap);
@@ -677,20 +665,23 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneOverlap = 0;
-		if(sumPrivateMemsysCyclesWithL1 > 0){
-			aloneOverlap = (double) stallCycles / (double) (sumPrivateMemsysCyclesWithL1 +  (avgSharedLat*reqs));
+		if(reqs > 0){
+			aloneOverlap = (double) stallCycles / (double) ((avgSharedLat+avgPrivateMemsysLat)*reqs);
 		}
+
+		DPRINTF(MissBWPolicy, "Computed alone IPC %d and alone overlap %d from latency %d and requests %d\n",
+				aloneIPC,
+				aloneOverlap,
+				avgSharedLat + avgPrivateMemsysLat,
+				reqs);
 
 		assert(aloneOverlap <= 1.0);
 
 		data.push_back(avgSharedLat);
+		data.push_back(avgPrivateMemsysLat);
 		data.push_back(aloneIPC);
 		data.push_back(aloneOverlap);
 	}
-
-	data.push_back(l1overlap);
-	data.push_back(l2overlap);
-	data.push_back(memoverlap);
 
 	comInstModelTraces[cpuID].addTrace(data);
 }

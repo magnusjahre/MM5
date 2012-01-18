@@ -172,10 +172,10 @@ protected:
 	double computeSpeedup(double sharedIPCEstimate, int cpuID);
 
 	double estimateStallCycles(double currentStallTime,
+							   double privateStallTime,
 							   double currentAvgSharedLat,
 							   double newAvgSharedLat,
 							   double sharedRequests,
-							   double sumPrivateLatency,
 							   int cpuID);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
@@ -220,12 +220,8 @@ public:
 				                     int totalCycles,
 				                     int committedInsts,
 				                     int commitCycles,
-				                     double sumPrivateMemsysCyclesWithL1,
-				                     double avgPrivateMemsysCyclesWithoutL1,
-				                     int privateRequests,
-				                     double l1overlap,
-				                     double l2overlap,
-				                     double memoverla);
+				                     Tick privateStallCycles,
+				                     double avgPrivateMemsysLat);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

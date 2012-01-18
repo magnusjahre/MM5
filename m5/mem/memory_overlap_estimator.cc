@@ -377,9 +377,11 @@ MemoryOverlapEstimator::executionResumed(){
 		addStall(STALL_DMEM_PRIVATE, stallLength, true);
 	}
 
-	// FIXME: move to shared?
 	assert(interferenceManager != NULL);
-	interferenceManager->addStallCycles(cpuID, stallLength, true);
+	interferenceManager->addStallCycles(cpuID,
+			                            stallLength,
+			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses),
+			                            true);
 }
 
 bool
