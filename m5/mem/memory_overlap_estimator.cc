@@ -13,8 +13,8 @@ using namespace std;
 
 #define CACHE_BLK_SIZE 64
 
-MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager)
-: SimObject(name){
+MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager, int cpu_count, HierParams* params)
+: BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
 	resumedAt = 0;
@@ -24,6 +24,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	//stallIdentifyAlg = SHARED_STALL_EXISTS; //FIXME: parameterize
 
 	cpuID = id;
+	cpuCount = cpu_count;
 	interferenceManager = _interferenceManager;
 
 	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
@@ -299,11 +300,9 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	stalledAt = curTick;
 	totalStalls++;
 
-	stalledOnAddr = stalledOnCoreAddr;
+	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
 
-	if(interferenceManager->getCPUCount() > 1) fatal("multi-core core address conversion not implemented");
-
-	DPRINTF(OverlapEstimator, "Stalling, oldest address is %d\n", stalledOnCoreAddr);
+	DPRINTF(OverlapEstimator, "Stalling, oldest core address is %d, relocated to %d\n", stalledOnCoreAddr, stalledOnAddr);
 }
 
 void
@@ -510,17 +509,21 @@ MemoryOverlapEstimator::RequestGroupSignature::populate(std::vector<RequestTrace
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
     Param<int> id;
+	Param<int> cpu_count;
 	SimObjectParam<InterferenceManager *> interference_manager;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM(id, "ID of this estimator"),
+	INIT_PARAM(cpu_count, "Number of cores in the system"),
 	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
 {
-    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager);
+	HierParams* params = new HierParams(getInstanceName(), false, true, cpu_count);
+
+    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager, cpu_count, params);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

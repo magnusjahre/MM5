@@ -755,7 +755,7 @@ sss = -1
 if "SIMPOINT-SAMPLE-SIZE" in env:
     sss = int(env["SIMPOINT-SAMPLE-SIZE"])
 
-root.overlapEstimators = [MemoryOverlapEstimator(id=i, interference_manager=root.interferenceManager) for i in  xrange(int(env['NP']))]
+root.overlapEstimators = [MemoryOverlapEstimator(id=i, interference_manager=root.interferenceManager, cpu_count=int(env['NP'])) for i in  xrange(int(env['NP']))]
 
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)

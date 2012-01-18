@@ -10,6 +10,7 @@
 
 #include "sim/sim_object.hh"
 #include "mem/mem_req.hh"
+#include "mem/base_hier.hh"
 #include "base/statistics.hh"
 #include "mem/requesttrace.hh"
 #include "mem/interference_manager.hh"
@@ -17,7 +18,7 @@
 class InterferenceManager;
 class BaseCache;
 
-class MemoryOverlapEstimator : public SimObject{
+class MemoryOverlapEstimator : public BaseHier{
 
 private:
 	class EstimationEntry{
@@ -81,6 +82,7 @@ private:
 	Addr stalledOnAddr;
 
 	int cpuID;
+	int cpuCount;
 
 	RequestTrace overlapTrace;
 	RequestTrace stallTrace;
@@ -145,7 +147,11 @@ private:
 	bool isSharedStall(bool oldestInstIsShared, int sharedReqs);
 
 public:
-	MemoryOverlapEstimator(std::string name, int id, InterferenceManager* _interferenceManager);
+	MemoryOverlapEstimator(std::string name,
+						   int id,
+						   InterferenceManager* _interferenceManager,
+						   int cpu_count,
+						   HierParams* params);
 
 	void regStats();
 
