@@ -100,6 +100,8 @@ private:
 
 	Tick lastActivityCycle;
 
+	Tick hiddenSharedLatencyAccumulator;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;

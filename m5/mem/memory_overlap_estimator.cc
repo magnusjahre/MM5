@@ -88,6 +88,8 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Total Requests");
 	headers.push_back("Shared Loads");
 	headers.push_back("Average Shared Load Latency");
+	headers.push_back("Avg Hidden Shared Latency");
+	headers.push_back("Computed shared stall");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -96,6 +98,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	totalRequestAccumulator = 0;
 	sharedRequestAccumulator = 0;
 	sharedLatencyAccumulator = 0;
+	hiddenSharedLatencyAccumulator = 0;
 }
 
 void
@@ -110,6 +113,8 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 
 	if(sharedRequestAccumulator > 0){
 		data.push_back((double) sharedLatencyAccumulator / (double) sharedRequestAccumulator);
+		data.push_back((double) hiddenSharedLatencyAccumulator / (double) sharedRequestAccumulator);
+		data.push_back(sharedLatencyAccumulator - hiddenSharedLatencyAccumulator);
 	}
 	else{
 		data.push_back(0);
@@ -120,6 +125,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 	totalRequestAccumulator = 0;
 	sharedRequestAccumulator = 0;
 	sharedLatencyAccumulator = 0;
+	hiddenSharedLatencyAccumulator = 0;
 
 	overlapTrace.addTrace(data);
 }
@@ -279,14 +285,6 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 					pendingRequests[useIndex].origCmd,
 					finishedAt - pendingRequests[useIndex].issuedAt);
 
-		if(pendingRequests[useIndex].isSharedReq){
-			DPRINTF(OverlapEstimator, "Memory request for addr %d has been in the shared memory system\n", req->paddr);
-			sharedLoadCount++;
-			sharedRequestAccumulator++;
-			totalLoadLatency += pendingRequests[useIndex].latency();
-			sharedLatencyAccumulator += pendingRequests[useIndex].latency();
-		}
-
 		completedRequests.push_back(pendingRequests[useIndex]);
 	}
 
@@ -335,7 +333,18 @@ MemoryOverlapEstimator::executionResumed(){
 				issueToStallLat = stalledAt -completedRequests.front().issuedAt;
 				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d\n",
 						issueToStallLat);
+
+				assert(issueToStallLat >= -5);
+				hiddenSharedLatencyAccumulator += (issueToStallLat > 0 ? issueToStallLat : 0);
 			}
+			else{
+				hiddenSharedLatencyAccumulator += completedRequests.front().latency();
+			}
+
+			sharedLoadCount++;
+			sharedRequestAccumulator++;
+			totalLoadLatency += completedRequests.front().latency();
+			sharedLatencyAccumulator += completedRequests.front().latency();
 
 			if(completedRequests.front().isSharedCacheMiss) sharedCacheMisses++;
 			else sharedCacheHits++;
