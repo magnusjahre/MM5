@@ -348,8 +348,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		if(sharedRequests == 0){
 			assert((int) currentStallTime == 0);
-			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning 0\n");
-			return 0;
+			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning private stall cycles %d\n", privateStallTime);
+			return privateStallTime;
 		}
 
 		computedOverlap[cpuID] = currentStallTime / (currentAvgSharedLat * sharedRequests);
