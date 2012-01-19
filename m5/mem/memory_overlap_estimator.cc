@@ -90,6 +90,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Average Shared Load Latency");
 	headers.push_back("Avg Hidden Shared Latency");
 	headers.push_back("Computed shared stall");
+	headers.push_back("Computed overlap");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -115,8 +116,12 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 		data.push_back((double) sharedLatencyAccumulator / (double) sharedRequestAccumulator);
 		data.push_back((double) hiddenSharedLatencyAccumulator / (double) sharedRequestAccumulator);
 		data.push_back(sharedLatencyAccumulator - hiddenSharedLatencyAccumulator);
+		data.push_back((double) stallCycleAccumulator / (double) sharedLatencyAccumulator);
 	}
 	else{
+		data.push_back(0);
+		data.push_back(0);
+		data.push_back(0);
 		data.push_back(0);
 	}
 
@@ -334,8 +339,7 @@ MemoryOverlapEstimator::executionResumed(){
 				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d\n",
 						issueToStallLat);
 
-				assert(issueToStallLat >= -5);
-				hiddenSharedLatencyAccumulator += (issueToStallLat > 0 ? issueToStallLat : 0);
+				hiddenSharedLatencyAccumulator += issueToStallLat;
 			}
 			else{
 				hiddenSharedLatencyAccumulator += completedRequests.front().latency();
