@@ -348,6 +348,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		if(sharedRequests == 0){
 			assert((int) currentStallTime == 0);
+			computedOverlap[cpuID] = 0;
 			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning private stall cycles %d\n", privateStallTime);
 			return privateStallTime;
 		}
@@ -640,7 +641,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		double newStallEstimate = estimateStallCycles(stallCycles,
 													  privateStallCycles,
 				                                      avgSharedLat + avgPrivateMemsysLat,
-				                                      avgPrivateLatEstimate,
+				                                      avgPrivateLatEstimate + avgPrivateMemsysLat,
 				                                      reqs,
 				                                      cpuID);
 
