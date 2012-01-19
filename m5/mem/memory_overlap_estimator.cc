@@ -326,7 +326,7 @@ MemoryOverlapEstimator::executionResumed(){
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
 	Tick sharedLatency = 0;
-	double issueToStallLat = 0;
+	Tick issueToStallLat = 0;
 	int privateRequests = 0;
 	bool stalledOnShared = false;
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
@@ -374,7 +374,7 @@ MemoryOverlapEstimator::executionResumed(){
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
 
-		double avgIssueToStall = issueToStallLat / (sharedCacheHits+sharedCacheMisses);
+		double avgIssueToStall = (double) issueToStallLat / (double) (sharedCacheHits+sharedCacheMisses);
 
 		DPRINTF(OverlapEstimator, "Stall on shared request, updating request group hits %d, misses %d, latency %d, stall %d, avg issue to stall %d\n",
 				sharedCacheHits,
