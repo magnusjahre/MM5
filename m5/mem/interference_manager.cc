@@ -141,6 +141,9 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	commitTraceCommitCycles.resize(_cpu_count, 0);
 	commitTracePrivateStall.resize(_cpu_count, 0);
+
+	cpuComTraceTotalRoundtrip.resize(_cpu_count, 0);
+    cpuComTraceTotalRoundtripRequests.resize(_cpu_count, 0);
 }
 
 void
@@ -451,6 +454,17 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 }
 
 void
+InterferenceManager::addSharedReqTotalRoundtrip(MemReqPtr& req, Tick latency){
+	assert(req->cmd == Read);
+	assert(req->adaptiveMHASenderID != -1);
+	assert(!req->isStore);
+	assert(!req->instructionMiss);
+
+	cpuComTraceTotalRoundtrip[req->adaptiveMHASenderID] += latency;
+	cpuComTraceTotalRoundtripRequests[req->adaptiveMHASenderID]++;
+}
+
+void
 InterferenceManager::traceMisses(int fromCPU){
 	std::vector<RequestTraceEntry> data;
 	data.resize(3, RequestTraceEntry(0));
@@ -752,10 +766,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
 
-	double avgPrivateLat = 0.0;
-	if(privateRequests[cpuID] > 0){
-		avgPrivateLat = (double) privateLatencyAccumulator[cpuID] / (double) privateRequests[cpuID];
-		avgPrivateLat += 3.0; //FIXME: hack for accounting for L1 access latency
+	double avgTotalLat = 0.0;
+	if(cpuComTraceTotalRoundtripRequests[cpuID] > 0){
+		avgTotalLat = (double) cpuComTraceTotalRoundtrip[cpuID] / (double) cpuComTraceTotalRoundtripRequests[cpuID];
 	}
 
 	if(missBandwidthPolicy != NULL){
@@ -768,7 +781,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 committedInstructions,
 														 commitTraceCommitCycles[cpuID],
 														 commitTracePrivateStall[cpuID],
-														 avgPrivateLat);
+														 avgTotalLat - avgSharedLatency);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -778,6 +791,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	commitTraceCommitCycles[cpuID] = 0;
 	commitTracePrivateStall[cpuID] = 0;
+
+	cpuComTraceTotalRoundtrip[cpuID] = 0;
+	cpuComTraceTotalRoundtripRequests[cpuID] = 0;
 
 	privateLatencyAccumulator[cpuID] = 0;
 	privateRequests[cpuID] = 0;

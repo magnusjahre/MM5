@@ -109,8 +109,9 @@ private:
 
 	std::vector<Tick> cpuStallAccumulator;
 	std::vector<Tick> cpuComTraceStallCycles;
-//	std::vector<Tick> cpuStalledAt;
-//	std::vector<bool> cpuIsStalled;
+
+	std::vector<Tick> cpuComTraceTotalRoundtrip;
+	std::vector<int> cpuComTraceTotalRoundtripRequests;
 
 public:
 
@@ -190,6 +191,8 @@ public:
 	void addPrivateLatency(LatencyType t, MemReqPtr& req, int latency);
 
 	void incrementPrivateRequestCount(MemReqPtr& req);
+
+	void addSharedReqTotalRoundtrip(MemReqPtr& req, Tick latency);
 
 	void addL1Hit(int cpuID, Tick latency);
 

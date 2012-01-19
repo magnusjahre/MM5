@@ -116,7 +116,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 		data.push_back((double) sharedLatencyAccumulator / (double) sharedRequestAccumulator);
 		data.push_back((double) hiddenSharedLatencyAccumulator / (double) sharedRequestAccumulator);
 		data.push_back(sharedLatencyAccumulator - hiddenSharedLatencyAccumulator);
-		data.push_back((double) stallCycleAccumulator / (double) sharedLatencyAccumulator);
+		data.push_back((double) sharedStallCycleAccumulator / (double) sharedLatencyAccumulator);
 	}
 	else{
 		data.push_back(0);
@@ -276,19 +276,23 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		sharedRequestCount++;
 	}
 
+	if(!pendingRequests[useIndex].isStore() && pendingRequests[useIndex].isSharedReq){
+		interferenceManager->addSharedReqTotalRoundtrip(req, pendingRequests[useIndex].latency());
+	}
+
 	if(pendingRequests[useIndex].isStore() && !hiddenLoad){
 		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, does not hide a load\n",
 						req->paddr,
 						req->cmd,
 						pendingRequests[useIndex].origCmd,
-						finishedAt - pendingRequests[useIndex].issuedAt);
+						pendingRequests[useIndex].latency());
 	}
 	else{
 		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, adding to completed reqs\n",
 					req->paddr,
 					req->cmd,
 					pendingRequests[useIndex].origCmd,
-					finishedAt - pendingRequests[useIndex].issuedAt);
+					pendingRequests[useIndex].latency());
 
 		completedRequests.push_back(pendingRequests[useIndex]);
 	}
