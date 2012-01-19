@@ -357,8 +357,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		DPRINTF(MissBWPolicyExtra, "Computed overlap %d\n", computedOverlap[cpuID]);
 
-		assert(computedOverlap[cpuID] <= 1.0);
-		assert(computedOverlap[cpuID] >= 0.0);
+//		assert(computedOverlap[cpuID] <= 1.0);
+//		assert(computedOverlap[cpuID] >= 0.0);
 
 		double newStallTime = privateStallTime +  computedOverlap[cpuID] * newAvgSharedLat * sharedRequests;
 
@@ -659,7 +659,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		if(reqs > 0){
 			sharedOverlap = (double) stallCycles / (double) ((avgSharedLat+avgPrivateMemsysLat)*reqs);
 		}
-		assert(sharedOverlap <= 1.0);
+
 		data.push_back(sharedOverlap);
 		data.push_back(computedOverlap[cpuID]);
 	}
@@ -675,8 +675,6 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				aloneOverlap,
 				avgSharedLat + avgPrivateMemsysLat,
 				reqs);
-
-		assert(aloneOverlap <= 1.0);
 
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateMemsysLat);
