@@ -280,7 +280,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		interferenceManager->addSharedReqTotalRoundtrip(req, pendingRequests[useIndex].latency());
 	}
 
-	if(pendingRequests[useIndex].isStore() && !hiddenLoad){
+	if(pendingRequests[useIndex].isStore()){
 		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, does not hide a load\n",
 						req->paddr,
 						req->cmd,
