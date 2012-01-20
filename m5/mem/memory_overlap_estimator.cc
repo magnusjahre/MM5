@@ -244,6 +244,20 @@ MemoryOverlapEstimator::regStats(){
 	totalStalls
 		.name(name() + ".num_stalls")
 		.desc("Number of memory related stalls");
+
+	hiddenSharedLoads
+		.name(name() + ".num_hidden_shared_loads")
+		.desc("Number of shared loads that were hidden behind stores");
+
+	hiddenPrivateLoads
+		.name(name() + ".num_hidden_private_loads")
+		.desc("Number of private loads that were hidden behind stores");
+
+	hiddenSharedLoadRate
+		.name(name() + ".hidden_shared_load_rate")
+		.desc("Ratio of hidden loads to actual shared accesses");
+
+	hiddenSharedLoadRate = hiddenSharedLoads / sharedRequestCount;
 }
 
 void
@@ -278,6 +292,11 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 	if(!pendingRequests[useIndex].isStore() && pendingRequests[useIndex].isSharedReq){
 		interferenceManager->addSharedReqTotalRoundtrip(req, pendingRequests[useIndex].latency());
+	}
+
+	if(pendingRequests[useIndex].isStore() && hiddenLoad){
+		if(pendingRequests[useIndex].isSharedReq) hiddenSharedLoads++;
+		else hiddenPrivateLoads++;
 	}
 
 	if(pendingRequests[useIndex].isStore()){

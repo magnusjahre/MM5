@@ -114,6 +114,10 @@ protected:
 	Stats::Scalar<> numSharedStalls;
 	Stats::Formula avgBurstSize;
 
+	Stats::Scalar<> hiddenSharedLoads;
+	Stats::Scalar<> hiddenPrivateLoads;
+	Stats::Formula hiddenSharedLoadRate;
+
 public:
 
 	enum StallCause{
