@@ -582,6 +582,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Private Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
+	headers.push_back("Total Latency");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -636,6 +637,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(privateStallCycles);
 	data.push_back(commitCycles);
 	data.push_back(reqs);
+	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
