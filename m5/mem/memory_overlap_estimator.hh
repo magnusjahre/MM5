@@ -136,6 +136,7 @@ public:
 
 	enum SharedStallIndentifier{
 		SHARED_STALL_ROB,
+		SHARED_STALL_ROB_WRITE,
 		SHARED_STALL_EXISTS
 	};
 
@@ -155,14 +156,15 @@ private:
 	void initRequestGroupTrace();
 	void traceRequestGroups(int committedInstructions);
 
-	bool isSharedStall(bool oldestInstIsShared, int sharedReqs);
+	bool isSharedStall(bool oldestInstIsShared, int sharedReqs, int numSharedWrites);
 
 public:
 	MemoryOverlapEstimator(std::string name,
 						   int id,
 						   InterferenceManager* _interferenceManager,
 						   int cpu_count,
-						   HierParams* params);
+						   HierParams* params,
+						   SharedStallIndentifier _ident);
 
 	void regStats();
 

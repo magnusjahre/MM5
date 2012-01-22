@@ -757,6 +757,10 @@ if "SIMPOINT-SAMPLE-SIZE" in env:
 
 root.overlapEstimators = [MemoryOverlapEstimator(id=i, interference_manager=root.interferenceManager, cpu_count=int(env['NP'])) for i in  xrange(int(env['NP']))]
 
+for i in range(int(env["NP"])):
+    if "SHARED-STALL-IDENT" in env:
+        root.overlapEstimators[i].shared_stall_heuristic = env["SHARED-STALL-IDENT"]
+
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]

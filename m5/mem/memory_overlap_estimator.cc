@@ -14,15 +14,14 @@ using namespace std;
 
 #define CACHE_BLK_SIZE 64
 
-MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager, int cpu_count, HierParams* params)
+MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager, int cpu_count, HierParams* params, SharedStallIndentifier _ident)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
 	resumedAt = 0;
 	stalledOnAddr = 0;
 
-	stallIdentifyAlg = SHARED_STALL_ROB; //FIXME: parameterize
-	//stallIdentifyAlg = SHARED_STALL_EXISTS; //FIXME: parameterize
+	stallIdentifyAlg = _ident;
 
 	cpuID = id;
 	cpuCount = cpu_count;
@@ -369,6 +368,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	int privateRequests = 0;
 	bool stalledOnShared = false;
 	bool stalledOnPrivate = false;
+	int numSharedWrites = 0;
 
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s\n",
@@ -390,6 +390,8 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			else{
 				hiddenSharedLatencyAccumulator += completedRequests.front().latency();
 			}
+
+			if(completedRequests.front().isStore()) numSharedWrites++;
 
 			sharedLoadCount++;
 			sharedRequestAccumulator++;
@@ -419,7 +421,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 	assert(stalledOnShared || stalledOnPrivate);
 
-	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses)){
+	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, numSharedWrites)){
 
 		burstAccumulator += sharedCacheHits+sharedCacheMisses;
 		numSharedStalls++;
@@ -449,12 +451,12 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID,
 			                            stallLength,
-			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses),
+			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, numSharedWrites),
 			                            true);
 }
 
 bool
-MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs){
+MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs, int numSharedWrites){
 	switch(stallIdentifyAlg){
 	case SHARED_STALL_EXISTS:
 		if(sharedReqs > 0) return true;
@@ -462,6 +464,9 @@ MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs){
 		break;
 	case SHARED_STALL_ROB:
 		return oldestInstIsShared;
+		break;
+	case SHARED_STALL_ROB_WRITE:
+		return oldestInstIsShared || numSharedWrites > 0;
 		break;
 	default:
 		fatal("Unknown stall identification algorithm");
@@ -581,19 +586,35 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
     Param<int> id;
 	Param<int> cpu_count;
 	SimObjectParam<InterferenceManager *> interference_manager;
+	Param<string> shared_stall_heuristic;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM(id, "ID of this estimator"),
 	INIT_PARAM(cpu_count, "Number of cores in the system"),
-	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL)
+	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
+	INIT_PARAM_DFLT(shared_stall_heuristic, "The heuristic that decides if a processor stall is due to a shared event", "rob-write")
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
 {
 	HierParams* params = new HierParams(getInstanceName(), false, true, cpu_count);
 
-    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager, cpu_count, params);
+	MemoryOverlapEstimator::SharedStallIndentifier ident;
+	if((string) shared_stall_heuristic == "shared-exists"){
+		ident = MemoryOverlapEstimator::SHARED_STALL_EXISTS;
+	}
+	else if((string) shared_stall_heuristic == "rob"){
+		ident = MemoryOverlapEstimator::SHARED_STALL_ROB;
+	}
+	else if((string) shared_stall_heuristic == "rob-write"){
+		ident = MemoryOverlapEstimator::SHARED_STALL_ROB_WRITE;
+	}
+	else{
+		fatal("Unknown shared stall heuristic");
+	}
+
+    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager, cpu_count, params, ident);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)
