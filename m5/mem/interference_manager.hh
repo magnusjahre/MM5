@@ -44,6 +44,8 @@ private:
 	int cpuCount;
 	int maxMSHRs;
 
+	bool includeStores;
+
 	BasePolicy* missBandwidthPolicy;
 	std::vector<FullCPU*> fullCPUs;
 	std::vector<BaseCache*> lastPrivateCaches;
@@ -219,6 +221,8 @@ public:
 	}
 
 	void registerBus(Bus* bus);
+
+	bool checkForStore(MemReqPtr& req);
 
 //	void setStalledForMemory(int cpuID, int detectionDelay);
 //	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);

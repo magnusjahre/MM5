@@ -287,12 +287,11 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 	ee.completedAt = finishedAt;
 	ee.isL1Hit = false;
 
-	if(!ee.isStore()){
-		DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
-				finishedAt);
-		if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
-		completedRequests.push_back(ee);
-	}
+	DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
+			finishedAt);
+	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
+	completedRequests.push_back(ee);
+
 }
 
 void
@@ -310,14 +309,12 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex].completedAt = finishedAt;
 	pendingRequests[useIndex].isSharedReq = req->beenInSharedMemSys;
 	pendingRequests[useIndex].isSharedCacheMiss = req->isSharedCacheMiss;
+	pendingRequests[useIndex].hidesLoad = hiddenLoad;
 
 	totalRequestAccumulator++;
 
 	if(pendingRequests[useIndex].isSharedReq){
 		sharedRequestCount++;
-	}
-
-	if(!pendingRequests[useIndex].isStore() && pendingRequests[useIndex].isSharedReq){
 		interferenceManager->addSharedReqTotalRoundtrip(req, pendingRequests[useIndex].latency());
 	}
 
@@ -326,23 +323,15 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		else hiddenPrivateLoads++;
 	}
 
-	if(pendingRequests[useIndex].isStore()){
-		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, does not hide a load\n",
-						req->paddr,
-						req->cmd,
-						pendingRequests[useIndex].origCmd,
-						pendingRequests[useIndex].latency());
-	}
-	else{
-		DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, adding to completed reqs\n",
-					req->paddr,
-					req->cmd,
-					pendingRequests[useIndex].origCmd,
-					pendingRequests[useIndex].latency());
+	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
+			req->paddr,
+			req->cmd,
+			pendingRequests[useIndex].origCmd,
+			pendingRequests[useIndex].latency(),
+			(hiddenLoad ? "hidden load" : "no hidden load"));
 
-		if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= pendingRequests[useIndex].completedAt);
-		completedRequests.push_back(pendingRequests[useIndex]);
-	}
+	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= pendingRequests[useIndex].completedAt);
+	completedRequests.push_back(pendingRequests[useIndex]);
 
 	pendingRequests.erase(pendingRequests.begin()+	useIndex);
 }
@@ -368,9 +357,10 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
 
-	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s\n",
+	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d\n",
 			stallLength,
-			(endedBySquash ? "squash" : "memory response"));
+			(endedBySquash ? "squash" : "memory response"),
+			stalledOnAddr);
 
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
@@ -381,14 +371,16 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	bool stalledOnPrivate = false;
 
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
-		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s, %s\n",
+		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s\n",
 				completedRequests.front().address,
+				completedRequests.front().origCmd,
 				completedRequests.front().latency(),
 				(completedRequests.front().isSharedReq ? "shared": "private"),
 				(completedRequests.front().isL1Hit ? "L1 hit": "L1 miss"));
 
 		if(completedRequests.front().isSharedReq){
 			if(completedRequests.front().address == stalledOnAddr){
+				assert(!completedRequests.front().isStore() || completedRequests.front().hidesLoad);
 				stalledOnShared = true;
 				issueToStallLat = stalledAt -completedRequests.front().issuedAt;
 				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n", issueToStallLat);
@@ -485,14 +477,14 @@ MemoryOverlapEstimator::incrementPrivateRequestCount(MemReqPtr& req){
 
 void
 MemoryOverlapEstimator::addPrivateLatency(MemReqPtr& req, int latency){
-	if(req->isStore) return;
+	if(interferenceManager->checkForStore(req)) return;
 	if(req->instructionMiss) return;
 	interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, latency);
 }
 
 void
 MemoryOverlapEstimator::addL1Access(MemReqPtr& req, int latency, bool hit){
-	if(req->isStore) return;
+	if(interferenceManager->checkForStore(req)) return;
 	if(hit){
 		assert(req->adaptiveMHASenderID != -1);
 		interferenceManager->addL1Hit(req->adaptiveMHASenderID, latency);

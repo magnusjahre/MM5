@@ -27,6 +27,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	cpuCount = _cpu_count;
 
+	includeStores = true;
+
 	fullCPUs.resize(_cpu_count, NULL);
 	lastPrivateCaches.resize(_cpu_count, NULL);
 	l1DataCaches.resize(_cpu_count, NULL);
@@ -355,7 +357,7 @@ InterferenceManager::resetStats(){
 void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
 
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	assert(req->cmd == Read);
@@ -375,7 +377,7 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 void
 InterferenceManager::incrementInterferenceRequestCount(LatencyType t, MemReqPtr& req){
 
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	assert(req->cmd == Read);
@@ -390,7 +392,7 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	latencySum[req->adaptiveMHASenderID][t] += latency;
@@ -406,7 +408,7 @@ InterferenceManager::incrementLatencyRequestCount(LatencyType t, MemReqPtr& req)
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	numLatencyReqs[req->adaptiveMHASenderID][t]++;
@@ -417,7 +419,7 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	runningLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
@@ -457,7 +459,7 @@ void
 InterferenceManager::addSharedReqTotalRoundtrip(MemReqPtr& req, Tick latency){
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
-	assert(!req->isStore);
+	assert(!checkForStore(req));
 	assert(!req->instructionMiss);
 
 	cpuComTraceTotalRoundtrip[req->adaptiveMHASenderID] += latency;
@@ -681,6 +683,12 @@ InterferenceManager::registerCPU(FullCPU* cpu, int cpuID){
 	fullCPUs[cpuID] = cpu;
 }
 
+bool
+InterferenceManager::checkForStore(MemReqPtr& req){
+	if(includeStores) return false;
+	return req->isStore;
+}
+
 void
 InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls){
 	if(isShared){
@@ -696,7 +704,7 @@ InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared
 
 void
 InterferenceManager::addPrivateLatency(LatencyType t, MemReqPtr& req, int latency){
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 	assert(req->adaptiveMHASenderID != -1);
 
@@ -708,7 +716,7 @@ InterferenceManager::addPrivateLatency(LatencyType t, MemReqPtr& req, int latenc
 
 void
 InterferenceManager::incrementPrivateRequestCount(MemReqPtr& req){
-	if(req->isStore) return;
+	if(checkForStore(req)) return;
 
 	assert(!req->instructionMiss);
 	assert(req->adaptiveMHASenderID != -1);

@@ -27,6 +27,7 @@ public:
 	bool isSharedReq;
 	bool isSharedCacheMiss;
 	bool isL1Hit;
+	bool hidesLoad;
 
 	EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
 		address = _a;
@@ -36,6 +37,7 @@ public:
 		isSharedReq = false;
 		isSharedCacheMiss = false;
 		isL1Hit = false;
+		hidesLoad = false;
 	}
 
 	int latency(){
