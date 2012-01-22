@@ -383,6 +383,16 @@ FullCPU::recover(ROBStation *ROB_branch_entry, int branch_thread)
 		}
 	    }
 
+	    if(ROB_entry->seq == stalledOnInstSeqNum){
+	    	assert(isStalled);
+	    	assert(ROB_entry->inst->isLoad());
+			assert(getCacheAddr(ROB_entry->inst->phys_eff_addr) == stalledOnAddr);
+			overlapEstimator->executionResumed(true);
+			isStalled = false;
+			stalledOnAddr = MemReq::inval_addr;
+			stalledOnInstSeqNum = 0;
+	    }
+
 	    ROB_entry->squash();
 
 	    remove_ROB_element(ROB_entry);
@@ -390,7 +400,6 @@ FullCPU::recover(ROBStation *ROB_branch_entry, int branch_thread)
     }
 
     // FIXME: could reset functional units at squash time
-
 
     //  squash any instructions in the fetch_to_decode queue
     decodeQueue->squash(branch_thread);

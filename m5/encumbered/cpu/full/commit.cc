@@ -177,7 +177,9 @@ FullCPU::commit()
 		if (!thread_info[i].active || ROB.num_thread(i) == 0) {
 			finished_thread[i] = true;
 			num_finished_threads++;
-			if(ROB.num_thread(i) == 0) commit_cycles_empty_ROB++;
+			if(ROB.num_thread(i) == 0){
+				commit_cycles_empty_ROB++;
+			}
 			if (!thread_info[i].active
 					|| execContexts[i]->status() != ExecContext::Active) {
 				num_inactive_threads++;
@@ -196,7 +198,8 @@ FullCPU::commit()
 			crash_counter = 0;
 		}
 
-		if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+		assert(!isStalled);
+		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 		return;
 	}
 
@@ -395,40 +398,56 @@ FullCPU::commit()
 		case COMMIT_BW:
 		case COMMIT_NO_INSN:
 		case COMMIT_MEMBAR:
-			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+			assert(!isStalled);
+			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 			break;
 		case COMMIT_STOREBUF:
-			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_STORE_BUFFER, 1);
+			assert(!isStalled);
+			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_STORE_BUFFER, 1);
 			break;
 		case COMMIT_FU:
 			floss_state.commit_fu[0][0] = OpClass(detail);
-			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_FUNC_UNIT, 1);
+			assert(!isStalled);
+			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_FUNC_UNIT, 1);
 			break;
 		case COMMIT_DMISS:
+		{
 			commit_total_mem_stall_time++;
 
 			tmpBlockedCycles++;
 
-			if(!isStalled){
+			ROBStation *head = ROB.head();
+			assert(head->inst->isLoad());
+			Addr robCacheAddr = getCacheAddr(head->inst->phys_eff_addr);
 
-				ROBStation *head = ROB.head();
-				assert(head->inst->isLoad());
-				Addr robCacheAddr = head->inst->phys_eff_addr & ~(dcacheInterface->getBlockSize()-1);
+			if(!isStalled){
+				assert(stalledOnAddr == MemReq::inval_addr);
+				assert(stalledOnInstSeqNum == 0);
+				assert(head->seq != 0);
+
+				stalledOnAddr = robCacheAddr;
+				stalledOnInstSeqNum = head->seq;
 
 				overlapEstimator->stalledForMemory(robCacheAddr);
 				isStalled = true;
 			}
+			else{
+				assert(robCacheAddr == stalledOnAddr);
+				assert(head->seq == stalledOnInstSeqNum);
+			}
 
 			noCommitCycles++;
 
-			//HACK: the hit latency should be retrived from the L1 cache
+			//HACK: the hit latency should be retrieved from the L1 cache
 			if(tmpBlockedCycles > 3) l1MissStallCycles++;
 
 			floss_state.commit_mem_result[0] = MemAccessResult(detail);
 			break;
+		}
 		case COMMIT_CAUSE_NOT_SET:
 			done = true;  // dummy
-			if(!isStalled) overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+			assert(!isStalled);
+			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 			break;
 		default:
 			fatal("commit causes screwed up");
@@ -495,8 +514,10 @@ FullCPU::commit()
 	// entering main commit loop, reset tmp blocked cycle counter
 	tmpBlockedCycles = 0;
 	if(isStalled){
-		overlapEstimator->executionResumed();
+		overlapEstimator->executionResumed(false);
 		isStalled = false;
+		stalledOnAddr = MemReq::inval_addr;
+		stalledOnInstSeqNum = 0;
 	}
 
 	//
@@ -639,7 +660,7 @@ FullCPU::commit()
 
 	} while (!done);
 
-	if(!isStalled);
+	assert(!isStalled);
 	if(numCommitted > 0) overlapEstimator->addCommitCycle();
 	else overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 

@@ -102,6 +102,8 @@ private:
 	int quitOnCPUID;
 
 	bool isStalled;
+	Addr stalledOnAddr;
+	InstSeqNum stalledOnInstSeqNum;
 	MemoryOverlapEstimator* overlapEstimator;
 
 public:
@@ -192,6 +194,8 @@ public:
 
 	void registerProcessHalt();
 	void restartProcess();
+
+	Addr getCacheAddr(Addr memaddr);
 
 	FullCPU(FullCPU::Params *params,
 #if FULL_SYSTEM

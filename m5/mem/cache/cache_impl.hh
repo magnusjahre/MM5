@@ -350,7 +350,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		missQueue->doWriteback(writebacks.front());
 		writebacks.pop_front();
 	}
-	DPRINTF(Cache, "%s %d %x %s blk_addr: %x pc %x\n", req->cmd.toString(),
+	DPRINTF(Cache, "%s %d %d %s blk_addr: %s pc %x\n", req->cmd.toString(),
 			req->asid, req->paddr & (((ULL(1))<<48)-1), (blk) ? "hit" : "miss",
 					req->paddr & ~((Addr)blkSize - 1), req->pc);
 
@@ -400,6 +400,11 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 			if(directoryProtocol->doL1DirectoryAccess(req, blk)){
 				return MA_CACHE_MISS;
 			}
+		}
+
+		if(overlapEstimator != NULL && !req->cmd.isNoResponse() && !isReadOnly){
+			assert(req->cmd == Read || req->cmd == Soft_Prefetch || req->cmd == Write);
+			overlapEstimator->l1HitDetected(req, curTick+lat);
 		}
 
 		// Hit
@@ -551,7 +556,7 @@ void
 Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 {
 
-	DPRINTF(Cache, "Response recieved: %s %x blk_addr: %x pc %x\n",
+	DPRINTF(Cache, "Response recieved: %s %d blk_addr: %d pc %x\n",
 			req->cmd.toString(),
 			req->paddr & (((ULL(1))<<48)-1),
 			req->paddr & ~((Addr)blkSize - 1),

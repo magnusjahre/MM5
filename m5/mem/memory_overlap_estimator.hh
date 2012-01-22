@@ -18,37 +18,40 @@
 class InterferenceManager;
 class BaseCache;
 
+class EstimationEntry{
+public:
+	Addr address;
+	Tick issuedAt;
+	Tick completedAt;
+	MemCmd origCmd;
+	bool isSharedReq;
+	bool isSharedCacheMiss;
+	bool isL1Hit;
+
+	EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
+		address = _a;
+		issuedAt = _issuedAt;
+		origCmd = _origCmd;
+		completedAt = 0;
+		isSharedReq = false;
+		isSharedCacheMiss = false;
+		isL1Hit = false;
+	}
+
+	int latency(){
+		assert(completedAt != 0);
+		return completedAt - issuedAt;
+	}
+
+	bool isStore(){
+		if(origCmd == Write || origCmd == Soft_Prefetch) return true;
+		return false;
+	}
+};
+
 class MemoryOverlapEstimator : public BaseHier{
 
 private:
-	class EstimationEntry{
-	public:
-		Addr address;
-		Tick issuedAt;
-		Tick completedAt;
-		MemCmd origCmd;
-		bool isSharedReq;
-		bool isSharedCacheMiss;
-
-		EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
-			address = _a;
-			issuedAt = _issuedAt;
-			origCmd = _origCmd;
-			completedAt = 0;
-			isSharedReq = false;
-			isSharedCacheMiss = false;
-		}
-
-		int latency(){
-			assert(completedAt != 0);
-			return completedAt - issuedAt;
-		}
-
-		bool isStore(){
-			if(origCmd == Write || origCmd == Soft_Prefetch) return true;
-			return false;
-		}
-	};
 
 	class RequestGroupSignature{
 	private:
@@ -165,9 +168,11 @@ public:
 
 	void completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad);
 
+	void l1HitDetected(MemReqPtr& req, Tick finishedAt);
+
 	void stalledForMemory(Addr stalledOnCoreAddr);
 
-	void executionResumed();
+	void executionResumed(bool endedBySquash);
 
 	void sampleCPU(int committedInstructions);
 

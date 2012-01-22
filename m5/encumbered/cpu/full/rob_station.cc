@@ -193,12 +193,12 @@ ROBStation::dump()
 {
     Addr seq_PC = inst->PC + sizeof(MachInst);
 
-    cprintf("T%d : %#x `", thread_number, inst->PC);
+    cprintf("T%d : %d `", thread_number, inst->PC);
     cout << inst->staticInst->disassemble(inst->PC);
     cout << "'\n";
     if (inst->isLoad()) {
-	cprintf("\tEA: %#x\n", inst->eff_addr);
-	cprintf("\tPEA: %#x\n", inst->phys_eff_addr);
+	cprintf("\tEA: %d\n", inst->eff_addr);
+	cprintf("\tPEA: %d\n", inst->phys_eff_addr);
     }
     if (inst->Next_PC != seq_PC || inst->Pred_PC != seq_PC)
 	cprintf("\tNext_PC: %#08x Pred_PC: %#08x\n",

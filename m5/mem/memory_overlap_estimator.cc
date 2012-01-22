@@ -8,6 +8,7 @@
 #include "memory_overlap_estimator.hh"
 #include "sim/builder.hh"
 #include "base/trace.hh"
+#include <algorithm>
 
 using namespace std;
 
@@ -268,6 +269,32 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
 }
 
+bool
+compareEEs(EstimationEntry e1, EstimationEntry e2){
+	if(e1.completedAt < e2.completedAt) return true;
+	return false;
+}
+
+void
+MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
+
+	Addr blkAddr = req->paddr & ~(CACHE_BLK_SIZE-1);
+	DPRINTF(OverlapEstimator, "L1 hit detected for addr %d, command %s\n",
+				blkAddr,
+				req->cmd);
+
+	EstimationEntry ee = EstimationEntry(blkAddr, curTick, req->cmd);
+	ee.completedAt = finishedAt;
+	ee.isL1Hit = false;
+
+	if(!ee.isStore()){
+		DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
+				finishedAt);
+		if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
+		completedRequests.push_back(ee);
+	}
+}
+
 void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad){
 
@@ -313,6 +340,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 					pendingRequests[useIndex].origCmd,
 					pendingRequests[useIndex].latency());
 
+		if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= pendingRequests[useIndex].completedAt);
 		completedRequests.push_back(pendingRequests[useIndex]);
 	}
 
@@ -332,7 +360,7 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 }
 
 void
-MemoryOverlapEstimator::executionResumed(){
+MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(isStalled);
 	isStalled = false;
 	resumedAt = curTick;
@@ -340,7 +368,9 @@ MemoryOverlapEstimator::executionResumed(){
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
 
-	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles\n", stallLength);
+	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s\n",
+			stallLength,
+			(endedBySquash ? "squash" : "memory response"));
 
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
@@ -348,19 +378,20 @@ MemoryOverlapEstimator::executionResumed(){
 	Tick issueToStallLat = 0;
 	int privateRequests = 0;
 	bool stalledOnShared = false;
+	bool stalledOnPrivate = false;
+
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
-		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s, issue to stall %d\n",
+		DPRINTF(OverlapEstimator, "Request %d is part of burst, latency %d, %s, %s\n",
 				completedRequests.front().address,
 				completedRequests.front().latency(),
 				(completedRequests.front().isSharedReq ? "shared": "private"),
-				stalledAt - completedRequests.front().issuedAt);
+				(completedRequests.front().isL1Hit ? "L1 hit": "L1 miss"));
 
 		if(completedRequests.front().isSharedReq){
 			if(completedRequests.front().address == stalledOnAddr){
 				stalledOnShared = true;
 				issueToStallLat = stalledAt -completedRequests.front().issuedAt;
-				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d\n",
-						issueToStallLat);
+				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n", issueToStallLat);
 
 				hiddenSharedLatencyAccumulator += issueToStallLat;
 			}
@@ -378,12 +409,23 @@ MemoryOverlapEstimator::executionResumed(){
 			sharedLatency += completedRequests.front().latency();
 		}
 		else{
+			if(completedRequests.front().address == stalledOnAddr){
+				stalledOnPrivate = true;
+			    DPRINTF(OverlapEstimator, "This request caused the stall, stall is private\n");
+			}
 			privateRequests++;
 		}
 
 		completedRequests.erase(completedRequests.begin());
 
 	}
+
+	if(endedBySquash && !(stalledOnShared || stalledOnPrivate)){
+		DPRINTF(OverlapEstimator, "Stall ended with squash and there is no completed memory request to blame, defaulting to private stall\n");
+		stalledOnPrivate = true;
+	}
+
+	assert(stalledOnShared || stalledOnPrivate);
 
 	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses)){
 

@@ -704,6 +704,13 @@ FullCPU::FullCPU(Params *p,
 
 	overlapEstimator = _overlapEst;
 	isStalled = false;
+	stalledOnAddr = MemReq::inval_addr;
+	stalledOnInstSeqNum = 0;
+}
+
+Addr
+FullCPU::getCacheAddr(Addr memaddr){
+	return memaddr & ~(dcacheInterface->getBlockSize()-1);
 }
 
 
