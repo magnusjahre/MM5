@@ -221,7 +221,8 @@ public:
 				                     int committedInsts,
 				                     int commitCycles,
 				                     Tick privateStallCycles,
-				                     double avgPrivateMemsysLat);
+				                     double avgPrivateMemsysLat,
+				                     Tick writeStall);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

@@ -107,6 +107,8 @@ private:
 
 	Tick hiddenSharedLatencyAccumulator;
 
+	Tick cacheBlockedCycles;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -193,6 +195,8 @@ public:
 	void addL1Access(MemReqPtr& req, int latency, bool hit);
 
 	void registerL1DataCache(int cpuID, BaseCache* cache);
+
+	void addDcacheStallCycle();
 
 };
 

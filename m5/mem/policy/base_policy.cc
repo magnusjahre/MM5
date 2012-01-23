@@ -580,6 +580,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Cycles");
 	headers.push_back("Stall Cycles");
 	headers.push_back("Private Stall Cycles");
+	headers.push_back("Write Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Total Requests");
 	headers.push_back("Total Latency");
@@ -617,7 +618,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		                                int committedInsts,
 					                    int commitCycles,
 					                    Tick privateStallCycles,
-					                    double avgPrivateMemsysLat){
+					                    double avgPrivateMemsysLat,
+					                    Tick writeStall){
 
 	vector<RequestTraceEntry> data;
 
@@ -635,6 +637,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
 	data.push_back(privateStallCycles);
+	data.push_back(writeStall);
 	data.push_back(commitCycles);
 	data.push_back(reqs);
 	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));

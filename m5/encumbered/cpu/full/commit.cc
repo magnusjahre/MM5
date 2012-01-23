@@ -434,6 +434,7 @@ FullCPU::commit()
 			else{
 				assert(robCacheAddr == stalledOnAddr);
 				assert(head->seq == stalledOnInstSeqNum);
+				if(dcacheInterface->isBlocked()) overlapEstimator->addDcacheStallCycle();
 			}
 
 			noCommitCycles++;

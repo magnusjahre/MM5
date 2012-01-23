@@ -20,6 +20,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	stalledAt = 0;
 	resumedAt = 0;
 	stalledOnAddr = 0;
+	cacheBlockedCycles = 0;
 
 	stallIdentifyAlg = _ident;
 
@@ -334,6 +335,7 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	assert(!isStalled);
 	isStalled = true;
 	stalledAt = curTick;
+	cacheBlockedCycles = 0;
 	totalStalls++;
 
 	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
@@ -350,10 +352,11 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
 
-	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d\n",
+	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles\n",
 			stallLength,
 			(endedBySquash ? "squash" : "memory response"),
-			stalledOnAddr);
+			stalledOnAddr,
+			cacheBlockedCycles);
 
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
@@ -416,6 +419,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	// Note: both might be true since multiple accesses to a cache block generates on shared request
 	assert(stalledOnShared || stalledOnPrivate);
 
+	Tick reportStall = stallLength;
+	Tick writeStall = 0;
+
 	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0)){
 
 		burstAccumulator += sharedCacheHits+sharedCacheMisses;
@@ -437,17 +443,25 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		addStall(STALL_DMEM_SHARED, stallLength, true);
 	}
 	else{
+
 		DPRINTF(OverlapEstimator, "Stall on private request\n");
 		privateStallCycles += stallLength;
+
+		assert(stallLength >= cacheBlockedCycles);
+		reportStall = stallLength - cacheBlockedCycles;
+		writeStall = cacheBlockedCycles;
+
 
 		addStall(STALL_DMEM_PRIVATE, stallLength, true);
 	}
 
+
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID,
-			                            stallLength,
+			                            reportStall,
 			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0),
-			                            true);
+			                            true,
+			                            writeStall);
 }
 
 bool
@@ -468,6 +482,11 @@ MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs, i
 	}
 
 	return false;
+}
+
+void
+MemoryOverlapEstimator::addDcacheStallCycle(){
+	cacheBlockedCycles++;
 }
 
 void

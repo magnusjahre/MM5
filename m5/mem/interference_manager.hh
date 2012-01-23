@@ -86,6 +86,8 @@ private:
 
 	std::vector<Tick> commitTraceCommitCycles;
 	std::vector<Tick> commitTracePrivateStall;
+	std::vector<Tick> commitTraceWriteStall;
+
 
 	int intManCPUCount;
 
@@ -228,7 +230,7 @@ public:
 //	void clearStalledForMemory(int cpuID, bool incrementNumStalls = true);
 //	bool isStalledForMemory(int cpuID);
 
-	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls);
+	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall);
 
 	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample);
 
