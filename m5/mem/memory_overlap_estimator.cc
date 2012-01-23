@@ -268,12 +268,6 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
 }
 
-bool
-compareEEs(EstimationEntry e1, EstimationEntry e2){
-	if(e1.completedAt < e2.completedAt) return true;
-	return false;
-}
-
 void
 MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 
@@ -368,50 +362,50 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	int privateRequests = 0;
 	bool stalledOnShared = false;
 	bool stalledOnPrivate = false;
-	int numSharedWrites = 0;
 
 	while(!completedRequests.empty() && completedRequests.front().completedAt < curTick){
-		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s\n",
+		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
 				completedRequests.front().address,
 				completedRequests.front().origCmd,
 				completedRequests.front().latency(),
 				(completedRequests.front().isSharedReq ? "shared": "private"),
-				(completedRequests.front().isL1Hit ? "L1 hit": "L1 miss"));
+				(completedRequests.front().isL1Hit ? "L1 hit": "L1 miss"),
+				(completedRequests.front().isStore() ? "store": "load"),
+				(completedRequests.front().hidesLoad ? ", hides load": ""));
 
-		if(completedRequests.front().isSharedReq){
-			if(completedRequests.front().address == stalledOnAddr){
-				assert(!completedRequests.front().isStore() || completedRequests.front().hidesLoad);
-				stalledOnShared = true;
-				issueToStallLat = stalledAt -completedRequests.front().issuedAt;
-				DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n", issueToStallLat);
+		if(!completedRequests.front().isStore() || completedRequests.front().hidesLoad){
+			if(completedRequests.front().isSharedReq){
+				if(completedRequests.front().address == stalledOnAddr){
+					assert(!stalledOnShared);
+					stalledOnShared = true;
+					issueToStallLat = stalledAt - completedRequests.front().issuedAt;
+					DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n", issueToStallLat);
 
-				hiddenSharedLatencyAccumulator += issueToStallLat;
+					hiddenSharedLatencyAccumulator += issueToStallLat;
+				}
+				else{
+					hiddenSharedLatencyAccumulator += completedRequests.front().latency();
+				}
+
+				sharedLoadCount++;
+				sharedRequestAccumulator++;
+				totalLoadLatency += completedRequests.front().latency();
+				sharedLatencyAccumulator += completedRequests.front().latency();
+
+				if(completedRequests.front().isSharedCacheMiss) sharedCacheMisses++;
+				else sharedCacheHits++;
+				sharedLatency += completedRequests.front().latency();
 			}
 			else{
-				hiddenSharedLatencyAccumulator += completedRequests.front().latency();
+				if(completedRequests.front().address == stalledOnAddr){
+					stalledOnPrivate = true;
+					DPRINTF(OverlapEstimator, "This request involved in the store, stall is private\n");
+				}
+				privateRequests++;
 			}
-
-			if(completedRequests.front().isStore()) numSharedWrites++;
-
-			sharedLoadCount++;
-			sharedRequestAccumulator++;
-			totalLoadLatency += completedRequests.front().latency();
-			sharedLatencyAccumulator += completedRequests.front().latency();
-
-			if(completedRequests.front().isSharedCacheMiss) sharedCacheMisses++;
-			else sharedCacheHits++;
-			sharedLatency += completedRequests.front().latency();
-		}
-		else{
-			if(completedRequests.front().address == stalledOnAddr){
-				stalledOnPrivate = true;
-			    DPRINTF(OverlapEstimator, "This request caused the stall, stall is private\n");
-			}
-			privateRequests++;
 		}
 
 		completedRequests.erase(completedRequests.begin());
-
 	}
 
 	if(endedBySquash && !(stalledOnShared || stalledOnPrivate)){
@@ -419,9 +413,10 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		stalledOnPrivate = true;
 	}
 
+	// Note: both might be true since multiple accesses to a cache block generates on shared request
 	assert(stalledOnShared || stalledOnPrivate);
 
-	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, numSharedWrites)){
+	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0)){
 
 		burstAccumulator += sharedCacheHits+sharedCacheMisses;
 		numSharedStalls++;
@@ -451,7 +446,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID,
 			                            stallLength,
-			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, numSharedWrites),
+			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0),
 			                            true);
 }
 
