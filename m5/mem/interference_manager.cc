@@ -27,7 +27,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	cpuCount = _cpu_count;
 
-	includeStores = true;
+	includeStores = false;
 
 	fullCPUs.resize(_cpu_count, NULL);
 	lastPrivateCaches.resize(_cpu_count, NULL);
@@ -457,9 +457,10 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 void
 InterferenceManager::addSharedReqTotalRoundtrip(MemReqPtr& req, Tick latency){
+	if(checkForStore(req)) return;
+
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
-	assert(!checkForStore(req));
 	assert(!req->instructionMiss);
 
 	cpuComTraceTotalRoundtrip[req->adaptiveMHASenderID] += latency;
