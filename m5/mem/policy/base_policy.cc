@@ -347,7 +347,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 						currentStallTime);
 
 		if(sharedRequests == 0){
-			assert((int) currentStallTime == 0);
+			// hidden loads might cause the assertion to fail
+			// assert((int) currentStallTime == 0);
 			computedOverlap[cpuID] = 0;
 			DPRINTF(MissBWPolicyExtra, "No latency and no stall cycles, returning private stall cycles %d\n", privateStallTime);
 			return privateStallTime;
