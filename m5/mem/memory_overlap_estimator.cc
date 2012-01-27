@@ -60,7 +60,12 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 		lastActivityCycle = curTick;
 
 		assert(interferenceManager != NULL);
-		interferenceManager->addCommitCycle(cpuID);
+		if(cause == STALL_STORE_BUFFER){
+			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles);
+		}
+		else{
+			interferenceManager->addCommitCycle(cpuID);
+		}
 	}
 
 	stallCycles[cause] += cycles;
