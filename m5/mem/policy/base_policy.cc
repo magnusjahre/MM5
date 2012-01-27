@@ -583,6 +583,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Private Stall Cycles");
 	headers.push_back("Write Stall Cycles");
 	headers.push_back("Compute Cycles");
+	headers.push_back("Memory Independent Stalls");
 	headers.push_back("Total Requests");
 	headers.push_back("Total Latency");
 	headers.push_back("Hidden Loads");
@@ -622,7 +623,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    Tick privateStallCycles,
 					                    double avgPrivateMemsysLat,
 					                    Tick writeStall,
-					                    int hiddenLoads){
+					                    int hiddenLoads,
+					                    Tick memoryIndependentStallCycles){
 
 	vector<RequestTraceEntry> data;
 
@@ -642,6 +644,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(privateStallCycles);
 	data.push_back(writeStall);
 	data.push_back(commitCycles);
+	data.push_back(memoryIndependentStallCycles);
 	data.push_back(reqs);
 	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));
 	data.push_back(hiddenLoads);
@@ -655,7 +658,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      cpuID);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
-		double aloneIPCEstimate = (double) committedInsts / (commitCycles + newStallEstimate);
+		double aloneIPCEstimate = (double) committedInsts / (commitCycles + memoryIndependentStallCycles + newStallEstimate);
 
 
 		data.push_back(avgSharedLat);

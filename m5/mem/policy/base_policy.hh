@@ -223,7 +223,8 @@ public:
 				                     Tick privateStallCycles,
 				                     double avgPrivateMemsysLat,
 				                     Tick writeStall,
-				                     int hiddenLoads);
+				                     int hiddenLoads,
+				                     Tick memoryIndependentStalls);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

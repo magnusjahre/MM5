@@ -143,6 +143,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 //	cpuIsStalled.resize(_cpu_count, false);
 
 	commitTraceCommitCycles.resize(_cpu_count, 0);
+	commitTraceMemIndStall.resize(_cpu_count, 0);
 	commitTracePrivateStall.resize(_cpu_count, 0);
 	commitTraceWriteStall.resize(_cpu_count, 0);
 
@@ -154,6 +155,12 @@ void
 InterferenceManager::addCommitCycle(int cpuID){
 	//FIXME: use these estimates in policy decisions as well
 	commitTraceCommitCycles[cpuID]++;
+}
+
+void
+InterferenceManager::addMemIndependentStallCycle(int cpuID){
+	//FIXME: use these estimates in policy decisions as well
+	commitTraceMemIndStall[cpuID]++;
 }
 
 void
@@ -796,7 +803,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 commitTracePrivateStall[cpuID],
 														 avgTotalLat - avgSharedLatency,
 														 commitTraceWriteStall[cpuID],
-														 instTraceHiddenLoads[cpuID]);
+														 instTraceHiddenLoads[cpuID],
+														 commitTraceMemIndStall[cpuID]);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -806,6 +814,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	cpuComTraceStallCycles[cpuID] = 0;
 
 	commitTraceCommitCycles[cpuID] = 0;
+	commitTraceMemIndStall[cpuID] = 0;
 	commitTracePrivateStall[cpuID] = 0;
 	commitTraceWriteStall[cpuID] = 0;
 

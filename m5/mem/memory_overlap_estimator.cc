@@ -64,7 +64,7 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles);
 		}
 		else{
-			interferenceManager->addCommitCycle(cpuID);
+			interferenceManager->addMemIndependentStallCycle(cpuID);
 		}
 	}
 

@@ -86,6 +86,7 @@ private:
 	std::vector<int> regularMisses;
 
 	std::vector<Tick> commitTraceCommitCycles;
+	std::vector<Tick> commitTraceMemIndStall;
 	std::vector<Tick> commitTracePrivateStall;
 	std::vector<Tick> commitTraceWriteStall;
 
@@ -242,6 +243,8 @@ public:
 	void clearMSHROccupancyLists();
 
 	void addCommitCycle(int cpuID);
+
+	void addMemIndependentStallCycle(int cpuID);
 
 	void addL1BlockedCycle(int cpuID);
 
