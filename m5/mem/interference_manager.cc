@@ -64,6 +64,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	instTraceInterferenceSum.resize(_cpu_count, 0);
 	instTraceLatencySum.resize(_cpu_count, 0);
 	instTraceRequests.resize(_cpu_count, 0);
+	instTraceHiddenLoads.resize(_cpu_count, 0);
 
 	missBandwidthPolicy = NULL;
 	cacheInterference = NULL;
@@ -794,11 +795,13 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 commitTraceCommitCycles[cpuID],
 														 commitTracePrivateStall[cpuID],
 														 avgTotalLat - avgSharedLatency,
-														 commitTraceWriteStall[cpuID]);
+														 commitTraceWriteStall[cpuID],
+														 instTraceHiddenLoads[cpuID]);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
+	instTraceHiddenLoads[cpuID] = 0;
 	instTraceLatencySum[cpuID] = 0;
 	cpuComTraceStallCycles[cpuID] = 0;
 
@@ -815,6 +818,12 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	l1HitAccumulator[cpuID] = 0;
 	l1HitRequests[cpuID] = 0;
 	l1BlockedAccumulator[cpuID] = 0;
+}
+
+void
+InterferenceManager::hiddenLoadDetected(int cpuID){
+	assert(cpuID != -1);
+	instTraceHiddenLoads[cpuID]++;
 }
 
 void

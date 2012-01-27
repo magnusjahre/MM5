@@ -77,6 +77,7 @@ private:
 	std::vector<Tick> instTraceInterferenceSum;
 	std::vector<Tick> instTraceLatencySum;
 	std::vector<int> instTraceRequests;
+	std::vector<int> instTraceHiddenLoads;
 
 	std::vector<int> totalRequestCount;
 	std::vector<Tick> runningLatencySum;
@@ -243,6 +244,8 @@ public:
 	void addCommitCycle(int cpuID);
 
 	void addL1BlockedCycle(int cpuID);
+
+	void hiddenLoadDetected(int cpuID);
 };
 
 #endif

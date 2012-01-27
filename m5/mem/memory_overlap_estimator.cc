@@ -315,6 +315,10 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	if(pendingRequests[useIndex].isStore() && hiddenLoad){
 		if(pendingRequests[useIndex].isSharedReq) hiddenSharedLoads++;
 		else hiddenPrivateLoads++;
+
+		if(pendingRequests[useIndex].isSharedReq){
+			interferenceManager->hiddenLoadDetected(cpuID);
+		}
 	}
 
 	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
