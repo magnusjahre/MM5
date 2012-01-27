@@ -153,6 +153,8 @@ MemoryOverlapEstimator::initStallTrace(){
 	headers.push_back("Functional Unit Stalls");
 	headers.push_back("Private Memory Stalls");
 	headers.push_back("Shared Memory Stalls");
+	headers.push_back("Empty ROB Stalls");
+	headers.push_back("Unknown Stalls");
 	headers.push_back("Other Stalls");
 
 	stallTrace.initalizeTrace(headers);
@@ -172,6 +174,8 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 	data.push_back(stallCycles[STALL_FUNC_UNIT]);
 	data.push_back(stallCycles[STALL_DMEM_PRIVATE]);
 	data.push_back(stallCycles[STALL_DMEM_SHARED]);
+	data.push_back(stallCycles[STALL_EMPTY_ROB]);
+	data.push_back(stallCycles[STALL_UNKNOWN]);
 	data.push_back(stallCycles[STALL_OTHER]);
 
 	stallTrace.addTrace(data);

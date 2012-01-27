@@ -199,7 +199,7 @@ FullCPU::commit()
 		}
 
 		assert(!isStalled);
-		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_EMPTY_ROB, 1);
 		return;
 	}
 
@@ -448,7 +448,7 @@ FullCPU::commit()
 		case COMMIT_CAUSE_NOT_SET:
 			done = true;  // dummy
 			assert(!isStalled);
-			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
+			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_UNKNOWN, 1);
 			break;
 		default:
 			fatal("commit causes screwed up");
