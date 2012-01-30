@@ -99,6 +99,9 @@ private:
 	int sharedRequestAccumulator;
 	Tick sharedLatencyAccumulator;
 
+	Tick issueToStallAccumulator;
+	int issueToStallAccReqs;
+
 	InterferenceManager* interferenceManager;
 
 	Tick lastTraceAt;
