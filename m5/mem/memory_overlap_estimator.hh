@@ -93,6 +93,9 @@ private:
 	RequestTrace stallTrace;
 	RequestTrace requestGroupTrace;
 
+	RequestTrace sharedRequestTrace;
+	bool sharedReqTraceEnabled;
+
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
 	int totalRequestAccumulator;
@@ -158,6 +161,9 @@ private:
 	void traceOverlap(int committedInstructions);
 	void initStallTrace();
 	void traceStalls(int committedInstructions);
+
+	void initSharedRequestTrace();
+	void traceSharedRequest(EstimationEntry entry, Tick stalledAt, Tick resumedAt);
 
 	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall);
 	void initRequestGroupTrace();

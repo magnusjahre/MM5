@@ -40,6 +40,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
+
+	sharedReqTraceEnabled = true; //FIXME: parameterize
+	initSharedRequestTrace();
 }
 
 void
@@ -221,6 +224,41 @@ MemoryOverlapEstimator::initRequestGroupTrace(){
 	headers.push_back("Frequency");
 
 	requestGroupTrace.initalizeTrace(headers);
+}
+
+void
+MemoryOverlapEstimator::initSharedRequestTrace(){
+
+	if(sharedReqTraceEnabled){
+		sharedRequestTrace = RequestTrace(name(), "SharedRequestTrace");
+
+		vector<string> headers;
+		headers.push_back("Address");
+		headers.push_back("Issued At");
+		headers.push_back("Completed At");
+		headers.push_back("Shared Cache Miss");
+		headers.push_back("Caused Stall At");
+		headers.push_back("Caused Resume At");
+
+		sharedRequestTrace.initalizeTrace(headers);
+	}
+
+}
+
+void
+MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt, Tick resumedAt){
+	if(sharedReqTraceEnabled){
+		vector<RequestTraceEntry> data;
+
+		data.push_back(entry.address);
+		data.push_back(entry.issuedAt);
+		data.push_back(entry.completedAt);
+		data.push_back(entry.isSharedCacheMiss ? 1 : 0);
+		data.push_back(stalledAt);
+		data.push_back(resumedAt);
+
+		sharedRequestTrace.addTrace(data);
+	}
 }
 
 void
@@ -417,9 +455,12 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 					issueToStallAccumulator += issueToStallLat;
 					issueToStallAccReqs++;
+
+					traceSharedRequest(completedRequests.front(), stalledAt, curTick);
 				}
 				else{
 					hiddenSharedLatencyAccumulator += completedRequests.front().latency();
+					traceSharedRequest(completedRequests.front(), 0, 0);
 				}
 
 				sharedLoadCount++;
