@@ -228,11 +228,13 @@ MemoryOverlapEstimator::initRequestGroupTrace(){
 
 void
 MemoryOverlapEstimator::initSharedRequestTrace(){
+	sharedTraceReqNum = 0;
 
 	if(sharedReqTraceEnabled){
 		sharedRequestTrace = RequestTrace(name(), "SharedRequestTrace");
 
 		vector<string> headers;
+		headers.push_back("Number");
 		headers.push_back("Address");
 		headers.push_back("Issued At");
 		headers.push_back("Completed At");
@@ -250,6 +252,7 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt
 	if(sharedReqTraceEnabled){
 		vector<RequestTraceEntry> data;
 
+		data.push_back(sharedTraceReqNum);
 		data.push_back(entry.address);
 		data.push_back(entry.issuedAt);
 		data.push_back(entry.completedAt);
@@ -258,6 +261,8 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt
 		data.push_back(resumedAt);
 
 		sharedRequestTrace.addTrace(data);
+
+		sharedTraceReqNum++;
 	}
 }
 

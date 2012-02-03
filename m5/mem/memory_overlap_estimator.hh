@@ -95,6 +95,7 @@ private:
 
 	RequestTrace sharedRequestTrace;
 	bool sharedReqTraceEnabled;
+	int sharedTraceReqNum;
 
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
