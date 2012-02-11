@@ -26,6 +26,7 @@ public:
 	MemCmd origCmd;
 	bool isSharedReq;
 	bool isSharedCacheMiss;
+	bool isPrivModeSharedCacheMiss;
 	bool isL1Hit;
 	bool hidesLoad;
 
@@ -36,6 +37,7 @@ public:
 		completedAt = 0;
 		isSharedReq = false;
 		isSharedCacheMiss = false;
+		isPrivModeSharedCacheMiss = false;
 		isL1Hit = false;
 		hidesLoad = false;
 	}

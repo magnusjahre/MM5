@@ -269,6 +269,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool isStore;
     bool beenInSharedMemSys;
     bool isSharedCacheMiss;
+    bool isPrivModeSharedCacheMiss;
 
     /**
      * Contruct and initialize a memory request.
@@ -356,7 +357,8 @@ class MemReq : public FastAlloc, public RefCounted
     isSharedWB(false),
     isStore(false),
     beenInSharedMemSys(false),
-    isSharedCacheMiss(false)
+    isSharedCacheMiss(false),
+    isPrivModeSharedCacheMiss(false)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -445,6 +447,7 @@ class MemReq : public FastAlloc, public RefCounted
         isStore = r.isStore;
         beenInSharedMemSys = r.beenInSharedMemSys;
         isSharedCacheMiss = r.isSharedCacheMiss;
+        isPrivModeSharedCacheMiss = r.isPrivModeSharedCacheMiss;
     }
 
     /**

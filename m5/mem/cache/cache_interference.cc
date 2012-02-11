@@ -224,9 +224,11 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		if(req->cmd == Writeback){
 			shadowBlk->status |= BlkDirty;
 		}
+		req->isPrivModeSharedCacheMiss = false;
 	}
 	else{
 		shadowHit = false;
+		req->isPrivModeSharedCacheMiss = true;
 	}
 	req->isShadowMiss = !shadowHit;
 

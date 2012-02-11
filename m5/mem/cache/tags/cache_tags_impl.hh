@@ -298,6 +298,7 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 		target->flags |= SATISFIED;
 		target->beenInSharedMemSys = fillRequest->beenInSharedMemSys;
 		target->isSharedCacheMiss = fillRequest->isSharedCacheMiss;
+		target->isPrivModeSharedCacheMiss = fillRequest->isPrivModeSharedCacheMiss;
 
 		// How many bytes pass the first request is this one
 		int transfer_offset = target->offset - initial_offset;

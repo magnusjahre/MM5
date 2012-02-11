@@ -239,6 +239,7 @@ MemoryOverlapEstimator::initSharedRequestTrace(){
 		headers.push_back("Issued At");
 		headers.push_back("Completed At");
 		headers.push_back("Shared Cache Miss");
+		headers.push_back("Private Mode Shared Cache Miss");
 		headers.push_back("Caused Stall At");
 		headers.push_back("Caused Resume At");
 
@@ -257,6 +258,7 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt
 		data.push_back(entry.issuedAt);
 		data.push_back(entry.completedAt);
 		data.push_back(entry.isSharedCacheMiss ? 1 : 0);
+		data.push_back(entry.isPrivModeSharedCacheMiss ? 1 : 0);
 		data.push_back(stalledAt);
 		data.push_back(resumedAt);
 
@@ -371,6 +373,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex].completedAt = finishedAt;
 	pendingRequests[useIndex].isSharedReq = req->beenInSharedMemSys;
 	pendingRequests[useIndex].isSharedCacheMiss = req->isSharedCacheMiss;
+	pendingRequests[useIndex].isPrivModeSharedCacheMiss = req->isPrivModeSharedCacheMiss;
 	pendingRequests[useIndex].hidesLoad = hiddenLoad;
 
 	totalRequestAccumulator++;
