@@ -41,7 +41,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
 
-	sharedReqTraceEnabled = true; //FIXME: parameterize
+	sharedReqTraceEnabled = false; //FIXME: parameterize
 	initSharedRequestTrace();
 }
 
