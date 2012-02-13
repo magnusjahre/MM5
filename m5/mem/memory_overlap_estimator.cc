@@ -24,6 +24,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 
 	stallIdentifyAlg = _ident;
 
+	nextReqID = 0;
+
 	cpuID = id;
 	cpuCount = cpu_count;
 	interferenceManager = _interferenceManager;
@@ -105,6 +107,10 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Computed overlap");
 	headers.push_back("Avg Issue to Stall");
 	headers.push_back("Num Shared Stalls");
+	headers.push_back("CPL");
+	headers.push_back("Average Fan Out");
+	headers.push_back("Shared Miss Rate");
+	headers.push_back("Private Miss Rate");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -117,7 +123,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 }
 
 void
-MemoryOverlapEstimator::traceOverlap(int committedInstructions){
+MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	vector<RequestTraceEntry> data;
 
 	data.push_back(committedInstructions);
@@ -126,8 +132,11 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 	data.push_back(totalRequestAccumulator);
 	data.push_back(sharedRequestAccumulator);
 
+	double avgSharedLat = 0.0;
+
 	if(sharedRequestAccumulator > 0){
-		data.push_back((double) sharedLatencyAccumulator / (double) sharedRequestAccumulator);
+		avgSharedLat = (double) sharedLatencyAccumulator / (double) sharedRequestAccumulator;
+		data.push_back(avgSharedLat);
 		data.push_back((double) hiddenSharedLatencyAccumulator / (double) sharedRequestAccumulator);
 		data.push_back(sharedLatencyAccumulator - hiddenSharedLatencyAccumulator);
 		data.push_back((double) sharedStallCycleAccumulator / (double) sharedLatencyAccumulator);
@@ -146,6 +155,20 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions){
 		data.push_back(0.0);
 	}
 	data.push_back(issueToStallAccReqs);
+
+	assert(rss.smSharedCacheHits + rss.smSharedCacheMisses == rss.sharedRequests);
+	assert(rss.pmSharedCacheHits + rss.pmSharedCacheMisses == rss.sharedRequests);
+
+	double pmMissRate = (double) rss.smSharedCacheMisses / (double) rss.sharedRequests;
+	double avgFanOut = (double) rss.sharedRequests / (double) cpl;
+
+
+	data.push_back(cpl);
+	data.push_back(avgFanOut);
+	data.push_back((double) rss.pmSharedCacheMisses / (double) rss.sharedRequests);
+	data.push_back(pmMissRate);
+
+	rss.reset();
 
 	stallCycleAccumulator = 0;
 	sharedStallCycleAccumulator = 0;
@@ -270,7 +293,10 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt
 
 void
 MemoryOverlapEstimator::sampleCPU(int committedInstructions){
-	traceOverlap(committedInstructions);
+
+	int cpl = gatherParaMeasurements(committedInstructions);
+
+	traceOverlap(committedInstructions, cpl);
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 }
@@ -336,7 +362,21 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",
 			(req->paddr & ~(CACHE_BLK_SIZE-1)),
 			req->cmd);
-	pendingRequests.push_back(EstimationEntry(req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
+
+	pendingRequests.push_back(EstimationEntry(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd));
+
+	if(req->cmd == Read){
+		EstimationNode* node = new EstimationNode(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1));
+		if(leastRecentlyCompNode != NULL){
+			leastRecentlyCompNode->addChild(node);
+		}
+		else{
+			roots.push_back(node);
+		}
+	}
+
+	nextReqID++;
+
 }
 
 void
@@ -347,9 +387,10 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 				blkAddr,
 				req->cmd);
 
-	EstimationEntry ee = EstimationEntry(blkAddr, curTick, req->cmd);
+	EstimationEntry ee = EstimationEntry(nextReqID, blkAddr, curTick, req->cmd);
 	ee.completedAt = finishedAt;
 	ee.isL1Hit = false;
+	nextReqID++;
 
 	DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
 			finishedAt);
@@ -392,6 +433,14 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		}
 	}
 
+	if(!pendingRequests[useIndex].isStore()){
+		EstimationNode* curnode = findNode(pendingRequests[useIndex].id);
+		if(curnode != NULL){
+			leastRecentlyCompNode = curnode;
+			rss.addStats(pendingRequests[useIndex]);
+		}
+	}
+
 	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
 			req->paddr,
 			req->cmd,
@@ -403,6 +452,69 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	completedRequests.push_back(pendingRequests[useIndex]);
 
 	pendingRequests.erase(pendingRequests.begin()+	useIndex);
+}
+
+void
+MemoryOverlapEstimator::RequestSampleStats::addStats(EstimationEntry entry){
+	if(entry.isSharedCacheMiss) smSharedCacheMisses++;
+	else smSharedCacheHits++;
+
+	if(entry.isPrivModeSharedCacheMiss) pmSharedCacheMisses++;
+	else pmSharedCacheHits++;
+
+	sharedRequests++;
+}
+
+EstimationNode*
+MemoryOverlapEstimator::findNode(int id){
+	EstimationNode* retnode = NULL;
+	for(int i=0;i<roots.size();i++){
+		EstimationNode* tmp = traverseTree(roots[i], id);
+		if(retnode != NULL) assert(tmp == NULL);
+		if(retnode == NULL) retnode = tmp;
+	}
+	return retnode;
+}
+
+EstimationNode*
+MemoryOverlapEstimator::traverseTree(EstimationNode* node, int id){
+	if(node->id == id) return node;
+
+	for(int i=0;i<node->children.size();i++){
+		EstimationNode* n = traverseTree(node->children[i], id);
+		if(n != NULL) return n;
+	}
+	return NULL;
+}
+
+int
+MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
+	int cpl = findCriticalPathLength(roots, 1);
+
+	leastRecentlyCompNode = NULL;
+	clearTree(roots);
+	roots.clear();
+
+	return cpl;
+}
+
+void
+MemoryOverlapEstimator::clearTree(std::vector<EstimationNode*> children){
+	for(int i=0;i<children.size();i++){
+		clearTree(children[i]->children);
+		children[i]->children.clear();
+		delete children[i];
+	}
+}
+
+int
+MemoryOverlapEstimator::findCriticalPathLength(std::vector<EstimationNode*> children, int depth){
+	int maxdepth = depth;
+	for(int i=0;i<children.size();i++){
+		int tmp = findCriticalPathLength(children[i]->children, depth+1);
+		if(tmp > maxdepth) maxdepth = tmp;
+	}
+	return maxdepth;
 }
 
 void

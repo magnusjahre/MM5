@@ -29,8 +29,10 @@ public:
 	bool isPrivModeSharedCacheMiss;
 	bool isL1Hit;
 	bool hidesLoad;
+	int id;
 
-	EstimationEntry(Addr _a, Tick _issuedAt, MemCmd _origCmd){
+	EstimationEntry(int _id, Addr _a, Tick _issuedAt, MemCmd _origCmd){
+		id = _id;
 		address = _a;
 		issuedAt = _issuedAt;
 		origCmd = _origCmd;
@@ -51,6 +53,38 @@ public:
 		if(origCmd == Write || origCmd == Soft_Prefetch) return true;
 		return false;
 	}
+};
+
+class EstimationNode{
+public:
+	std::vector<EstimationNode*> children;
+
+	int id;
+	Addr addr;
+	bool cacheValuesValid;
+	bool sharedModeCacheMiss;
+	bool privateModeCacheMiss;
+
+	EstimationNode(int _id, Addr _addr){
+		id = _id;
+		addr = _addr;
+
+		cacheValuesValid = false;
+		sharedModeCacheMiss = false;
+		privateModeCacheMiss = false;
+	}
+
+	void setCacheStats(bool pmres, bool smres){
+		cacheValuesValid = true;
+		sharedModeCacheMiss = smres;
+		privateModeCacheMiss = pmres;
+	}
+
+	void addChild(EstimationNode* child){
+		children.push_back(child);
+	}
+
+
 };
 
 class MemoryOverlapEstimator : public BaseHier{
@@ -78,6 +112,27 @@ private:
 
 	};
 
+	class RequestSampleStats{
+	public:
+		int pmSharedCacheMisses;
+		int pmSharedCacheHits;
+		int smSharedCacheMisses;
+		int smSharedCacheHits;
+		int sharedRequests;
+
+		RequestSampleStats(){ reset(); }
+
+		void addStats(EstimationEntry entry);
+
+		void reset(){
+			pmSharedCacheMisses = 0;
+			pmSharedCacheHits = 0;
+			smSharedCacheMisses = 0;
+			smSharedCacheHits = 0;
+			sharedRequests = 0;
+		}
+	};
+
 	std::vector<EstimationEntry> pendingRequests;
 	std::vector<EstimationEntry> completedRequests;
 
@@ -90,6 +145,11 @@ private:
 
 	int cpuID;
 	int cpuCount;
+
+	int nextReqID;
+	std::vector<EstimationNode*> roots;
+	EstimationNode* leastRecentlyCompNode;
+	RequestSampleStats rss;
 
 	RequestTrace overlapTrace;
 	RequestTrace stallTrace;
@@ -161,7 +221,7 @@ private:
 
 private:
 	void initOverlapTrace();
-	void traceOverlap(int committedInstructions);
+	void traceOverlap(int committedInstructions, int cpl);
 	void initStallTrace();
 	void traceStalls(int committedInstructions);
 
@@ -173,6 +233,13 @@ private:
 	void traceRequestGroups(int committedInstructions);
 
 	bool isSharedStall(bool oldestInstIsShared, int sharedReqs, int numSharedWrites);
+
+	EstimationNode* findNode(int id);
+	EstimationNode* traverseTree(EstimationNode* node, int id);
+
+	int gatherParaMeasurements(int committedInsts);
+	int findCriticalPathLength(std::vector<EstimationNode*> children, int depth);
+	void clearTree(std::vector<EstimationNode*> children);
 
 public:
 	MemoryOverlapEstimator(std::string name,
