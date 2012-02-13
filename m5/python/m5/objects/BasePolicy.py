@@ -1,6 +1,6 @@
 from m5 import *
 
-class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "latency-mlp-sreq", "no-mlp", "no-mlp-cache"]
+class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "latency-mlp-sreq", "no-mlp", "no-mlp-cache", "cpl"]
 class OptimizationMetric(Enum): vals = ['hmos', 'stp', "fairness", "aggregateIPC"]
 
 class BasePolicy(SimObject):

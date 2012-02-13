@@ -61,23 +61,13 @@ public:
 
 	int id;
 	Addr addr;
-	bool cacheValuesValid;
-	bool sharedModeCacheMiss;
-	bool privateModeCacheMiss;
+	bool privateMemsysReq;
 
 	EstimationNode(int _id, Addr _addr){
 		id = _id;
 		addr = _addr;
 
-		cacheValuesValid = false;
-		sharedModeCacheMiss = false;
-		privateModeCacheMiss = false;
-	}
-
-	void setCacheStats(bool pmres, bool smres){
-		cacheValuesValid = true;
-		sharedModeCacheMiss = smres;
-		privateModeCacheMiss = pmres;
+		privateMemsysReq = false;
 	}
 
 	void addChild(EstimationNode* child){
@@ -261,7 +251,7 @@ public:
 
 	void executionResumed(bool endedBySquash);
 
-	void sampleCPU(int committedInstructions);
+	int sampleCPU(int committedInstructions);
 
 	void addStall(StallCause cause, Tick cycles, bool memStall = false);
 

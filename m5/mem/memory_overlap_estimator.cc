@@ -111,6 +111,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Average Fan Out");
 	headers.push_back("Shared Miss Rate");
 	headers.push_back("Private Miss Rate");
+	headers.push_back("RSS Requests");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -162,11 +163,11 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	double pmMissRate = (double) rss.smSharedCacheMisses / (double) rss.sharedRequests;
 	double avgFanOut = (double) rss.sharedRequests / (double) cpl;
 
-
 	data.push_back(cpl);
 	data.push_back(avgFanOut);
 	data.push_back((double) rss.pmSharedCacheMisses / (double) rss.sharedRequests);
 	data.push_back(pmMissRate);
+	data.push_back(rss.sharedRequests);
 
 	rss.reset();
 
@@ -291,7 +292,7 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry entry, Tick stalledAt
 	}
 }
 
-void
+int
 MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 	int cpl = gatherParaMeasurements(committedInstructions);
@@ -299,6 +300,8 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceOverlap(committedInstructions, cpl);
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
+
+	return cpl;
 }
 
 void
@@ -436,8 +439,13 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	if(!pendingRequests[useIndex].isStore()){
 		EstimationNode* curnode = findNode(pendingRequests[useIndex].id);
 		if(curnode != NULL){
-			leastRecentlyCompNode = curnode;
-			rss.addStats(pendingRequests[useIndex]);
+			if(pendingRequests[useIndex].isSharedReq){
+				leastRecentlyCompNode = curnode;
+				rss.addStats(pendingRequests[useIndex]);
+			}
+			else{
+				curnode->privateMemsysReq = true;
+			}
 		}
 	}
 

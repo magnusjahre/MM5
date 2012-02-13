@@ -773,7 +773,7 @@ InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions)
 }
 
 void
-InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample){
+InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl){
 
 	tracePrivateLatency(cpuID, committedInstructions);
 
@@ -791,6 +791,12 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 		avgTotalLat = (double) cpuComTraceTotalRoundtrip[cpuID] / (double) cpuComTraceTotalRoundtripRequests[cpuID];
 	}
 
+	int privateMisses = cacheInterference->getPrivateCommitTraceMisses(cpuID);
+	double privateMissRate = 0.0;
+	if(privateMisses > 0){
+		privateMissRate = (double) privateMisses / (double) instTraceRequests[cpuID];
+	}
+
 	if(missBandwidthPolicy != NULL){
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
@@ -804,7 +810,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 avgTotalLat - avgSharedLatency,
 														 commitTraceWriteStall[cpuID],
 														 instTraceHiddenLoads[cpuID],
-														 commitTraceMemIndStall[cpuID]);
+														 commitTraceMemIndStall[cpuID],
+														 cpl,
+														 privateMissRate);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
