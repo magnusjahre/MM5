@@ -370,6 +370,8 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 
 	if(req->cmd == Read){
 		EstimationNode* node = new EstimationNode(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1));
+		pendingNodes.push_back(node);
+		
 		if(leastRecentlyCompNode != NULL){
 			leastRecentlyCompNode->addChild(node);
 		}
@@ -379,7 +381,6 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	}
 
 	nextReqID++;
-
 }
 
 void
@@ -401,6 +402,29 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 	completedRequests.push_back(ee);
 
 }
+
+EstimationNode*
+MemoryOverlapEstimator::findPendingNode(int id){
+  for(int i=0;i<pendingNodes.size();i++){
+    if(pendingNodes[i]->id == id) return pendingNodes[i];  
+  }
+  return NULL;
+}
+
+
+void
+MemoryOverlapEstimator::removePendingNode(int id){
+  int removeIndex = -1;
+  for(int i=0;i<pendingNodes.size();i++){
+    if(pendingNodes[i]->id == id){
+      assert(removeIndex == -1);
+      removeIndex = i;
+    }
+  }
+  assert(removeIndex != -1);
+  pendingNodes.erase(pendingNodes.begin()+removeIndex);
+}
+
 
 void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad){
@@ -437,7 +461,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	}
 
 	if(!pendingRequests[useIndex].isStore()){
-		EstimationNode* curnode = findNode(pendingRequests[useIndex].id);
+		EstimationNode* curnode = findPendingNode(pendingRequests[useIndex].id);
 		if(curnode != NULL){
 			if(pendingRequests[useIndex].isSharedReq){
 				leastRecentlyCompNode = curnode;
@@ -446,6 +470,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 			else{
 				curnode->privateMemsysReq = true;
 			}
+			removePendingNode(pendingRequests[useIndex].id);
 		}
 	}
 
@@ -502,6 +527,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	leastRecentlyCompNode = NULL;
 	clearTree(roots);
 	roots.clear();
+	pendingNodes.clear();
 
 	return cpl;
 }

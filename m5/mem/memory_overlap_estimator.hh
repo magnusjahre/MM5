@@ -126,6 +126,8 @@ private:
 	std::vector<EstimationEntry> pendingRequests;
 	std::vector<EstimationEntry> completedRequests;
 
+	std::vector<EstimationNode*> pendingNodes;
+
 	std::vector<RequestGroupSignature> groupSignatures;
 
 	Tick stalledAt;
@@ -230,6 +232,9 @@ private:
 	int gatherParaMeasurements(int committedInsts);
 	int findCriticalPathLength(std::vector<EstimationNode*> children, int depth);
 	void clearTree(std::vector<EstimationNode*> children);
+
+        EstimationNode* findPendingNode(int id);
+        void removePendingNode(int id);
 
 public:
 	MemoryOverlapEstimator(std::string name,
