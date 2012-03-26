@@ -30,6 +30,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	cpuCount = cpu_count;
 	interferenceManager = _interferenceManager;
 
+	leastRecentlyCompNode = NULL;
+
 	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
 	lastTraceAt = 1;
 	commitCycles = 0;
@@ -44,6 +46,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	issueToStallAccReqs = 0;
 
 	sharedReqTraceEnabled = false; //FIXME: parameterize
+	//sharedReqTraceEnabled = true; //FIXME: parameterize
 	initSharedRequestTrace();
 }
 

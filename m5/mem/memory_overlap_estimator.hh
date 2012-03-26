@@ -233,8 +233,8 @@ private:
 	int findCriticalPathLength(std::vector<EstimationNode*> children, int depth);
 	void clearTree(std::vector<EstimationNode*> children);
 
-        EstimationNode* findPendingNode(int id);
-        void removePendingNode(int id);
+	EstimationNode* findPendingNode(int id);
+	void removePendingNode(int id);
 
 public:
 	MemoryOverlapEstimator(std::string name,

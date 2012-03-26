@@ -384,7 +384,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		DPRINTF(MissBWPolicyExtra, "Computed average fan out %f\n", avgFanOut);
 
 		double avgBusServiceLatency = 120.0; //FIXME: implement different policies
-		double busSerializationCorrection = (avgFanOut-1.0) * privateMissRate * avgBusServiceLatency;
+		//double busSerializationCorrection = (avgFanOut-1.0) * privateMissRate * avgBusServiceLatency; //FIXME: add bus serialization idea as separate policy
+		double busSerializationCorrection = 0.0;
 		if(busSerializationCorrection < 0) busSerializationCorrection = 0.0;
 
 		DPRINTF(MissBWPolicyExtra, "Computed bus serialization correction %f with bus latency %f and private miss rate %d\n",
