@@ -376,8 +376,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	else if(perfEstMethod == CPL){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
-			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning 0 (reqs=%d, cpl=%d)\n", sharedRequests, cpl);
-			return 0;
+			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
+			return privateStallTime;
 		}
 
 		double avgFanOut = (double) sharedRequests / (double) cpl;
