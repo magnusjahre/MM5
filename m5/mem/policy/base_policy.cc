@@ -739,7 +739,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneIPC);
 		data.push_back(aloneOverlap);
 		data.push_back(privateMissRate);
-		data.push_back(stallCycles);
+		data.push_back(stallCycles+privateStallCycles);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
