@@ -90,6 +90,8 @@ MemoryOverlapEstimator::addCommitCycle(){
 	lastActivityCycle = curTick;
 	commitCycles++;
 
+	for(int i=0;i<pendingNodes.size();i++) pendingNodes[i]->commitCyclesWhileActive++;
+
 	assert(interferenceManager != NULL);
 	interferenceManager->addCommitCycle(cpuID);
 }
@@ -171,6 +173,8 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	data.push_back((double) rss.pmSharedCacheMisses / (double) rss.sharedRequests);
 	data.push_back(pmMissRate);
 	data.push_back(rss.sharedRequests);
+
+	data.push_back((double) computeWhilePendingAccumulator / (double) computeWhilePendingReqs);
 
 	rss.reset();
 
@@ -307,6 +311,14 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	return cpl;
 }
 
+double
+MemoryOverlapEstimator::getAvgCWP(){
+	double cwp = (double) computeWhilePendingAccumulator / (double) computeWhilePendingReqs;
+	computeWhilePendingAccumulator = 0;
+	computeWhilePendingReqs = 0;
+	return cwp;
+}
+
 void
 MemoryOverlapEstimator::regStats(){
 
@@ -416,7 +428,7 @@ MemoryOverlapEstimator::findPendingNode(int id){
 
 
 void
-MemoryOverlapEstimator::removePendingNode(int id){
+MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
   int removeIndex = -1;
   for(int i=0;i<pendingNodes.size();i++){
     if(pendingNodes[i]->id == id){
@@ -425,6 +437,10 @@ MemoryOverlapEstimator::removePendingNode(int id){
     }
   }
   assert(removeIndex != -1);
+  if(sharedreq){
+	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
+	  computeWhilePendingReqs++;
+  }
   pendingNodes.erase(pendingNodes.begin()+removeIndex);
 }
 
@@ -473,7 +489,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 			else{
 				curnode->privateMemsysReq = true;
 			}
-			removePendingNode(pendingRequests[useIndex].id);
+			removePendingNode(pendingRequests[useIndex].id, pendingRequests[useIndex].isSharedReq);
 		}
 	}
 

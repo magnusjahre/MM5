@@ -234,7 +234,7 @@ public:
 
 	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall);
 
-	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl);
+	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp);
 
 	void enableMSHROccupancyTrace();
 

@@ -333,7 +333,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 								double sharedRequests,
 								int cpuID,
 								int cpl,
-								double privateMissRate){
+								double privateMissRate,
+								double cwp){
 
 	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
 
@@ -373,34 +374,33 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
 			return privateStallTime;
 		}
 
-		double avgFanOut = (double) sharedRequests / (double) cpl;
-		DPRINTF(MissBWPolicyExtra, "Computed average fan out %f\n", avgFanOut);
+		double newStallTime = 0.0;
+		if(perfEstMethod == CPL_CWP){
+			newStallTime = cpl * (newAvgSharedLat - cwp);
+		}
+		else if(perfEstMethod == CPL){
+			newStallTime = cpl * newAvgSharedLat;
+		}
+		else{
+			fatal("unknown CPL-based method");
+		}
 
-		double avgBusServiceLatency = 120.0; //FIXME: implement different policies
-		//double busSerializationCorrection = (avgFanOut-1.0) * privateMissRate * avgBusServiceLatency; //FIXME: add bus serialization idea as separate policy
-		double busSerializationCorrection = 0.0;
-		if(busSerializationCorrection < 0) busSerializationCorrection = 0.0;
 
-		DPRINTF(MissBWPolicyExtra, "Computed bus serialization correction %f with bus latency %f and private miss rate %d\n",
-				busSerializationCorrection,
-				avgBusServiceLatency,
-				privateMissRate);
-
-		double newStallTime = cpl * (newAvgSharedLat + busSerializationCorrection);
-
-		DPRINTF(MissBWPolicyExtra, "Computed new stall time %f with new shared latency %f, private stall time is %f, current stall %f, current latency %f\n",
+		DPRINTF(MissBWPolicyExtra, "Computed new stall time %f with new shared latency %f, private stall time is %f, current stall %f, current latency %f, %d cpl, %f cwp\n",
 				newStallTime,
 				newAvgSharedLat,
 				privateStallTime,
 				currentStallTime,
-				currentAvgSharedLat);
+				currentAvgSharedLat,
+				cpl,
+				cwp);
 
 		return privateStallTime+newStallTime;
 	}
@@ -621,6 +621,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Latency");
 	headers.push_back("Hidden Loads");
 	headers.push_back("CPL");
+	headers.push_back("CWP");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -664,18 +665,20 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    int hiddenLoads,
 					                    Tick memoryIndependentStallCycles,
 					                    int cpl,
-					                    double privateMissRate){
+					                    double privateMissRate,
+					                    double cwp){
 
 	vector<RequestTraceEntry> data;
 
-	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles in sample, %d commit cycles, %d committed insts, private stall %d, shared stall %d, cpl %d\n",
+	DPRINTF(MissBWPolicy, "-- Running alone IPC estimation trace for CPU %d, %d cycles in sample, %d commit cycles, %d committed insts, private stall %d, shared stall %d, cpl %d, cwp %d\n",
 			              cpuID,
 			              cyclesInSample,
 			              commitCycles,
 			              committedInsts,
 			              privateStallCycles,
 			              stallCycles,
-			              cpl);
+			              cpl,
+			              cwp);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
@@ -690,6 +693,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));
 	data.push_back(hiddenLoads);
 	data.push_back(cpl);
+	data.push_back(cwp);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
@@ -699,7 +703,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      reqs,
 				                                      cpuID,
 				                                      cpl,
-				                                      privateMissRate);
+				                                      privateMissRate,
+				                                      cwp);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + memoryIndependentStallCycles + newStallEstimate);
@@ -789,6 +794,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "no-mlp") return NO_MLP;
 	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 	if(methodName == "cpl") return CPL;
+	if(methodName == "cpl-cwp") return CPL_CWP;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

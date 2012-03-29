@@ -46,7 +46,8 @@ public:
         RATIO_MWS,
         NO_MLP,
         NO_MLP_CACHE,
-        CPL
+        CPL,
+        CPL_CWP
     } PerformanceEstimationMethod;
 
     typedef enum{
@@ -179,7 +180,8 @@ protected:
 							   double sharedRequests,
 							   int cpuID,
 							   int cpl,
-							   double privateMissRate);
+							   double privateMissRate,
+							   double cwp);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 
@@ -229,7 +231,8 @@ public:
 				                     int hiddenLoads,
 				                     Tick memoryIndependentStalls,
 				                     int cpl,
-				                     double privateMissRate);
+				                     double privateMissRate,
+				                     double cwp);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

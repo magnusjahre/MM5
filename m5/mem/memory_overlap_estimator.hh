@@ -62,12 +62,14 @@ public:
 	int id;
 	Addr addr;
 	bool privateMemsysReq;
+	int commitCyclesWhileActive;
 
 	EstimationNode(int _id, Addr _addr){
 		id = _id;
 		addr = _addr;
 
 		privateMemsysReq = false;
+		commitCyclesWhileActive = 0;
 	}
 
 	void addChild(EstimationNode* child){
@@ -170,6 +172,9 @@ private:
 
 	Tick cacheBlockedCycles;
 
+	Tick computeWhilePendingAccumulator;
+	int computeWhilePendingReqs;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -234,7 +239,7 @@ private:
 	void clearTree(std::vector<EstimationNode*> children);
 
 	EstimationNode* findPendingNode(int id);
-	void removePendingNode(int id);
+	void removePendingNode(int id, bool sharedreq);
 
 public:
 	MemoryOverlapEstimator(std::string name,
@@ -273,6 +278,8 @@ public:
 	void registerL1DataCache(int cpuID, BaseCache* cache);
 
 	void addDcacheStallCycle();
+
+	double getAvgCWP();
 
 };
 
