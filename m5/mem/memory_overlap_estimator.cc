@@ -313,6 +313,7 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 double
 MemoryOverlapEstimator::getAvgCWP(){
+	if(computeWhilePendingReqs == 0) return 0.0;
 	double cwp = (double) computeWhilePendingAccumulator / (double) computeWhilePendingReqs;
 	computeWhilePendingAccumulator = 0;
 	computeWhilePendingReqs = 0;
