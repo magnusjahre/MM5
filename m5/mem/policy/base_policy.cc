@@ -641,6 +641,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Measured Alone Overlap");
 		headers.push_back("Measured Private Mode Miss Rate");
 		headers.push_back("Actual Stall");
+		headers.push_back("Model Stall");
+		headers.push_back("Model error (%)");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -745,6 +747,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneOverlap);
 		data.push_back(privateMissRate);
 		data.push_back(stallCycles+privateStallCycles);
+		double modelStallEstimate = cpl*(avgSharedLat+avgPrivateMemsysLat-cwp);
+		data.push_back(cpl*(avgSharedLat+avgPrivateMemsysLat-cwp));
+		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - stallCycles)/(double)stallCycles)*100);
+	        else data.push_back(0.0);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
