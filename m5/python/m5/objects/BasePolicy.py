@@ -19,4 +19,3 @@ class BasePolicy(SimObject):
     sharedCacheThrottle = Param.ThrottleControl("The shared cache throttle")
     privateCacheThrottles = VectorParam.ThrottleControl("The private cache throttles")
     writeStallTechnique = Param.WriteStallTechnique("The technique to use to estimate private write stalls")
-    
