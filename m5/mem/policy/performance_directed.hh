@@ -45,7 +45,8 @@ public:
 			                  Metric* _performanceMetric,
 			                  bool _enforcePolicy,
 			                  ThrottleControl* _sharedCacheThrottle,
-			                  std::vector<ThrottleControl* > _privateCacheThrottles);
+			                  std::vector<ThrottleControl* > _privateCacheThrottles,
+			                  WriteStallTechnique _wst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 	virtual bool doEvaluation(int cpuID);

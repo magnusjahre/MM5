@@ -56,6 +56,11 @@ public:
     	BUS_SORTED_LOG
     } SearchAlgorithm;
 
+    typedef enum{
+    	WS_NONE,
+    	WS_SHARED
+    } WriteStallTechnique;
+
 protected:
 
     bool enableOccupancyTrace;
@@ -63,6 +68,7 @@ protected:
 	Metric* performanceMetric;
 
 	PerformanceEstimationMethod perfEstMethod;
+	WriteStallTechnique writeStallTech;
 
 	InterferenceManager* intManager;
 	Tick period;
@@ -189,6 +195,8 @@ protected:
 
 	void updateBestProjections();
 
+	double estimateWriteStallCycles(double writeStall);
+
 public:
 
 	BasePolicy(std::string _name,
@@ -201,7 +209,8 @@ public:
 			   Metric* _performanceMetric,
 			   bool _enforcePolicy,
 			   ThrottleControl* _sharedCacheThrottle,
-			   std::vector<ThrottleControl* > _privateCacheThrottles);
+			   std::vector<ThrottleControl* > _privateCacheThrottles,
+			   WriteStallTechnique _wst);
 
 	~BasePolicy();
 
@@ -238,6 +247,7 @@ public:
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
 	static SearchAlgorithm parseSearchAlgorithm(std::string methodName);
 	static Metric* parseOptimizationMetric(std::string metricName);
+	static WriteStallTechnique parseWriteStallTech(std::string techName);
 
 	void implementMHA(std::vector<int> bestMHA);
 

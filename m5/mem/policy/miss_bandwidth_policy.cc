@@ -25,7 +25,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 										 double _reqVariationThreshold,
 										 int _renewMeasurementsThreshold,
 										 SearchAlgorithm _searchAlgorithm,
-										 double _busRequestThresholdIntensity)
+										 double _busRequestThresholdIntensity,
+										 WriteStallTechnique _wst)
 : BasePolicy(_name,
 		_intManager,
 		_period,
@@ -36,7 +37,8 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 		_performanceMetric,
 		_enforcePolicy,
 		_sharedCacheThrottle,
-		_privateCacheThrottles)
+		_privateCacheThrottles,
+		_wst)
 {
 
 	level = 0;
@@ -682,6 +684,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	Param<double> renewMeasurementsThreshold;
 	Param<string> searchAlgorithm;
 	Param<double> busRequestThreshold;
+	Param<string> writeStallTechnique;
 END_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
@@ -702,7 +705,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	INIT_PARAM_DFLT(requestVariationThreshold, "Maximum acceptable request variation", 0.1),
 	INIT_PARAM_DFLT(renewMeasurementsThreshold, "Samples to keep MHA", 32),
 	INIT_PARAM_DFLT(searchAlgorithm, "The search algorithm to use", "exhaustive"),
-	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 256)
+	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 256),
+	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls")
 END_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 CREATE_SIM_OBJECT(MissBandwidthPolicy)
@@ -715,6 +719,8 @@ CREATE_SIM_OBJECT(MissBandwidthPolicy)
 			BasePolicy::parseSearchAlgorithm(searchAlgorithm);
 
 	Metric* performanceMetric = BasePolicy::parseOptimizationMetric(optimizationMetric);
+
+	BasePolicy::WriteStallTechnique wst = BasePolicy::parseWriteStallTech(writeStallTechnique);
 
 	return new MissBandwidthPolicy(getInstanceName(),
 							       interferenceManager,
@@ -734,7 +740,8 @@ CREATE_SIM_OBJECT(MissBandwidthPolicy)
 							       requestVariationThreshold,
 							       renewMeasurementsThreshold,
 							       searchAlg,
-							       busRequestThreshold);
+							       busRequestThreshold,
+							       wst);
 }
 
 REGISTER_SIM_OBJECT("MissBandwidthPolicy", MissBandwidthPolicy)

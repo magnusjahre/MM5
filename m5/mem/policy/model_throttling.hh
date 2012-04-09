@@ -50,7 +50,8 @@ public:
 			        std::vector<ThrottleControl* > _privateCacheThrottles,
 			        bool _verify,
 			        std::vector<double> _staticArrivalRates,
-			        std::string _implStrategy);
+			        std::string _implStrategy,
+			        WriteStallTechnique _wst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

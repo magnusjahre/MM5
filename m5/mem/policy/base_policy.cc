@@ -22,12 +22,14 @@ BasePolicy::BasePolicy(string _name,
 					   Metric* _performanceMetric,
 					   bool _enforcePolicy,
 					   ThrottleControl* _sharedCacheThrottle,
-					   std::vector<ThrottleControl* > _privateCacheThrottles)
+					   std::vector<ThrottleControl* > _privateCacheThrottles,
+					   WriteStallTechnique _wst)
 : SimObject(_name){
 
 	intManager = _intManager;
 	perfEstMethod = _perfEstMethod;
 	performanceMetric = _performanceMetric;
+	writeStallTech = _wst;
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
@@ -633,6 +635,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Estimated Alone Overlap");
 		headers.push_back("Private Mode Miss Rate Estimate");
 		headers.push_back("Stall Estimate");
+		headers.push_back("Alone Write Stall Estimate");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -708,8 +711,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      privateMissRate,
 				                                      cwp);
 
+		double writeStallEstimate = estimateWriteStallCycles(writeStall);
+
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
-		double aloneIPCEstimate = (double) committedInsts / (commitCycles + memoryIndependentStallCycles + newStallEstimate);
+		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + newStallEstimate);
 
 
 		data.push_back(avgSharedLat);
@@ -727,6 +732,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(computedOverlap[cpuID]);
 		data.push_back(privateMissRate);
 		data.push_back(newStallEstimate);
+		data.push_back(writeStallEstimate);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -754,6 +760,19 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
+}
+
+double
+BasePolicy::estimateWriteStallCycles(double writeStall){
+	if(writeStallTech == WS_NONE){
+		return 0.0;
+	}
+	if(writeStallTech == WS_SHARED){
+		return writeStall;
+	}
+
+	fatal("unknown write stall technique");
+	return 0.0;
 }
 
 void
@@ -829,6 +848,14 @@ BasePolicy::parseOptimizationMetric(std::string metricName){
 	return NULL;
 }
 
+BasePolicy::WriteStallTechnique
+BasePolicy::parseWriteStallTech(std::string techName){
+	if(techName == "ws-none") return WS_NONE;
+	if(techName == "ws-shared") return WS_SHARED;
+
+	fatal("unknown write stall technique");
+	return WS_NONE;
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

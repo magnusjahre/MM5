@@ -379,6 +379,9 @@ def setUpModThrotPolicy():
     assert "MODEL-THROTLING-IMPL-STRAT" in env
     policy.implStrategy = env["MODEL-THROTLING-IMPL-STRAT"]
     
+    assert "WRITE-STALL-TECH" in env
+    policy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    
     statOptName = "MODEL-THROTLING-POLICY-STATIC" 
     if statOptName in env:
         tmpArrList = env[statOptName].split(',')
@@ -408,6 +411,9 @@ def setUpPerfDirPolicy():
     perfDirPolicy.cpuCount = int(env["NP"])
     perfDirPolicy.performanceEstimationMethod = "no-mlp"
     
+    assert "WRITE-STALL-TECH" in env
+    perfDirPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    
     return perfDirPolicy
 
 def setUpMissBwPolicy():
@@ -430,6 +436,9 @@ def setUpMissBwPolicy():
     missBandwidthPolicy.period = int(env["MISS-BW-POLICY-PERIOD"])        
     missBandwidthPolicy.interferenceManager = root.interferenceManager
     missBandwidthPolicy.cpuCount = int(env["NP"])
+
+    assert "WRITE-STALL-TECH" in env
+    missBandwidthPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
 
     if "MISS-BW-REQ-METHOD" in env:
         missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]
