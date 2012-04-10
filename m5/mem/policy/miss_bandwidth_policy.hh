@@ -69,7 +69,8 @@ public:
 			            int _renewMeasurementsThreshold,
 			            SearchAlgorithm _searchAlgorithm,
 			            double _busRequestThresholdIntensity,
-			            WriteStallTechnique _wst);
+			            WriteStallTechnique _wst,
+			            PrivBlockedStallTechnique _pbst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

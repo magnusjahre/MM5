@@ -23,13 +23,15 @@ BasePolicy::BasePolicy(string _name,
 					   bool _enforcePolicy,
 					   ThrottleControl* _sharedCacheThrottle,
 					   std::vector<ThrottleControl* > _privateCacheThrottles,
-					   WriteStallTechnique _wst)
+					   WriteStallTechnique _wst,
+					   PrivBlockedStallTechnique _pbst)
 : SimObject(_name){
 
 	intManager = _intManager;
 	perfEstMethod = _perfEstMethod;
 	performanceMetric = _performanceMetric;
 	writeStallTech = _wst;
+	privBlockedStallTech = _pbst;
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
@@ -617,6 +619,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Stall Cycles");
 	headers.push_back("Private Stall Cycles");
 	headers.push_back("Write Stall Cycles");
+	headers.push_back("Private Blocked Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Memory Independent Stalls");
 	headers.push_back("Total Requests");
@@ -636,6 +639,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Private Mode Miss Rate Estimate");
 		headers.push_back("Stall Estimate");
 		headers.push_back("Alone Write Stall Estimate");
+		headers.push_back("Alone Private Blocked Stall Estimate");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -671,7 +675,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    Tick memoryIndependentStallCycles,
 					                    int cpl,
 					                    double privateMissRate,
-					                    double cwp){
+					                    double cwp,
+					                    double privateBlockedStall){
 
 	vector<RequestTraceEntry> data;
 
@@ -692,6 +697,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(stallCycles);
 	data.push_back(privateStallCycles);
 	data.push_back(writeStall);
+	data.push_back(privateBlockedStall);
 	data.push_back(commitCycles);
 	data.push_back(memoryIndependentStallCycles);
 	data.push_back(reqs);
@@ -712,9 +718,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      cwp);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall);
+		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
-		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + newStallEstimate);
+		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + newStallEstimate);
 
 
 		data.push_back(avgSharedLat);
@@ -733,6 +740,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(privateMissRate);
 		data.push_back(newStallEstimate);
 		data.push_back(writeStallEstimate);
+		data.push_back(alonePrivBlockedStallEstimate);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -772,6 +780,18 @@ BasePolicy::estimateWriteStallCycles(double writeStall){
 	}
 
 	fatal("unknown write stall technique");
+	return 0.0;
+}
+
+double
+BasePolicy::estimatePrivateBlockedStall(double privBlocked){
+	if(privBlockedStallTech == PBS_NONE){
+		return 0.0;
+	}
+	if(privBlockedStallTech  == PBS_SHARED){
+		return privBlocked;
+	}
+	fatal("unknown pbs technique");
 	return 0.0;
 }
 
@@ -855,6 +875,15 @@ BasePolicy::parseWriteStallTech(std::string techName){
 
 	fatal("unknown write stall technique");
 	return WS_NONE;
+}
+
+BasePolicy::PrivBlockedStallTechnique
+BasePolicy::parsePrivBlockedStallTech(std::string techName){
+	if(techName == "pbs-none") return PBS_NONE;
+	if(techName == "pbs-shared") return PBS_SHARED;
+
+	fatal("unknown pbs technique");
+	return PBS_NONE;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

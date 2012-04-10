@@ -175,6 +175,9 @@ private:
 	Tick computeWhilePendingAccumulator;
 	int computeWhilePendingReqs;
 
+	bool isStalledOnWrite;
+	int numWriteStalls;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;

@@ -61,6 +61,11 @@ public:
     	WS_SHARED
     } WriteStallTechnique;
 
+    typedef enum{
+    	PBS_NONE,
+    	PBS_SHARED
+    } PrivBlockedStallTechnique;
+
 protected:
 
     bool enableOccupancyTrace;
@@ -69,6 +74,7 @@ protected:
 
 	PerformanceEstimationMethod perfEstMethod;
 	WriteStallTechnique writeStallTech;
+	PrivBlockedStallTechnique privBlockedStallTech;
 
 	InterferenceManager* intManager;
 	Tick period;
@@ -196,6 +202,7 @@ protected:
 	void updateBestProjections();
 
 	double estimateWriteStallCycles(double writeStall);
+	double estimatePrivateBlockedStall(double privBlocked);
 
 public:
 
@@ -210,7 +217,8 @@ public:
 			   bool _enforcePolicy,
 			   ThrottleControl* _sharedCacheThrottle,
 			   std::vector<ThrottleControl* > _privateCacheThrottles,
-			   WriteStallTechnique _wst);
+			   WriteStallTechnique _wst,
+			   PrivBlockedStallTechnique _pbst);
 
 	~BasePolicy();
 
@@ -241,13 +249,15 @@ public:
 				                     Tick memoryIndependentStalls,
 				                     int cpl,
 				                     double privateMissRate,
-				                     double cwp);
+				                     double cwp,
+				                     double privateBlockedStall);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
 	static SearchAlgorithm parseSearchAlgorithm(std::string methodName);
 	static Metric* parseOptimizationMetric(std::string metricName);
 	static WriteStallTechnique parseWriteStallTech(std::string techName);
+	static PrivBlockedStallTechnique parsePrivBlockedStallTech(std::string techName);
 
 	void implementMHA(std::vector<int> bestMHA);
 

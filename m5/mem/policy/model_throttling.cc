@@ -27,8 +27,9 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 bool _verify,
 			   	    			 std::vector<double> _staticArrivalRates,
 			   	    			 std::string _implStrategy,
-			   	    			 WriteStallTechnique _wst)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst)
+			   	    			 WriteStallTechnique _wst,
+			   	    			PrivBlockedStallTechnique _pbst)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst)
 {
 	//enableOccupancyTrace = true;
 
@@ -599,6 +600,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	VectorParam<double> staticArrivalRates;
 	Param<string> implStrategy;
 	Param<string> writeStallTechnique;
+	Param<string> privateBlockedStallTechnique;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -615,7 +617,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(verify, "Verify policy", false),
 	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>()),
 	INIT_PARAM_DFLT(implStrategy, "The way to enforce the bandwidth quotas", "throttle"),
-	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls")
+	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
+	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls")
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -627,6 +630,7 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 	Metric* performanceMetric = BasePolicy::parseOptimizationMetric(optimizationMetric);
 
 	BasePolicy::WriteStallTechnique wst = BasePolicy::parseWriteStallTech(writeStallTechnique);
+	BasePolicy::PrivBlockedStallTechnique pbst = BasePolicy::parsePrivBlockedStallTech(privateBlockedStallTechnique);
 
 	return new ModelThrottlingPolicy(getInstanceName(),
 							         interferenceManager,
@@ -642,7 +646,8 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         verify,
 							         staticArrivalRates,
 							         implStrategy,
-							         wst);
+							         wst,
+							         pbst);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

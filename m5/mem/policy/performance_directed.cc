@@ -18,8 +18,9 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 			                                          bool _enforcePolicy,
 			                                          ThrottleControl* _sharedCacheThrottle,
 			                                          std::vector<ThrottleControl* > _privateCacheThrottles,
-			                                          WriteStallTechnique _wst)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst)
+			                                          WriteStallTechnique _wst,
+			                                          PrivBlockedStallTechnique _pbst)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst)
 {
 	cacheResolution = 4; // FIXME: Parameterize
 	bandwidthResolution = 4.0; // FIXME: Parameterize
@@ -148,6 +149,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
 	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<string> writeStallTechnique;
+	Param<string> privateBlockedStallTechnique;
 END_DECLARE_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
@@ -161,7 +163,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
 	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
 	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
-	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls")
+	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
+	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls")
 END_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 
 CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
@@ -173,6 +176,7 @@ CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
 	Metric* performanceMetric = BasePolicy::parseOptimizationMetric(optimizationMetric);
 
 	BasePolicy::WriteStallTechnique wst = BasePolicy::parseWriteStallTech(writeStallTechnique);
+	BasePolicy::PrivBlockedStallTechnique pbst = BasePolicy::parsePrivBlockedStallTech(privateBlockedStallTechnique);
 
 	return new PerformanceDirectedPolicy(getInstanceName(),
 							       interferenceManager,
@@ -185,7 +189,8 @@ CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
 							       enforcePolicy,
 							       sharedCacheThrottle,
 							       privateCacheThrottles,
-							       wst);
+							       wst,
+							       pbst);
 }
 
 REGISTER_SIM_OBJECT("PerformanceDirectedPolicy", PerformanceDirectedPolicy)

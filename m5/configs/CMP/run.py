@@ -384,6 +384,12 @@ def setUpModThrotPolicy():
         policy.writeStallTechnique = env["WRITE-STALL-TECH"]
     else:
         policy.writeStallTechnique = "ws-none"
+        
+    if int(env["NP"]) > 1: 
+        assert "PB-STALL-TECH" in env
+        policy.privateBlockedStallTechnique = env["PB-STALL-TECH"]
+    else:
+        policy.privateBlockedStallTechnique = "pbs-none"
     
     statOptName = "MODEL-THROTLING-POLICY-STATIC" 
     if statOptName in env:
@@ -445,6 +451,12 @@ def setUpMissBwPolicy():
         missBandwidthPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
     else:
         missBandwidthPolicy.writeStallTechnique = "ws-none"
+        
+    if int(env["NP"]) > 1: 
+        assert "PB-STALL-TECH" in env
+        missBandwidthPolicy.privateBlockedStallTechnique = env["PB-STALL-TECH"]
+    else:
+        missBandwidthPolicy.privateBlockedStallTechnique = "pbs-none"
 
     if "MISS-BW-REQ-METHOD" in env:
         missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]

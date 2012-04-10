@@ -51,7 +51,8 @@ public:
 			        bool _verify,
 			        std::vector<double> _staticArrivalRates,
 			        std::string _implStrategy,
-			        WriteStallTechnique _wst);
+			        WriteStallTechnique _wst,
+			        PrivBlockedStallTechnique _pbst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

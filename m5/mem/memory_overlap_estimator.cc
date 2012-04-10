@@ -45,6 +45,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
 
+	isStalledOnWrite = false;
+	numWriteStalls = 0;
+
 	sharedReqTraceEnabled = false; //FIXME: parameterize
 	//sharedReqTraceEnabled = true; //FIXME: parameterize
 	initSharedRequestTrace();
@@ -61,6 +64,8 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 
 	assert(!isStalled);
 
+	if(cause != STALL_STORE_BUFFER) isStalledOnWrite = false;
+
 	if(memStall){
 		//memory stalls are detected one cycle late
 		assert(lastActivityCycle == curTick-cycles-1);
@@ -72,7 +77,9 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 
 		assert(interferenceManager != NULL);
 		if(cause == STALL_STORE_BUFFER){
-			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles);
+			if(!isStalledOnWrite) numWriteStalls++;
+			isStalledOnWrite = true;
+			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles, 0);
 		}
 		else{
 			interferenceManager->addMemIndependentStallCycle(cpuID);
@@ -89,6 +96,7 @@ MemoryOverlapEstimator::addCommitCycle(){
 	assert(lastActivityCycle == curTick-1);
 	lastActivityCycle = curTick;
 	commitCycles++;
+	isStalledOnWrite = false;
 
 	for(int i=0;i<pendingNodes.size();i++) pendingNodes[i]->commitCyclesWhileActive++;
 
@@ -206,6 +214,7 @@ MemoryOverlapEstimator::initStallTrace(){
 	headers.push_back("Empty ROB Stalls");
 	headers.push_back("Unknown Stalls");
 	headers.push_back("Other Stalls");
+	headers.push_back("Num write stalls");
 
 	stallTrace.initalizeTrace(headers);
 }
@@ -227,6 +236,7 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 	data.push_back(stallCycles[STALL_EMPTY_ROB]);
 	data.push_back(stallCycles[STALL_UNKNOWN]);
 	data.push_back(stallCycles[STALL_OTHER]);
+	data.push_back(numWriteStalls);
 
 	stallTrace.addTrace(data);
 
@@ -238,6 +248,8 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 
 	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
 	commitCycles = 0;
+
+	numWriteStalls = 0;
 }
 
 void
@@ -667,7 +679,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(stalledOnShared || stalledOnPrivate);
 
 	Tick reportStall = stallLength;
-	Tick writeStall = 0;
+	Tick blockedStall = 0;
 
 	if(isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0)){
 
@@ -696,8 +708,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 		assert(stallLength >= cacheBlockedCycles);
 		reportStall = stallLength - cacheBlockedCycles;
-		writeStall = cacheBlockedCycles;
-
+		blockedStall = cacheBlockedCycles;
 
 		addStall(STALL_DMEM_PRIVATE, stallLength, true);
 	}
@@ -708,7 +719,8 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			                            reportStall,
 			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0),
 			                            true,
-			                            writeStall);
+			                            0,
+			                            blockedStall);
 }
 
 bool
