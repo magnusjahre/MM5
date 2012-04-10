@@ -379,8 +379,11 @@ def setUpModThrotPolicy():
     assert "MODEL-THROTLING-IMPL-STRAT" in env
     policy.implStrategy = env["MODEL-THROTLING-IMPL-STRAT"]
     
-    assert "WRITE-STALL-TECH" in env
-    policy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    if int(env["NP"]) > 1: 
+        assert "WRITE-STALL-TECH" in env
+        policy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    else:
+        policy.writeStallTechnique = "ws-none"
     
     statOptName = "MODEL-THROTLING-POLICY-STATIC" 
     if statOptName in env:
@@ -437,8 +440,11 @@ def setUpMissBwPolicy():
     missBandwidthPolicy.interferenceManager = root.interferenceManager
     missBandwidthPolicy.cpuCount = int(env["NP"])
 
-    assert "WRITE-STALL-TECH" in env
-    missBandwidthPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    if int(env["NP"]) > 1: 
+        assert "WRITE-STALL-TECH" in env
+        missBandwidthPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    else:
+        missBandwidthPolicy.writeStallTechnique = "ws-none"
 
     if "MISS-BW-REQ-METHOD" in env:
         missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]
