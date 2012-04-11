@@ -58,7 +58,8 @@ public:
 
     typedef enum{
     	WS_NONE,
-    	WS_SHARED
+    	WS_SHARED,
+    	WS_LATENCY
     } WriteStallTechnique;
 
     typedef enum{
@@ -201,7 +202,7 @@ protected:
 
 	void updateBestProjections();
 
-	double estimateWriteStallCycles(double writeStall);
+	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls);
 	double estimatePrivateBlockedStall(double privBlocked);
 
 public:
@@ -250,7 +251,11 @@ public:
 				                     int cpl,
 				                     double privateMissRate,
 				                     double cwp,
-				                     double privateBlockedStall);
+				                     double privateBlockedStall,
+				                     double avgSharedStoreLat,
+				                     double avgPrivmodeStoreLat,
+				                     double numStores,
+				                     int numWriteStalls);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

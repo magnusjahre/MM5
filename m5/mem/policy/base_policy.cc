@@ -627,6 +627,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Hidden Loads");
 	headers.push_back("CPL");
 	headers.push_back("CWP");
+	headers.push_back("Num Write Stalls");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -640,6 +641,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Stall Estimate");
 		headers.push_back("Alone Write Stall Estimate");
 		headers.push_back("Alone Private Blocked Stall Estimate");
+		headers.push_back("Shared Store Lat");
+		headers.push_back("Estimated Alone Store Lat");
+		headers.push_back("Num Shared Stores");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -650,6 +654,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Actual Stall");
 		headers.push_back("Model Stall");
 		headers.push_back("Model error (%)");
+		headers.push_back("Actual Alone Store Lat");
+		headers.push_back("Num Shared Stores");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -676,7 +682,11 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    int cpl,
 					                    double privateMissRate,
 					                    double cwp,
-					                    double privateBlockedStall){
+					                    double privateBlockedStall,
+					                    double avgSharedStoreLat,
+					                    double avgPrivmodeStoreLat,
+					                    double numStores,
+					                    int numWriteStalls){
 
 	vector<RequestTraceEntry> data;
 
@@ -705,6 +715,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(hiddenLoads);
 	data.push_back(cpl);
 	data.push_back(cwp);
+	data.push_back(numWriteStalls);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
@@ -717,7 +728,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      privateMissRate,
 				                                      cwp);
 
-		double writeStallEstimate = estimateWriteStallCycles(writeStall);
+		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
@@ -741,6 +752,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(newStallEstimate);
 		data.push_back(writeStallEstimate);
 		data.push_back(alonePrivBlockedStallEstimate);
+		data.push_back(avgSharedStoreLat);
+		data.push_back(avgPrivmodeStoreLat);
+		data.push_back(numStores);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -764,19 +778,24 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		double modelStallEstimate = cpl*(avgSharedLat+avgPrivateMemsysLat-cwp);
 		data.push_back(cpl*(avgSharedLat+avgPrivateMemsysLat-cwp));
 		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - stallCycles)/(double)stallCycles)*100);
-	        else data.push_back(0.0);
+		else data.push_back(0.0);
+		data.push_back(avgSharedStoreLat);
+		data.push_back(numStores);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
 }
 
 double
-BasePolicy::estimateWriteStallCycles(double writeStall){
+BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls){
 	if(writeStallTech == WS_NONE){
 		return 0.0;
 	}
 	if(writeStallTech == WS_SHARED){
 		return writeStall;
+	}
+	if(writeStallTech == WS_LATENCY){
+		return avgPrivmodeLat*numWriteStalls;
 	}
 
 	fatal("unknown write stall technique");
@@ -872,6 +891,7 @@ BasePolicy::WriteStallTechnique
 BasePolicy::parseWriteStallTech(std::string techName){
 	if(techName == "ws-none") return WS_NONE;
 	if(techName == "ws-shared") return WS_SHARED;
+	if(techName == "ws-latency") return WS_LATENCY;
 
 	fatal("unknown write stall technique");
 	return WS_NONE;

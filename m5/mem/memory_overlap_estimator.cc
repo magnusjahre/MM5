@@ -323,6 +323,12 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	return cpl;
 }
 
+int
+MemoryOverlapEstimator::getNumWriteStalls(){
+	// is reset in traceStalls
+	return numWriteStalls;
+}
+
 double
 MemoryOverlapEstimator::getAvgCWP(){
 	if(computeWhilePendingReqs == 0) return 0.0;

@@ -79,6 +79,10 @@ private:
 	std::vector<int> instTraceRequests;
 	std::vector<int> instTraceHiddenLoads;
 
+	std::vector<Tick> instTraceStoreInterferenceSum;
+	std::vector<Tick> instTraceStoreLatencySum;
+	std::vector<int> instTraceStoreRequests;
+
 	std::vector<int> totalRequestCount;
 	std::vector<Tick> runningLatencySum;
 
@@ -235,7 +239,7 @@ public:
 
 	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall);
 
-	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp);
+	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp, int numWriteStalls);
 
 	void enableMSHROccupancyTrace();
 

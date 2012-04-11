@@ -953,9 +953,10 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			data.push_back(ipc);
 			committedInstTrace.addTrace(data);
 
+			int numWriteStalls = overlapEstimator->getNumWriteStalls();
 			int cpl = overlapEstimator->sampleCPU((int) stat_com_inst[thread].value());
 			double cwp = overlapEstimator->getAvgCWP();
-			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, ticksInSample, cpl, cwp);
+			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, ticksInSample, cpl, cwp, numWriteStalls);
 
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;

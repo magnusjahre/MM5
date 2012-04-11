@@ -66,6 +66,10 @@ InterferenceManager::InterferenceManager(std::string _name,
 	instTraceRequests.resize(_cpu_count, 0);
 	instTraceHiddenLoads.resize(_cpu_count, 0);
 
+	instTraceStoreInterferenceSum.resize(_cpu_count, 0);
+	instTraceStoreLatencySum.resize(_cpu_count, 0);
+	instTraceStoreRequests.resize(_cpu_count, 0);
+
 	missBandwidthPolicy = NULL;
 	cacheInterference = NULL;
 
@@ -367,11 +371,16 @@ InterferenceManager::resetStats(){
 void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
 
-	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
 
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
+
+	if(req->isStore){
+		instTraceStoreInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
+	}
+
+	if(checkForStore(req)) return;
 
 	interferenceSum[req->adaptiveMHASenderID][t] += interferenceTicks;
 	interference[t][req->adaptiveMHASenderID] += interferenceTicks;
@@ -429,8 +438,14 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	assert(req->cmd == Read);
 	assert(req->adaptiveMHASenderID != -1);
 
-	if(checkForStore(req)) return;
 	if(req->instructionMiss) return;
+
+	if(req->isStore){
+		instTraceStoreLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
+		instTraceStoreRequests[req->adaptiveMHASenderID]++;
+	}
+
+	if(checkForStore(req)) return;
 
 	runningLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
 	totalRequestCount[req->adaptiveMHASenderID]++;
@@ -775,7 +790,7 @@ InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions)
 }
 
 void
-InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp){
+InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp, int numWriteStalls){
 
 	tracePrivateLatency(cpuID, committedInstructions);
 
@@ -787,6 +802,14 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 		avgInterferenceLatency = (double) instTraceInterferenceSum[cpuID] / (double) instTraceRequests[cpuID];
 	}
 	double predictedAloneLat = avgSharedLatency - avgInterferenceLatency;
+
+	double avgSharedStoreLat = 0;
+	double avgSharedStoreIntLat = 0;
+	if(instTraceStoreRequests[cpuID] > 0){
+		avgSharedStoreLat = (double) instTraceStoreLatencySum[cpuID] / (double) instTraceStoreRequests[cpuID];
+		avgSharedStoreIntLat = (double) instTraceStoreInterferenceSum[cpuID] / (double) instTraceStoreRequests[cpuID];
+	}
+	double predictedStoreAloneLat = avgSharedStoreLat - avgSharedStoreIntLat;
 
 	double avgTotalLat = 0.0;
 	if(cpuComTraceTotalRoundtripRequests[cpuID] > 0){
@@ -816,7 +839,11 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 cpl,
 														 privateMissRate,
 														 cwp,
-														 commitTracePrivateBlockedStall[cpuID]);
+														 commitTracePrivateBlockedStall[cpuID],
+														 avgSharedStoreLat,
+														 predictedStoreAloneLat,
+														 instTraceStoreRequests[cpuID],
+														 numWriteStalls);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -824,6 +851,10 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	instTraceHiddenLoads[cpuID] = 0;
 	instTraceLatencySum[cpuID] = 0;
 	cpuComTraceStallCycles[cpuID] = 0;
+
+	instTraceStoreInterferenceSum[cpuID] = 0;
+	instTraceStoreLatencySum[cpuID] = 0;
+	instTraceStoreRequests[cpuID] = 0;
 
 	commitTraceCommitCycles[cpuID] = 0;
 	commitTraceMemIndStall[cpuID] = 0;

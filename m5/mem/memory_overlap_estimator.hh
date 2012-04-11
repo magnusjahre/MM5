@@ -284,6 +284,8 @@ public:
 
 	double getAvgCWP();
 
+	int getNumWriteStalls();
+
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */
