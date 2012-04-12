@@ -728,7 +728,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      privateMissRate,
 				                                      cwp);
 
-		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls);
+		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
@@ -787,7 +787,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 }
 
 double
-BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls){
+BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls, double avgSharedmodeLat){
 	if(writeStallTech == WS_NONE){
 		return 0.0;
 	}
@@ -796,6 +796,12 @@ BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, i
 	}
 	if(writeStallTech == WS_LATENCY){
 		return avgPrivmodeLat*numWriteStalls;
+	}
+	if(writeStallTech == WS_RATIO){
+		if(avgPrivmodeLat > 0){
+			return writeStall * (avgPrivmodeLat / avgSharedmodeLat);
+		}
+		return 0;
 	}
 
 	fatal("unknown write stall technique");
@@ -892,6 +898,7 @@ BasePolicy::parseWriteStallTech(std::string techName){
 	if(techName == "ws-none") return WS_NONE;
 	if(techName == "ws-shared") return WS_SHARED;
 	if(techName == "ws-latency") return WS_LATENCY;
+	if(techName == "ws-ratio") return WS_RATIO;
 
 	fatal("unknown write stall technique");
 	return WS_NONE;

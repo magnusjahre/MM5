@@ -59,7 +59,8 @@ public:
     typedef enum{
     	WS_NONE,
     	WS_SHARED,
-    	WS_LATENCY
+    	WS_LATENCY,
+    	WS_RATIO
     } WriteStallTechnique;
 
     typedef enum{
@@ -202,7 +203,7 @@ protected:
 
 	void updateBestProjections();
 
-	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls);
+	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls, double avgSharedmodeLat);
 	double estimatePrivateBlockedStall(double privBlocked);
 
 public:
