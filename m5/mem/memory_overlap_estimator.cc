@@ -525,7 +525,11 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= pendingRequests[useIndex].completedAt);
 	completedRequests.push_back(pendingRequests[useIndex]);
 
-	pendingRequests.erase(pendingRequests.begin()+	useIndex);
+	assert(useIndex < pendingRequests.size());
+	assert(useIndex >= 0);
+	vector<EstimationEntry>::iterator useIterator = pendingRequests.begin()+useIndex;
+	assert(useIterator != pendingRequests.end());
+	pendingRequests.erase(useIterator);
 }
 
 void
