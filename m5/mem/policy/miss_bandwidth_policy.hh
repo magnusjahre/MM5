@@ -70,7 +70,8 @@ public:
 			            SearchAlgorithm _searchAlgorithm,
 			            double _busRequestThresholdIntensity,
 			            WriteStallTechnique _wst,
-			            PrivBlockedStallTechnique _pbst);
+			            PrivBlockedStallTechnique _pbst,
+			            EmptyROBStallTechnique _rst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

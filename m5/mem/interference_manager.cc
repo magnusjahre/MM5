@@ -151,6 +151,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	commitTracePrivateStall.resize(_cpu_count, 0);
 	commitTraceWriteStall.resize(_cpu_count, 0);
 	commitTracePrivateBlockedStall.resize(_cpu_count, 0);
+	commitTraceEmptyROBStall.resize(_cpu_count, 0);
 
 	cpuComTraceTotalRoundtrip.resize(_cpu_count, 0);
     cpuComTraceTotalRoundtripRequests.resize(_cpu_count, 0);
@@ -716,7 +717,7 @@ InterferenceManager::checkForStore(MemReqPtr& req){
 }
 
 void
-InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall){
+InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall, Tick emptyROBStall){
 	if(isShared){
 		cpuStallAccumulator[cpuID] += cpuStalledFor;
 		cpuComTraceStallCycles[cpuID] += cpuStalledFor;
@@ -729,6 +730,7 @@ InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared
 
 	commitTraceWriteStall[cpuID] += writeStall;
 	commitTracePrivateBlockedStall[cpuID] += blockedStall;
+	commitTraceEmptyROBStall[cpuID] += emptyROBStall;
 }
 
 void
@@ -843,7 +845,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 avgSharedStoreLat,
 														 predictedStoreAloneLat,
 														 instTraceStoreRequests[cpuID],
-														 numWriteStalls);
+														 numWriteStalls,
+														 commitTraceEmptyROBStall[cpuID]);
 	}
 
 	instTraceInterferenceSum[cpuID] = 0;
@@ -861,6 +864,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	commitTracePrivateStall[cpuID] = 0;
 	commitTraceWriteStall[cpuID] = 0;
 	commitTracePrivateBlockedStall[cpuID] = 0;
+	commitTraceEmptyROBStall[cpuID] = 0;
 
 	cpuComTraceTotalRoundtrip[cpuID] = 0;
 	cpuComTraceTotalRoundtripRequests[cpuID] = 0;

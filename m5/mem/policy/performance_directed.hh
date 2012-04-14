@@ -47,7 +47,8 @@ public:
 			                  ThrottleControl* _sharedCacheThrottle,
 			                  std::vector<ThrottleControl* > _privateCacheThrottles,
 			                  WriteStallTechnique _wst,
-			                  PrivBlockedStallTechnique _pbst);
+			                  PrivBlockedStallTechnique _pbst,
+			                  EmptyROBStallTechnique _rst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 	virtual bool doEvaluation(int cpuID);

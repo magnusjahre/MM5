@@ -79,7 +79,10 @@ MemoryOverlapEstimator::addStall(StallCause cause, Tick cycles, bool memStall){
 		if(cause == STALL_STORE_BUFFER){
 			if(!isStalledOnWrite) numWriteStalls++;
 			isStalledOnWrite = true;
-			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles, 0);
+			interferenceManager->addStallCycles(cpuID, 0, false, false, cycles, 0, 0);
+		}
+		else if(cause == STALL_EMPTY_ROB){
+			interferenceManager->addStallCycles(cpuID, 0, false, false, 0, 0, cycles);
 		}
 		else{
 			interferenceManager->addMemIndependentStallCycle(cpuID);
@@ -726,7 +729,8 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			                            isSharedStall(stalledOnShared, sharedCacheHits+sharedCacheMisses, 0),
 			                            true,
 			                            0,
-			                            blockedStall);
+			                            blockedStall,
+			                            0);
 }
 
 bool

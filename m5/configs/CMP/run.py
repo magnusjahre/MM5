@@ -386,6 +386,12 @@ def setUpModThrotPolicy():
         policy.writeStallTechnique = "ws-none"
         
     if int(env["NP"]) > 1: 
+        assert "EROB-STALL-TECH" in env
+        policy.emptyROBStallTechnique = env["EROB-STALL-TECH"]
+    else:
+        policy.emptyROBStallTechnique = "rst-none"
+        
+    if int(env["NP"]) > 1: 
         assert "PB-STALL-TECH" in env
         policy.privateBlockedStallTechnique = env["PB-STALL-TECH"]
     else:
@@ -451,6 +457,12 @@ def setUpMissBwPolicy():
         missBandwidthPolicy.writeStallTechnique = env["WRITE-STALL-TECH"]
     else:
         missBandwidthPolicy.writeStallTechnique = "ws-none"
+        
+    if int(env["NP"]) > 1: 
+        assert "EROB-STALL-TECH" in env
+        missBandwidthPolicy.emptyROBStallTechnique = env["EROB-STALL-TECH"]
+    else:
+        missBandwidthPolicy.emptyROBStallTechnique = "rst-none"
         
     if int(env["NP"]) > 1: 
         assert "PB-STALL-TECH" in env

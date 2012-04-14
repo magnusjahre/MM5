@@ -52,7 +52,8 @@ public:
 			        std::vector<double> _staticArrivalRates,
 			        std::string _implStrategy,
 			        WriteStallTechnique _wst,
-			        PrivBlockedStallTechnique _pbst);
+			        PrivBlockedStallTechnique _pbst,
+			        EmptyROBStallTechnique _rst);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

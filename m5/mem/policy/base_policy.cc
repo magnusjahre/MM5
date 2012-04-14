@@ -24,7 +24,8 @@ BasePolicy::BasePolicy(string _name,
 					   ThrottleControl* _sharedCacheThrottle,
 					   std::vector<ThrottleControl* > _privateCacheThrottles,
 					   WriteStallTechnique _wst,
-					   PrivBlockedStallTechnique _pbst)
+					   PrivBlockedStallTechnique _pbst,
+					   EmptyROBStallTechnique _rst)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -32,6 +33,7 @@ BasePolicy::BasePolicy(string _name,
 	performanceMetric = _performanceMetric;
 	writeStallTech = _wst;
 	privBlockedStallTech = _pbst;
+	emptyROBStallTech = _rst;
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
@@ -622,6 +624,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Private Blocked Stall Cycles");
 	headers.push_back("Compute Cycles");
 	headers.push_back("Memory Independent Stalls");
+	headers.push_back("Empty ROB Stall Cycles");
 	headers.push_back("Total Requests");
 	headers.push_back("Total Latency");
 	headers.push_back("Hidden Loads");
@@ -644,6 +647,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Shared Store Lat");
 		headers.push_back("Estimated Alone Store Lat");
 		headers.push_back("Num Shared Stores");
+		headers.push_back("Alone Empty ROB Stall Estimate");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -686,7 +690,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    double avgSharedStoreLat,
 					                    double avgPrivmodeStoreLat,
 					                    double numStores,
-					                    int numWriteStalls){
+					                    int numWriteStalls,
+					                    int emptyROBStallCycles){
 
 	vector<RequestTraceEntry> data;
 
@@ -710,6 +715,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(privateBlockedStall);
 	data.push_back(commitCycles);
 	data.push_back(memoryIndependentStallCycles);
+	data.push_back(emptyROBStallCycles);
 	data.push_back(reqs);
 	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));
 	data.push_back(hiddenLoads);
@@ -730,9 +736,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
+		double aloneROBStallEstimate = estimatePrivateROBStall(emptyROBStallCycles, avgPrivateLatEstimate + avgPrivateMemsysLat, avgSharedLat + avgPrivateMemsysLat);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
-		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + newStallEstimate);
+		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + aloneROBStallEstimate + newStallEstimate);
 
 
 		data.push_back(avgSharedLat);
@@ -755,6 +762,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(avgSharedStoreLat);
 		data.push_back(avgPrivmodeStoreLat);
 		data.push_back(numStores);
+		data.push_back(aloneROBStallEstimate);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -798,7 +806,7 @@ BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, i
 		return avgPrivmodeLat*numWriteStalls;
 	}
 	if(writeStallTech == WS_RATIO){
-		if(avgPrivmodeLat > 0){
+		if(avgSharedmodeLat > 0){
 			return writeStall * (avgPrivmodeLat / avgSharedmodeLat);
 		}
 		return 0;
@@ -817,6 +825,25 @@ BasePolicy::estimatePrivateBlockedStall(double privBlocked){
 		return privBlocked;
 	}
 	fatal("unknown pbs technique");
+	return 0.0;
+}
+
+double
+BasePolicy::estimatePrivateROBStall(double sharedROBStall, double avgPrivmodeLat, double avgSharedmodeLat){
+	if(emptyROBStallTech == RST_NONE){
+		return 0.0;
+	}
+	if(emptyROBStallTech == RST_SHARED){
+		return sharedROBStall;
+	}
+	if(emptyROBStallTech == RST_RATIO){
+		if(avgSharedmodeLat > 0){
+			return sharedROBStall * (avgPrivmodeLat / avgSharedmodeLat);
+		}
+		return 0;
+	}
+
+	fatal("unknown empty ROB stall technique");
 	return 0.0;
 }
 
@@ -902,6 +929,16 @@ BasePolicy::parseWriteStallTech(std::string techName){
 
 	fatal("unknown write stall technique");
 	return WS_NONE;
+}
+
+BasePolicy::EmptyROBStallTechnique
+BasePolicy::parseEmptyROBStallTech(std::string techName){
+	if(techName == "rst-none") return RST_NONE;
+	if(techName == "rst-shared") return RST_SHARED;
+	if(techName == "rst-ratio") return RST_RATIO;
+
+	fatal("unknown ROB stall technique");
+	return RST_NONE;
 }
 
 BasePolicy::PrivBlockedStallTechnique

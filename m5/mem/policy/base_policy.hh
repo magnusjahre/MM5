@@ -68,6 +68,12 @@ public:
     	PBS_SHARED
     } PrivBlockedStallTechnique;
 
+    typedef enum{
+    	RST_NONE,
+    	RST_SHARED,
+    	RST_RATIO
+    } EmptyROBStallTechnique;
+
 protected:
 
     bool enableOccupancyTrace;
@@ -77,6 +83,7 @@ protected:
 	PerformanceEstimationMethod perfEstMethod;
 	WriteStallTechnique writeStallTech;
 	PrivBlockedStallTechnique privBlockedStallTech;
+	EmptyROBStallTechnique emptyROBStallTech;
 
 	InterferenceManager* intManager;
 	Tick period;
@@ -205,6 +212,7 @@ protected:
 
 	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls, double avgSharedmodeLat);
 	double estimatePrivateBlockedStall(double privBlocked);
+	double estimatePrivateROBStall(double writeStall, double avgPrivmodeLat, double avgSharedmodeLat);
 
 public:
 
@@ -220,7 +228,8 @@ public:
 			   ThrottleControl* _sharedCacheThrottle,
 			   std::vector<ThrottleControl* > _privateCacheThrottles,
 			   WriteStallTechnique _wst,
-			   PrivBlockedStallTechnique _pbst);
+			   PrivBlockedStallTechnique _pbst,
+			   EmptyROBStallTechnique _rst);
 
 	~BasePolicy();
 
@@ -256,7 +265,8 @@ public:
 				                     double avgSharedStoreLat,
 				                     double avgPrivmodeStoreLat,
 				                     double numStores,
-				                     int numWriteStalls);
+				                     int numWriteStalls,
+				                     int emptyROBStallCycles);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
@@ -264,6 +274,7 @@ public:
 	static Metric* parseOptimizationMetric(std::string metricName);
 	static WriteStallTechnique parseWriteStallTech(std::string techName);
 	static PrivBlockedStallTechnique parsePrivBlockedStallTech(std::string techName);
+	static EmptyROBStallTechnique parseEmptyROBStallTech(std::string techName);
 
 	void implementMHA(std::vector<int> bestMHA);
 

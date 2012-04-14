@@ -4,6 +4,7 @@ class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "la
 class OptimizationMetric(Enum): vals = ['hmos', 'stp', "fairness", "aggregateIPC"]
 class WriteStallTechnique(Enum): vals = ['ws-none', 'ws-shared', 'ws-latency', 'ws-ratio']
 class PrivateBlockedStallTechnique(Enum): vals = ['pbs-none', 'pbs-shared']
+class EmptyROBStallTechnique(Enum): vals = ['rst-none', 'rst-shared', 'rst-ratio']
 
 class BasePolicy(SimObject):
     type = 'BasePolicy'
@@ -21,3 +22,4 @@ class BasePolicy(SimObject):
     privateCacheThrottles = VectorParam.ThrottleControl("The private cache throttles")
     writeStallTechnique = Param.WriteStallTechnique("The technique to use to estimate private write stalls")
     privateBlockedStallTechnique = Param.PrivateBlockedStallTechnique("The technique to use to estimate private blocked stalls")
+    emptyROBStallTechnique = Param.EmptyROBStallTechnique("The technique to use to estimate private mode empty ROB stalls")
