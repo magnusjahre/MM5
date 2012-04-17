@@ -428,15 +428,15 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 				blkAddr,
 				req->cmd);
 
-	EstimationEntry ee = EstimationEntry(nextReqID, blkAddr, curTick, req->cmd);
-	ee.completedAt = finishedAt;
-	ee.isL1Hit = false;
-	nextReqID++;
-
-	DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
-			finishedAt);
-	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
-	completedRequests.push_back(ee);
+//	EstimationEntry ee = EstimationEntry(nextReqID, blkAddr, curTick, req->cmd);
+//	ee.completedAt = finishedAt;
+//	ee.isL1Hit = true;
+//	nextReqID++;
+//
+//	DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
+//			finishedAt);
+//	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
+//	completedRequests.push_back(ee);
 
 }
 
@@ -618,11 +618,12 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
 
-	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles\n",
+	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles, pending completed requests is %d\n",
 			stallLength,
 			(endedBySquash ? "squash" : "memory response"),
 			stalledOnAddr,
-			cacheBlockedCycles);
+			cacheBlockedCycles,
+			completedRequests.size());
 
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
@@ -683,12 +684,17 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		completedRequests.erase(completedRequests.begin());
 	}
 
+	for(int i=0;i<completedRequests.size();i++){
+		assert(completedRequests[i].completedAt >= curTick);
+	}
+
 	if(endedBySquash && !(stalledOnShared || stalledOnPrivate)){
 		DPRINTF(OverlapEstimator, "Stall ended with squash and there is no completed memory request to blame, defaulting to private stall\n");
 		stalledOnPrivate = true;
 	}
 
-	// Note: both might be true since multiple accesses to a cache block generates on shared request
+	// Note: both might be true since multiple accesses to a cache block generates one shared request
+	if(!stalledOnShared && !stalledOnPrivate) stalledOnPrivate = true; // stall was due to an L1 hit, but we don't record those
 	assert(stalledOnShared || stalledOnPrivate);
 
 	Tick reportStall = stallLength;
