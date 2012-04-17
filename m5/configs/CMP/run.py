@@ -558,7 +558,20 @@ def copyCheckpointFiles(directory):
                         subprocess.call(["unzip", directory+"/"+name])
                         os.rename("diskpages0.bin", nozipname) 
                     else:
-                        shutil.copy(directory+"/"+name, newname)
+                        successful = False
+                        cnt = 0 
+                        while not successful and cnt < 5:
+                            try:
+                                shutil.copy(directory+"/"+name, newname)
+                                successful = True
+                            except IOError:
+                                print >> sys.stderr, "Copy failed, retry number"+str(cnt)
+                                os.remove(newname)
+                            except:
+                                raise Exception("Unknown copy error")
+                            cnt += 1
+                        if not successful:
+                            raise Exception("Could not copy file "+str(newname)+", retried 5 times")
                     continue
                 else:
                     if os.path.exists(name):
