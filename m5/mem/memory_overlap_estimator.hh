@@ -125,8 +125,8 @@ private:
 		}
 	};
 
-	std::vector<EstimationEntry> pendingRequests;
-	std::vector<EstimationEntry> completedRequests;
+	std::vector<EstimationEntry*> pendingRequests;
+	std::vector<EstimationEntry*> completedRequests;
 
 	std::vector<EstimationNode*> pendingNodes;
 
@@ -226,7 +226,7 @@ private:
 	void traceStalls(int committedInstructions);
 
 	void initSharedRequestTrace();
-	void traceSharedRequest(EstimationEntry entry, Tick stalledAt, Tick resumedAt);
+	void traceSharedRequest(EstimationEntry* entry, Tick stalledAt, Tick resumedAt);
 
 	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall);
 	void initRequestGroupTrace();
