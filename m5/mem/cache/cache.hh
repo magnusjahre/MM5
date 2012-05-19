@@ -445,7 +445,7 @@ class Cache : public BaseCache
     }
 
     virtual void setNumMSHRs(int newMSHRCount){
-    	return missQueue->setNumMSHRs(newMSHRCount);
+    	missQueue->setNumMSHRs(newMSHRCount);
     }
 
     virtual std::vector<MSHROccupancy>* getOccupancyList(){
