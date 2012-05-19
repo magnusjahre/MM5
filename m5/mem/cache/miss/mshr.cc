@@ -171,7 +171,7 @@ MSHR::allocateAsBuffer(MemReqPtr &target)
         for(int i=0;i<MEM_REQ_LATENCY_BREAKDOWN_SIZE;i++) req->latencyBreakdown[i] += target->latencyBreakdown[i];
     }
 
-    req->isSWPrefetch = req->isSWPrefetch;
+    req->isSWPrefetch = target->isSWPrefetch;
     req->nfqWBID = target->nfqWBID;
     req->isSharedWB = target->isSharedWB;
 
