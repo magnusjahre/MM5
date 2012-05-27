@@ -140,6 +140,12 @@ class PrivateCache1M(CommonLargeCache):
         panic("Priv 1M cache: unknown latency for cpu count")
     
 
+def getBufferMultFac():
+    multfac = int(env["NP"])
+    if int(env['NP']) == 1:
+        multfac = int(env['MEMORY-ADDRESS-PARTS'])
+    return multfac
+
 class SharedCache8M(CommonLargeCache):
     size = '2MB' # 4 banks
     assoc = 16
@@ -148,14 +154,14 @@ class SharedCache8M(CommonLargeCache):
     is_shared = True
     
     if mshrParamName in env:
-        mshrs = int(env[mshrParamName]) 
+        mshrs = int(env[mshrParamName]) * getBufferMultFac()
         if mshrs < 16:
-            mshrs = 16
+            mshrs = 16 * getBufferMultFac()
     else:
-        mshrs = 16
+        mshrs = 16 * getBufferMultFac()
     
     tgts_per_mshr = 4
-    write_buffers = 16
+    write_buffers = 16 * getBufferMultFac()
     
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
@@ -168,14 +174,14 @@ class SharedCache16M(CommonLargeCache):
     is_shared = True
     
     if mshrParamName in env:
-        mshrs = int(env[mshrParamName])*2 
-        if mshrs < 32:
-            mshrs = 32
+        mshrs = int(env[mshrParamName])*getBufferMultFac() 
+        if mshrs < 16:
+            mshrs = 16*getBufferMultFac()
     else:
-        mshrs = 32
+        mshrs = 16*getBufferMultFac()
     
     tgts_per_mshr = 4
-    write_buffers = 32
+    write_buffers = 16*getBufferMultFac()
 
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
@@ -188,14 +194,14 @@ class SharedCache32M(CommonLargeCache):
     is_shared = True
     
     if mshrParamName in env:
-        mshrs = int(env[mshrParamName])*4
-        if mshrs < 64:
-            mshrs = 64
+        mshrs = int(env[mshrParamName])*getBufferMultFac()
+        if mshrs < 16:
+            mshrs = 16*getBufferMultFac()
     else:
-        mshrs = 64
+        mshrs = 16*getBufferMultFac()
     
     tgts_per_mshr = 4
-    write_buffers = 64
+    write_buffers = 16*getBufferMultFac()
     
     if int(env['NP']) == 1:
         static_partitioning_div_factor = int(env['MEMORY-ADDRESS-PARTS'])
