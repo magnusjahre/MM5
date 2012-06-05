@@ -660,6 +660,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Model error (%)");
 		headers.push_back("Actual Alone Store Lat");
 		headers.push_back("Num Shared Stores");
+
+		headers.push_back("CPL Stall Estimate");
+		headers.push_back("CPL-CWP Stall Estimate");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -789,6 +792,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		else data.push_back(0.0);
 		data.push_back(avgSharedStoreLat);
 		data.push_back(numStores);
+
+		data.push_back((avgSharedLat+avgPrivateMemsysLat)*cpl);
+		data.push_back((avgSharedLat+avgPrivateMemsysLat-cwp)*cpl);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
