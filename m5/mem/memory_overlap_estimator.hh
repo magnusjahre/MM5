@@ -250,7 +250,8 @@ public:
 						   InterferenceManager* _interferenceManager,
 						   int cpu_count,
 						   HierParams* params,
-						   SharedStallIndentifier _ident);
+						   SharedStallIndentifier _ident,
+						   bool _sharedReqTraceEnabled);
 
 	void regStats();
 

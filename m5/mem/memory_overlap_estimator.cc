@@ -14,7 +14,12 @@ using namespace std;
 
 #define CACHE_BLK_SIZE 64
 
-MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, InterferenceManager* _interferenceManager, int cpu_count, HierParams* params, SharedStallIndentifier _ident)
+MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
+		                                       InterferenceManager* _interferenceManager,
+		                                       int cpu_count,
+		                                       HierParams* params,
+		                                       SharedStallIndentifier _ident,
+		                                       bool _sharedReqTraceEnabled)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -48,8 +53,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id, Interference
 	isStalledOnWrite = false;
 	numWriteStalls = 0;
 
-	sharedReqTraceEnabled = false; //FIXME: parameterize
-	//sharedReqTraceEnabled = true; //FIXME: parameterize
+	sharedReqTraceEnabled = _sharedReqTraceEnabled;
 	initSharedRequestTrace();
 }
 
@@ -882,13 +886,15 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	Param<int> cpu_count;
 	SimObjectParam<InterferenceManager *> interference_manager;
 	Param<string> shared_stall_heuristic;
+	Param<bool> shared_req_trace_enabled;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM(id, "ID of this estimator"),
 	INIT_PARAM(cpu_count, "Number of cores in the system"),
 	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
-	INIT_PARAM_DFLT(shared_stall_heuristic, "The heuristic that decides if a processor stall is due to a shared event", "rob")
+	INIT_PARAM_DFLT(shared_stall_heuristic, "The heuristic that decides if a processor stall is due to a shared event", "rob"),
+	INIT_PARAM_DFLT(shared_req_trace_enabled, "Trace all requests (warning: will create large files)", false)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -909,7 +915,13 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
 		fatal("Unknown shared stall heuristic");
 	}
 
-    return new MemoryOverlapEstimator(getInstanceName(), id, interference_manager, cpu_count, params, ident);
+    return new MemoryOverlapEstimator(getInstanceName(),
+    		                          id,
+    		                          interference_manager,
+    		                          cpu_count,
+    		                          params,
+    		                          ident,
+    		                          shared_req_trace_enabled);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)
