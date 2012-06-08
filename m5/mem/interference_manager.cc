@@ -792,7 +792,7 @@ InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions)
 }
 
 void
-InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp, int numWriteStalls){
+InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls){
 
 	tracePrivateLatency(cpuID, committedInstructions);
 
@@ -838,7 +838,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 commitTraceWriteStall[cpuID],
 														 instTraceHiddenLoads[cpuID],
 														 commitTraceMemIndStall[cpuID],
-														 cpl,
+														 ols,
 														 privateMissRate,
 														 cwp,
 														 commitTracePrivateBlockedStall[cpuID],

@@ -63,20 +63,51 @@ public:
 	Addr addr;
 	bool privateMemsysReq;
 	int commitCyclesWhileActive;
+	Tick startedAt;
+	Tick finishedAt;
 
-	EstimationNode(int _id, Addr _addr){
+	EstimationNode(int _id, Addr _addr, Tick _start){
 		id = _id;
 		addr = _addr;
+		startedAt = _start;
 
 		privateMemsysReq = false;
 		commitCyclesWhileActive = 0;
+		finishedAt = 0;
 	}
 
 	void addChild(EstimationNode* child){
 		children.push_back(child);
 	}
+};
 
+class BurstStats{
+public:
+	Tick startedAt;
+	Tick finishedAt;
+	int numRequests;
 
+	BurstStats();
+
+	void addRequest(Tick start, Tick end);
+};
+
+class OverlapStatistics{
+public:
+
+	int cpl;
+	double avgBurstSize;
+	double avgBurstLength;
+	double avgInterBurstOverlap;
+	double avgTotalComWhilePend;
+
+	OverlapStatistics(){
+		cpl = 0;
+		avgBurstSize = 0.0;
+		avgBurstLength = 0.0;
+		avgInterBurstOverlap = 0.0;
+		avgTotalComWhilePend = 0.0;
+	}
 };
 
 class MemoryOverlapEstimator : public BaseHier{
@@ -145,6 +176,8 @@ private:
 	EstimationNode* leastRecentlyCompNode;
 	RequestSampleStats rss;
 
+	std::vector<BurstStats> burstInfo;
+
 	RequestTrace overlapTrace;
 	RequestTrace stallTrace;
 	RequestTrace requestGroupTrace;
@@ -173,6 +206,7 @@ private:
 	Tick cacheBlockedCycles;
 
 	Tick computeWhilePendingAccumulator;
+	Tick computeWhilePendingTotalAccumulator;
 	int computeWhilePendingReqs;
 
 	bool isStalledOnWrite;
@@ -237,7 +271,7 @@ private:
 	EstimationNode* findNode(int id);
 	EstimationNode* traverseTree(EstimationNode* node, int id);
 
-	int gatherParaMeasurements(int committedInsts);
+	OverlapStatistics gatherParaMeasurements(int committedInsts);
 	int findCriticalPathLength(std::vector<EstimationNode*> children, int depth);
 	void clearTree(std::vector<EstimationNode*> children);
 
@@ -265,7 +299,7 @@ public:
 
 	void executionResumed(bool endedBySquash);
 
-	int sampleCPU(int committedInstructions);
+	OverlapStatistics sampleCPU(int committedInstructions);
 
 	void addStall(StallCause cause, Tick cycles, bool memStall = false);
 

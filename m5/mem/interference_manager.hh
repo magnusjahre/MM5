@@ -13,12 +13,14 @@
 #include "cache/base_cache.hh"
 #include "mem/bus/bus.hh"
 #include "mem/policy/performance_measurement.hh"
+#include "mem/memory_overlap_estimator.hh"
 
 class CacheInterference;
 class BasePolicy;
 class BaseCache;
 class Bus;
 class MSHROccupancy;
+class OverlapStatistics;
 
 #include <vector>
 
@@ -240,7 +242,7 @@ public:
 
 	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall, Tick emptyROBStall);
 
-	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, int cpl, double cwp, int numWriteStalls);
+	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls);
 
 	void enableMSHROccupancyTrace();
 

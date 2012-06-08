@@ -12,6 +12,7 @@
 
 #include "mem/interference_manager.hh"
 #include "mem/requesttrace.hh"
+#include "mem/memory_overlap_estimator.hh"
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/throttle_control.hh"
 #include "mem/bus/bus.hh"
@@ -31,6 +32,7 @@ class MissBandwidthTraceEvent;
 class InterferenceManager;
 class BaseCache;
 class Bus;
+class OverlapStatistics;
 
 class BasePolicy : public SimObject{
 
@@ -258,7 +260,7 @@ public:
 				                     Tick writeStall,
 				                     int hiddenLoads,
 				                     Tick memoryIndependentStalls,
-				                     int cpl,
+				                     OverlapStatistics ols,
 				                     double privateMissRate,
 				                     double cwp,
 				                     double privateBlockedStall,

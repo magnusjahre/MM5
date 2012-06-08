@@ -55,6 +55,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	sharedReqTraceEnabled = _sharedReqTraceEnabled;
 	initSharedRequestTrace();
+
+	computeWhilePendingAccumulator = 0.0;
+	computeWhilePendingTotalAccumulator = 0.0;
 }
 
 void
@@ -318,16 +321,16 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry* entry, Tick stalledA
 	}
 }
 
-int
+OverlapStatistics
 MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
-	int cpl = gatherParaMeasurements(committedInstructions);
+	OverlapStatistics ols = gatherParaMeasurements(committedInstructions);
 
-	traceOverlap(committedInstructions, cpl);
+	traceOverlap(committedInstructions, ols.cpl);
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 
-	return cpl;
+	return ols;
 }
 
 int
@@ -411,7 +414,7 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	pendingRequests.push_back(ee);
 
 	if(req->cmd == Read){
-		EstimationNode* node = new EstimationNode(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1));
+		EstimationNode* node = new EstimationNode(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1), curTick);
 		pendingNodes.push_back(node);
 		
 		if(leastRecentlyCompNode != NULL){
@@ -466,6 +469,7 @@ MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
   assert(removeIndex != -1);
   if(sharedreq){
 	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
+	  computeWhilePendingTotalAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
 	  computeWhilePendingReqs++;
   }
   pendingNodes.erase(pendingNodes.begin()+removeIndex);
@@ -516,6 +520,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 			else{
 				curnode->privateMemsysReq = true;
 			}
+			curnode->finishedAt = finishedAt;
 			removePendingNode(pendingRequests[useIndex]->id, pendingRequests[useIndex]->isSharedReq);
 		}
 	}
@@ -570,16 +575,43 @@ MemoryOverlapEstimator::traverseTree(EstimationNode* node, int id){
 	return NULL;
 }
 
-int
+OverlapStatistics
 MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
-	int cpl = findCriticalPathLength(roots, 1);
+	OverlapStatistics ols = OverlapStatistics();
 
+	ols.cpl = findCriticalPathLength(roots, 0) + 1;
+
+	double burstLenSum = 0.0;
+	double burstSizeSum = 0.0;
+	double interBurstOverlapSum = 0.0;
+
+	for(int i=0;i<burstInfo.size();i++){
+		if(burstInfo[i].finishedAt > 0){
+			burstLenSum += burstInfo[i].finishedAt - burstInfo[i].startedAt;
+			burstSizeSum += burstInfo[i].numRequests;
+		}
+
+		if(i>0){
+			if(burstInfo[i].finishedAt > 0 && burstInfo[i-1].finishedAt > 0){
+				double overlap = burstInfo[i-1].finishedAt - burstInfo[i].startedAt;
+				if(overlap > 0) interBurstOverlapSum += overlap;
+			}
+		}
+	}
+
+	ols.avgBurstLength = burstLenSum / (double) ols.cpl;
+	ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
+	ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
+	ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
+
+	computeWhilePendingTotalAccumulator = 0;
 	leastRecentlyCompNode = NULL;
 	clearTree(roots);
 	roots.clear();
 	pendingNodes.clear();
+	burstInfo.clear();
 
-	return cpl;
+	return ols;
 }
 
 void
@@ -594,7 +626,12 @@ MemoryOverlapEstimator::clearTree(std::vector<EstimationNode*> children){
 int
 MemoryOverlapEstimator::findCriticalPathLength(std::vector<EstimationNode*> children, int depth){
 	int maxdepth = depth;
+
 	for(int i=0;i<children.size();i++){
+		assert(depth <= burstInfo.size());
+		if(depth == burstInfo.size()) burstInfo.push_back(BurstStats());
+		burstInfo[depth].addRequest(children[i]->startedAt, children[i]->finishedAt);
+
 		int tmp = findCriticalPathLength(children[i]->children, depth+1);
 		if(tmp > maxdepth) maxdepth = tmp;
 	}
@@ -877,6 +914,25 @@ MemoryOverlapEstimator::RequestGroupSignature::populate(std::vector<RequestTrace
 	data->push_back(avgStallLength);
 	data->push_back(avgIssueToStall);
 	data->push_back(entries);
+}
+
+BurstStats::BurstStats(){
+	startedAt = 100000000000;
+	finishedAt = 0;
+	numRequests = 0;
+}
+
+void
+BurstStats::addRequest(Tick start, Tick end){
+	if(end > 0){
+		assert(start < end);
+
+		if(start < startedAt) startedAt = start;
+		if(end > finishedAt) finishedAt = end;
+		numRequests++;
+
+		assert(startedAt < finishedAt);
+	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
