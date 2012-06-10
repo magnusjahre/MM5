@@ -108,7 +108,14 @@ MemoryOverlapEstimator::addCommitCycle(){
 	commitCycles++;
 	isStalledOnWrite = false;
 
-	for(int i=0;i<pendingNodes.size();i++) pendingNodes[i]->commitCyclesWhileActive++;
+	if(!pendingNodes.empty()){
+		// FIXME: this may potentially include overlap with private system requests
+		//        but we don't know if a request is private or shared before is
+		//        completes
+		computeWhilePendingTotalAccumulator++;
+	}
+
+	for(int i=0;i<pendingNodes.size();i++)pendingNodes[i]->commitCyclesWhileActive++;
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addCommitCycle(cpuID);
@@ -469,7 +476,6 @@ MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
   assert(removeIndex != -1);
   if(sharedreq){
 	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
-	  computeWhilePendingTotalAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
 	  computeWhilePendingReqs++;
   }
   pendingNodes.erase(pendingNodes.begin()+removeIndex);
@@ -515,12 +521,12 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		if(curnode != NULL){
 			if(pendingRequests[useIndex]->isSharedReq){
 				leastRecentlyCompNode = curnode;
+				curnode->finishedAt = finishedAt;
 				//rss.addStats(pendingRequests[useIndex]);
 			}
 			else{
 				curnode->privateMemsysReq = true;
 			}
-			curnode->finishedAt = finishedAt;
 			removePendingNode(pendingRequests[useIndex]->id, pendingRequests[useIndex]->isSharedReq);
 		}
 	}
@@ -801,6 +807,7 @@ MemoryOverlapEstimator::isSharedStall(bool oldestInstIsShared, int sharedReqs, i
 		break;
 	default:
 		fatal("Unknown stall identification algorithm");
+		break;
 	}
 
 	return false;

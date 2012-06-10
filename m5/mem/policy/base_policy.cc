@@ -663,7 +663,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 
 		headers.push_back("CPL Stall Estimate");
 		headers.push_back("CPL-CWP Stall Estimate");
-		headers.push_back("Burst Length Stall Estimate");
+		headers.push_back("BLS");
+		headers.push_back("BLS-IBO");
+		headers.push_back("BLS-IBO-CWP");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -797,6 +799,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back((avgSharedLat+avgPrivateMemsysLat)*ols.cpl);
 		data.push_back((avgSharedLat+avgPrivateMemsysLat-cwp)*ols.cpl);
 
+		data.push_back(ols.avgBurstLength*ols.cpl);
+		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.cpl);
 		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgTotalComWhilePend)*ols.cpl);
 	}
 
