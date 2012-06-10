@@ -56,8 +56,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	sharedReqTraceEnabled = _sharedReqTraceEnabled;
 	initSharedRequestTrace();
 
-	computeWhilePendingAccumulator = 0.0;
-	computeWhilePendingTotalAccumulator = 0.0;
+	computeWhilePendingAccumulator = 0;
+	computeWhilePendingTotalAccumulator = 0;
 }
 
 void
