@@ -666,6 +666,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("BLS");
 		headers.push_back("BLS-IBO");
 		headers.push_back("BLS-IBO-CWP");
+		headers.push_back("BLS-IBO-CompCWP");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -802,6 +803,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(ols.avgBurstLength*ols.cpl);
 		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.cpl);
 		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgTotalComWhilePend)*ols.cpl);
+		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgCompCWP)*ols.cpl);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);

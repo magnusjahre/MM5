@@ -605,10 +605,25 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 		}
 	}
 
-	ols.avgBurstLength = burstLenSum / (double) ols.cpl;
-	ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
-	ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
-	ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
+	if(ols.cpl > 0){
+		ols.avgBurstLength = burstLenSum / (double) ols.cpl;
+		ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
+		ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
+		ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
+		if(computeWhilePendingReqs > 0){
+			ols.avgCompCWP = (computeWhilePendingAccumulator * ((double) computeWhilePendingReqs / (double) ols.cpl )) / (double) ols.cpl;
+		}
+		else{
+			ols.avgCompCWP = 0;
+		}
+	}
+	else{
+		ols.avgBurstLength = 0;
+		ols.avgBurstSize = 0;
+		ols.avgInterBurstOverlap = 0;
+		ols.avgTotalComWhilePend =  0;
+		ols.avgCompCWP = 0;
+	}
 
 	computeWhilePendingTotalAccumulator = 0;
 	leastRecentlyCompNode = NULL;

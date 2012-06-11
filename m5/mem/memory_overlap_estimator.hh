@@ -100,6 +100,7 @@ public:
 	double avgBurstLength;
 	double avgInterBurstOverlap;
 	double avgTotalComWhilePend;
+	double avgCompCWP;
 
 	OverlapStatistics(){
 		cpl = 0;
@@ -107,6 +108,7 @@ public:
 		avgBurstLength = 0.0;
 		avgInterBurstOverlap = 0.0;
 		avgTotalComWhilePend = 0.0;
+		avgCompCWP = 0.0;
 	}
 };
 
