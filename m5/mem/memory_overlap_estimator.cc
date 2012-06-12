@@ -610,8 +610,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 		ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
 		ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
 		ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
-		if(computeWhilePendingReqs > 0){
-			ols.avgCompCWP = (computeWhilePendingAccumulator * ((double) computeWhilePendingReqs / (double) ols.cpl )) / (double) ols.cpl;
+		if(ols.avgBurstSize > 0){
+			ols.avgCompCWP = (computeWhilePendingAccumulator / ols.avgBurstSize) / (double) ols.cpl;
 		}
 		else{
 			ols.avgCompCWP = 0;
