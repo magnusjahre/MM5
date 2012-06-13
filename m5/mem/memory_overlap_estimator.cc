@@ -142,6 +142,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Shared Miss Rate");
 	headers.push_back("Private Miss Rate");
 	headers.push_back("RSS Requests");
+	headers.push_back("Avg CWP");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -425,9 +426,14 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 		pendingNodes.push_back(node);
 		
 		if(leastRecentlyCompNode != NULL){
+			DPRINTF(OverlapEstimator, "Request for addr %d is a child of %d\n",
+						(req->paddr & ~(CACHE_BLK_SIZE-1)),
+						(leastRecentlyCompNode->addr));
+
 			leastRecentlyCompNode->addChild(node);
 		}
 		else{
+			DPRINTF(OverlapEstimator, "Request for addr %d is root\n", (req->paddr & ~(CACHE_BLK_SIZE-1)));
 			roots.push_back(node);
 		}
 	}
@@ -521,8 +527,8 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		if(curnode != NULL){
 			if(pendingRequests[useIndex]->isSharedReq){
 				leastRecentlyCompNode = curnode;
+				DPRINTF(OverlapEstimator, "Addr %d is now the oldest request\n", curnode->addr);
 				curnode->finishedAt = finishedAt;
-				//rss.addStats(pendingRequests[useIndex]);
 			}
 			else{
 				curnode->privateMemsysReq = true;
