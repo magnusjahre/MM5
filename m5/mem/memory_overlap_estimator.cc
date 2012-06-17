@@ -734,8 +734,17 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vecto
 
 			int tmp = -1;
 			if(children[i]->addToCPL()){
-				assert(children[i]->children.size() == 1);
-				if(children[i]->children[0] != node){
+
+				assert(children[i]->children.size() < 2);
+
+				bool doBurstAnalysis = true;
+				if(children[i]->children.size() == 1){
+					if(children[i]->children[0] == node){
+						doBurstAnalysis = false;
+					}
+				}
+
+				if(doBurstAnalysis){
 					for(int j=burstInfo.size();j<=depth;j++){
 						burstInfo.push_back(BurstStats());
 					}
