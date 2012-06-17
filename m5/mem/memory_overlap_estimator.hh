@@ -55,30 +55,87 @@ public:
 	}
 };
 
-class EstimationNode{
+class MemoryGraphNode{
 public:
-	std::vector<EstimationNode*> children;
+
+	std::vector<MemoryGraphNode*> children;
 
 	int id;
-	Addr addr;
-	bool privateMemsysReq;
-	int commitCyclesWhileActive;
 	Tick startedAt;
 	Tick finishedAt;
 
-	EstimationNode(int _id, Addr _addr, Tick _start){
+	bool visited;
+
+	MemoryGraphNode(int _id, Tick _start){
 		id = _id;
-		addr = _addr;
 		startedAt = _start;
+		finishedAt = 0;
+
+		visited = false;
+	}
+
+	virtual ~MemoryGraphNode(){ };
+
+	void addChild(MemoryGraphNode* child){
+		children.push_back(child);
+	}
+
+	virtual bool addToCPL() = 0;
+
+	virtual Addr getAddr(){
+		return 0;
+	}
+
+	virtual const char* name() = 0;
+
+	int lat(){
+		if(finishedAt > 0) return finishedAt - startedAt;
+		return -1;
+	}
+
+};
+
+class RequestNode : public MemoryGraphNode{
+public:
+
+	Addr addr;
+	bool privateMemsysReq;
+	int commitCyclesWhileActive;
+
+	RequestNode(int _id, Addr _addr, Tick _start): MemoryGraphNode(_id, _start)
+	{
+		addr = _addr;
 
 		privateMemsysReq = false;
 		commitCyclesWhileActive = 0;
-		finishedAt = 0;
 	}
 
-	void addChild(EstimationNode* child){
-		children.push_back(child);
+	bool addToCPL(){
+		return true;
 	}
+
+	Addr getAddr(){
+		return addr;
+	}
+
+	const char* name(){
+		return "request";
+	}
+};
+
+class ComputeNode : public MemoryGraphNode{
+public:
+
+	ComputeNode(int _id, Tick _start) : MemoryGraphNode(_id, _start){ }
+
+	bool addToCPL(){
+		return false;
+	}
+
+	const char* name(){
+		return "compute";
+	}
+
 };
 
 class BurstStats{
@@ -161,9 +218,16 @@ private:
 	std::vector<EstimationEntry*> pendingRequests;
 	std::vector<EstimationEntry*> completedRequests;
 
-	std::vector<EstimationNode*> pendingNodes;
+	std::vector<RequestNode*> pendingNodes;
 
 	std::vector<RequestGroupSignature> groupSignatures;
+
+	std::vector<RequestNode* > completedRequestNodes;
+	std::vector<RequestNode* > burstRequests;
+	std::vector<ComputeNode* > completedComputeNodes;
+	ComputeNode* pendingComputeNode;
+	ComputeNode* lastComputeNode;
+	int nextComputeNodeID;
 
 	Tick stalledAt;
 	Tick resumedAt;
@@ -174,8 +238,7 @@ private:
 	int cpuCount;
 
 	int nextReqID;
-	std::vector<EstimationNode*> roots;
-	EstimationNode* leastRecentlyCompNode;
+	MemoryGraphNode* root;
 	RequestSampleStats rss;
 
 	std::vector<BurstStats> burstInfo;
@@ -270,15 +333,19 @@ private:
 
 	bool isSharedStall(bool oldestInstIsShared, int sharedReqs, int numSharedWrites);
 
-	EstimationNode* findNode(int id);
-	EstimationNode* traverseTree(EstimationNode* node, int id);
+	//MemoryGraphNode* findNode(int id);
+	//MemoryGraphNode* traverseTree(MemoryGraphNode* node, int id);
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
-	int findCriticalPathLength(std::vector<EstimationNode*> children, int depth);
-	void clearTree(std::vector<EstimationNode*> children);
+	int findCriticalPathLength(MemoryGraphNode* node,  std::vector<MemoryGraphNode*> children, int depth);
+	void clearData();
 
-	EstimationNode* findPendingNode(int id);
+	RequestNode* findPendingNode(int id);
 	void removePendingNode(int id, bool sharedreq);
+
+	void printGraph();
+	bool checkReachability();
+	void unsetVisited();
 
 public:
 	MemoryOverlapEstimator(std::string name,
