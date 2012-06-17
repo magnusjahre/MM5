@@ -727,9 +727,10 @@ MemoryOverlapEstimator::unsetVisited(){
 int
 MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vector<MemoryGraphNode*> children, int depth){
 	int maxdepth = depth;
+	node->visited = true;
+
 	for(int i=0;i<children.size();i++){
 		if(!children[i]->visited){
-			children[i]->visited = true;
 
 			int tmp = -1;
 			if(children[i]->addToCPL()){
