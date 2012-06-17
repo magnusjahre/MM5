@@ -598,6 +598,34 @@ MemoryOverlapEstimator::RequestSampleStats::addStats(EstimationEntry entry){
 //	return NULL;
 //}
 
+double
+MemoryOverlapEstimator::findComputeBurstOverlap(){
+	double totalOverlap = 0.0;
+	for(int i=0;i<completedComputeNodes.size();i++){
+		vector<bool> occupied = vector<bool>(completedComputeNodes[i]->lat(), false);
+		for(int j=0;j<completedRequestNodes.size();j++){
+			if(completedRequestNodes[j]->finishedAt == 0) continue;
+			if(completedRequestNodes[j]->finishedAt < completedComputeNodes[i]->startedAt) continue;
+			if(completedRequestNodes[j]->startedAt > completedComputeNodes[i]->finishedAt) continue;
+
+			for(int k=0;k<occupied.size();k++){
+				if(completedRequestNodes[j]->during(k+completedComputeNodes[i]->startedAt)){
+					occupied[k] = true;
+				}
+			}
+		}
+
+		for(int k=0;k<occupied.size();k++){
+			if(occupied[k]){
+				totalOverlap += 1.0;
+			}
+		}
+	}
+
+	cout << curTick << ": returning total overlap " << totalOverlap << "\n";
+	return totalOverlap;
+}
+
 OverlapStatistics
 MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	OverlapStatistics ols = OverlapStatistics();
@@ -608,6 +636,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
 	double interBurstOverlapSum = 0.0;
+
+	double comWhileBurst = findComputeBurstOverlap();
 
 	for(int i=0;i<burstInfo.size();i++){
 		if(burstInfo[i].finishedAt > 0){
@@ -628,19 +658,14 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 		ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
 		ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
 		ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
-		if(ols.avgBurstSize > 0){
-			ols.avgCompCWP = (computeWhilePendingAccumulator / ols.avgBurstSize) / (double) ols.cpl;
-		}
-		else{
-			ols.avgCompCWP = 0;
-		}
+		ols.avgComWhileBurst = comWhileBurst / (double) ols.cpl;
 	}
 	else{
 		ols.avgBurstLength = 0;
 		ols.avgBurstSize = 0;
 		ols.avgInterBurstOverlap = 0;
 		ols.avgTotalComWhilePend =  0;
-		ols.avgCompCWP = 0;
+		ols.avgComWhileBurst = 0;
 	}
 
 	computeWhilePendingTotalAccumulator = 0;

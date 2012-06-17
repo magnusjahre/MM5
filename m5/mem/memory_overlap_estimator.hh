@@ -121,6 +121,11 @@ public:
 	const char* name(){
 		return "request";
 	}
+
+	bool during(Tick _tick){
+		if(_tick >= startedAt && _tick < finishedAt) return true;
+		return false;
+	}
 };
 
 class ComputeNode : public MemoryGraphNode{
@@ -157,7 +162,7 @@ public:
 	double avgBurstLength;
 	double avgInterBurstOverlap;
 	double avgTotalComWhilePend;
-	double avgCompCWP;
+	double avgComWhileBurst;
 
 	OverlapStatistics(){
 		cpl = 0;
@@ -165,7 +170,7 @@ public:
 		avgBurstLength = 0.0;
 		avgInterBurstOverlap = 0.0;
 		avgTotalComWhilePend = 0.0;
-		avgCompCWP = 0.0;
+		avgComWhileBurst = 0.0;
 	}
 };
 
@@ -346,6 +351,8 @@ private:
 	void printGraph();
 	bool checkReachability();
 	void unsetVisited();
+
+	double findComputeBurstOverlap();
 
 public:
 	MemoryOverlapEstimator(std::string name,
