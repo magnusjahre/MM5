@@ -622,7 +622,6 @@ MemoryOverlapEstimator::findComputeBurstOverlap(){
 		}
 	}
 
-	cout << curTick << ": returning total overlap " << totalOverlap << "\n";
 	return totalOverlap;
 }
 
