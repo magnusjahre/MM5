@@ -424,21 +424,6 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd);
 	pendingRequests.push_back(ee);
 
-	if(req->cmd == Read){
-		RequestNode* node = new RequestNode(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1), curTick);
-		pendingNodes.push_back(node);
-
-		assert(pendingComputeNode != NULL || lastComputeNode != NULL);
-		assert(!(pendingComputeNode != NULL && lastComputeNode != NULL));
-
-		if(pendingComputeNode != NULL){
-			pendingComputeNode->addChild(node);
-		}
-		if(lastComputeNode != NULL){
-			lastComputeNode->addChild(node);
-		}
-	}
-
 	nextReqID++;
 }
 
@@ -524,30 +509,6 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		}
 	}
 
-	if(!pendingRequests[useIndex]->isStore()){
-		RequestNode* curnode = findPendingNode(pendingRequests[useIndex]->id);
-		if(curnode != NULL){
-			if(pendingRequests[useIndex]->isSharedReq){
-				DPRINTF(OverlapEstimator, "Addr %d is now the oldest request\n", curnode->addr);
-				curnode->finishedAt = finishedAt;
-			}
-			else{
-				curnode->privateMemsysReq = true;
-			}
-
-			completedRequestNodes.push_back(curnode);
-			if(isStalled){
-				burstRequests.push_back(curnode);
-			}
-			else{
-				assert(pendingComputeNode != NULL);
-				curnode->addChild(pendingComputeNode);
-			}
-
-			removePendingNode(pendingRequests[useIndex]->id, pendingRequests[useIndex]->isSharedReq);
-		}
-	}
-
 	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
 			req->paddr,
 			req->cmd,
@@ -576,28 +537,6 @@ MemoryOverlapEstimator::RequestSampleStats::addStats(EstimationEntry entry){
 	sharedRequests++;
 }
 
-//MemoryGraphNode*
-//MemoryOverlapEstimator::findNode(int id){
-//	RequestNode* retnode = NULL;
-//	for(int i=0;i<roots.size();i++){
-//		RequestNode* tmp = traverseTree(roots[i], id);
-//		if(retnode != NULL) assert(tmp == NULL);
-//		if(retnode == NULL) retnode = tmp;
-//	}
-//	return retnode;
-//}
-
-//MemoryGraphNode*
-//MemoryOverlapEstimator::traverseTree(MemoryGraphNode* node, int id){
-//	if(node->id == id) return node;
-//
-//	for(int i=0;i<node->children.size();i++){
-//		MemoryGraphNode* n = traverseTree(node->children[i], id);
-//		if(n != NULL) return n;
-//	}
-//	return NULL;
-//}
-
 double
 MemoryOverlapEstimator::findComputeBurstOverlap(){
 	double totalOverlap = 0.0;
@@ -605,6 +544,7 @@ MemoryOverlapEstimator::findComputeBurstOverlap(){
 		vector<bool> occupied = vector<bool>(completedComputeNodes[i]->lat(), false);
 		for(int j=0;j<completedRequestNodes.size();j++){
 			if(completedRequestNodes[j]->finishedAt == 0) continue;
+			if(!completedRequestNodes[j]->isLoad) continue;
 			if(completedRequestNodes[j]->finishedAt < completedComputeNodes[i]->startedAt) continue;
 			if(completedRequestNodes[j]->startedAt > completedComputeNodes[i]->finishedAt) continue;
 
@@ -632,6 +572,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	ols.cpl = findCriticalPathLength(root, root->children, 0) + 1;
 	assert(checkReachability());
 
+	populateBurstInfo();
+
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
 	double interBurstOverlapSum = 0.0;
@@ -639,6 +581,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	double comWhileBurst = findComputeBurstOverlap();
 
 	for(int i=0;i<burstInfo.size();i++){
+
 		if(burstInfo[i].finishedAt > 0){
 			burstLenSum += burstInfo[i].finishedAt - burstInfo[i].startedAt;
 			burstSizeSum += burstInfo[i].numRequests;
@@ -651,6 +594,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			}
 		}
 	}
+
+	cout << "got cpl " << ols.cpl << ", interburst overlap " << interBurstOverlapSum << " and comWhileBurst " << comWhileBurst << ", sum burst lat " << burstLenSum << "\n";
 
 	if(ols.cpl > 0){
 		ols.avgBurstLength = burstLenSum / (double) ols.cpl;
@@ -705,10 +650,12 @@ MemoryOverlapEstimator::checkReachability(){
 
 	for(int i=0;i<completedComputeNodes.size();i++){
 		if(!completedComputeNodes[i]->visited){
+			cout << "compute " << completedComputeNodes[i]->id << "not reachable\n";
 			allReachable = false;
 		}
 	}
 	for(int i=0;i<completedRequestNodes.size();i++){
+		cout << "req " << completedRequestNodes[i]->id << "not reachable, ("<< (completedRequestNodes[i]->isLoad ? "load" : "store") << ")\n";
 		if(!completedRequestNodes[i]->visited){
 			allReachable = false;
 		}
@@ -734,23 +681,7 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vecto
 
 			int tmp = -1;
 			if(children[i]->addToCPL()){
-
-				assert(children[i]->children.size() < 2);
-
-				bool doBurstAnalysis = true;
-				if(children[i]->children.size() == 1){
-					if(children[i]->children[0] == node){
-						doBurstAnalysis = false;
-					}
-				}
-
-				if(doBurstAnalysis){
-					for(int j=burstInfo.size();j<=depth;j++){
-						burstInfo.push_back(BurstStats());
-					}
-					assert(depth < burstInfo.size());
-					burstInfo[depth].addRequest(children[i]->startedAt, children[i]->finishedAt);
-				}
+				if(children[i]->finishedAt == 0) assert(children[i]->children.size() == 0);
 
 				tmp = findCriticalPathLength(children[i], children[i]->children, depth+1);
 			}
@@ -763,6 +694,22 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vecto
 		}
 	}
 	return maxdepth;
+}
+
+void
+MemoryOverlapEstimator::populateBurstInfo(){
+	for(int i=0;i<completedComputeNodes.size();i++){
+		BurstStats bs = BurstStats();
+		int numAdded = 0;
+		for(int j=0;j<completedComputeNodes[i]->children.size();j++){
+			if(completedComputeNodes[i]->children[j]->finishedAt > 0){
+				assert(completedComputeNodes[i]->children[j]->children.size() < 2);
+				bs.addRequest(completedComputeNodes[i]->children[j]->startedAt, completedComputeNodes[i]->children[j]->finishedAt);
+				numAdded++;
+			}
+		}
+		if(numAdded > 0) burstInfo.push_back(bs);
+	}
 }
 
 void
@@ -807,6 +754,8 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	bool stalledOnShared = false;
 	bool stalledOnPrivate = false;
 
+	vector<RequestNode* > completedSharedReqs;
+
 	while(!completedRequests.empty() && completedRequests.front()->completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
 				completedRequests.front()->address,
@@ -845,6 +794,13 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				if(completedRequests.front()->isSharedCacheMiss) sharedCacheMisses++;
 				else sharedCacheHits++;
 				sharedLatency += completedRequests.front()->latency();
+
+				RequestNode* rn = new RequestNode(nextReqID, completedRequests.front()->address, completedRequests.front()->issuedAt);
+				rn->finishedAt = completedRequests.front()->completedAt;
+				rn->isLoad = true;
+				rn->privateMemsysReq = false;
+				completedRequestNodes.push_back(rn);
+				nextReqID++;
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
@@ -872,32 +828,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	if(!stalledOnShared && !stalledOnPrivate) stalledOnPrivate = true; // stall was due to an L1 hit, but we don't record those
 	assert(stalledOnShared || stalledOnPrivate);
 
-	assert(pendingComputeNode == NULL && lastComputeNode != NULL);
-	if(stalledOnPrivate){
-		pendingComputeNode = lastComputeNode;
-		lastComputeNode = NULL;
-	}
-	else{
-		if(burstRequests.empty()){
-			// A solitary hidden load can create a hole in the graph
-			RequestNode* dummy = new RequestNode(-42, MemReq::inval_addr, curTick-100);
-			dummy->finishedAt = curTick;
-			lastComputeNode->addChild(dummy);
-			completedRequestNodes.push_back(dummy);
-			burstRequests.push_back(dummy);
-		}
-
-		completedComputeNodes.push_back(lastComputeNode);
-		lastComputeNode = NULL;
-
-		pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
-		nextComputeNodeID++;
-	}
-	assert(pendingComputeNode != NULL && lastComputeNode == NULL);
-	for(int i=0;i<burstRequests.size();i++){
-		burstRequests[i]->addChild(pendingComputeNode);
-	}
-	burstRequests.clear();
+	processCompletedRequests(stalledOnPrivate, completedSharedReqs);
 
 	Tick reportStall = stallLength;
 	Tick blockedStall = 0;
@@ -943,6 +874,34 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			                            0,
 			                            blockedStall,
 			                            0);
+}
+
+void
+MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs){
+	assert(pendingComputeNode == NULL && lastComputeNode != NULL);
+	if(stalledOnPrivate){
+		pendingComputeNode = lastComputeNode;
+		lastComputeNode = NULL;
+	}
+	else{
+		completedComputeNodes.push_back(lastComputeNode);
+		lastComputeNode = NULL;
+
+		pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
+		nextComputeNodeID++;
+	}
+	assert(pendingComputeNode != NULL && lastComputeNode == NULL);
+
+	// Step 1: Find parent
+//	Tick mindist = 100000000000;
+//	int minID = -1;
+//	for(int i=0;i<completedComputeNodes.size();i++){
+//		// TODO: find
+//	}
+
+	// Step 2: Find child
+
+	fatal("process requests not implemented");
 }
 
 void

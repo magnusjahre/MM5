@@ -101,6 +101,7 @@ public:
 	Addr addr;
 	bool privateMemsysReq;
 	int commitCyclesWhileActive;
+	bool isLoad;
 
 	RequestNode(int _id, Addr _addr, Tick _start): MemoryGraphNode(_id, _start)
 	{
@@ -111,7 +112,7 @@ public:
 	}
 
 	bool addToCPL(){
-		return true;
+		return isLoad;
 	}
 
 	Addr getAddr(){
@@ -353,6 +354,9 @@ private:
 	void unsetVisited();
 
 	double findComputeBurstOverlap();
+	void populateBurstInfo();
+
+	void processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs);
 
 public:
 	MemoryOverlapEstimator(std::string name,
