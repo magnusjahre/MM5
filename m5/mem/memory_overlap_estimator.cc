@@ -30,6 +30,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	stallIdentifyAlg = _ident;
 
 	nextReqID = 0;
+	reqNodeID = 0;
 
 	cpuID = id;
 	cpuCount = cpu_count;
@@ -448,31 +449,31 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 
 }
 
-RequestNode*
-MemoryOverlapEstimator::findPendingNode(int id){
-  for(int i=0;i<pendingNodes.size();i++){
-    if(pendingNodes[i]->id == id) return pendingNodes[i];  
-  }
-  return NULL;
-}
-
-
-void
-MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
-  int removeIndex = -1;
-  for(int i=0;i<pendingNodes.size();i++){
-    if(pendingNodes[i]->id == id){
-      assert(removeIndex == -1);
-      removeIndex = i;
-    }
-  }
-  assert(removeIndex != -1);
-  if(sharedreq){
-	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
-	  computeWhilePendingReqs++;
-  }
-  pendingNodes.erase(pendingNodes.begin()+removeIndex);
-}
+//RequestNode*
+//MemoryOverlapEstimator::findPendingNode(int id){
+//  for(int i=0;i<pendingNodes.size();i++){
+//    if(pendingNodes[i]->id == id) return pendingNodes[i];
+//  }
+//  return NULL;
+//}
+//
+//
+//void
+//MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
+//  int removeIndex = -1;
+//  for(int i=0;i<pendingNodes.size();i++){
+//    if(pendingNodes[i]->id == id){
+//      assert(removeIndex == -1);
+//      removeIndex = i;
+//    }
+//  }
+//  assert(removeIndex != -1);
+//  if(sharedreq){
+//	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
+//	  computeWhilePendingReqs++;
+//  }
+//  pendingNodes.erase(pendingNodes.begin()+removeIndex);
+//}
 
 
 void
@@ -650,12 +651,10 @@ MemoryOverlapEstimator::checkReachability(){
 
 	for(int i=0;i<completedComputeNodes.size();i++){
 		if(!completedComputeNodes[i]->visited){
-			cout << "compute " << completedComputeNodes[i]->id << "not reachable\n";
 			allReachable = false;
 		}
 	}
 	for(int i=0;i<completedRequestNodes.size();i++){
-		cout << "req " << completedRequestNodes[i]->id << "not reachable, ("<< (completedRequestNodes[i]->isLoad ? "load" : "store") << ")\n";
 		if(!completedRequestNodes[i]->visited){
 			allReachable = false;
 		}
@@ -795,12 +794,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				else sharedCacheHits++;
 				sharedLatency += completedRequests.front()->latency();
 
-				RequestNode* rn = new RequestNode(nextReqID, completedRequests.front()->address, completedRequests.front()->issuedAt);
-				rn->finishedAt = completedRequests.front()->completedAt;
-				rn->isLoad = true;
-				rn->privateMemsysReq = false;
-				completedRequestNodes.push_back(rn);
-				nextReqID++;
+				completedSharedReqs.push_back(buildRequestNode(completedRequests.front()));
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
@@ -885,23 +879,106 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 	}
 	else{
 		completedComputeNodes.push_back(lastComputeNode);
-		lastComputeNode = NULL;
-
 		pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
+
+		DPRINTF(OverlapEstimatorGraph, "Shared stall, compute node id %d complete, node %d pending\n",
+				lastComputeNode->id,
+				pendingComputeNode->id);
+
+		lastComputeNode = NULL;
 		nextComputeNodeID++;
 	}
 	assert(pendingComputeNode != NULL && lastComputeNode == NULL);
 
-	// Step 1: Find parent
-//	Tick mindist = 100000000000;
-//	int minID = -1;
-//	for(int i=0;i<completedComputeNodes.size();i++){
-//		// TODO: find
-//	}
+	for(int i=0;i<reqs.size();i++){
+		DPRINTF(OverlapEstimatorGraph, "Processing request node id %d, address %d, issued at %d, completed at %d\n",
+				reqs[i]->id,
+				reqs[i]->addr,
+				reqs[i]->startedAt,
+				reqs[i]->finishedAt);
+		setParent(reqs[i]);
+		setChild(reqs[i]);
+		completedRequestNodes.push_back(reqs[i]);
+	}
+}
 
-	// Step 2: Find child
+void
+MemoryOverlapEstimator::setParent(RequestNode* node){
+	Tick mindist = TICK_MAX;
+	int minid = 0;
+	for(int i=0;i<completedComputeNodes.size();i++){
+		if(node->distanceToParent(completedComputeNodes[i]) < mindist){
+			mindist = node->distanceToParent(completedComputeNodes[i]);
+			minid = i;
+		}
+	}
 
-	fatal("process requests not implemented");
+	assert(mindist != TICK_MAX);
+	assert(pendingComputeNode != NULL);
+	if(node->distanceToParent(completedComputeNodes[minid]) < node->distanceToParent(pendingComputeNode)){
+
+		DPRINTF(OverlapEstimatorGraph, "Request node id %d is the child of compute %d, distance %d\n",
+				node->id,
+				completedComputeNodes[minid]->id,
+				mindist);
+
+		completedComputeNodes[minid]->addChild(node);
+	}
+	else{
+		DPRINTF(OverlapEstimatorGraph, "Distance %d to pending is less than %d to completed. Request node id %d is the child of compute %d\n",
+				node->distanceToParent(pendingComputeNode),
+				node->distanceToParent(completedComputeNodes[minid]),
+				node->id,
+				pendingComputeNode->id);
+		pendingComputeNode->addChild(node);
+	}
+}
+
+void
+MemoryOverlapEstimator::setChild(RequestNode* node){
+	Tick mindist = TICK_MAX;
+	int minid = 0;
+	for(int i=0;i<completedComputeNodes.size();i++){
+		if(node->distanceToChild(completedComputeNodes[i]) < mindist){
+			mindist = node->distanceToChild(completedComputeNodes[i]);
+			minid = i;
+		}
+	}
+
+	assert(pendingComputeNode != NULL);
+	if(mindist == TICK_MAX){
+		DPRINTF(OverlapEstimatorGraph, "No finished compute after request %d, compute node id %d is the child of request %d\n",
+				node->id,
+				pendingComputeNode->id,
+				node->id);
+
+		node->addChild(pendingComputeNode);
+	}
+	else{
+		DPRINTF(OverlapEstimatorGraph, "Compute node id %d is the child of request %d, distance %d\n",
+						completedComputeNodes[minid]->id,
+						node->id,
+						mindist);
+
+		node->addChild(completedComputeNodes[mindist]);
+	}
+}
+
+RequestNode*
+MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry){
+	RequestNode* rn = new RequestNode(reqNodeID, entry->address, entry->issuedAt);
+	rn->finishedAt = entry->completedAt;
+	rn->isLoad = true;
+	rn->privateMemsysReq = false;
+	reqNodeID++;
+
+	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d, address %d, issued at %d, completed at %d\n",
+			rn->id,
+			rn->addr,
+			rn->startedAt,
+			rn->finishedAt);
+
+	return rn;
 }
 
 void

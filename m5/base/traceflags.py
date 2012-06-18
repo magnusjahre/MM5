@@ -157,7 +157,8 @@ baseFlags = [
     'MissBWPolicy',
     'MissBWPolicyExtra',
     'FuncMem',
-    'OverlapEstimator'
+    'OverlapEstimator',
+    'OverlapEstimatorGraph'
     ]
 
 #

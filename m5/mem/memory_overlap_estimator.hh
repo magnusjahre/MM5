@@ -8,6 +8,8 @@
 #ifndef MEMORY_OVERLAP_ESTIMATOR_HH_
 #define MEMORY_OVERLAP_ESTIMATOR_HH_
 
+#define TICK_MAX ULL(0x3FFFFFFFFFFFFF)
+
 #include "sim/sim_object.hh"
 #include "mem/mem_req.hh"
 #include "mem/base_hier.hh"
@@ -95,6 +97,21 @@ public:
 
 };
 
+class ComputeNode : public MemoryGraphNode{
+public:
+
+	ComputeNode(int _id, Tick _start) : MemoryGraphNode(_id, _start){ }
+
+	bool addToCPL(){
+		return false;
+	}
+
+	const char* name(){
+		return "compute";
+	}
+
+};
+
 class RequestNode : public MemoryGraphNode{
 public:
 
@@ -127,21 +144,16 @@ public:
 		if(_tick >= startedAt && _tick < finishedAt) return true;
 		return false;
 	}
-};
 
-class ComputeNode : public MemoryGraphNode{
-public:
-
-	ComputeNode(int _id, Tick _start) : MemoryGraphNode(_id, _start){ }
-
-	bool addToCPL(){
-		return false;
+	Tick distanceToParent(ComputeNode* compute){
+		if(compute->startedAt >= startedAt) return TICK_MAX;
+		return startedAt - compute->startedAt;
 	}
 
-	const char* name(){
-		return "compute";
+	Tick distanceToChild(ComputeNode* compute){
+		if(finishedAt >= compute->finishedAt) return TICK_MAX;
+		return compute->finishedAt - finishedAt;
 	}
-
 };
 
 class BurstStats{
@@ -244,6 +256,7 @@ private:
 	int cpuCount;
 
 	int nextReqID;
+	int reqNodeID;
 	MemoryGraphNode* root;
 	RequestSampleStats rss;
 
@@ -346,8 +359,8 @@ private:
 	int findCriticalPathLength(MemoryGraphNode* node,  std::vector<MemoryGraphNode*> children, int depth);
 	void clearData();
 
-	RequestNode* findPendingNode(int id);
-	void removePendingNode(int id, bool sharedreq);
+//	RequestNode* findPendingNode(int id);
+//	void removePendingNode(int id, bool sharedreq);
 
 	void printGraph();
 	bool checkReachability();
@@ -357,6 +370,9 @@ private:
 	void populateBurstInfo();
 
 	void processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs);
+	RequestNode* buildRequestNode(EstimationEntry* entry);
+	void setParent(RequestNode* node);
+	void setChild(RequestNode* node);
 
 public:
 	MemoryOverlapEstimator(std::string name,
