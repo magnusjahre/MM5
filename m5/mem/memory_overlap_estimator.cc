@@ -651,11 +651,13 @@ MemoryOverlapEstimator::checkReachability(){
 
 	for(int i=0;i<completedComputeNodes.size();i++){
 		if(!completedComputeNodes[i]->visited){
+			DPRINTF(OverlapEstimatorGraph, "Compute node %d is not reachable\n", completedComputeNodes[i]->id);
 			allReachable = false;
 		}
 	}
 	for(int i=0;i<completedRequestNodes.size();i++){
 		if(!completedRequestNodes[i]->visited){
+			DPRINTF(OverlapEstimatorGraph, "Request node %d is not reachable\n", completedRequestNodes[i]->id);
 			allReachable = false;
 		}
 	}
