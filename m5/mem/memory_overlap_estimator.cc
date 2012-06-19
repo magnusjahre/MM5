@@ -923,7 +923,17 @@ MemoryOverlapEstimator::setParent(RequestNode* node){
 		}
 	}
 
-	assert(mindist != TICK_MAX);
+	if(mindist == TICK_MAX){
+		assert(completedComputeNodes.size() > 0);
+		DPRINTF(OverlapEstimatorGraph, "Request node id %d started before first compute, setting parent to oldest compute %d\n",
+				node->id,
+				completedComputeNodes[0]->id);
+
+		completedComputeNodes[0]->addChild(node);
+		return;
+	}
+
+
 	assert(pendingComputeNode != NULL);
 	if(node->distanceToParent(completedComputeNodes[minid]) < node->distanceToParent(pendingComputeNode)){
 
