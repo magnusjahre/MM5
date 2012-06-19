@@ -571,9 +571,11 @@ OverlapStatistics
 MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	OverlapStatistics ols = OverlapStatistics();
 
-	DPRINTF(OverlapEstimatorGraph, "Processing parallelism measurements\n");
+	DPRINTF(OverlapEstimatorGraph, "Processing parallelism measurements with %d computes and %d requests\n",
+			completedComputeNodes.size(),
+			completedRequestNodes.size());
 
-	ols.cpl = findCriticalPathLength(root, root->children, 0) + 1;
+	ols.cpl = findCriticalPathLength(root, 0) + 1;
 	assert(checkReachability());
 
 	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.cpl);
@@ -632,7 +634,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
     	assert(lastComputeNode == NULL && pendingComputeNode != NULL);
     	root = pendingComputeNode;
     }
-    root->children.clear();
+    root->children->clear();
 
 	DPRINTF(OverlapEstimatorGraph, "Commit %d is new root\n", root->id);
 
@@ -642,14 +644,26 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 void
 MemoryOverlapEstimator::clearData(){
 	for(int i=0;i<completedComputeNodes.size();i++){
-		if(completedComputeNodes[i] == pendingComputeNode) continue;
-		if(completedComputeNodes[i] == lastComputeNode) continue;
+		if(completedComputeNodes[i] == pendingComputeNode){
+			assert(lastComputeNode == NULL);
+			continue;
+		}
+		if(completedComputeNodes[i] == lastComputeNode){
+			assert(pendingComputeNode == NULL);
+			continue;
+		}
+		DPRINTF(OverlapEstimatorGraph, "Deleting compute %d, ptr %p\n", completedComputeNodes[i]->id, completedComputeNodes[i]);
 		delete completedComputeNodes[i];
 	}
-	for(int i=0;i<completedRequestNodes.size();i++) delete completedRequestNodes[i];
+	for(int i=0;i<completedRequestNodes.size();i++){
+		DPRINTF(OverlapEstimatorGraph, "Deleting request %d, ptr %p\n", completedRequestNodes[i]->id, completedRequestNodes[i]);
+		completedRequestNodes[i]->children->clear();
+		delete completedRequestNodes[i];
+	}
 	for(int i=0;i<pendingNodes.size();i++) delete pendingNodes[i];
 	completedComputeNodes.clear();
 	completedRequestNodes.clear();
+	assert(completedRequestNodes.empty());
 	pendingNodes.clear();
 	burstInfo.clear();
 	root = NULL;
@@ -683,31 +697,33 @@ MemoryOverlapEstimator::unsetVisited(){
 }
 
 int
-MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vector<MemoryGraphNode*> children, int depth){
+MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, int depth){
 	int maxdepth = depth;
 	node->visited = true;
 
-	DPRINTF(OverlapEstimatorGraph, "Visiting node %d, %s, has %d children\n",
+	DPRINTF(OverlapEstimatorGraph, "Visiting node %s-%d (%p), has %d children, depth %d\n",
+			node->name(),
 			node->id,
-			(node->addToCPL() ? "adding to CPL" : "not adding to CPL"),
-			node->children.size());
+			node,
+			node->children->size(),
+			depth);
 
-	for(int i=0;i<children.size();i++){
-		if(!children[i]->visited){
-
+	for(int i=0;i<node->children->size();i++){
+		if(!node->children->at(i)->visited){
+			DPRINTF(OverlapEstimatorGraph, "Got child pointer %p\n", node->children->at(i));
 			DPRINTF(OverlapEstimatorGraph, "Processing child %d, %s, has %d children\n",
-					children[i]->id,
-					(children[i]->addToCPL() ? "adding to CPL" : "not adding to CPL"),
-					children[i]->children.size());
+					node->children->at(i)->id,
+					node->children->at(i)->name(),
+					node->children->at(i)->children->size());
 
 			int tmp = -1;
-			if(children[i]->addToCPL()){
-				if(children[i]->finishedAt == 0) assert(children[i]->children.size() == 0);
+			if(node->children->at(i)->addToCPL()){
+				if(node->children->at(i)->finishedAt == 0) assert(node->children->at(i)->children->size() == 0);
 
-				tmp = findCriticalPathLength(children[i], children[i]->children, depth+1);
+				tmp = findCriticalPathLength(node->children->at(i), depth+1);
 			}
 			else{
-				tmp = findCriticalPathLength(children[i], children[i]->children, depth);
+				tmp = findCriticalPathLength(node->children->at(i), depth);
 			}
 
 			assert(tmp != -1);
@@ -722,10 +738,10 @@ MemoryOverlapEstimator::populateBurstInfo(){
 	for(int i=0;i<completedComputeNodes.size();i++){
 		BurstStats bs = BurstStats();
 		int numAdded = 0;
-		for(int j=0;j<completedComputeNodes[i]->children.size();j++){
-			if(completedComputeNodes[i]->children[j]->finishedAt > 0){
-				assert(completedComputeNodes[i]->children[j]->children.size() < 2);
-				bs.addRequest(completedComputeNodes[i]->children[j]->startedAt, completedComputeNodes[i]->children[j]->finishedAt);
+		for(int j=0;j<completedComputeNodes[i]->children->size();j++){
+			if(completedComputeNodes[i]->children->at(j)->finishedAt > 0){
+				assert(completedComputeNodes[i]->children->at(j)->children->size() < 2);
+				bs.addRequest(completedComputeNodes[i]->children->at(j)->startedAt, completedComputeNodes[i]->children->at(j)->finishedAt);
 				numAdded++;
 			}
 		}
@@ -903,13 +919,20 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 	}
 	else{
 		completedComputeNodes.push_back(lastComputeNode);
-		pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
+		try{
+			pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
+		}
+		catch(bad_alloc& ba){
+			fatal("Could not allocate new compute node");
+		}
+		assert(pendingComputeNode != NULL);
 
-		DPRINTF(OverlapEstimatorGraph, "PROCESSING SHARED STALL: compute node id %d complete (%d - %d), node %d pending\n",
+		DPRINTF(OverlapEstimatorGraph, "PROCESSING SHARED STALL: compute node id %d complete (%d - %d), node %d pending (%p)\n",
 				lastComputeNode->id,
 				lastComputeNode->startedAt,
 				lastComputeNode->finishedAt,
-				pendingComputeNode->id);
+				pendingComputeNode->id,
+				pendingComputeNode);
 
 		lastComputeNode = NULL;
 		nextComputeNodeID++;
@@ -1024,37 +1047,31 @@ MemoryOverlapEstimator::setChild(RequestNode* node){
 
 RequestNode*
 MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry, bool causedStall){
-	RequestNode* rn = new RequestNode(reqNodeID, entry->address, entry->issuedAt);
+
+	RequestNode* rn = NULL;
+	try{
+		rn = new RequestNode(reqNodeID, entry->address, entry->issuedAt);
+	}
+	catch(bad_alloc& ba){
+		fatal("Could not allocate new request node");
+	}
+	assert(rn != NULL);
+
 	rn->finishedAt = entry->completedAt;
 	rn->isLoad = true;
 	rn->privateMemsysReq = false;
 	rn->causedStall = causedStall;
 	reqNodeID++;
 
-	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d, address %d, issued at %d, completed at %d, %s\n",
+	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d (%p), address %d, issued at %d, completed at %d, %s\n",
 			rn->id,
+			rn,
 			rn->addr,
 			rn->startedAt,
 			rn->finishedAt,
 			(rn->causedStall ? "caused stall" : "did not cause stall"));
 
 	return rn;
-}
-
-void
-MemoryOverlapEstimator::printGraph(){
-	for(int i=0;i<completedComputeNodes.size();i++){
-		for(int j = 0;j<completedComputeNodes[i]->children.size();j++){
-			cout << "comp-" << completedComputeNodes[i]->id << " --> req-" << completedComputeNodes[i]->children[j]->id << "\n";
-		}
-	}
-
-	for(int i=0;i<completedRequestNodes.size();i++){
-		for(int j=0;j<completedRequestNodes[i]->children.size();j++){
-			cout << "req-" << completedRequestNodes[i]->id << " --> comp-" << completedRequestNodes[i]->children[j]->id << "\n";
-		}
-	}
-
 }
 
 bool

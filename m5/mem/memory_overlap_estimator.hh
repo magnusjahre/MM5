@@ -60,7 +60,7 @@ public:
 class MemoryGraphNode{
 public:
 
-	std::vector<MemoryGraphNode*> children;
+	std::vector<MemoryGraphNode*>* children;
 
 	int id;
 	Tick startedAt;
@@ -74,12 +74,16 @@ public:
 		finishedAt = 0;
 
 		visited = false;
+
+		children = new std::vector<MemoryGraphNode* >();
 	}
 
-	virtual ~MemoryGraphNode(){ };
+	virtual ~MemoryGraphNode(){
+		delete children;
+	}
 
 	void addChild(MemoryGraphNode* child){
-		children.push_back(child);
+		children->push_back(child);
 	}
 
 	virtual bool addToCPL() = 0;
@@ -101,6 +105,8 @@ class ComputeNode : public MemoryGraphNode{
 public:
 
 	ComputeNode(int _id, Tick _start) : MemoryGraphNode(_id, _start){ }
+
+	~ComputeNode(){ }
 
 	bool addToCPL(){
 		return false;
@@ -129,6 +135,8 @@ public:
 		commitCyclesWhileActive = 0;
 		causedStall = false;
 	}
+
+	~RequestNode(){ }
 
 	bool addToCPL(){
 		return isLoad;
@@ -358,13 +366,12 @@ private:
 	//MemoryGraphNode* traverseTree(MemoryGraphNode* node, int id);
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
-	int findCriticalPathLength(MemoryGraphNode* node,  std::vector<MemoryGraphNode*> children, int depth);
+	int findCriticalPathLength(MemoryGraphNode* node, int depth);
 	void clearData();
 
 //	RequestNode* findPendingNode(int id);
 //	void removePendingNode(int id, bool sharedreq);
 
-	void printGraph();
 	bool checkReachability();
 	void unsetVisited();
 
