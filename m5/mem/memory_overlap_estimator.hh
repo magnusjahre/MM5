@@ -119,6 +119,7 @@ public:
 	bool privateMemsysReq;
 	int commitCyclesWhileActive;
 	bool isLoad;
+	bool causedStall;
 
 	RequestNode(int _id, Addr _addr, Tick _start): MemoryGraphNode(_id, _start)
 	{
@@ -126,6 +127,7 @@ public:
 
 		privateMemsysReq = false;
 		commitCyclesWhileActive = 0;
+		causedStall = false;
 	}
 
 	bool addToCPL(){
@@ -370,7 +372,7 @@ private:
 	void populateBurstInfo();
 
 	void processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs);
-	RequestNode* buildRequestNode(EstimationEntry* entry);
+	RequestNode* buildRequestNode(EstimationEntry* entry, bool causedStall);
 	void setParent(RequestNode* node);
 	void setChild(RequestNode* node);
 

@@ -769,6 +769,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 		if(!completedRequests.front()->isStore() || completedRequests.front()->hidesLoad){
 			if(completedRequests.front()->isSharedReq){
+				bool innerCausedStall = false;
 				if(completedRequests.front()->address == stalledOnAddr){
 					assert(!stalledOnShared);
 					stalledOnShared = true;
@@ -781,6 +782,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					issueToStallAccReqs++;
 
 					traceSharedRequest(completedRequests.front(), stalledAt, curTick);
+					innerCausedStall = true;
 				}
 				else{
 					hiddenSharedLatencyAccumulator += completedRequests.front()->latency();
@@ -796,7 +798,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				else sharedCacheHits++;
 				sharedLatency += completedRequests.front()->latency();
 
-				completedSharedReqs.push_back(buildRequestNode(completedRequests.front()));
+				completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), innerCausedStall));
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
@@ -883,8 +885,10 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 		completedComputeNodes.push_back(lastComputeNode);
 		pendingComputeNode = new ComputeNode(nextComputeNodeID, curTick);
 
-		DPRINTF(OverlapEstimatorGraph, "Shared stall, compute node id %d complete, node %d pending\n",
+		DPRINTF(OverlapEstimatorGraph, "PROCESSING SHARED STALL: compute node id %d complete (%d - %d), node %d pending\n",
 				lastComputeNode->id,
+				lastComputeNode->startedAt,
+				lastComputeNode->finishedAt,
 				pendingComputeNode->id);
 
 		lastComputeNode = NULL;
@@ -892,6 +896,7 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 	}
 	assert(pendingComputeNode != NULL && lastComputeNode == NULL);
 
+	int causedStallCnt = 0;
 	for(int i=0;i<reqs.size();i++){
 		DPRINTF(OverlapEstimatorGraph, "Processing request node id %d, address %d, issued at %d, completed at %d\n",
 				reqs[i]->id,
@@ -901,7 +906,10 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 		setParent(reqs[i]);
 		setChild(reqs[i]);
 		completedRequestNodes.push_back(reqs[i]);
+		if(reqs[i]->causedStall) causedStallCnt++;
 	}
+	if(stalledOnPrivate) assert(causedStallCnt == 0);
+	else assert(causedStallCnt == 1);
 }
 
 void
@@ -938,18 +946,8 @@ MemoryOverlapEstimator::setParent(RequestNode* node){
 
 void
 MemoryOverlapEstimator::setChild(RequestNode* node){
-	Tick mindist = TICK_MAX;
-	int minid = 0;
-	for(int i=0;i<completedComputeNodes.size();i++){
-		if(node->distanceToChild(completedComputeNodes[i]) < mindist){
-			mindist = node->distanceToChild(completedComputeNodes[i]);
-			minid = i;
-		}
-	}
-
-	assert(pendingComputeNode != NULL);
-	if(mindist == TICK_MAX){
-		DPRINTF(OverlapEstimatorGraph, "No finished compute after request %d, compute node id %d is the child of request %d\n",
+	if(node->causedStall){
+		DPRINTF(OverlapEstimatorGraph, "Request %d caused stall, pending compute id %d is the child of request %d\n",
 				node->id,
 				pendingComputeNode->id,
 				node->id);
@@ -957,28 +955,50 @@ MemoryOverlapEstimator::setChild(RequestNode* node){
 		node->addChild(pendingComputeNode);
 	}
 	else{
-		DPRINTF(OverlapEstimatorGraph, "Compute node id %d is the child of request %d, distance %d\n",
-						completedComputeNodes[minid]->id,
-						node->id,
-						mindist);
+		Tick mindist = TICK_MAX;
+		int minid = 0;
+		for(int i=0;i<completedComputeNodes.size();i++){
+			if(node->distanceToChild(completedComputeNodes[i]) < mindist){
+				mindist = node->distanceToChild(completedComputeNodes[i]);
+				minid = i;
+			}
+		}
 
-		node->addChild(completedComputeNodes[mindist]);
+		assert(pendingComputeNode != NULL);
+		if(mindist == TICK_MAX){
+			DPRINTF(OverlapEstimatorGraph, "No finished compute after request %d, compute node id %d is the child of request %d\n",
+					node->id,
+					pendingComputeNode->id,
+					node->id);
+
+			node->addChild(pendingComputeNode);
+		}
+		else{
+			DPRINTF(OverlapEstimatorGraph, "Compute node id %d is the child of request %d, distance %d\n",
+							completedComputeNodes[minid]->id,
+							node->id,
+							mindist);
+
+			node->addChild(completedComputeNodes[mindist]);
+		}
 	}
 }
 
 RequestNode*
-MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry){
+MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry, bool causedStall){
 	RequestNode* rn = new RequestNode(reqNodeID, entry->address, entry->issuedAt);
 	rn->finishedAt = entry->completedAt;
 	rn->isLoad = true;
 	rn->privateMemsysReq = false;
+	rn->causedStall = causedStall;
 	reqNodeID++;
 
-	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d, address %d, issued at %d, completed at %d\n",
+	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d, address %d, issued at %d, completed at %d, %s\n",
 			rn->id,
 			rn->addr,
 			rn->startedAt,
-			rn->finishedAt);
+			rn->finishedAt,
+			(rn->causedStall ? "caused stall" : "did not cause stall"));
 
 	return rn;
 }
