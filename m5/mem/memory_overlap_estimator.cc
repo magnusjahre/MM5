@@ -922,12 +922,20 @@ MemoryOverlapEstimator::setParent(RequestNode* node){
 	}
 
 	if(mindist == TICK_MAX){
-		assert(completedComputeNodes.size() > 0);
-		DPRINTF(OverlapEstimatorGraph, "Request node id %d started before first compute, setting parent to oldest compute %d\n",
-				node->id,
-				completedComputeNodes[0]->id);
+		if(completedComputeNodes.size() > 0){
+			DPRINTF(OverlapEstimatorGraph, "Request node id %d started before first compute, setting parent to oldest compute %d\n",
+					node->id,
+					completedComputeNodes[0]->id);
 
-		completedComputeNodes[0]->addChild(node);
+			completedComputeNodes[0]->addChild(node);
+			}
+		else{
+			assert(lastComputeNode == NULL && pendingComputeNode != NULL);
+			DPRINTF(OverlapEstimatorGraph, "Request node id %d started during first compute, setting parent to oldest compute %d\n",
+					node->id,
+					pendingComputeNode->id);
+			pendingComputeNode->addChild(node);
+		}
 		return;
 	}
 
