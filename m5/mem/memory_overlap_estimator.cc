@@ -56,6 +56,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	initSharedRequestTrace();
 
 	computeWhilePendingAccumulator = 0;
+	computeWhilePendingReqs = 0;
 	computeWhilePendingTotalAccumulator = 0;
 
 	pendingComputeNode = new ComputeNode(0, 0);
@@ -570,8 +571,12 @@ OverlapStatistics
 MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	OverlapStatistics ols = OverlapStatistics();
 
+	DPRINTF(OverlapEstimatorGraph, "Processing parallelism measurements\n");
+
 	ols.cpl = findCriticalPathLength(root, root->children, 0) + 1;
 	assert(checkReachability());
+
+	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.cpl);
 
 	populateBurstInfo();
 
@@ -595,6 +600,11 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			}
 		}
 	}
+
+	DPRINTF(OverlapEstimatorGraph, "Got burst length %d, burst overlap %d and commit while burst %d\n",
+			burstLenSum,
+			interBurstOverlapSum,
+			comWhileBurst);
 
 	if(ols.cpl > 0){
 		ols.avgBurstLength = burstLenSum / (double) ols.cpl;
@@ -623,6 +633,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
     	root = pendingComputeNode;
     }
     root->children.clear();
+
+	DPRINTF(OverlapEstimatorGraph, "Commit %d is new root\n", root->id);
 
 	return ols;
 }
@@ -675,8 +687,18 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, std::vecto
 	int maxdepth = depth;
 	node->visited = true;
 
+	DPRINTF(OverlapEstimatorGraph, "Visiting node %d, %s, has %d children\n",
+			node->id,
+			(node->addToCPL() ? "adding to CPL" : "not adding to CPL"),
+			node->children.size());
+
 	for(int i=0;i<children.size();i++){
 		if(!children[i]->visited){
+
+			DPRINTF(OverlapEstimatorGraph, "Processing child %d, %s, has %d children\n",
+					children[i]->id,
+					(children[i]->addToCPL() ? "adding to CPL" : "not adding to CPL"),
+					children[i]->children.size());
 
 			int tmp = -1;
 			if(children[i]->addToCPL()){
