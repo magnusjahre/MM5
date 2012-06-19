@@ -596,8 +596,6 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 		}
 	}
 
-	cout << "got cpl " << ols.cpl << ", interburst overlap " << interBurstOverlapSum << " and comWhileBurst " << comWhileBurst << ", sum burst lat " << burstLenSum << "\n";
-
 	if(ols.cpl > 0){
 		ols.avgBurstLength = burstLenSum / (double) ols.cpl;
 		ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
