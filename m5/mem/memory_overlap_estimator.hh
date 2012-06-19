@@ -67,6 +67,7 @@ public:
 	Tick finishedAt;
 
 	bool visited;
+	int depth;
 
 	MemoryGraphNode(int _id, Tick _start){
 		id = _id;
@@ -76,6 +77,7 @@ public:
 		visited = false;
 
 		children = new std::vector<MemoryGraphNode* >();
+		depth = -1;
 	}
 
 	virtual ~MemoryGraphNode(){
@@ -366,7 +368,8 @@ private:
 	//MemoryGraphNode* traverseTree(MemoryGraphNode* node, int id);
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
-	int findCriticalPathLength(MemoryGraphNode* node, int depth);
+	int findCriticalPathLengthDFS(MemoryGraphNode* node, int depth);
+	int findCriticalPathLengthBFS(MemoryGraphNode* node, int depth);
 	void clearData();
 
 //	RequestNode* findPendingNode(int id);
@@ -382,6 +385,8 @@ private:
 	RequestNode* buildRequestNode(EstimationEntry* entry, bool causedStall);
 	void setParent(RequestNode* node);
 	void setChild(RequestNode* node);
+
+	bool pointerExists(MemoryGraphNode* ptr);
 
 public:
 	MemoryOverlapEstimator(std::string name,
