@@ -176,7 +176,9 @@ public:
 
 	BurstStats();
 
-	void addRequest(Tick start, Tick end);
+	void addRequest(MemoryGraphNode* node);
+
+	bool overlaps(MemoryGraphNode* node);
 };
 
 class OverlapStatistics{

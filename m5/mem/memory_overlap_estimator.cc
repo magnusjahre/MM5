@@ -594,6 +594,11 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 		if(burstInfo[i].finishedAt > 0){
 			burstLenSum += burstInfo[i].finishedAt - burstInfo[i].startedAt;
 			burstSizeSum += burstInfo[i].numRequests;
+
+			DPRINTF(OverlapEstimatorGraph, "Processing burst %d of length %d with %d requests\n",
+					i,
+					burstInfo[i].finishedAt - burstInfo[i].startedAt,
+					burstInfo[i].numRequests);
 		}
 
 		if(i>0){
@@ -792,16 +797,43 @@ MemoryOverlapEstimator::findCriticalPathLengthDFS(MemoryGraphNode* node, int dep
 void
 MemoryOverlapEstimator::populateBurstInfo(){
 	for(int i=0;i<completedComputeNodes.size();i++){
-		BurstStats bs = BurstStats();
-		int numAdded = 0;
+		vector<BurstStats> bsvec;
+
 		for(int j=0;j<completedComputeNodes[i]->children->size();j++){
+
+			DPRINTF(OverlapEstimatorGraph, "Processing children of compute node %d\n",
+					completedComputeNodes[i]->id);
+
 			if(completedComputeNodes[i]->children->at(j)->finishedAt > 0){
 				assert(completedComputeNodes[i]->children->at(j)->children->size() < 2);
-				bs.addRequest(completedComputeNodes[i]->children->at(j)->startedAt, completedComputeNodes[i]->children->at(j)->finishedAt);
-				numAdded++;
+
+				DPRINTF(OverlapEstimatorGraph, "Processing request %d, start at %d, finished at%d\n",
+						completedComputeNodes[i]->children->at(j)->id,
+						completedComputeNodes[i]->children->at(j)->startedAt,
+						completedComputeNodes[i]->children->at(j)->startedAt);
+
+				bool added = false;
+				for(int k=0;k<bsvec.size();k++){
+					if(bsvec[k].overlaps(completedComputeNodes[i]->children->at(j))){
+						if(!added){
+							bsvec[k].addRequest(completedComputeNodes[i]->children->at(j));
+							added = true;
+						}
+					}
+				}
+
+				if(!added){
+					BurstStats bs = BurstStats();
+					bs.addRequest(completedComputeNodes[i]->children->at(j));
+					bsvec.push_back(bs);
+				}
 			}
 		}
-		if(numAdded > 0) burstInfo.push_back(bs);
+
+		for(int k=0;k<bsvec.size();k++){
+			assert(bsvec[k].numRequests > 0);
+			burstInfo.push_back(bsvec[k]);
+		}
 	}
 }
 
@@ -976,8 +1008,6 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 	else{
 
 		assert(!pointerExists(lastComputeNode));
-
-		if(lastComputeNode == (ComputeNode*) 0x39a5150) cout << curTick << ": address being added to completed comp nodes\n";
 
 		completedComputeNodes.push_back(lastComputeNode);
 		try{
@@ -1305,16 +1335,36 @@ BurstStats::BurstStats(){
 }
 
 void
-BurstStats::addRequest(Tick start, Tick end){
-	if(end > 0){
-		assert(start < end);
+BurstStats::addRequest(MemoryGraphNode* node){
+	if(node->finishedAt > 0){
+		assert(node->startedAt < node->finishedAt);
+		if(startedAt > 0 && finishedAt > 0) assert(overlaps(node));
 
-		if(start < startedAt) startedAt = start;
-		if(end > finishedAt) finishedAt = end;
+		if(node->startedAt < startedAt) startedAt = node->startedAt;
+		if(node->finishedAt > finishedAt) finishedAt = node->finishedAt;
 		numRequests++;
 
 		assert(startedAt < finishedAt);
 	}
+}
+
+bool
+BurstStats::overlaps(MemoryGraphNode* node){
+	if(node->finishedAt < startedAt || node->startedAt > finishedAt){
+		DPRINTF(OverlapEstimatorGraph, "No overlap: Burst %d, %d and request %d, %d\n",
+				startedAt,
+				finishedAt,
+				node->startedAt,
+				node->finishedAt);
+		return false;
+	}
+
+	DPRINTF(OverlapEstimatorGraph, "Overlap detected: Burst %d, %d and request %d, %d\n",
+					startedAt,
+					finishedAt,
+					node->startedAt,
+					node->finishedAt);
+	return true;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
