@@ -950,7 +950,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	if(!stalledOnShared && !stalledOnPrivate) stalledOnPrivate = true; // stall was due to an L1 hit, but we don't record those
 	assert(stalledOnShared || stalledOnPrivate);
 
-	processCompletedRequests(stalledOnPrivate, completedSharedReqs);
+	processCompletedRequests(stalledOnShared, completedSharedReqs);
 
 	Tick reportStall = stallLength;
 	Tick blockedStall = 0;
@@ -999,9 +999,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 }
 
 void
-MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs){
+MemoryOverlapEstimator::processCompletedRequests(bool stalledOnShared, std::vector<RequestNode* > reqs){
 	assert(pendingComputeNode == NULL && lastComputeNode != NULL);
-	if(stalledOnPrivate){
+	if(!stalledOnShared){
 		pendingComputeNode = lastComputeNode;
 		lastComputeNode = NULL;
 	}
@@ -1032,11 +1032,15 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 
 	int causedStallCnt = 0;
 	for(int i=0;i<reqs.size();i++){
+
 		DPRINTF(OverlapEstimatorGraph, "Processing request node id %d, address %d, issued at %d, completed at %d\n",
 				reqs[i]->id,
 				reqs[i]->addr,
 				reqs[i]->startedAt,
 				reqs[i]->finishedAt);
+
+		assert(!reqs[i]->privateMemsysReq);
+
 		setParent(reqs[i]);
 		setChild(reqs[i]);
 
@@ -1046,8 +1050,8 @@ MemoryOverlapEstimator::processCompletedRequests(bool stalledOnPrivate, std::vec
 
 		if(reqs[i]->causedStall) causedStallCnt++;
 	}
-	if(stalledOnPrivate) assert(causedStallCnt == 0);
-	else assert(causedStallCnt == 1);
+	if(stalledOnShared) assert(causedStallCnt == 1);
+	else assert(causedStallCnt == 0);
 }
 
 bool

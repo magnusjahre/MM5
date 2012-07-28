@@ -383,7 +383,7 @@ private:
 	double findComputeBurstOverlap();
 	void populateBurstInfo();
 
-	void processCompletedRequests(bool stalledOnPrivate, std::vector<RequestNode* > reqs);
+	void processCompletedRequests(bool stalledOnShared, std::vector<RequestNode* > reqs);
 	RequestNode* buildRequestNode(EstimationEntry* entry, bool causedStall);
 	void setParent(RequestNode* node);
 	void setChild(RequestNode* node);
