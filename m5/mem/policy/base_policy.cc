@@ -631,6 +631,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("CPL");
 	headers.push_back("CWP");
 	headers.push_back("Num Write Stalls");
+	headers.push_back("OLS Avg BL");
+	headers.push_back("OLS Avg IBO");
+	headers.push_back("OLS Avg CBO");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -729,6 +732,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(ols.cpl);
 	data.push_back(cwp);
 	data.push_back(numWriteStalls);
+	data.push_back(ols.avgBurstLength);
+	data.push_back(ols.avgInterBurstOverlap);
+	data.push_back(ols.avgComWhileBurst);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
