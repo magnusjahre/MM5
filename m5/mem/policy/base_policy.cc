@@ -409,6 +409,9 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 			assert(privateMissRate <= 1.0 && privateMissRate >= 0.0);
 
+			// FIXME: adjustment needs to be in relation to the _average_
+			//         The average allready contains some of the serialization delay
+			//         but not all...
 			newStallTime = cpl * (newAvgSharedLat - cwp + (adjustedPara*80)); //FIXME: parameterize
 		}
 		else{
