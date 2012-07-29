@@ -581,30 +581,33 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 
 	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.cpl);
 
-	populateBurstInfo();
-
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
 	double interBurstOverlapSum = 0.0;
 
-	double comWhileBurst = findComputeBurstOverlap();
+	double comWhileBurst = 0.0;
 
-	for(int i=0;i<burstInfo.size();i++){
+	if(cpuCount == 1){
+		comWhileBurst = findComputeBurstOverlap();
 
-		if(burstInfo[i].finishedAt > 0){
-			burstLenSum += burstInfo[i].finishedAt - burstInfo[i].startedAt;
-			burstSizeSum += burstInfo[i].numRequests;
+		populateBurstInfo();
+		for(int i=0;i<burstInfo.size();i++){
 
-			DPRINTF(OverlapEstimatorGraph, "Processing burst %d of length %d with %d requests\n",
-					i,
-					burstInfo[i].finishedAt - burstInfo[i].startedAt,
-					burstInfo[i].numRequests);
-		}
+			if(burstInfo[i].finishedAt > 0){
+				burstLenSum += burstInfo[i].finishedAt - burstInfo[i].startedAt;
+				burstSizeSum += burstInfo[i].numRequests;
 
-		if(i>0){
-			if(burstInfo[i].finishedAt > 0 && burstInfo[i-1].finishedAt > 0){
-				double overlap = burstInfo[i-1].finishedAt - burstInfo[i].startedAt;
-				if(overlap > 0) interBurstOverlapSum += overlap;
+				DPRINTF(OverlapEstimatorGraph, "Processing burst %d of length %d with %d requests\n",
+						i,
+						burstInfo[i].finishedAt - burstInfo[i].startedAt,
+						burstInfo[i].numRequests);
+			}
+
+			if(i>0){
+				if(burstInfo[i].finishedAt > 0 && burstInfo[i-1].finishedAt > 0){
+					double overlap = burstInfo[i-1].finishedAt - burstInfo[i].startedAt;
+					if(overlap > 0) interBurstOverlapSum += overlap;
+				}
 			}
 		}
 	}
