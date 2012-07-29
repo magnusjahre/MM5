@@ -80,6 +80,7 @@ CacheInterference::CacheInterference(std::string _name,
 	sampleSharedMisses.resize(cpuCount, MissCounter(0));
 
 	commitTracePrivateMisses.resize(cpuCount, MissCounter(0));
+	commitTracePrivateAccesses.resize(cpuCount, MissCounter(0));
 	commitTraceSharedMisses.resize(cpuCount, MissCounter(0));
 
 	interferenceMissProbabilities.resize(cpuCount, InterferenceMissProbability(true, randomCounterBits));
@@ -247,7 +248,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				interferenceMissAccumulator[req->adaptiveMHASenderID] += setsInConstituency;
 			}
 		}
-
+		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
 		estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
 	}
 	if(curTick >= detailedSimStart){
@@ -376,9 +377,9 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 	else if(intProbabilityPolicy == IPP_COUNTER_FIXED_PRIVATE){
 		fatal("private counter based policy interference determination not implemented");
 	}
-	else{
-		fatal("unknown interference probabilty policy");
-	}
+
+	fatal("unknown interference probabilty policy");
+	return false;
 }
 
 void

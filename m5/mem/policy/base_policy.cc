@@ -380,7 +380,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_CWP_SER){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
@@ -393,6 +393,23 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		}
 		else if(perfEstMethod == CPL){
 			newStallTime = cpl * newAvgSharedLat;
+		}
+		else if(perfEstMethod == CPL_CWP_SER){
+			double avgPara = 0.0;
+			double unadjpara = 0.0;
+			if(currentStallTime != 0){
+				unadjpara = (currentAvgSharedLat * sharedRequests) / currentStallTime;
+				avgPara = unadjpara - 1.0;
+			}
+
+			if(avgPara < 0) avgPara = 0.0;
+			double adjustedPara = avgPara * privateMissRate;
+
+			DPRINTF(MissBWPolicyExtra, "Computed avg para %d (%d) and adjusted para %d with estimated miss rate %d\n", avgPara, unadjpara, adjustedPara, privateMissRate);
+
+			assert(privateMissRate <= 1.0 && privateMissRate >= 0.0);
+
+			newStallTime = cpl * (newAvgSharedLat - cwp + (adjustedPara*80)); //FIXME: parameterize
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -913,6 +930,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 	if(methodName == "cpl") return CPL;
 	if(methodName == "cpl-cwp") return CPL_CWP;
+	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

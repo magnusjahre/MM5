@@ -175,6 +175,7 @@ private:
 	std::vector<MissCounter> sampleSharedMisses;
 
 	std::vector<MissCounter> commitTracePrivateMisses;
+	std::vector<MissCounter> commitTracePrivateAccesses;
 	std::vector<MissCounter> commitTraceSharedMisses;
 
 	std::vector<MissCounter> sampleSharedResponses;
@@ -256,13 +257,19 @@ public:
 
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 
-    int getPrivateCommitTraceMisses(int cpuID){
-    	int misses = commitTracePrivateMisses[cpuID].value;
+    double getPrivateCommitTraceMissRate(int cpuID){
+    	double misses = commitTracePrivateMisses[cpuID].value;
+    	double accesses = commitTracePrivateAccesses[cpuID].value;
+
     	commitTracePrivateMisses[cpuID].reset();
-    	return misses;
+    	commitTracePrivateAccesses[cpuID].reset();
+
+    	if(accesses == 0.0) return 0.0;
+    	return misses / accesses;
     }
 
     int getSharedCommitTraceMisses(int cpuID){
+    	fatal("does not work");
     	int misses = commitTraceSharedMisses[cpuID].value;
     	commitTraceSharedMisses[cpuID].reset();
     	return misses;

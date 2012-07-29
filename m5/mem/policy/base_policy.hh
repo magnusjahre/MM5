@@ -49,7 +49,8 @@ public:
         NO_MLP,
         NO_MLP_CACHE,
         CPL,
-        CPL_CWP
+        CPL_CWP,
+        CPL_CWP_SER
     } PerformanceEstimationMethod;
 
     typedef enum{
