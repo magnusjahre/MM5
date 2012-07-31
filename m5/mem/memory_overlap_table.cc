@@ -4,8 +4,9 @@
 
 using namespace std;
 
-MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int comTableSize){
+MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int unknownTableSize){
 	overlapTable.resize(totalL1MSHRs, MemoryOverlapTableEntry());
+	unknownLatencyBuffer.resize(unknownTableSize, UnknownLatencyBufferEntry(totalL1MSHRs));
 	reset();
 }
 
@@ -24,6 +25,11 @@ MemoryOverlapTable::reset(){
 	tailindex = 0;
 
 	for(int i=0;i<overlapTable.size();i++) overlapTable[i].reset();
+
+	unknownLatencyHead = 0;
+	unknownLatencyTail = 0;
+
+	for(int i=0;i<unknownLatencyBuffer.size();i++) unknownLatencyBuffer[i].reset();
 }
 
 void
@@ -46,6 +52,211 @@ MemoryOverlapTable::requestIssued(MemReqPtr& req){
 	tailindex = (tailindex + 1) % overlapTable.size();
 }
 
+int
+MemoryOverlapTable::findTempWindowEndIndex(int curIndex){
+	assert(overlapTable[headindex].windowStart <= overlapTable[curIndex].windowStart);
+	if(overlapTable[headindex].windowStart == overlapTable[curIndex].windowStart){
+		DPRINTF(OverlapEstimatorTable, "Finished request is in same window as head, returning -1\n");
+		return -1;
+	}
+
+	int stepsIndex = headindex;
+	while(stepsIndex != curIndex){
+		if(overlapTable[stepsIndex].valid){
+			DPRINTF(OverlapEstimatorTable, "Step index is %d with window start %d, head window start is %d\n",
+					stepsIndex,
+					overlapTable[stepsIndex].windowStart,
+					overlapTable[headindex].windowStart);
+
+			if(overlapTable[stepsIndex].windowStart > overlapTable[headindex].windowStart){
+				DPRINTF(OverlapEstimatorTable, "Request %d start at %d is a temporary window border\n",
+						stepsIndex,
+						overlapTable[stepsIndex].windowStart);
+
+				return stepsIndex;
+			}
+		}
+		stepsIndex = (stepsIndex + 1) % overlapTable.size();
+	}
+
+	DPRINTF(OverlapEstimatorTable, "Current index is step end, returning %d\n", curIndex);
+	return curIndex;
+}
+
+void
+MemoryOverlapTable::handleUnknownLatencies(int curIndex){
+	int tmpWindowEnd = findTempWindowEndIndex(curIndex);
+
+	if(tmpWindowEnd == -1) return;
+
+	int firstULBuffer = -1;
+	while(tmpWindowEnd != -1){
+		int ulbufferIndex = getFreeULBufferEntry();
+		if(firstULBuffer == -1) firstULBuffer = ulbufferIndex;
+
+		unknownLatencyBuffer[ulbufferIndex].latency = overlapTable[tmpWindowEnd].windowStart - overlapTable[headindex].windowStart;
+		DPRINTF(OverlapEstimatorTable, "Initializing UL entry %d with latency %d\n",
+										ulbufferIndex,
+										unknownLatencyBuffer[ulbufferIndex].latency);
+
+		int stepIndex = headindex;
+		while(stepIndex != tmpWindowEnd){
+			if(overlapTable[stepIndex].valid){
+				unknownLatencyBuffer[ulbufferIndex].bufferInvolved[stepIndex] = true;
+				unknownLatencyBuffer[ulbufferIndex].count++;
+
+				if(unknownLatencyBuffer[ulbufferIndex].commit == 0) unknownLatencyBuffer[ulbufferIndex].commit = overlapTable[stepIndex].tmpComOverlap;
+				assert(unknownLatencyBuffer[ulbufferIndex].commit == overlapTable[stepIndex].tmpComOverlap);
+				overlapTable[stepIndex].tmpComOverlap = 0;
+
+				overlapTable[stepIndex].windowStart = overlapTable[tmpWindowEnd].windowStart;
+
+				DPRINTF(OverlapEstimatorTable, "Request %d is involved with unknown latency buffer %d, updating window start to %d, count to %d and commit to %d\n",
+						stepIndex,
+						ulbufferIndex,
+						overlapTable[tmpWindowEnd].windowStart,
+						unknownLatencyBuffer[ulbufferIndex].count,
+						unknownLatencyBuffer[ulbufferIndex].commit);
+			}
+			stepIndex = (stepIndex + 1) % overlapTable.size();
+		}
+
+		tmpWindowEnd = findTempWindowEndIndex(curIndex);
+	}
+
+	updateUnknownCommitLatencies(curIndex, firstULBuffer);
+}
+
+int
+MemoryOverlapTable::decrULIndex(int index){
+	int newindex = index -1;
+	if(newindex >= 0) return newindex;
+	return unknownLatencyBuffer.size()-1;
+}
+
+void
+MemoryOverlapTable::updateUnknownCommitLatencies(int curIndex, int firstULBuffer){
+	int commitAccumulator = overlapTable[curIndex].tmpComOverlap;
+	int bufferpos = decrULIndex(unknownLatencyTail);
+	while(bufferpos != firstULBuffer){
+		assert(unknownLatencyBuffer[bufferpos].valid);
+
+		int oldComVal = unknownLatencyBuffer[bufferpos].commit;
+		unknownLatencyBuffer[bufferpos].commit -= commitAccumulator;
+		int oldLatVal= unknownLatencyBuffer[bufferpos].latency;
+		unknownLatencyBuffer[bufferpos].latency -= unknownLatencyBuffer[bufferpos].commit;
+
+		DPRINTF(OverlapEstimatorTable, "Commit for UL entry %d set to %d (was %d), latency to %d (was %d), accumulator was %d, accumulator is %d\n",
+				bufferpos,
+				unknownLatencyBuffer[bufferpos].commit,
+				oldComVal,
+				unknownLatencyBuffer[bufferpos].latency,
+				oldLatVal,
+				commitAccumulator,
+				oldComVal);
+
+		commitAccumulator = oldComVal;
+		bufferpos = decrULIndex(bufferpos);
+	}
+
+
+	int oldCom = unknownLatencyBuffer[firstULBuffer].commit;
+	int oldLat = unknownLatencyBuffer[firstULBuffer].latency;
+	unknownLatencyBuffer[firstULBuffer].commit -= commitAccumulator;
+	unknownLatencyBuffer[firstULBuffer].latency -= unknownLatencyBuffer[firstULBuffer].commit;
+
+	DPRINTF(OverlapEstimatorTable, "Adjusted commit for first element to %d (was %d), latency adjusted to %d (was %d)\n",
+			unknownLatencyBuffer[firstULBuffer].commit,
+			oldCom,
+			unknownLatencyBuffer[firstULBuffer].latency,
+			oldLat);
+}
+
+void
+MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
+
+	bool removedEntry = false;
+	int uncindex = unknownLatencyHead;
+	while(uncindex != unknownLatencyTail){
+		if(unknownLatencyBuffer[uncindex].bufferInvolved[curIndex]){
+			assert(unknownLatencyBuffer[uncindex].valid);
+
+			if(sharedReq){
+				overlapTable[curIndex].stall += unknownLatencyBuffer[uncindex].latency;
+				overlapTable[curIndex].commitOverlap += unknownLatencyBuffer[uncindex].commit;
+
+				DPRINTF(OverlapEstimatorTable, "Current request %d is shared and has unknown latency, adding %d stall cycles (sum %d) and %d commit cycles (sum %d), request overlap is %d\n",
+						curIndex,
+						unknownLatencyBuffer[uncindex].latency,
+						overlapTable[curIndex].stall,
+						unknownLatencyBuffer[uncindex].commit,
+						overlapTable[curIndex].commitOverlap,
+						overlapTable[curIndex].requestOverlap);
+
+				for(int i=0;i<overlapTable.size();i++){
+					if(unknownLatencyBuffer[uncindex].bufferInvolved[i] && i != curIndex){
+						assert(overlapTable[i].valid);
+						overlapTable[i].requestOverlap += unknownLatencyBuffer[uncindex].latency;
+						overlapTable[i].commitOverlap += unknownLatencyBuffer[uncindex].commit;
+
+						DPRINTF(OverlapEstimatorTable, "Request %d is also in unknown window, adding %d overlapped cycles (sum %d) and %d commit cycles (sum %d), stall is %d\n",
+								i,
+								unknownLatencyBuffer[uncindex].latency,
+								overlapTable[i].requestOverlap,
+								unknownLatencyBuffer[uncindex].commit,
+								overlapTable[i].commitOverlap,
+								overlapTable[i].stall);
+					}
+				}
+
+				DPRINTF(OverlapEstimatorTable, "Invalidating UL entry %d, UL head %d, UL tail %d\n",
+						uncindex,
+						unknownLatencyHead,
+						unknownLatencyTail);
+
+				unknownLatencyBuffer[uncindex].reset();
+				removedEntry = true;
+			}
+			else{
+				unknownLatencyBuffer[uncindex].bufferInvolved[curIndex] = false;
+				unknownLatencyBuffer[uncindex].count--;
+
+				DPRINTF(OverlapEstimatorTable, "Request %d is private, setting flag to false and reducing count to %d\n",
+						uncindex,
+						unknownLatencyBuffer[uncindex].count);
+
+				assert(unknownLatencyBuffer[uncindex].count >= 0);
+				if(unknownLatencyBuffer[uncindex].count == 0){
+					DPRINTF(OverlapEstimatorTable, "Invalidating buffer %d due to no pending requests\n", uncindex);
+					unknownLatencyBuffer[uncindex].reset();
+					removedEntry = true;
+				}
+
+				fatal("private req and UL buffer has not been verified\n");
+			}
+		}
+
+		uncindex = (uncindex + 1) % unknownLatencyBuffer.size();
+	}
+
+	if(removedEntry){
+		while(!unknownLatencyBuffer[unknownLatencyHead].valid){
+			if(unknownLatencyHead == unknownLatencyTail){
+				assert(!unknownLatencyBuffer[unknownLatencyHead].valid);
+				DPRINTF(OverlapEstimatorTable, "UL table is empty, UL head %d, UL tail %d\n",
+						unknownLatencyHead,
+						unknownLatencyTail);
+
+				return;
+			}
+			unknownLatencyHead = (unknownLatencyHead + 1) % unknownLatencyBuffer.size();
+		}
+		DPRINTF(OverlapEstimatorTable, "UL table pointer update finished, UL head %d, UL tail %d\n",
+								unknownLatencyHead,
+								unknownLatencyTail);
+	}
+}
+
 void
 MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 	numPendingReqs--;
@@ -62,16 +273,16 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 			req->paddr,
 			curIndex);
 
+	// check for unknown latencies that can be resolved
+	processULBuffer(curIndex, req->beenInSharedMemSys);
+
 	if(req->beenInSharedMemSys){
 		if(numPendingReqs > 0){
 
-			if(curTick == 5718) dumpBuffer();
+			//if(curTick == 7078) dumpBuffer();
 
-			// STEP 1: move window to start of this request if neccessary
-			int oldestIndex = headindex;
-			while(oldestIndex != curIndex){
-				fatal("this is not oldest");
-			}
+			// STEP 1: move window to start of this request if necessary
+			handleUnknownLatencies(curIndex);
 
 			// STEP 2: process finished request
 			for(int i=0;i<overlapTable.size();i++){
@@ -98,7 +309,7 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 			}
 		}
 
-		// STEP 4: Add finished request data to aggregate data
+		// STEP 3: Add finished request data to aggregate data
 		int latency = curTick - overlapTable[curIndex].issuedAt;
 		overlapTable[curIndex].stall += curTick - overlapTable[curIndex].windowStart;
 
@@ -119,7 +330,7 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 		assert(totalStall == totalLatency - hiddenLatencyRequest - hiddenLatencyCompute);
 	}
 
-	// Step 5: Invalidate request and update head pointer
+	// Step 4: Invalidate request and update head pointer
 	invalidateEntry(curIndex, req->paddr);
 }
 
@@ -217,3 +428,15 @@ MemoryOverlapTable::dumpBuffer(){
 		}
 	}
 }
+
+int
+MemoryOverlapTable::getFreeULBufferEntry(){
+	int oldtail = unknownLatencyTail;
+	unknownLatencyTail = (unknownLatencyTail + 1) % unknownLatencyBuffer.size();
+	DPRINTF(OverlapEstimatorTable, "Allocating new unknown latency entry at pos %d\n", oldtail);
+
+	if(unknownLatencyBuffer[oldtail].valid) fatal("Storage overflow in UL buffer");
+	unknownLatencyBuffer[oldtail].valid = true;
+	return oldtail;
+}
+

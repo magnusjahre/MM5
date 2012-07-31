@@ -62,7 +62,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	nextComputeNodeID = 1;
 	root = pendingComputeNode;
 
-	overlapTable = new MemoryOverlapTable(20, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
+	overlapTable = new MemoryOverlapTable(64, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
