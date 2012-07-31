@@ -9,6 +9,7 @@
 #define MEMORY_OVERLAP_ESTIMATOR_HH_
 
 #define TICK_MAX ULL(0x3FFFFFFFFFFFFF)
+#define MOE_CACHE_BLK_SIZE 64
 
 #include "sim/sim_object.hh"
 #include "mem/mem_req.hh"
@@ -16,9 +17,11 @@
 #include "base/statistics.hh"
 #include "mem/requesttrace.hh"
 #include "mem/interference_manager.hh"
+#include "mem/memory_overlap_table.hh"
 
 class InterferenceManager;
 class BaseCache;
+class MemoryOverlapTable;
 
 class EstimationEntry{
 public:
@@ -201,71 +204,6 @@ public:
 	}
 };
 
-class MemoryOverlapTableEntry{
-public:
-	Addr address;
-	Tick issuedAt;
-	Tick windowStart;
-	bool valid;
-
-	Tick tmpComStart;
-	int tmpComOverlap;
-
-	int commitOverlap;
-	int requestOverlap;
-	int stall;
-
-	MemoryOverlapTableEntry(){
-		reset();
-	}
-
-	void reset(){
-		address = MemReq::inval_addr;
-		issuedAt = 0;
-		valid = false;
-		commitOverlap = 0;
-		requestOverlap = 0;
-		stall = 0;
-		tmpComStart = 0;
-		tmpComOverlap = 0;
-		windowStart = 0;
-	}
-};
-
-class MemoryOverlapTable{
-private:
-	Tick hiddenLatencyRequest;
-	Tick hiddenLatencyCompute;
-	Tick totalLatency;
-	Tick totalStall;
-
-	std::vector<MemoryOverlapTableEntry> overlapTable;
-	Tick pendingComStartAt;
-	int numPendingReqs;
-
-	int headindex;
-	int tailindex;
-
-public:
-	MemoryOverlapTable(){ }
-
-	MemoryOverlapTable(int totalNumL1MSHRs, int comTableSize);
-
-	void reset();
-
-	void requestIssued(MemReqPtr& req);
-
-	void requestCompleted(MemReqPtr& req);
-
-	void executionResumed();
-
-	void executionStalled();
-
-private:
-	void dumpBuffer();
-	void invalidateEntry(int curIndex, Addr addr);
-};
-
 class MemoryOverlapEstimator : public BaseHier{
 
 private:
@@ -312,7 +250,7 @@ private:
 		}
 	};
 
-	MemoryOverlapTable overlapTable;
+	MemoryOverlapTable* overlapTable;
 
 	std::vector<EstimationEntry*> pendingRequests;
 	std::vector<EstimationEntry*> completedRequests;
@@ -465,6 +403,8 @@ public:
 						   HierParams* params,
 						   SharedStallIndentifier _ident,
 						   bool _sharedReqTraceEnabled);
+
+	~MemoryOverlapEstimator();
 
 	void regStats();
 

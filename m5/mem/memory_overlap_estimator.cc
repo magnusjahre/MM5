@@ -12,8 +12,6 @@
 
 using namespace std;
 
-#define CACHE_BLK_SIZE 64
-
 MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       InterferenceManager* _interferenceManager,
 		                                       int cpu_count,
@@ -64,8 +62,13 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	nextComputeNodeID = 1;
 	root = pendingComputeNode;
 
-	overlapTable = MemoryOverlapTable(20, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
+	overlapTable = new MemoryOverlapTable(20, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
 }
+
+MemoryOverlapEstimator::~MemoryOverlapEstimator(){
+	delete overlapTable;
+}
+
 
 void
 MemoryOverlapEstimator::cpuStarted(Tick firstTick){
@@ -422,12 +425,12 @@ MemoryOverlapEstimator::regStats(){
 void
 MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	DPRINTF(OverlapEstimator, "Issuing memory request for addr %d, command %s\n",
-			(req->paddr & ~(CACHE_BLK_SIZE-1)),
+			(req->paddr & ~(MOE_CACHE_BLK_SIZE-1)),
 			req->cmd);
 
-	overlapTable.requestIssued(req);
+	overlapTable->requestIssued(req);
 
-	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(CACHE_BLK_SIZE-1),curTick, req->cmd);
+	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(MOE_CACHE_BLK_SIZE-1),curTick, req->cmd);
 	pendingRequests.push_back(ee);
 
 	nextReqID++;
@@ -437,7 +440,7 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 void
 MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 
-	Addr blkAddr = req->paddr & ~(CACHE_BLK_SIZE-1);
+	Addr blkAddr = req->paddr & ~(MOE_CACHE_BLK_SIZE-1);
 	DPRINTF(OverlapEstimator, "L1 hit detected for addr %d, command %s\n",
 				blkAddr,
 				req->cmd);
@@ -486,7 +489,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 	int useIndex = -1;
 	for(int i=0;i<pendingRequests.size();i++){
-		if((req->paddr & ~(CACHE_BLK_SIZE-1)) == pendingRequests[i]->address){
+		if((req->paddr & ~(MOE_CACHE_BLK_SIZE-1)) == pendingRequests[i]->address){
 			assert(useIndex == -1);
 			useIndex = i;
 		}
@@ -499,7 +502,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->isPrivModeSharedCacheMiss = req->isPrivModeSharedCacheMiss;
 	pendingRequests[useIndex]->hidesLoad = hiddenLoad;
 
-	overlapTable.requestCompleted(req);
+	overlapTable->requestCompleted(req);
 
 	totalRequestAccumulator++;
 
@@ -860,7 +863,7 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	pendingComputeNode = NULL;
 
 	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
-	overlapTable.executionStalled();
+	overlapTable->executionStalled();
 
 	DPRINTF(OverlapEstimator, "Stalling, oldest core address is %d, relocated to %d\n", stalledOnCoreAddr, stalledOnAddr);
 }
@@ -891,7 +894,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 	vector<RequestNode* > completedSharedReqs;
 
-	overlapTable.executionResumed();
+	overlapTable->executionResumed();
 
 	while(!completedRequests.empty() && completedRequests.front()->completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
@@ -1381,218 +1384,6 @@ BurstStats::overlaps(MemoryGraphNode* node){
 					node->startedAt,
 					node->finishedAt);
 	return true;
-}
-
-MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int comTableSize){
-	overlapTable.resize(totalL1MSHRs, MemoryOverlapTableEntry());
-	reset();
-}
-
-void
-MemoryOverlapTable::reset(){
-	hiddenLatencyRequest = 0;
-	hiddenLatencyCompute = 0;
-	totalLatency = 0;
-	totalStall = 0;
-
-	numPendingReqs = 0;
-
-	headindex = 0;
-	tailindex = 0;
-
-	for(int i=0;i<overlapTable.size();i++) overlapTable[i].reset();
-}
-
-void
-MemoryOverlapTable::requestIssued(MemReqPtr& req){
-	Addr addr = req->paddr & ~(CACHE_BLK_SIZE-1);
-	numPendingReqs++;
-
-	DPRINTF(OverlapEstimatorTable, "Adding request %d to %d (tail pointer), head pointer is %d\n",
-			addr,
-			tailindex,
-			headindex);
-
-	if(overlapTable[tailindex].valid) fatal("no invalid table slot, area budget exceeded");
-
-	overlapTable[tailindex].address = addr;
-	overlapTable[tailindex].issuedAt = curTick;
-	overlapTable[tailindex].windowStart = curTick;
-	overlapTable[tailindex].valid = true;
-
-	tailindex = (tailindex + 1) % overlapTable.size();
-}
-
-void
-MemoryOverlapTable::requestCompleted(MemReqPtr& req){
-	numPendingReqs--;
-
-	int curIndex = headindex;
-	int numchecks = 0;
-	while(overlapTable[curIndex].address != req->paddr ){
-		curIndex = (curIndex +1) % overlapTable.size();
-		numchecks++;
-		assert(numchecks <= overlapTable.size());
-	}
-
-	DPRINTF(OverlapEstimatorTable, "Request %d completed, found in table at place %d\n",
-			req->paddr,
-			curIndex);
-
-	if(req->beenInSharedMemSys){
-		if(numPendingReqs > 0){
-
-			if(curTick == 5718) dumpBuffer();
-
-			// STEP 1: move window to start of this request if neccessary
-			int oldestIndex = headindex;
-			while(oldestIndex != curIndex){
-				fatal("this is not oldest");
-			}
-
-			// STEP 2: process finished request
-			for(int i=0;i<overlapTable.size();i++){
-				if(overlapTable[i].valid && i != curIndex){
-					assert(overlapTable[curIndex].windowStart <= overlapTable[i].windowStart);
-					if(overlapTable[i].tmpComStart != 0) fatal("tmpComStart != 0 not handled");
-
-					int roinc = curTick - overlapTable[i].windowStart - overlapTable[i].tmpComOverlap;
-					overlapTable[i].requestOverlap += roinc;
-					overlapTable[i].commitOverlap += overlapTable[i].tmpComOverlap;
-					overlapTable[i].windowStart = curTick;
-
-					DPRINTF(OverlapEstimatorTable, "Request %d overlaps with %d, moving %d hidden commit cycles (sum %d) and %d hidden request cycles (sum %d), new window start %d\n",
-									i,
-									curIndex,
-									overlapTable[i].tmpComOverlap,
-									overlapTable[i].commitOverlap,
-									roinc,
-									overlapTable[i].requestOverlap,
-									overlapTable[i].windowStart);
-
-					overlapTable[i].tmpComOverlap = 0;
-				}
-			}
-		}
-
-		// STEP 4: Add finished request data to aggregate data
-		int latency = curTick - overlapTable[curIndex].issuedAt;
-		overlapTable[curIndex].stall += curTick - overlapTable[curIndex].windowStart;
-
-		DPRINTF(OverlapEstimatorTable, "Shared request %d, total latency %d, commit overlap %d, request overlap %d, caused stall %d\n",
-				curIndex,
-				latency,
-				overlapTable[curIndex].commitOverlap,
-				overlapTable[curIndex].requestOverlap,
-				overlapTable[curIndex].stall);
-
-		assert(overlapTable[curIndex].stall == latency - overlapTable[curIndex].requestOverlap - overlapTable[curIndex].commitOverlap);
-
-		hiddenLatencyRequest += overlapTable[curIndex].requestOverlap;
-		hiddenLatencyCompute += overlapTable[curIndex].commitOverlap;
-		totalLatency += latency;
-		totalStall += overlapTable[curIndex].stall;
-
-		assert(totalStall == totalLatency - hiddenLatencyRequest - hiddenLatencyCompute);
-	}
-
-	// Step 5: Invalidate request and update head pointer
-	invalidateEntry(curIndex, req->paddr);
-}
-
-void
-MemoryOverlapTable::invalidateEntry(int curIndex, Addr addr){
-	DPRINTF(OverlapEstimatorTable, "Request %d is done, clearing position %d\n",
-			addr,
-			curIndex);
-	overlapTable[curIndex].reset();
-
-	int itcnt = 0;
-	while(!overlapTable[headindex].valid){
-		if(headindex == tailindex){
-			DPRINTF(OverlapEstimatorTable, "Head reached tail at %d\n", headindex);
-			assert(numPendingReqs == 0);
-			return;
-		}
-
-		int tmpid = headindex;
-		headindex = (headindex + 1) % overlapTable.size();
-		DPRINTF(OverlapEstimatorTable, "Request %d is invalidated, updating head pointer to %d, tail pointer is %d\n",
-				tmpid,
-				headindex,
-				tailindex);
-
-		itcnt++;
-		assert(itcnt <= overlapTable.size());
-	}
-}
-
-void
-MemoryOverlapTable::executionStalled(){
-	assert(pendingComStartAt > 0);
-	if(numPendingReqs > 0){
-		for(int i=0;i<overlapTable.size();i++){
-			if(overlapTable[i].valid){
-
-				int overlapDuration = 0;
-				if(overlapTable[i].windowStart > pendingComStartAt){
-					overlapDuration = curTick - overlapTable[i].windowStart;
-				}
-				else{
-					overlapDuration = curTick - pendingComStartAt;
-				}
-
-				overlapTable[i].tmpComOverlap += overlapDuration;
-				overlapTable[i].tmpComStart = 0;
-
-				DPRINTF(OverlapEstimatorTable, "Stall: Requests in slot %d overlaps (start %d, window start %d), incrementing temporary commit overlap by %d to %d\n",
-						i,
-						overlapTable[i].issuedAt,
-						overlapTable[i].windowStart,
-						overlapDuration,
-						overlapTable[i].tmpComOverlap);
-			}
-		}
-	}
-	else{
-		DPRINTF(OverlapEstimatorTable, "Execution stalled and no pending reqs, no action\n");
-	}
-
-	pendingComStartAt = 0;
-}
-
-void
-MemoryOverlapTable::executionResumed(){
-	assert(pendingComStartAt == 0);
-	pendingComStartAt = curTick;
-	DPRINTF(OverlapEstimatorTable, "Execution resumed\n");
-
-	if(numPendingReqs > 0){
-		for(int i=0;i<overlapTable.size();i++){
-			if(overlapTable[i].valid){
-				assert(overlapTable[i].tmpComStart == 0);
-				overlapTable[i].tmpComStart = curTick;
-				DPRINTF(OverlapEstimatorTable, "Request entry %d is pending, recording commit start\n", i);
-			}
-		}
-	}
-}
-
-void
-MemoryOverlapTable::dumpBuffer(){
-	cout << "Overlap table contents @ " << curTick << ", head is " << headindex << ", tail is " << tailindex << "\n";
-	for(int i=0;i<overlapTable.size();i++){
-		if(overlapTable[i].valid){
-			cout << i << ", addr " << overlapTable[i].address
-					<< ", issued " << overlapTable[i].issuedAt
-					<< ", window start " << overlapTable[i].windowStart
-					<< ", tmp com " << overlapTable[i].tmpComOverlap
-					<< ", com " << overlapTable[i].commitOverlap
-					<< ", req " << overlapTable[i].requestOverlap
-					<< ", stall " << overlapTable[i].stall
-					<< "\n";
-		}
-	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
