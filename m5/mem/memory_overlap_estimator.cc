@@ -64,7 +64,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	nextComputeNodeID = 1;
 	root = pendingComputeNode;
 
-	overlapTable = MemoryOverlapTable(64, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
+	overlapTable = MemoryOverlapTable(20, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
 }
 
 void
@@ -1397,6 +1397,9 @@ MemoryOverlapTable::reset(){
 
 	numPendingReqs = 0;
 
+	headindex = 0;
+	tailindex = 0;
+
 	for(int i=0;i<overlapTable.size();i++) overlapTable[i].reset();
 }
 
@@ -1405,35 +1408,32 @@ MemoryOverlapTable::requestIssued(MemReqPtr& req){
 	Addr addr = req->paddr & ~(CACHE_BLK_SIZE-1);
 	numPendingReqs++;
 
-	for(int i=0;i<overlapTable.size();i++){
-		if(!overlapTable[i].valid){
-			DPRINTF(OverlapEstimatorTable, "Adding request %d to place %d\n",
-					addr,
-					i);
+	DPRINTF(OverlapEstimatorTable, "Adding request %d to %d (tail pointer), head pointer is %d\n",
+			addr,
+			tailindex,
+			headindex);
 
-			overlapTable[i].address = addr;
-			overlapTable[i].issuedAt = curTick;
-			overlapTable[i].windowStart = curTick;
-			overlapTable[i].valid = true;
-			return;
-		}
-	}
+	if(overlapTable[tailindex].valid) fatal("no invalid table slot, area budget exceeded");
 
-	fatal("no invalid table slot, area budget exceeded");
+	overlapTable[tailindex].address = addr;
+	overlapTable[tailindex].issuedAt = curTick;
+	overlapTable[tailindex].windowStart = curTick;
+	overlapTable[tailindex].valid = true;
+
+	tailindex = (tailindex + 1) % overlapTable.size();
 }
 
 void
 MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 	numPendingReqs--;
 
-	int curIndex = -1;
-	for(int i=0;i<overlapTable.size();i++){
-		if(overlapTable[i].address == req->paddr){
-			assert(curIndex == -1);
-			curIndex = i;
-		}
+	int curIndex = headindex;
+	int numchecks = 0;
+	while(overlapTable[curIndex].address != req->paddr ){
+		curIndex = (curIndex +1) % overlapTable.size();
+		numchecks++;
+		assert(numchecks <= overlapTable.size());
 	}
-	assert(curIndex != -1);
 
 	DPRINTF(OverlapEstimatorTable, "Request %d completed, found in table at place %d\n",
 			req->paddr,
@@ -1442,9 +1442,18 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 	if(req->beenInSharedMemSys){
 		if(numPendingReqs > 0){
 
+			if(curTick == 5718) dumpBuffer();
+
+			// STEP 1: move window to start of this request if neccessary
+			int oldestIndex = headindex;
+			while(oldestIndex != curIndex){
+				fatal("this is not oldest");
+			}
+
+			// STEP 2: process finished request
 			for(int i=0;i<overlapTable.size();i++){
 				if(overlapTable[i].valid && i != curIndex){
-					if(overlapTable[i].windowStart < overlapTable[curIndex].windowStart) fatal("older pending request detected, must be checked");
+					assert(overlapTable[curIndex].windowStart <= overlapTable[i].windowStart);
 					if(overlapTable[i].tmpComStart != 0) fatal("tmpComStart != 0 not handled");
 
 					int roinc = curTick - overlapTable[i].windowStart - overlapTable[i].tmpComOverlap;
@@ -1466,6 +1475,7 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 			}
 		}
 
+		// STEP 4: Add finished request data to aggregate data
 		int latency = curTick - overlapTable[curIndex].issuedAt;
 		overlapTable[curIndex].stall += curTick - overlapTable[curIndex].windowStart;
 
@@ -1486,10 +1496,35 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 		assert(totalStall == totalLatency - hiddenLatencyRequest - hiddenLatencyCompute);
 	}
 
+	// Step 5: Invalidate request and update head pointer
+	invalidateEntry(curIndex, req->paddr);
+}
+
+void
+MemoryOverlapTable::invalidateEntry(int curIndex, Addr addr){
 	DPRINTF(OverlapEstimatorTable, "Request %d is done, clearing position %d\n",
-			req->paddr,
+			addr,
 			curIndex);
 	overlapTable[curIndex].reset();
+
+	int itcnt = 0;
+	while(!overlapTable[headindex].valid){
+		if(headindex == tailindex){
+			DPRINTF(OverlapEstimatorTable, "Head reached tail at %d\n", headindex);
+			assert(numPendingReqs == 0);
+			return;
+		}
+
+		int tmpid = headindex;
+		headindex = (headindex + 1) % overlapTable.size();
+		DPRINTF(OverlapEstimatorTable, "Request %d is invalidated, updating head pointer to %d, tail pointer is %d\n",
+				tmpid,
+				headindex,
+				tailindex);
+
+		itcnt++;
+		assert(itcnt <= overlapTable.size());
+	}
 }
 
 void
@@ -1539,6 +1574,23 @@ MemoryOverlapTable::executionResumed(){
 				overlapTable[i].tmpComStart = curTick;
 				DPRINTF(OverlapEstimatorTable, "Request entry %d is pending, recording commit start\n", i);
 			}
+		}
+	}
+}
+
+void
+MemoryOverlapTable::dumpBuffer(){
+	cout << "Overlap table contents @ " << curTick << ", head is " << headindex << ", tail is " << tailindex << "\n";
+	for(int i=0;i<overlapTable.size();i++){
+		if(overlapTable[i].valid){
+			cout << i << ", addr " << overlapTable[i].address
+					<< ", issued " << overlapTable[i].issuedAt
+					<< ", window start " << overlapTable[i].windowStart
+					<< ", tmp com " << overlapTable[i].tmpComOverlap
+					<< ", com " << overlapTable[i].commitOverlap
+					<< ", req " << overlapTable[i].requestOverlap
+					<< ", stall " << overlapTable[i].stall
+					<< "\n";
 		}
 	}
 }

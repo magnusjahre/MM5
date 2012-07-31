@@ -228,11 +228,12 @@ public:
 		stall = 0;
 		tmpComStart = 0;
 		tmpComOverlap = 0;
+		windowStart = 0;
 	}
 };
 
 class MemoryOverlapTable{
-public:
+private:
 	Tick hiddenLatencyRequest;
 	Tick hiddenLatencyCompute;
 	Tick totalLatency;
@@ -242,6 +243,10 @@ public:
 	Tick pendingComStartAt;
 	int numPendingReqs;
 
+	int headindex;
+	int tailindex;
+
+public:
 	MemoryOverlapTable(){ }
 
 	MemoryOverlapTable(int totalNumL1MSHRs, int comTableSize);
@@ -255,6 +260,10 @@ public:
 	void executionResumed();
 
 	void executionStalled();
+
+private:
+	void dumpBuffer();
+	void invalidateEntry(int curIndex, Addr addr);
 };
 
 class MemoryOverlapEstimator : public BaseHier{
