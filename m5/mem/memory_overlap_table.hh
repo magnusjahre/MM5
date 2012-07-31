@@ -103,6 +103,8 @@ private:
 	int getFreeULBufferEntry();
 
 	int decrULIndex(int index);
+
+	void handleCommitInProgress(int index);
 };
 
 #endif

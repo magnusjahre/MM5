@@ -258,6 +258,21 @@ MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
 }
 
 void
+MemoryOverlapTable::handleCommitInProgress(int index){
+	if(overlapTable[index].tmpComStart != 0){
+		int comInc = curTick - overlapTable[index].tmpComStart;
+		overlapTable[index].tmpComOverlap += comInc;
+		overlapTable[index].tmpComStart = curTick;
+
+		DPRINTF(OverlapEstimatorTable, "Request %d overlaps with non-completed commit, adding %d temp commit cycles (sum %d) and setting commit start to %d\n",
+				index,
+				comInc,
+				overlapTable[index].tmpComOverlap,
+				overlapTable[index].tmpComStart = curTick);
+	}
+}
+
+void
 MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 	numPendingReqs--;
 
@@ -288,7 +303,7 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 			for(int i=0;i<overlapTable.size();i++){
 				if(overlapTable[i].valid && i != curIndex){
 					assert(overlapTable[curIndex].windowStart <= overlapTable[i].windowStart);
-					if(overlapTable[i].tmpComStart != 0) fatal("tmpComStart != 0 not handled");
+					handleCommitInProgress(i);
 
 					int roinc = curTick - overlapTable[i].windowStart - overlapTable[i].tmpComOverlap;
 					overlapTable[i].requestOverlap += roinc;
@@ -310,6 +325,7 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 		}
 
 		// STEP 3: Add finished request data to aggregate data
+		handleCommitInProgress(curIndex);
 		int latency = curTick - overlapTable[curIndex].issuedAt;
 		overlapTable[curIndex].stall += curTick - overlapTable[curIndex].windowStart;
 
