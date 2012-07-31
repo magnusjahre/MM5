@@ -1,5 +1,5 @@
 
-#include "mem/memory_overlap_table.hh"
+#include "memory_overlap_table.hh"
 #include "base/trace.hh"
 
 using namespace std;
@@ -7,6 +7,36 @@ using namespace std;
 MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int unknownTableSize){
 	overlapTable.resize(totalL1MSHRs, MemoryOverlapTableEntry());
 	unknownLatencyBuffer.resize(unknownTableSize, UnknownLatencyBufferEntry(totalL1MSHRs));
+	initTableTrace();
+	reset();
+}
+
+void
+MemoryOverlapTable::initTableTrace(){
+	overlapTableTrace = RequestTrace(name(), "OverlapTableTrace", 1);
+
+	vector<string> headers;
+	headers.push_back("Committed instructions");
+	headers.push_back("Total latency");
+	headers.push_back("Total stall");
+	headers.push_back("Request Overlap");
+	headers.push_back("Commit Overlap");
+
+	overlapTableTrace.initalizeTrace(headers);
+}
+
+void
+MemoryOverlapTable::traceTable(int insts){
+	vector<RequestTraceEntry> data;
+
+	data.push_back(insts);
+	data.push_back(totalLatency);
+	data.push_back(totalStall);
+	data.push_back(hiddenLatencyRequest);
+	data.push_back(hiddenLatencyCompute);
+
+	overlapTableTrace.addTrace(data);
+
 	reset();
 }
 

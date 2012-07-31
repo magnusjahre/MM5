@@ -348,6 +348,8 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 
+	overlapTable->traceTable(committedInstructions);
+
 	return ols;
 }
 

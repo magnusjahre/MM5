@@ -75,6 +75,8 @@ private:
 	int unknownLatencyHead;
 	int unknownLatencyTail;
 
+	RequestTrace overlapTableTrace;
+
 public:
 	MemoryOverlapTable(){ }
 
@@ -89,6 +91,9 @@ public:
 	void executionResumed();
 
 	void executionStalled();
+
+	void initTableTrace();
+	void traceTable(int insts);
 
 private:
 	void dumpBuffer();
