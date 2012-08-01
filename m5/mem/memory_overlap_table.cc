@@ -204,7 +204,7 @@ MemoryOverlapTable::updateUnknownCommitLatencies(int curIndex, int firstULBuffer
 }
 
 void
-MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
+MemoryOverlapTable::processULBuffer(int curIndex, bool addReq){
 
 	bool removedEntry = false;
 	int uncindex = unknownLatencyHead;
@@ -212,7 +212,7 @@ MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
 		if(unknownLatencyBuffer[uncindex].bufferInvolved[curIndex]){
 			assert(unknownLatencyBuffer[uncindex].valid);
 
-			if(sharedReq){
+			if(addReq){
 				overlapTable[curIndex].stall += unknownLatencyBuffer[uncindex].latency;
 				overlapTable[curIndex].commitOverlap += unknownLatencyBuffer[uncindex].commit;
 
@@ -252,8 +252,8 @@ MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
 				unknownLatencyBuffer[uncindex].bufferInvolved[curIndex] = false;
 				unknownLatencyBuffer[uncindex].count--;
 
-				DPRINTF(OverlapEstimatorTable, "Request %d is private, setting flag to false and reducing count to %d\n",
-						uncindex,
+				DPRINTF(OverlapEstimatorTable, "Request %d is private or shared store, setting flag to false and reducing count to %d\n",
+						curIndex,
 						unknownLatencyBuffer[uncindex].count);
 
 				assert(unknownLatencyBuffer[uncindex].count >= 0);
@@ -262,8 +262,6 @@ MemoryOverlapTable::processULBuffer(int curIndex, bool sharedReq){
 					unknownLatencyBuffer[uncindex].reset();
 					removedEntry = true;
 				}
-
-				fatal("private req and UL buffer has not been verified\n");
 			}
 		}
 
@@ -316,8 +314,27 @@ MemoryOverlapTable::findRequest(Addr addr){
 	return -1;
 }
 
+bool
+MemoryOverlapTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
+	if(req->beenInSharedMemSys){
+		if(hiddenLoad){
+			DPRINTF(OverlapEstimatorTable, "Request %d hides a load, add it\n", req->paddr);
+			cout << curTick << ": shared hidden load ADD\n";
+			return true;
+		}
+		if(req->isStore){
+			DPRINTF(OverlapEstimatorTable, "Request %d is a store, skip it\n", req->paddr);
+			return false;
+		}
+		DPRINTF(OverlapEstimatorTable, "Request %d is a regular load, add it\n", req->paddr);
+		return true;
+	}
+	DPRINTF(OverlapEstimatorTable, "Request %d is private, skip it\n", req->paddr);
+	return false;
+}
+
 void
-MemoryOverlapTable::requestCompleted(MemReqPtr& req){
+MemoryOverlapTable::requestCompleted(MemReqPtr& req, bool hiddenLoad){
 
 	int curIndex = findRequest(req->paddr);
 	if(curIndex == -1){
@@ -331,13 +348,12 @@ MemoryOverlapTable::requestCompleted(MemReqPtr& req){
 			req->paddr,
 			curIndex);
 
+	bool addRequest = isSharedRead(req, hiddenLoad);
 	// check for unknown latencies that can be resolved
-	processULBuffer(curIndex, req->beenInSharedMemSys);
+	processULBuffer(curIndex, addRequest);
 
-	if(req->beenInSharedMemSys){
+	if(addRequest){
 		if(numPendingReqs > 0){
-
-			//if(curTick == 7078) dumpBuffer();
 
 			// STEP 1: move window to start of this request if necessary
 			handleUnknownLatencies(curIndex);

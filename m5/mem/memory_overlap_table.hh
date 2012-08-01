@@ -86,7 +86,7 @@ public:
 
 	void requestIssued(MemReqPtr& req);
 
-	void requestCompleted(MemReqPtr& req);
+	void requestCompleted(MemReqPtr& req, bool hiddenLoad);
 
 	void executionResumed();
 
@@ -103,7 +103,7 @@ private:
 	void updateUnknownCommitLatencies(int curIndex, int firstULBuffer);
 	int findTempWindowEndIndex(int curIndex);
 
-	void processULBuffer(int curIndex, bool sharedReq);
+	void processULBuffer(int curIndex, bool addReq);
 
 	int getFreeULBufferEntry();
 
@@ -112,6 +112,8 @@ private:
 	void handleCommitInProgress(int index);
 
 	int findRequest(Addr addr);
+
+	bool isSharedRead(MemReqPtr& req, bool hiddenLoad);
 };
 
 #endif

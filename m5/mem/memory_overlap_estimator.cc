@@ -506,7 +506,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->isPrivModeSharedCacheMiss = req->isPrivModeSharedCacheMiss;
 	pendingRequests[useIndex]->hidesLoad = hiddenLoad;
 
-	overlapTable->requestCompleted(req);
+	overlapTable->requestCompleted(req, hiddenLoad);
 
 	totalRequestAccumulator++;
 
