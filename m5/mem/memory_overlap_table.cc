@@ -319,7 +319,6 @@ MemoryOverlapTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
 	if(req->beenInSharedMemSys){
 		if(hiddenLoad){
 			DPRINTF(OverlapEstimatorTable, "Request %d hides a load, add it\n", req->paddr);
-			cout << curTick << ": shared hidden load ADD\n";
 			return true;
 		}
 		if(req->isStore){
