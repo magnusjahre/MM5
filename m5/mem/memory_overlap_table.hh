@@ -110,6 +110,8 @@ private:
 	int decrULIndex(int index);
 
 	void handleCommitInProgress(int index);
+
+	int findRequest(Addr addr);
 };
 
 #endif

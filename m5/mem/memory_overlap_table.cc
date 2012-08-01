@@ -42,6 +42,7 @@ MemoryOverlapTable::traceTable(int insts){
 
 void
 MemoryOverlapTable::reset(){
+
 	hiddenLatencyRequest = 0;
 	hiddenLatencyCompute = 0;
 	totalLatency = 0;
@@ -302,18 +303,30 @@ MemoryOverlapTable::handleCommitInProgress(int index){
 	}
 }
 
-void
-MemoryOverlapTable::requestCompleted(MemReqPtr& req){
-	numPendingReqs--;
-
+int
+MemoryOverlapTable::findRequest(Addr addr){
 	int curIndex = headindex;
-	int numchecks = 0;
-	while(overlapTable[curIndex].address != req->paddr ){
+	while(curIndex != tailindex){
+		if(overlapTable[curIndex].address == addr){
+			return curIndex;
+		}
 		curIndex = (curIndex +1) % overlapTable.size();
-		numchecks++;
-		assert(numchecks <= overlapTable.size());
 	}
 
+	return -1;
+}
+
+void
+MemoryOverlapTable::requestCompleted(MemReqPtr& req){
+
+	int curIndex = findRequest(req->paddr);
+	if(curIndex == -1){
+		DPRINTF(OverlapEstimatorTable, "Request %d completed, but was not found in the table (reset or full buffers)\n",
+					req->paddr);
+		return;
+	}
+
+	numPendingReqs--;
 	DPRINTF(OverlapEstimatorTable, "Request %d completed, found in table at place %d\n",
 			req->paddr,
 			curIndex);
