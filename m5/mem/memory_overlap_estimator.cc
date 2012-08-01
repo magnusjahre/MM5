@@ -17,7 +17,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       int cpu_count,
 		                                       HierParams* params,
 		                                       SharedStallIndentifier _ident,
-		                                       bool _sharedReqTraceEnabled)
+		                                       bool _sharedReqTraceEnabled,
+		                                       bool _graphAnalysisEnabled)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -62,7 +63,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	nextComputeNodeID = 1;
 	root = pendingComputeNode;
 
-	overlapTable = new MemoryOverlapTable(64, 10); // FIXME: get number of L1 MSHRs and commit table entries as parameter
+	overlapTable = new MemoryOverlapTable(100, 50); // FIXME: get number of L1 MSHRs and commit table entries as parameter
+	doGraphAnalysis = _graphAnalysisEnabled;
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
@@ -598,7 +600,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 
 	double comWhileBurst = 0.0;
 
-	if(cpuCount == 1){
+	if(doGraphAnalysis){
 		comWhileBurst = findComputeBurstOverlap();
 
 		populateBurstInfo();
@@ -1396,6 +1398,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	SimObjectParam<InterferenceManager *> interference_manager;
 	Param<string> shared_stall_heuristic;
 	Param<bool> shared_req_trace_enabled;
+	Param<bool> graph_analysis_enabled;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1403,7 +1406,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM(cpu_count, "Number of cores in the system"),
 	INIT_PARAM_DFLT(interference_manager, "Interference manager", NULL),
 	INIT_PARAM_DFLT(shared_stall_heuristic, "The heuristic that decides if a processor stall is due to a shared event", "rob"),
-	INIT_PARAM_DFLT(shared_req_trace_enabled, "Trace all requests (warning: will create large files)", false)
+	INIT_PARAM_DFLT(shared_req_trace_enabled, "Trace all requests (warning: will create large files)", false),
+	INIT_PARAM_DFLT(graph_analysis_enabled, "Analyze miss graph to determine data (warning: performance overhead)", false)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1430,7 +1434,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          cpu_count,
     		                          params,
     		                          ident,
-    		                          shared_req_trace_enabled);
+    		                          shared_req_trace_enabled,
+    		                          graph_analysis_enabled);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

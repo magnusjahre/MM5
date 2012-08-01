@@ -315,6 +315,8 @@ private:
 	bool isStalledOnWrite;
 	int numWriteStalls;
 
+	bool doGraphAnalysis;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -402,7 +404,8 @@ public:
 						   int cpu_count,
 						   HierParams* params,
 						   SharedStallIndentifier _ident,
-						   bool _sharedReqTraceEnabled);
+						   bool _sharedReqTraceEnabled,
+						   bool _graphAnalysisEnabled);
 
 	~MemoryOverlapEstimator();
 
