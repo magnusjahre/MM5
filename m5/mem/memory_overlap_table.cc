@@ -524,7 +524,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapTable)
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapTable)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapTable)
-	INIT_PARAM_DFLT(request_table_size, "The size of the request table", 300),
+	INIT_PARAM_DFLT(request_table_size, "The size of the request table", 400),
 	INIT_PARAM_DFLT(unknown_table_size, "The size of the unknown latency table", 50)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapTable)
 
