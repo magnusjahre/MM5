@@ -3,8 +3,9 @@
 #define MEMORY_OVERLAP_TABLE_HH_
 
 #include "mem/memory_overlap_estimator.hh"
+#include "sim/sim_object.hh"
 
-class MemoryOverlapTable{
+class MemoryOverlapTable : public SimObject{
 private:
 	class MemoryOverlapTableEntry{
 	public:
@@ -78,9 +79,7 @@ private:
 	RequestTrace overlapTableTrace;
 
 public:
-	MemoryOverlapTable(){ }
-
-	MemoryOverlapTable(int totalNumL1MSHRs, int unknownTableSize);
+	MemoryOverlapTable(std::string _name, int totalNumL1MSHRs, int unknownTableSize);
 
 	void reset();
 

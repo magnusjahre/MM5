@@ -608,6 +608,23 @@ def readOptimalPartition():
         
     return tmpData[env[optPartMetricOptName]][env["BENCHMARK"]]
 
+def setUpOverlapMeasurement():
+
+    root.overlapTables = [MemoryOverlapTable() for i in  xrange(int(env['NP']))]
+    
+    for ot in root.overlapTables:
+        if "MOT-REQ-SIZE" in env: 
+            ot.request_table_size = int(env["MOT-REQ-SIZE"])
+        if "MOT-UL-SIZE" in env:
+            ot.unknown_table_size = int(env["MOT-UL-SIZE"])
+
+    root.overlapEstimators = [MemoryOverlapEstimator(id=i, interference_manager=root.interferenceManager, cpu_count=int(env['NP'])) for i in  xrange(int(env['NP']))]
+
+    for i in range(int(env["NP"])):
+        root.overlapEstimators[i].overlapTable = root.overlapTables[i]
+        if "SHARED-STALL-IDENT" in env:
+            root.overlapEstimators[i].shared_stall_heuristic = env["SHARED-STALL-IDENT"]
+
 def warn(message):
     print >> sys.stderr, "Warning: "+message
 
@@ -807,11 +824,7 @@ sss = -1
 if "SIMPOINT-SAMPLE-SIZE" in env:
     sss = int(env["SIMPOINT-SAMPLE-SIZE"])
 
-root.overlapEstimators = [MemoryOverlapEstimator(id=i, interference_manager=root.interferenceManager, cpu_count=int(env['NP'])) for i in  xrange(int(env['NP']))]
-
-for i in range(int(env["NP"])):
-    if "SHARED-STALL-IDENT" in env:
-        root.overlapEstimators[i].shared_stall_heuristic = env["SHARED-STALL-IDENT"]
+setUpOverlapMeasurement()
 
 BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)

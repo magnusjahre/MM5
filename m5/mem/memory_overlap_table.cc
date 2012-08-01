@@ -1,10 +1,12 @@
 
 #include "memory_overlap_table.hh"
 #include "base/trace.hh"
+#include "sim/builder.hh"
 
 using namespace std;
 
-MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int unknownTableSize){
+MemoryOverlapTable::MemoryOverlapTable(string _name, int totalL1MSHRs, int unknownTableSize)
+: SimObject(_name){
 	overlapTable.resize(totalL1MSHRs, MemoryOverlapTableEntry());
 	unknownLatencyBuffer.resize(unknownTableSize, UnknownLatencyBufferEntry(totalL1MSHRs));
 	initTableTrace();
@@ -13,7 +15,7 @@ MemoryOverlapTable::MemoryOverlapTable(int totalL1MSHRs, int unknownTableSize){
 
 void
 MemoryOverlapTable::initTableTrace(){
-	overlapTableTrace = RequestTrace(name(), "OverlapTableTrace", 1);
+	overlapTableTrace = RequestTrace(name(), "Data", 1);
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -513,4 +515,27 @@ MemoryOverlapTable::getFreeULBufferEntry(){
 	unknownLatencyBuffer[oldtail].valid = true;
 	return oldtail;
 }
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapTable)
+    Param<int> request_table_size;
+	Param<int> unknown_table_size;
+END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapTable)
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapTable)
+	INIT_PARAM_DFLT(request_table_size, "The size of the request table", 300),
+	INIT_PARAM_DFLT(unknown_table_size, "The size of the unknown latency table", 50)
+END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapTable)
+
+CREATE_SIM_OBJECT(MemoryOverlapTable)
+{
+
+    return new MemoryOverlapTable(getInstanceName(),
+    		                       request_table_size,
+    		                       unknown_table_size);
+}
+
+REGISTER_SIM_OBJECT("MemoryOverlapTable", MemoryOverlapTable)
+#endif
 

@@ -405,7 +405,8 @@ public:
 						   HierParams* params,
 						   SharedStallIndentifier _ident,
 						   bool _sharedReqTraceEnabled,
-						   bool _graphAnalysisEnabled);
+						   bool _graphAnalysisEnabled,
+						   MemoryOverlapTable* _overlapTable);
 
 	~MemoryOverlapEstimator();
 

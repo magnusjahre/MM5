@@ -12,3 +12,4 @@ class MemoryOverlapEstimator(SimObject):
     shared_stall_heuristic = Param.SharedStallHeuristic("The heuristic that decides if a processor stall is due to a shared event")
     shared_req_trace_enabled = Param.Bool("Trace all requests (warning: will create large files)")
     graph_analysis_enabled = Param.Bool("Analyze miss graph to determine data (warning: performance overhead)")
+    overlapTable = Param.MemoryOverlapTable("Overlap table")
