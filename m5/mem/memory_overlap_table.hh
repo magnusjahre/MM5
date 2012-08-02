@@ -21,6 +21,9 @@ private:
 		int requestOverlap;
 		int stall;
 
+		int nextPointer;
+		int prevPointer;
+
 		MemoryOverlapTableEntry(){
 			reset();
 		}
@@ -35,6 +38,8 @@ private:
 			tmpComStart = 0;
 			tmpComOverlap = 0;
 			windowStart = 0;
+			nextPointer = -1;
+			prevPointer = -1;
 		}
 	};
 
@@ -113,6 +118,8 @@ private:
 	int findRequest(Addr addr);
 
 	bool isSharedRead(MemReqPtr& req, bool hiddenLoad);
+
+	int nextIndex(int curIndex);
 };
 
 #endif
