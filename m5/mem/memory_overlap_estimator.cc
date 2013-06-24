@@ -66,6 +66,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	overlapTable = _overlapTable;
 	doGraphAnalysis = _graphAnalysisEnabled;
+
+	currentStallFullROB = 0;
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
@@ -135,6 +137,11 @@ MemoryOverlapEstimator::addCommitCycle(){
 }
 
 void
+MemoryOverlapEstimator::addROBFullCycle(){
+	currentStallFullROB++;
+}
+
+void
 MemoryOverlapEstimator::initOverlapTrace(){
 	overlapTrace = RequestTrace(name(), "OverlapTrace", 1);
 
@@ -156,6 +163,9 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Private Miss Rate");
 	headers.push_back("RSS Requests");
 	headers.push_back("Avg CWP");
+	headers.push_back("Full ROB While Stalled Cycles");
+	headers.push_back("Not Full ROB Stall Cycles");
+	headers.push_back("Private Full ROB While Stalled Cycles");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -165,6 +175,8 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	sharedRequestAccumulator = 0;
 	sharedLatencyAccumulator = 0;
 	hiddenSharedLatencyAccumulator = 0;
+	stallWithFullROBAccumulator = 0;
+	privateStallWithFullROBAccumulator = 0;
 }
 
 void
@@ -215,6 +227,10 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 
 	data.push_back((double) computeWhilePendingAccumulator / (double) computeWhilePendingReqs);
 
+	data.push_back(stallWithFullROBAccumulator);
+	data.push_back(sharedStallCycleAccumulator - stallWithFullROBAccumulator);
+	data.push_back(privateStallWithFullROBAccumulator);
+
 	rss.reset();
 
 	stallCycleAccumulator = 0;
@@ -223,6 +239,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	sharedRequestAccumulator = 0;
 	sharedLatencyAccumulator = 0;
 	hiddenSharedLatencyAccumulator = 0;
+	stallWithFullROBAccumulator = 0;
 
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
@@ -857,6 +874,7 @@ MemoryOverlapEstimator::populateBurstInfo(){
 void
 MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	assert(!isStalled);
+	assert(currentStallFullROB == 0);
 	isStalled = true;
 	stalledAt = curTick;
 	cacheBlockedCycles = 0;
@@ -882,12 +900,13 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
 
-	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles, pending completed requests is %d\n",
+	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles, pending completed requests is %d, full ROB for %d cycles\n",
 			stallLength,
 			(endedBySquash ? "squash" : "memory response"),
 			stalledOnAddr,
 			cacheBlockedCycles,
-			completedRequests.size());
+			completedRequests.size(),
+			currentStallFullROB);
 
 	int sharedCacheHits = 0;
 	int sharedCacheMisses = 0;
@@ -982,6 +1001,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
+		stallWithFullROBAccumulator += currentStallFullROB;
 
 		double avgIssueToStall = (double) issueToStallLat / (double) (sharedCacheHits+sharedCacheMisses);
 
@@ -996,9 +1016,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		addStall(STALL_DMEM_SHARED, stallLength, true);
 	}
 	else{
-
 		DPRINTF(OverlapEstimator, "Stall on private request\n");
 		privateStallCycles += stallLength;
+		privateStallWithFullROBAccumulator += currentStallFullROB;
 
 		assert(stallLength >= cacheBlockedCycles);
 		reportStall = stallLength - cacheBlockedCycles;
@@ -1007,6 +1027,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		addStall(STALL_DMEM_PRIVATE, stallLength, true);
 	}
 
+	currentStallFullROB = 0;
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addStallCycles(cpuID,

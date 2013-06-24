@@ -317,6 +317,10 @@ private:
 
 	bool doGraphAnalysis;
 
+	Tick currentStallFullROB;
+	Tick stallWithFullROBAccumulator;
+	Tick privateStallWithFullROBAccumulator;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -439,6 +443,8 @@ public:
 	void registerL1DataCache(int cpuID, BaseCache* cache);
 
 	void addDcacheStallCycle();
+
+	void addROBFullCycle();
 
 	double getAvgCWP();
 
