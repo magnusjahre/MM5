@@ -50,7 +50,8 @@ public:
         NO_MLP_CACHE,
         CPL,
         CPL_CWP,
-        CPL_CWP_SER
+        CPL_CWP_SER,
+        BOIS
     } PerformanceEstimationMethod;
 
     typedef enum{
@@ -205,7 +206,8 @@ protected:
 							   int cpuID,
 							   int cpl,
 							   double privateMissRate,
-							   double cwp);
+							   double cwp,
+							   Tick boisAloneStallEst);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 
@@ -269,7 +271,8 @@ public:
 				                     double avgPrivmodeStoreLat,
 				                     double numStores,
 				                     int numWriteStalls,
-				                     int emptyROBStallCycles);
+				                     int emptyROBStallCycles,
+				                     Tick boisAloneStallEst);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

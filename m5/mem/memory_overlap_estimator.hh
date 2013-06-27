@@ -323,6 +323,7 @@ private:
 	Tick stallWithFullROBAccumulator;
 	Tick privateStallWithFullROBAccumulator;
 	Tick boisAloneStallEstimate;
+	Tick boisAloneStallEstimateTrace;
 
 protected:
 	Stats::Scalar<> privateStallCycles;
@@ -404,6 +405,8 @@ private:
 
 	bool pointerExists(MemoryGraphNode* ptr);
 
+	void addBoisEstimateCycles(Tick aloneStallTicks);
+
 public:
 	MemoryOverlapEstimator(std::string name,
 						   int id,
@@ -452,6 +455,8 @@ public:
 	double getAvgCWP();
 
 	int getNumWriteStalls();
+
+	Tick getBoisAloneStallEstimate();
 
 };
 

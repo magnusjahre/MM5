@@ -68,6 +68,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	doGraphAnalysis = _graphAnalysisEnabled;
 
 	currentStallFullROB = 0;
+	boisAloneStallEstimate = 0;
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
@@ -178,7 +179,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	hiddenSharedLatencyAccumulator = 0;
 	stallWithFullROBAccumulator = 0;
 	privateStallWithFullROBAccumulator = 0;
-	boisAloneStallEstimate = 0;
+	boisAloneStallEstimateTrace = 0;
 }
 
 void
@@ -232,7 +233,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	data.push_back(stallWithFullROBAccumulator);
 	data.push_back(sharedStallCycleAccumulator - stallWithFullROBAccumulator);
 	data.push_back(privateStallWithFullROBAccumulator);
-	data.push_back(boisAloneStallEstimate);
+	data.push_back(boisAloneStallEstimateTrace);
 
 	rss.reset();
 
@@ -244,7 +245,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	hiddenSharedLatencyAccumulator = 0;
 	stallWithFullROBAccumulator = 0;
 	privateStallWithFullROBAccumulator = 0;
-	boisAloneStallEstimate = 0;
+	boisAloneStallEstimateTrace = 0;
 
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
@@ -897,6 +898,19 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	DPRINTF(OverlapEstimator, "Stalling, oldest core address is %d, relocated to %d\n", stalledOnCoreAddr, stalledOnAddr);
 }
 
+Tick
+MemoryOverlapEstimator::getBoisAloneStallEstimate(){
+    Tick tmp = boisAloneStallEstimate;
+    boisAloneStallEstimate = 0;
+    return tmp;
+}
+
+void
+MemoryOverlapEstimator::addBoisEstimateCycles(Tick aloneStallTicks){
+    boisAloneStallEstimateTrace += aloneStallTicks;
+    boisAloneStallEstimate += aloneStallTicks;
+}
+
 void
 MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(isStalled);
@@ -926,6 +940,11 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 	overlapTable->executionResumed();
 
+	assert(stallLength > currentStallFullROB);
+	addBoisEstimateCycles(stallLength - currentStallFullROB);
+	DPRINTF(OverlapEstimator, "Bois estimate: adding %d pre full-ROB stall cycles\n",
+	        stallLength - currentStallFullROB);
+
 	while(!completedRequests.empty() && completedRequests.front()->completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
 				completedRequests.front()->address,
@@ -954,9 +973,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					innerCausedStall = true;
 
 					Tick totalInterference = completedRequests.front()->interference;
-					if(totalInterference < currentStallFullROB && totalInterference > 0){
+					if(totalInterference < currentStallFullROB){
 					    Tick estAloneStall = currentStallFullROB - totalInterference;
-					    boisAloneStallEstimate += estAloneStall;
+					    addBoisEstimateCycles(estAloneStall);
 					    DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, interference %d), addr %d\n",
 					            estAloneStall,
 					            currentStallFullROB,
@@ -984,7 +1003,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				if(completedRequests.front()->address == stalledOnAddr){
 				    assert(!stalledOnPrivate);
 					stalledOnPrivate = true;
-					boisAloneStallEstimate += currentStallFullROB;
+					addBoisEstimateCycles(currentStallFullROB);
 					DPRINTF(OverlapEstimator, "This request involved in the stall, stall is private\n");
 					DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
 				}
@@ -1003,10 +1022,18 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	if(endedBySquash && !(stalledOnShared || stalledOnPrivate)){
 		DPRINTF(OverlapEstimator, "Stall ended with squash and there is no completed memory request to blame, defaulting to private stall\n");
 		stalledOnPrivate = true;
+
+		addBoisEstimateCycles(currentStallFullROB);
+		DPRINTF(OverlapEstimator, "Bois estimate: end by squash, adding whole stall %d\n", currentStallFullROB);
 	}
 
 	// Note: both might be true since multiple accesses to a cache block generates one shared request
-	if(!stalledOnShared && !stalledOnPrivate) stalledOnPrivate = true; // stall was due to an L1 hit, but we don't record those
+	if(!stalledOnShared && !stalledOnPrivate){
+	    stalledOnPrivate = true; // stall was due to an L1 hit, but we don't record those
+
+	    addBoisEstimateCycles(currentStallFullROB);
+	    DPRINTF(OverlapEstimator, "Bois estimate: L1 stall, adding whole stall %d\n", currentStallFullROB);
+	}
 	assert(stalledOnShared || stalledOnPrivate);
 
 	processCompletedRequests(stalledOnShared, completedSharedReqs);

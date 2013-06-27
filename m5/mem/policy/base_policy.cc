@@ -340,7 +340,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 								int cpuID,
 								int cpl,
 								double privateMissRate,
-								double cwp){
+								double cwp,
+								Tick boisAloneStallEst){
 
 	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
 
@@ -429,6 +430,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 				cwp);
 
 		return privateStallTime+newStallTime;
+	}
+	else if(perfEstMethod == BOIS){
+	    DPRINTF(MissBWPolicyExtra, "Returning Bois estimate of stall time, %d cycles\n", boisAloneStallEst);
+	    return boisAloneStallEst;
 	}
 
 	fatal("Unknown performance estimation method");
@@ -640,6 +645,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Cycles");
 	headers.push_back("Stall Cycles");
 	headers.push_back("Private Stall Cycles");
+	headers.push_back("Shared+Priv Memsys Stalls");
 	headers.push_back("Write Stall Cycles");
 	headers.push_back("Private Blocked Stall Cycles");
 	headers.push_back("Compute Cycles");
@@ -671,6 +677,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Estimated Alone Store Lat");
 		headers.push_back("Num Shared Stores");
 		headers.push_back("Alone Empty ROB Stall Estimate");
+		headers.push_back("Bois et al. Alone Stall Estimate");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -721,7 +728,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    double avgPrivmodeStoreLat,
 					                    double numStores,
 					                    int numWriteStalls,
-					                    int emptyROBStallCycles){
+					                    int emptyROBStallCycles,
+					                    Tick boisAloneStallEst){
 
 	vector<RequestTraceEntry> data;
 
@@ -741,6 +749,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
 	data.push_back(privateStallCycles);
+	data.push_back(stallCycles + privateStallCycles);
 	data.push_back(writeStall);
 	data.push_back(privateBlockedStall);
 	data.push_back(commitCycles);
@@ -765,7 +774,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      cpuID,
 				                                      ols.cpl,
 				                                      privateMissRate,
-				                                      cwp);
+				                                      cwp,
+				                                      boisAloneStallEst);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
@@ -796,6 +806,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(avgPrivmodeStoreLat);
 		data.push_back(numStores);
 		data.push_back(aloneROBStallEstimate);
+		data.push_back(boisAloneStallEst);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -934,6 +945,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl") return CPL;
 	if(methodName == "cpl-cwp") return CPL_CWP;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
+	if(methodName == "bois") return BOIS;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;
