@@ -374,6 +374,8 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 			target->cacheCapacityInterference = fillRequest->cacheCapacityInterference;
 		}
 
+		target->boisInterferenceSum = fillRequest->boisInterferenceSum;
+
 		mshr->popTarget();
 		cache->respondToMiss(target, completion_time, mshr->hasTargets());
 	}

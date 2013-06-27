@@ -246,6 +246,8 @@ class MemReq : public FastAlloc, public RefCounted
     std::vector<int> latencyBreakdown;
     std::vector<int> interferenceBreakdown;
 
+    Tick boisInterferenceSum;
+
     DRAM_RESULT dramResult;
     int memCtrlIssuePosition;
     DRAM_RESULT privateResultEstimate;
@@ -340,6 +342,7 @@ class MemReq : public FastAlloc, public RefCounted
     waitWritebackCnt(0),
     entryReadCnt(0),
     entryWriteCnt(0),
+    boisInterferenceSum(0),
     dramResult(DRAM_RESULT_INVALID),
     memCtrlIssuePosition(-1),
     privateResultEstimate(DRAM_RESULT_INVALID),
@@ -425,6 +428,7 @@ class MemReq : public FastAlloc, public RefCounted
         waitWritebackCnt = r.waitWritebackCnt;
         entryReadCnt = r.entryReadCnt;
         entryWriteCnt = r.entryWriteCnt;
+        boisInterferenceSum = r.boisInterferenceSum;
         dramResult = r.dramResult;
         privateResultEstimate = r.privateResultEstimate;
         memCtrlSequenceNumber = r.memCtrlSequenceNumber;

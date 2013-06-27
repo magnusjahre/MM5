@@ -383,6 +383,12 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 
 	if(checkForStore(req)) return;
 
+	DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d\n",
+	        interferenceTicks,
+	        req->paddr);
+
+	req->boisInterferenceSum += interferenceTicks;
+
 	interferenceSum[req->adaptiveMHASenderID][t] += interferenceTicks;
 	interference[t][req->adaptiveMHASenderID] += interferenceTicks;
 

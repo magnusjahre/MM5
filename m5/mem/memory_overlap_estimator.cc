@@ -166,6 +166,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Full ROB While Stalled Cycles");
 	headers.push_back("Not Full ROB Stall Cycles");
 	headers.push_back("Private Full ROB While Stalled Cycles");
+	headers.push_back("Alone Stall Estimate (Bois et al.)");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -177,6 +178,7 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	hiddenSharedLatencyAccumulator = 0;
 	stallWithFullROBAccumulator = 0;
 	privateStallWithFullROBAccumulator = 0;
+	boisAloneStallEstimate = 0;
 }
 
 void
@@ -230,6 +232,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	data.push_back(stallWithFullROBAccumulator);
 	data.push_back(sharedStallCycleAccumulator - stallWithFullROBAccumulator);
 	data.push_back(privateStallWithFullROBAccumulator);
+	data.push_back(boisAloneStallEstimate);
 
 	rss.reset();
 
@@ -240,6 +243,8 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	sharedLatencyAccumulator = 0;
 	hiddenSharedLatencyAccumulator = 0;
 	stallWithFullROBAccumulator = 0;
+	privateStallWithFullROBAccumulator = 0;
+	boisAloneStallEstimate = 0;
 
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
@@ -523,6 +528,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->isSharedCacheMiss = req->isSharedCacheMiss;
 	pendingRequests[useIndex]->isPrivModeSharedCacheMiss = req->isPrivModeSharedCacheMiss;
 	pendingRequests[useIndex]->hidesLoad = hiddenLoad;
+	pendingRequests[useIndex]->interference = req->boisInterferenceSum;
 
 	overlapTable->requestCompleted(req, hiddenLoad);
 
@@ -946,6 +952,17 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 					traceSharedRequest(completedRequests.front(), stalledAt, curTick);
 					innerCausedStall = true;
+
+					Tick totalInterference = completedRequests.front()->interference;
+					if(totalInterference < currentStallFullROB && totalInterference > 0){
+					    Tick estAloneStall = currentStallFullROB - totalInterference;
+					    boisAloneStallEstimate += estAloneStall;
+					    DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, interference %d), addr %d\n",
+					            estAloneStall,
+					            currentStallFullROB,
+					            totalInterference,
+					            completedRequests.front()->address);
+					}
 				}
 				else{
 					hiddenSharedLatencyAccumulator += completedRequests.front()->latency();
@@ -965,8 +982,11 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
+				    assert(!stalledOnPrivate);
 					stalledOnPrivate = true;
-					DPRINTF(OverlapEstimator, "This request involved in the store, stall is private\n");
+					boisAloneStallEstimate += currentStallFullROB;
+					DPRINTF(OverlapEstimator, "This request involved in the stall, stall is private\n");
+					DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
 				}
 				privateRequests++;
 			}

@@ -28,6 +28,7 @@ public:
 	Addr address;
 	Tick issuedAt;
 	Tick completedAt;
+	Tick interference;
 	MemCmd origCmd;
 	bool isSharedReq;
 	bool isSharedCacheMiss;
@@ -42,6 +43,7 @@ public:
 		issuedAt = _issuedAt;
 		origCmd = _origCmd;
 		completedAt = 0;
+		interference = 0;
 		isSharedReq = false;
 		isSharedCacheMiss = false;
 		isPrivModeSharedCacheMiss = false;
@@ -320,6 +322,7 @@ private:
 	Tick currentStallFullROB;
 	Tick stallWithFullROBAccumulator;
 	Tick privateStallWithFullROBAccumulator;
+	Tick boisAloneStallEstimate;
 
 protected:
 	Stats::Scalar<> privateStallCycles;
