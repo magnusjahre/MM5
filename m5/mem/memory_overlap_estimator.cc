@@ -1001,11 +1001,12 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
-				    assert(!stalledOnPrivate);
+				    if(!stalledOnPrivate){
+				        addBoisEstimateCycles(currentStallFullROB);
+				        DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
+				    }
 					stalledOnPrivate = true;
-					addBoisEstimateCycles(currentStallFullROB);
 					DPRINTF(OverlapEstimator, "This request involved in the stall, stall is private\n");
-					DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
 				}
 				privateRequests++;
 			}
