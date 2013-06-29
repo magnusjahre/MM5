@@ -168,6 +168,8 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	headers.push_back("Not Full ROB Stall Cycles");
 	headers.push_back("Private Full ROB While Stalled Cycles");
 	headers.push_back("Alone Stall Estimate (Bois et al.)");
+	headers.push_back("Total Memsys Interference (Bois et al.)");
+	headers.push_back("Lost Stall Cycles (Bois et al.)");
 
 	overlapTrace.initalizeTrace(headers);
 
@@ -180,6 +182,8 @@ MemoryOverlapEstimator::initOverlapTrace(){
 	stallWithFullROBAccumulator = 0;
 	privateStallWithFullROBAccumulator = 0;
 	boisAloneStallEstimateTrace = 0;
+	boisMemsysInterferenceTrace = 0;
+	boisLostStallCycles = 0;
 }
 
 void
@@ -234,6 +238,10 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	data.push_back(sharedStallCycleAccumulator - stallWithFullROBAccumulator);
 	data.push_back(privateStallWithFullROBAccumulator);
 	data.push_back(boisAloneStallEstimateTrace);
+	data.push_back(boisMemsysInterferenceTrace);
+	data.push_back(boisLostStallCycles);
+
+	assert(boisAloneStallEstimateTrace == (stallCycleAccumulator - (boisMemsysInterferenceTrace + boisLostStallCycles)));
 
 	rss.reset();
 
@@ -246,6 +254,8 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 	stallWithFullROBAccumulator = 0;
 	privateStallWithFullROBAccumulator = 0;
 	boisAloneStallEstimateTrace = 0;
+	boisMemsysInterferenceTrace = 0;
+	boisLostStallCycles = 0;
 
 	issueToStallAccumulator = 0;
 	issueToStallAccReqs = 0;
@@ -973,14 +983,23 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					innerCausedStall = true;
 
 					Tick totalInterference = completedRequests.front()->interference;
-					if(totalInterference < currentStallFullROB){
-					    Tick estAloneStall = currentStallFullROB - totalInterference;
-					    addBoisEstimateCycles(estAloneStall);
-					    DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, interference %d), addr %d\n",
-					            estAloneStall,
-					            currentStallFullROB,
-					            totalInterference,
-					            completedRequests.front()->address);
+					//Heuristic: If the total interference is longer than the stall
+					//           we assume that the stall would not happen in private
+					//           mode
+					// I can't find any evidence of this in Du Bois' paper, but without
+					// it does not work at all
+					if(currentStallFullROB > totalInterference){
+						boisMemsysInterferenceTrace += totalInterference;
+						Tick estAloneStall = currentStallFullROB - totalInterference;
+						addBoisEstimateCycles(estAloneStall);
+						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, interference %d), addr %d\n",
+								estAloneStall,
+								currentStallFullROB,
+								totalInterference,
+								completedRequests.front()->address);
+					}
+					else{
+						boisLostStallCycles += currentStallFullROB;
 					}
 				}
 				else{
@@ -1036,6 +1055,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	    DPRINTF(OverlapEstimator, "Bois estimate: L1 stall, adding whole stall %d\n", currentStallFullROB);
 	}
 	assert(stalledOnShared || stalledOnPrivate);
+
+	//cout << curTick << " " << name() << ": stall estimate " << boisAloneStallEstimate << ", total stall cycles " << stallCycleAccumulator << ", interference est " << boisMemsysInterferenceTrace << ", lost " << boisLostStallCycles << "\n";
+	assert(boisAloneStallEstimateTrace == stallCycleAccumulator - (boisMemsysInterferenceTrace + boisLostStallCycles));
 
 	processCompletedRequests(stalledOnShared, completedSharedReqs);
 

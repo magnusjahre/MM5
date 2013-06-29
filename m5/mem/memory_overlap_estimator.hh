@@ -324,6 +324,8 @@ private:
 	Tick privateStallWithFullROBAccumulator;
 	Tick boisAloneStallEstimate;
 	Tick boisAloneStallEstimateTrace;
+	Tick boisMemsysInterferenceTrace;
+	Tick boisLostStallCycles;
 
 protected:
 	Stats::Scalar<> privateStallCycles;

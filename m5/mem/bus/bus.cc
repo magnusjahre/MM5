@@ -708,7 +708,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
         if(cpu_count > 1 && req->interferenceMissAt == 0){
 
-            int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
+        	assert(req->busAloneReadQueueEstimate == 0 || req->busAloneWriteQueueEstimate == 0);
+        	int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
             int serviceInterference = serviceLatency - req->busAloneServiceEstimate;
 
             req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] = queueInterference;
