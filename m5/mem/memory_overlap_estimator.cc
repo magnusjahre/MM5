@@ -1219,8 +1219,8 @@ MemoryOverlapEstimator::setParent(RequestNode* node){
 				node->id,
 				node,
 				completedComputeNodes[minid]->id,
-				mindist,
-				completedComputeNodes[minid]);
+				completedComputeNodes[minid],
+				mindist);
 
 		completedComputeNodes[minid]->addChild(node);
 	}
