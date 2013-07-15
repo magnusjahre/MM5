@@ -194,6 +194,7 @@ base_sources = Split('''
     mem/bus/controller/fixed_bw_memory_controller.cc
     mem/bus/controller/nfq_memory_controller.cc
     mem/bus/controller/controller_interference.cc
+    mem/bus/controller/dubois_interference.cc
     mem/bus/controller/rdfcfs_interference.cc
     mem/bus/controller/fcfs_interference.cc
     mem/bus/controller/traffic_generator.cc

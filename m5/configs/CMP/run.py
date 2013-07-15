@@ -178,27 +178,37 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
             root.membus[i].utilization_limit = float(env["MEMORY-BUS-MAX-UTIL"])
     
     if int(env['NP']) > 1:
-        root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
-        for i in range(channels):
-            if "READY-FIRST-LIMIT-ALL-CPUS" in env:
-                root.controllerInterference[i].rf_limit_all_cpus = int(env["READY-FIRST-LIMIT-ALL-CPUS"])
-            if "CONTROLLER-INTERFERENCE-BUFFER-SIZE" in env:
-                root.controllerInterference[i].buffer_size = int(env["CONTROLLER-INTERFERENCE-BUFFER-SIZE"])
-            if "USE-AVERAGE-ALONE-LATENCIES" in env:
-                assert env["USE-AVERAGE-ALONE-LATENCIES"] == "F" or env["USE-AVERAGE-ALONE-LATENCIES"] == "T"
-                if env["USE-AVERAGE-ALONE-LATENCIES"] == "T":
-                    root.controllerInterference[i].use_average_lats = True
-                else:
-                    root.controllerInterference[i].use_average_lats = False
-            if "USE-PURE-HEAD-POINTER-MODEL" in env:
-                assert env["USE-PURE-HEAD-POINTER-MODEL"] == "T" or env["USE-PURE-HEAD-POINTER-MODEL"] == "F"
-                if env["USE-PURE-HEAD-POINTER-MODEL"] == "T":
-                    root.controllerInterference[i].pure_head_pointer_model = True
-                else:
-                    root.controllerInterference[i].pure_head_pointer_model = False
-    
-        for i in range(channels):
-            root.controllerInterference[i].cpu_count = int(env['NP'])
+        if env["MEMORY-BUS-INTERFERENCE-SCHEME"] == "DIEF": 
+        
+            root.controllerInterference = [RDFCFSControllerInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+            for i in range(channels):
+                if "READY-FIRST-LIMIT-ALL-CPUS" in env:
+                    root.controllerInterference[i].rf_limit_all_cpus = int(env["READY-FIRST-LIMIT-ALL-CPUS"])
+                if "CONTROLLER-INTERFERENCE-BUFFER-SIZE" in env:
+                    root.controllerInterference[i].buffer_size = int(env["CONTROLLER-INTERFERENCE-BUFFER-SIZE"])
+                if "USE-AVERAGE-ALONE-LATENCIES" in env:
+                    assert env["USE-AVERAGE-ALONE-LATENCIES"] == "F" or env["USE-AVERAGE-ALONE-LATENCIES"] == "T"
+                    if env["USE-AVERAGE-ALONE-LATENCIES"] == "T":
+                        root.controllerInterference[i].use_average_lats = True
+                    else:
+                        root.controllerInterference[i].use_average_lats = False
+                if "USE-PURE-HEAD-POINTER-MODEL" in env:
+                    assert env["USE-PURE-HEAD-POINTER-MODEL"] == "T" or env["USE-PURE-HEAD-POINTER-MODEL"] == "F"
+                    if env["USE-PURE-HEAD-POINTER-MODEL"] == "T":
+                        root.controllerInterference[i].pure_head_pointer_model = True
+                    else:
+                        root.controllerInterference[i].pure_head_pointer_model = False
+        
+            for i in range(channels):
+                root.controllerInterference[i].cpu_count = int(env['NP'])
+        
+        elif env["MEMORY-BUS-INTERFERENCE-SCHEME"] == "DuBois":
+            root.controllerInterference = [DuBoisInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
+            
+            for i in range(channels):
+                root.controllerInterference[i].cpu_count = int(env['NP'])            
+        else:
+            fatal("MEMORY-BUS-INTERFERENCE-SCHEME must be either DIEF or DuBois")  
         
 def setUpCachePartitioning():
     
