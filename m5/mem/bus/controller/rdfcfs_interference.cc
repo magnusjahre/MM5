@@ -95,6 +95,7 @@ RDFCFSControllerInterference::initialize(int cpu_count){
 
 void
 RDFCFSControllerInterference::insertRequest(MemReqPtr& req){
+    if(req->interferenceMissAt != 0 || req->adaptiveMHASenderID == -1) return;
 
 	assert(req->interferenceMissAt == 0);
 	numRequests[req->adaptiveMHASenderID]++;
@@ -306,7 +307,9 @@ RDFCFSControllerInterference::insertRequestOutOfOrder(MemReqPtr& req, PrivateLat
 }
 
 void
-RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
+RDFCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
+
+    if(req->interferenceMissAt != 0 || req->adaptiveMHASenderID == -1) return;
 
 	assert(req->interferenceMissAt == 0);
 

@@ -706,7 +706,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         qfile.close();
 #endif
 
-        if(cpu_count > 1 && req->interferenceMissAt == 0){
+        if(cpu_count > 1 && req->interferenceMissAt == 0 && !memoryController->addsInterference()){
 
         	assert(req->busAloneReadQueueEstimate == 0 || req->busAloneWriteQueueEstimate == 0);
         	int queueInterference = queueLatency - (req->busAloneReadQueueEstimate + req->busAloneWriteQueueEstimate);
@@ -716,8 +716,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceInterference;
 
             if(req->cmd == Read && interferenceManager != NULL){
-            	interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queueInterference);
-            	interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, serviceInterference);
+            	addBusInterference(serviceInterference, queueInterference, req, req->adaptiveMHASenderID);
             }
         }
 
@@ -727,6 +726,18 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     }
     else if(req->cmd == Writeback && adaptiveMHA != NULL && req->adaptiveMHASenderID != -1){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->writebackGeneratedAt, req->paddr, false);
+    }
+}
+
+void
+Bus::addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU){
+    if(req->adaptiveMHASenderID == forCPU){
+        interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queue);
+        interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, service);
+    }
+    else{
+        interferenceManager->addInterferenceForOthers(InterferenceManager::MemoryBusQueue, req, queue, forCPU);
+        interferenceManager->addInterferenceForOthers(InterferenceManager::MemoryBusService, req, service, forCPU);
     }
 }
 

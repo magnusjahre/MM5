@@ -76,7 +76,7 @@ public:
 
 	void insertRequest(MemReqPtr& req);
 
-	void estimatePrivateLatency(MemReqPtr& req);
+	void estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor);
 
 	bool isInitialized(){
 		return initialized;

@@ -137,7 +137,7 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
 
     dumpAtNumReqs = _numReqsBetweenIDumps;
 
-    aloneInterferenceFileName = "InterferenceTrace.txt";
+    aloneInterferenceFileName = "AMHAInterferenceTrace.txt";
     for(int i=0;i<adaptiveMHAcpuCount;i++){
         stringstream filename;
         filename << "CPU" << i << aloneInterferenceFileName;

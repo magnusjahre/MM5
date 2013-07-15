@@ -100,12 +100,9 @@ InterferenceManager::InterferenceManager(std::string _name,
 		etitle << "CPU" << i << "InterferenceTrace";
 		stringstream ltitle;
 		ltitle << "CPU" << i << "LatencyTrace";
-		stringstream ptitle;
-		ptitle << "CPU" << i << "PrivateLatencyTrace";
 
 		estimateTraces[i] = RequestTrace(etitle.str(),"", 1);
 		latencyTraces[i] = RequestTrace(ltitle.str(),"", 1);
-		privateLatencyTraces[i] = RequestTrace(ptitle.str(),"", 1);
 
 		vector<string> traceHeaders;
 		traceHeaders.push_back("Requests");
@@ -127,6 +124,10 @@ InterferenceManager::InterferenceManager(std::string _name,
 		mTraceHeaders.push_back("Interference Misses");
 
 		aloneMissTrace[i].initalizeTrace(mTraceHeaders);
+
+        stringstream ptitle;
+        ptitle << "CPU" << i << "PrivateLatencyTrace";
+		privateLatencyTraces[i] = RequestTrace(ptitle.str(),"", 1);
 
 		vector<string> privateLatencyHeaders;
 		privateLatencyHeaders.push_back("Committed instructions");
@@ -371,33 +372,40 @@ InterferenceManager::resetStats(){
 
 void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
+    if(req->instructionMiss) return;
 
-	if(req->instructionMiss) return;
+    assert(req->cmd == Read);
+    assert(req->adaptiveMHASenderID != -1);
 
-	assert(req->cmd == Read);
-	assert(req->adaptiveMHASenderID != -1);
+    if(req->isStore){
+        instTraceStoreInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
+    }
 
-	if(req->isStore){
-		instTraceStoreInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
-	}
+    if(checkForStore(req)) return;
 
-	if(checkForStore(req)) return;
+    addInterferenceForOthers(t, req, interferenceTicks, req->adaptiveMHASenderID);
+}
 
-	DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d\n",
-	        interferenceTicks,
-	        req->paddr);
+void
+InterferenceManager::addInterferenceForOthers(LatencyType t, MemReqPtr& req, int interferenceTicks, int victimCPUID){
 
-	req->boisInterferenceSum += interferenceTicks;
+    assert(victimCPUID != -1);
 
-	interferenceSum[req->adaptiveMHASenderID][t] += interferenceTicks;
-	interference[t][req->adaptiveMHASenderID] += interferenceTicks;
+    DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d\n",
+            interferenceTicks,
+            req->paddr);
 
-	totalInterference[req->adaptiveMHASenderID] += interferenceTicks;
+    req->boisInterferenceSum += interferenceTicks;
 
-	interferenceBreakdownAccumulator[req->adaptiveMHASenderID][t] += interferenceTicks;
-	interferenceAccumulator[req->adaptiveMHASenderID] += interferenceTicks;
+    interferenceSum[victimCPUID][t] += interferenceTicks;
+    interference[t][victimCPUID] += interferenceTicks;
 
-	instTraceInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
+    totalInterference[victimCPUID] += interferenceTicks;
+
+    interferenceBreakdownAccumulator[victimCPUID][t] += interferenceTicks;
+    interferenceAccumulator[victimCPUID] += interferenceTicks;
+
+    instTraceInterferenceSum[victimCPUID] += interferenceTicks;
 }
 
 void

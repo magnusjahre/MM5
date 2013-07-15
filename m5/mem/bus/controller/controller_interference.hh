@@ -73,11 +73,15 @@ public:
 
 	virtual void insertRequest(MemReqPtr& req) = 0;
 
-	virtual void estimatePrivateLatency(MemReqPtr& req) = 0;
+	virtual void estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor) = 0;
 
 	virtual bool isInitialized() = 0;
 
     virtual void insertPrivateVirtualRequest(MemReqPtr& req) = 0;
+
+    virtual bool addsInterference(){
+        return false;
+    }
 
 };
 

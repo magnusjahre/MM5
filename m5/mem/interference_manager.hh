@@ -198,6 +198,8 @@ public:
 
 	void addInterference(LatencyType t, MemReqPtr& req, int interference);
 
+	void addInterferenceForOthers(LatencyType t, MemReqPtr& req, int interferenceTicks, int victimCPUID);
+
 	void incrementInterferenceRequestCount(LatencyType t, MemReqPtr& req);
 
 	void addLatency(LatencyType t, MemReqPtr& req, int latency);

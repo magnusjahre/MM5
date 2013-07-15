@@ -128,6 +128,16 @@ TimingMemoryController::insertPrivateVirtualRequest(MemReqPtr& req){
 	controllerInterference->insertPrivateVirtualRequest(req);
 }
 
+bool
+TimingMemoryController::addsInterference(){
+    return controllerInterference->addsInterference();
+}
+
+void
+TimingMemoryController::addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU){
+    return bus->addBusInterference(service, queue, req, forCPU);
+}
+
 
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

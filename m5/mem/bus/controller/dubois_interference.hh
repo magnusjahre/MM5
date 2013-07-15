@@ -6,7 +6,13 @@
 
 class DuBoisInterference : public ControllerInterference{
 
-//private:
+private:
+    std::vector<MemReqPtr> pendingRequests;
+    int cpuCount;
+
+    void removeRequest(Addr paddr);
+
+    bool isEligible(MemReqPtr& req);
 
 public:
 
@@ -14,19 +20,22 @@ public:
 
     void insertRequest(MemReqPtr& req);
 
-    void estimatePrivateLatency(MemReqPtr& req);
+    void estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor);
 
     void initialize(int cpu_count){
-        fatal("initialize not implemented");
+        fatal("initialize() not needed for DuBoisInterference");
     }
 
     bool isInitialized(){
-        fatal("isInitialized() not implemented");
         return true;
     }
 
     virtual void insertPrivateVirtualRequest(MemReqPtr& req){
         fatal("not implemented");
+    }
+
+    virtual bool addsInterference(){
+        return true;
     }
 };
 

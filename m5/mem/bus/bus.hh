@@ -370,6 +370,8 @@ class Bus : public BaseHier
 
     void traceBandwidth();
 
+    void addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU);
+
   private:
     std::vector<int> perCPUDataBusUse;
     std::vector<int> perCPUQueueCycles;

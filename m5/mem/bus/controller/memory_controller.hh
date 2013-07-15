@@ -184,6 +184,10 @@ class TimingMemoryController : public SimObject
 
     }
 
+    bool addsInterference();
+
+    void addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU);
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

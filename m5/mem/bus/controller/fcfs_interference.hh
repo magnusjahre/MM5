@@ -18,7 +18,7 @@ public:
 
 	void insertRequest(MemReqPtr& req);
 
-	void estimatePrivateLatency(MemReqPtr& req);
+	void estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor);
 
 	void initialize(int cpu_count){
 		fatal("initalize() is not needed in FCFS interference implementation");

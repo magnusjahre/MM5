@@ -225,7 +225,7 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
         }
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL){
         controllerInterference->insertRequest(req);
     }
 
@@ -733,7 +733,7 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
 
     assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
-		controllerInterference->estimatePrivateLatency(req);
+		controllerInterference->estimatePrivateLatency(req, busOccupiedFor);
 	}
 
 #ifdef DO_ESTIMATION_TRACE

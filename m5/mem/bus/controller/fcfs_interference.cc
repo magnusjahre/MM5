@@ -103,7 +103,7 @@ FCFSControllerInterference::insertRequest(MemReqPtr& req){
 }
 
 void
-FCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req){
+FCFSControllerInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
 	assert(req->adaptiveMHASenderID != -1);
 	privateRequestQueues[req->adaptiveMHASenderID]
 	                     .erase(privateRequestQueues[req->adaptiveMHASenderID].begin());

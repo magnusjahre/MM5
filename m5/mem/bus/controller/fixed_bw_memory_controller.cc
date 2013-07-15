@@ -389,7 +389,7 @@ void
 FixedBandwidthMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
     assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
-		controllerInterference->estimatePrivateLatency(req);
+		controllerInterference->estimatePrivateLatency(req, busOccupiedFor);
 	}
 }
 
