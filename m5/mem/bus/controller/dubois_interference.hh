@@ -9,8 +9,9 @@ class DuBoisInterference : public ControllerInterference{
 private:
     std::vector<MemReqPtr> pendingRequests;
     int cpuCount;
+    int seqNumCounter;
 
-    void removeRequest(Addr paddr);
+    void removeRequest(Addr seqnum);
 
     bool isEligible(MemReqPtr& req);
 

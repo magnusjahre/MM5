@@ -273,6 +273,8 @@ class MemReq : public FastAlloc, public RefCounted
     bool isSharedCacheMiss;
     bool isPrivModeSharedCacheMiss;
 
+    int duboisSeqNum;
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -361,7 +363,8 @@ class MemReq : public FastAlloc, public RefCounted
     isStore(false),
     beenInSharedMemSys(false),
     isSharedCacheMiss(false),
-    isPrivModeSharedCacheMiss(false)
+    isPrivModeSharedCacheMiss(false),
+    duboisSeqNum(-1)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -452,6 +455,7 @@ class MemReq : public FastAlloc, public RefCounted
         beenInSharedMemSys = r.beenInSharedMemSys;
         isSharedCacheMiss = r.isSharedCacheMiss;
         isPrivModeSharedCacheMiss = r.isPrivModeSharedCacheMiss;
+        duboisSeqNum = r.duboisSeqNum;
     }
 
     /**

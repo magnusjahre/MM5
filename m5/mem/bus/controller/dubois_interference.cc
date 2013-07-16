@@ -7,15 +7,20 @@ DuBoisInterference::DuBoisInterference(const std::string& _name, int _cpu_cnt, T
 :ControllerInterference(_name,_cpu_cnt,_ctrl)
 {
     cpuCount = _cpu_cnt;
+    seqNumCounter = 0;
 }
 
 void
 DuBoisInterference::insertRequest(MemReqPtr& req){
 
-    DPRINTF(MemoryControllerInterference, "Received request from CPU %d, addr %d, cmd %s\n",
+    req->duboisSeqNum = seqNumCounter;
+    seqNumCounter++;
+
+    DPRINTF(MemoryControllerInterference, "Received request from CPU %d, addr %d, cmd %s, sequence number %d\n",
             req->adaptiveMHASenderID,
             req->paddr,
-            req->cmd.toString());
+            req->cmd.toString(),
+            req->duboisSeqNum);
 
     pendingRequests.push_back(req);
 }
@@ -28,7 +33,7 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                 req->paddr,
                 req->cmd.toString());
 
-    removeRequest(req->paddr);
+    removeRequest(req->duboisSeqNum);
 
     vector<Tick> interference = vector<Tick>(cpuCount, 0);
 
@@ -37,7 +42,6 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
         if(isEligible(pendingRequests[i])){
             if(pendingRequests[i]->adaptiveMHASenderID != req->adaptiveMHASenderID){
 
-                interference[pendingRequests[i]->adaptiveMHASenderID] += busOccupiedFor;
                 DPRINTF(MemoryControllerInterference, "Request CPU %d, addr %d, was delayed, adding %d interference cycles\n",
                         pendingRequests[i]->adaptiveMHASenderID,
                         pendingRequests[i]->paddr,
@@ -84,33 +88,33 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
 }
 
 void
-DuBoisInterference::removeRequest(Addr paddr){
+DuBoisInterference::removeRequest(Addr seqnum){
 
     int removeIndex = -1;
     for(int i=0;i<pendingRequests.size();i++){
-        if(pendingRequests[i]->paddr == paddr){
+        if(pendingRequests[i]->duboisSeqNum == seqnum){
             assert(removeIndex == -1);
             removeIndex = i;
         }
     }
     assert(removeIndex != -1);
 
-    DPRINTF(MemoryControllerInterference, "Removing request for address %d at index %d, %d requests pending\n",
-            paddr,
+    DPRINTF(MemoryControllerInterference, "Removing request for address %d at index %d, sequence number %d, %d requests pending\n",
+            pendingRequests[removeIndex]->paddr,
             removeIndex,
+            seqnum,
             pendingRequests.size());
 
     pendingRequests.erase(pendingRequests.begin()+removeIndex);
-
 }
 
 bool
 DuBoisInterference::isEligible(MemReqPtr& req){
- return req->cmd == Read
-         && !req->isStore
-         && !req->instructionMiss
-         && req->interferenceMissAt == 0
-         && req->adaptiveMHASenderID != -1;
+    return req->cmd == Read
+            && !req->isStore
+            && !req->instructionMiss
+            && req->interferenceMissAt == 0
+            && req->adaptiveMHASenderID != -1;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

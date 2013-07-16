@@ -664,7 +664,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         else outstandingWrites[req->adaptiveMHASenderID]--;
     }
 
-    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1 && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
     }
 
