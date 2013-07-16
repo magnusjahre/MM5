@@ -10,6 +10,12 @@ private:
     std::vector<MemReqPtr> pendingRequests;
     int cpuCount;
     int seqNumCounter;
+    bool initialized;
+
+    bool useORA;
+
+    std::vector< std::vector<Addr> > ora;
+    std::vector<Addr> sharedActivePage;
 
     void removeRequest(Addr seqnum);
 
@@ -17,19 +23,18 @@ private:
 
 public:
 
-    DuBoisInterference(const std::string& _name, int _cpu_cnt, TimingMemoryController* _ctrl);
+    DuBoisInterference(const std::string& _name,
+                          int _cpu_cnt,
+                          TimingMemoryController* _ctrl,
+                          bool _useORA);
 
     void insertRequest(MemReqPtr& req);
 
     void estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor);
 
-    void initialize(int cpu_count){
-        fatal("initialize() not needed for DuBoisInterference");
-    }
+    void initialize(int cpu_count);
 
-    bool isInitialized(){
-        return true;
-    }
+    bool isInitialized();
 
     virtual void insertPrivateVirtualRequest(MemReqPtr& req){
         fatal("not implemented");

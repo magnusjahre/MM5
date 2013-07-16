@@ -3,11 +3,30 @@
 
 using namespace std;
 
-DuBoisInterference::DuBoisInterference(const std::string& _name, int _cpu_cnt, TimingMemoryController* _ctrl)
+DuBoisInterference::DuBoisInterference(const std::string& _name, int _cpu_cnt, TimingMemoryController* _ctrl, bool _useORA)
 :ControllerInterference(_name,_cpu_cnt,_ctrl)
 {
     cpuCount = _cpu_cnt;
     seqNumCounter = 0;
+    initialized = false;
+
+    useORA = _useORA;
+
+    if(useORA) cout << "ORA is on!\n";
+    else cout << "ORA is off!\n";
+}
+
+void
+DuBoisInterference::initialize(int cpu_count){
+    int numBanks = memoryController->getMemoryInterface()->getMemoryBankCount();
+    ora.resize(cpuCount, vector<Addr>(numBanks, 0));
+    sharedActivePage.resize(numBanks, 0);
+    initialized = true;
+}
+
+bool
+DuBoisInterference::isInitialized(){
+    return initialized;
 }
 
 void
@@ -63,8 +82,38 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
     }
 
     // Case 3: Row buffer hit becomes row buffer miss
-    //TODO: implement ORA
     Tick serviceInt = 0;
+    int curBank = memoryController->getMemoryBankID(req->paddr);
+    Addr curPage = memoryController->getPage(req->paddr);
+    if(useORA && req->adaptiveMHASenderID != -1){
+
+        DPRINTF(MemoryControllerInterference, "ORA check: CPU %d, addr %d, bank %d, page %d, ora page %d, shared active page %d, %s\n",
+                req->adaptiveMHASenderID,
+                req->paddr,
+                curBank,
+                curPage,
+                ora[req->adaptiveMHASenderID][curBank],
+                sharedActivePage[curBank],
+                isEligible(req) ? "eligible" : "not eligible");
+
+        if(ora[req->adaptiveMHASenderID][curBank] == curPage
+           && sharedActivePage[curBank] != curPage
+           && isEligible(req)){
+            serviceInt = 120; // page conflict latency 160 - page hit latency 40
+        }
+
+        ora[req->adaptiveMHASenderID][curBank] = curPage;
+
+        DPRINTF(MemoryControllerInterference, "ORA update: page for cpu %d, bank %d is now %d\n",
+                req->adaptiveMHASenderID,
+                curBank,
+                ora[req->adaptiveMHASenderID][curBank]);
+    }
+
+    sharedActivePage[curBank] = curPage;
+    DPRINTF(MemoryControllerInterference, "Shared bank update: bank %d is active for page %d\n",
+            curBank,
+            sharedActivePage[curBank]);
 
     for(int i=0;i<interference.size();i++){
         if(req->adaptiveMHASenderID != i){
@@ -122,18 +171,21 @@ DuBoisInterference::isEligible(MemReqPtr& req){
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(DuBoisInterference)
     SimObjectParam<TimingMemoryController*> memory_controller;
     Param<int> cpu_count;
+    Param<bool> use_ora;
 END_DECLARE_SIM_OBJECT_PARAMS(DuBoisInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(DuBoisInterference)
     INIT_PARAM_DFLT(memory_controller, "Associated memory controller", NULL),
-    INIT_PARAM_DFLT(cpu_count, "number of cpus",-1)
+    INIT_PARAM_DFLT(cpu_count, "number of cpus",-1),
+    INIT_PARAM_DFLT(use_ora, "use the ORA to estmate row hit interference effects",true)
 END_INIT_SIM_OBJECT_PARAMS(FCFSControllerInterference)
 
 CREATE_SIM_OBJECT(DuBoisInterference)
 {
     return new DuBoisInterference(getInstanceName(),
                                    cpu_count,
-                                   memory_controller);
+                                   memory_controller,
+                                   use_ora);
 }
 
 REGISTER_SIM_OBJECT("DuBoisInterference", DuBoisInterference)

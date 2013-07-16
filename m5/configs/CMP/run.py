@@ -206,6 +206,10 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
             root.controllerInterference = [DuBoisInterference(memory_controller=root.membus[i].memory_controller) for i in range(channels)]
             
             for i in range(channels):
+                if "DUBOIS-USE-ORA" in env:
+                    root.controllerInterference[i].use_ora = env["DUBOIS-USE-ORA"]
+            
+            for i in range(channels):
                 root.controllerInterference[i].cpu_count = int(env['NP'])            
         else:
             fatal("MEMORY-BUS-INTERFERENCE-SCHEME must be either DIEF or DuBois")  
