@@ -11,9 +11,6 @@ DuBoisInterference::DuBoisInterference(const std::string& _name, int _cpu_cnt, T
     initialized = false;
 
     useORA = _useORA;
-
-    if(useORA) cout << "ORA is on!\n";
-    else cout << "ORA is off!\n";
 }
 
 void
