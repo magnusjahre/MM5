@@ -372,6 +372,7 @@ InterferenceManager::resetStats(){
 
 void
 InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interferenceTicks){
+
     if(req->instructionMiss) return;
 
     assert(req->cmd == Read);
@@ -383,29 +384,21 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 
     if(checkForStore(req)) return;
 
-    addInterferenceForOthers(t, req, interferenceTicks, req->adaptiveMHASenderID);
-}
-
-void
-InterferenceManager::addInterferenceForOthers(LatencyType t, MemReqPtr& req, int interferenceTicks, int victimCPUID){
-
-    assert(victimCPUID != -1);
-
     DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d\n",
             interferenceTicks,
             req->paddr);
 
     req->boisInterferenceSum += interferenceTicks;
 
-    interferenceSum[victimCPUID][t] += interferenceTicks;
-    interference[t][victimCPUID] += interferenceTicks;
+    interferenceSum[req->adaptiveMHASenderID][t] += interferenceTicks;
+    interference[t][req->adaptiveMHASenderID] += interferenceTicks;
 
-    totalInterference[victimCPUID] += interferenceTicks;
+    totalInterference[req->adaptiveMHASenderID] += interferenceTicks;
 
-    interferenceBreakdownAccumulator[victimCPUID][t] += interferenceTicks;
-    interferenceAccumulator[victimCPUID] += interferenceTicks;
+    interferenceBreakdownAccumulator[req->adaptiveMHASenderID][t] += interferenceTicks;
+    interferenceAccumulator[req->adaptiveMHASenderID] += interferenceTicks;
 
-    instTraceInterferenceSum[victimCPUID] += interferenceTicks;
+    instTraceInterferenceSum[req->adaptiveMHASenderID] += interferenceTicks;
 }
 
 void

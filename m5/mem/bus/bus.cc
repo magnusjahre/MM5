@@ -716,7 +716,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceInterference;
 
             if(req->cmd == Read && interferenceManager != NULL){
-            	addBusInterference(serviceInterference, queueInterference, req, -1);
+                addBusQueueInterference(queueInterference, req);
+                addBusServiceInterference(serviceInterference, req);
             }
         }
 
@@ -730,15 +731,13 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 }
 
 void
-Bus::addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU){
-    if(forCPU == -1){
-        interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queue);
-        interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, service);
-    }
-    else{
-        interferenceManager->addInterferenceForOthers(InterferenceManager::MemoryBusQueue, req, queue, forCPU);
-        interferenceManager->addInterferenceForOthers(InterferenceManager::MemoryBusService, req, service, forCPU);
-    }
+Bus::addBusQueueInterference(Tick interference, MemReqPtr& req){
+    interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, interference);
+}
+
+void
+Bus::addBusServiceInterference(Tick interference, MemReqPtr& req){
+    interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, interference);
 }
 
 int

@@ -54,8 +54,6 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
 
     removeRequest(req->duboisSeqNum);
 
-    vector<Tick> interference = vector<Tick>(cpuCount, 0);
-
     // Case 1 and 2: Bus and bank contention
     for(int i=0;i<pendingRequests.size();i++){
         if(isEligible(pendingRequests[i])){
@@ -67,7 +65,7 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                         busOccupiedFor);
 
                 assert(req->adaptiveMHASenderID != -1);
-                interference[pendingRequests[i]->adaptiveMHASenderID] += busOccupiedFor;
+                memoryController->addBusQueueInterference(busOccupiedFor, pendingRequests[i]);
                 pendingRequests[i]->duboisQueueInterference += busOccupiedFor;
             }
 
@@ -83,7 +81,7 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                                         insertionInterference);
 
                 assert(req->adaptiveMHASenderID != -1);
-                interference[pendingRequests[i]->adaptiveMHASenderID] += insertionInterference;
+                memoryController->addBusQueueInterference(insertionInterference, pendingRequests[i]);
                 pendingRequests[i]->duboisQueueInterference += insertionInterference;
             }
         }
@@ -123,7 +121,7 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                 DPRINTF(MemoryControllerInterference, "Adding service interference for CPU %d, interference %d\n",
                         req->adaptiveMHASenderID,
                         serviceInt);
-                memoryController->addBusInterference(serviceInt, 0, req, req->adaptiveMHASenderID);
+                memoryController->addBusServiceInterference(serviceInt, req);
             }
 
 
@@ -136,7 +134,7 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                                             serviceInt);
 
                     assert(req->adaptiveMHASenderID != -1);
-                    interference[pendingRequests[i]->adaptiveMHASenderID] += serviceInt;
+                    memoryController->addBusQueueInterference(serviceInt, pendingRequests[i]);
                     pendingRequests[i]->duboisQueueInterference += serviceInt;
                 }
             }
@@ -154,13 +152,6 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
     DPRINTF(MemoryControllerInterference, "Shared bank update: bank %d is active for page %d\n",
             curBank,
             sharedActivePage[curBank]);
-
-    for(int i=0;i<interference.size();i++){
-        DPRINTF(MemoryControllerInterference, "Adding queue interference for CPU %d, interference %d\n",
-                i,
-                interference[i]);
-        memoryController->addBusInterference(0, interference[i], req, i);
-    }
 
     lastEstimationAt = curTick;
     lastGrantedCPU = req->adaptiveMHASenderID;

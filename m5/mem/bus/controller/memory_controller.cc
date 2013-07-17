@@ -134,11 +134,14 @@ TimingMemoryController::addsInterference(){
 }
 
 void
-TimingMemoryController::addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU){
-    return bus->addBusInterference(service, queue, req, forCPU);
+TimingMemoryController::addBusQueueInterference(Tick interference, MemReqPtr& req){
+    bus->addBusQueueInterference(interference, req);
 }
 
-
+void
+TimingMemoryController::addBusServiceInterference(Tick interference, MemReqPtr& req){
+    bus->addBusServiceInterference(interference, req);
+}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
