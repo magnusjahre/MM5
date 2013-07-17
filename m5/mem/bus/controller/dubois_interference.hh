@@ -14,6 +14,9 @@ private:
 
     bool useORA;
 
+    Tick lastEstimationAt;
+    int lastGrantedCPU;
+
     std::vector< std::vector<Addr> > ora;
     std::vector<Addr> sharedActivePage;
 

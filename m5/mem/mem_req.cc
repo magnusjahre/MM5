@@ -183,6 +183,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 	req->isPrivModeSharedCacheMiss = r->isPrivModeSharedCacheMiss;
 
 	req->duboisSeqNum = r->duboisSeqNum;
+	req->duboisQueueInterference = r->duboisQueueInterference;
 
 	req->data = new uint8_t[r->size];
 	if (r->data != NULL) {
@@ -288,6 +289,7 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 	to->isPrivModeSharedCacheMiss = from->isPrivModeSharedCacheMiss;
 
 	to->duboisSeqNum = from->duboisSeqNum;
+	to->duboisQueueInterference = from->duboisQueueInterference;
 
 	if (from->data != NULL) {
 		to->data = new uint8_t[from->size];

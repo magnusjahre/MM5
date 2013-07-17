@@ -274,6 +274,7 @@ class MemReq : public FastAlloc, public RefCounted
     bool isPrivModeSharedCacheMiss;
 
     int duboisSeqNum;
+    Tick duboisQueueInterference;
 
     /**
      * Contruct and initialize a memory request.
@@ -364,7 +365,8 @@ class MemReq : public FastAlloc, public RefCounted
     beenInSharedMemSys(false),
     isSharedCacheMiss(false),
     isPrivModeSharedCacheMiss(false),
-    duboisSeqNum(-1)
+    duboisSeqNum(-1),
+    duboisQueueInterference(0)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -456,6 +458,7 @@ class MemReq : public FastAlloc, public RefCounted
         isSharedCacheMiss = r.isSharedCacheMiss;
         isPrivModeSharedCacheMiss = r.isPrivModeSharedCacheMiss;
         duboisSeqNum = r.duboisSeqNum;
+        duboisQueueInterference = r.duboisQueueInterference;
     }
 
     /**

@@ -10,6 +10,9 @@ DuBoisInterference::DuBoisInterference(const std::string& _name, int _cpu_cnt, T
     seqNumCounter = 0;
     initialized = false;
 
+    lastGrantedCPU = -1;
+    lastEstimationAt = 0;
+
     useORA = _useORA;
 }
 
@@ -65,6 +68,23 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
 
                 assert(req->adaptiveMHASenderID != -1);
                 interference[pendingRequests[i]->adaptiveMHASenderID] += busOccupiedFor;
+                pendingRequests[i]->duboisQueueInterference += busOccupiedFor;
+            }
+
+            if(pendingRequests[i]->adaptiveMHASenderID != lastGrantedCPU
+               && pendingRequests[i]->inserted_into_memory_controller > lastEstimationAt){
+
+                Tick insertionInterference = curTick - pendingRequests[i]->inserted_into_memory_controller;
+                assert(insertionInterference >= 0);
+
+                DPRINTF(MemoryControllerInterference, "Request CPU %d, addr %d, was inserted after last estimation, adding %d interference cycles\n",
+                                        pendingRequests[i]->adaptiveMHASenderID,
+                                        pendingRequests[i]->paddr,
+                                        insertionInterference);
+
+                assert(req->adaptiveMHASenderID != -1);
+                interference[pendingRequests[i]->adaptiveMHASenderID] += insertionInterference;
+                pendingRequests[i]->duboisQueueInterference += insertionInterference;
             }
         }
         else{
@@ -78,8 +98,9 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
         }
     }
 
+
+
     // Case 3: Row buffer hit becomes row buffer miss
-    Tick serviceInt = 0;
     int curBank = memoryController->getMemoryBankID(req->paddr);
     Addr curPage = memoryController->getPage(req->paddr);
     if(useORA && req->adaptiveMHASenderID != -1){
@@ -94,9 +115,31 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
                 isEligible(req) ? "eligible" : "not eligible");
 
         if(ora[req->adaptiveMHASenderID][curBank] == curPage
-           && sharedActivePage[curBank] != curPage
-           && isEligible(req)){
-            serviceInt = 120; // page conflict latency 160 - page hit latency 40
+           && sharedActivePage[curBank] != curPage){
+
+            int serviceInt = 80; // page miss latency 120 - page hit latency 40 = 80
+
+            if(isEligible(req)){
+                DPRINTF(MemoryControllerInterference, "Adding service interference for CPU %d, interference %d\n",
+                        req->adaptiveMHASenderID,
+                        serviceInt);
+                memoryController->addBusInterference(serviceInt, 0, req, req->adaptiveMHASenderID);
+            }
+
+
+            for(int i=0;i<pendingRequests.size();i++){
+                if(isEligible(pendingRequests[i]) && pendingRequests[i]->adaptiveMHASenderID == req->adaptiveMHASenderID){
+
+                    DPRINTF(MemoryControllerInterference, "The additional service interference for CPU %d also delays req for address %d, interference %d\n",
+                                            req->adaptiveMHASenderID,
+                                            pendingRequests[i]->paddr,
+                                            serviceInt);
+
+                    assert(req->adaptiveMHASenderID != -1);
+                    interference[pendingRequests[i]->adaptiveMHASenderID] += serviceInt;
+                    pendingRequests[i]->duboisQueueInterference += serviceInt;
+                }
+            }
         }
 
         ora[req->adaptiveMHASenderID][curBank] = curPage;
@@ -113,24 +156,14 @@ DuBoisInterference::estimatePrivateLatency(MemReqPtr& req, Tick busOccupiedFor){
             sharedActivePage[curBank]);
 
     for(int i=0;i<interference.size();i++){
-        if(req->adaptiveMHASenderID != i){
-            DPRINTF(MemoryControllerInterference, "Adding queue interference for CPU %d, interference %d\n",
-                    i,
-                    interference[i]);
-            memoryController->addBusInterference(0, interference[i], req, i);
-        }
-        else{
-            if(isEligible(req)){
-                assert(i == req->adaptiveMHASenderID);
-                assert(interference[i] == 0);
-
-                DPRINTF(MemoryControllerInterference, "Adding service interference for CPU %d, interference %d\n",
-                        i,
-                        serviceInt);
-                memoryController->addBusInterference(serviceInt, 0, req, i);
-            }
-        }
+        DPRINTF(MemoryControllerInterference, "Adding queue interference for CPU %d, interference %d\n",
+                i,
+                interference[i]);
+        memoryController->addBusInterference(0, interference[i], req, i);
     }
+
+    lastEstimationAt = curTick;
+    lastGrantedCPU = req->adaptiveMHASenderID;
 }
 
 void

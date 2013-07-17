@@ -716,7 +716,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] = serviceInterference;
 
             if(req->cmd == Read && interferenceManager != NULL){
-            	addBusInterference(serviceInterference, queueInterference, req, req->adaptiveMHASenderID);
+            	addBusInterference(serviceInterference, queueInterference, req, -1);
             }
         }
 
@@ -731,7 +731,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
 void
 Bus::addBusInterference(Tick service, Tick queue, MemReqPtr& req, int forCPU){
-    if(req->adaptiveMHASenderID == forCPU){
+    if(forCPU == -1){
         interferenceManager->addInterference(InterferenceManager::MemoryBusQueue, req, queue);
         interferenceManager->addInterference(InterferenceManager::MemoryBusService, req, service);
     }
