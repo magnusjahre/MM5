@@ -1,0 +1,9 @@
+
+syntax: regexp
+^m5/build/ALPHA_SE$
+syntax: regexp
+^m5/build/build_options$
+syntax: regexp
+^m5/build/libelf$
+syntax: regexp
+^m5/build$
