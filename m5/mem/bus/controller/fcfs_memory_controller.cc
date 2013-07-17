@@ -23,6 +23,10 @@ FCFSTimingMemoryController::~FCFSTimingMemoryController(){
 
 int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
+    if(controllerInterference != NULL && !controllerInterference->isInitialized()){
+        controllerInterference->initialize(memCtrCPUCount);
+    }
+
 	if(activePages.empty()){
 		Addr inval_addr = MemReq::inval_addr;
 		assert(getMemoryInterface()->getMemoryBankCount() > 1);
@@ -55,7 +59,7 @@ int FCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
        setBlocked();
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL){
     	controllerInterference->insertRequest(req);
     }
 
@@ -165,7 +169,6 @@ MemReqPtr FCFSTimingMemoryController::getRequest() {
 
 void
 FCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-    assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
 		controllerInterference->estimatePrivateLatency(req, busOccupiedFor);
 	}
