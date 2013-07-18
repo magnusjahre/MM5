@@ -69,10 +69,13 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	currentStallFullROB = 0;
 	boisAloneStallEstimate = 0;
+
+	criticalPathTable = new CriticalPathTable(this);
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
 	delete overlapTable;
+	delete criticalPathTable;
 }
 
 
@@ -386,6 +389,9 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 	overlapTable->traceTable(committedInstructions);
 
+	cout << "ols cpl " << ols.cpl << "\n";
+	assert(ols.cpl == criticalPathTable->getCriticalPathLength());
+
 	return ols;
 }
 
@@ -467,6 +473,7 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 			req->cmd);
 
 	overlapTable->requestIssued(req);
+	criticalPathTable->issuedRequest(req);
 
 	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(MOE_CACHE_BLK_SIZE-1),curTick, req->cmd);
 	pendingRequests.push_back(ee);
@@ -542,6 +549,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->interference = req->boisInterferenceSum;
 
 	overlapTable->requestCompleted(req, hiddenLoad);
+	criticalPathTable->completedRequest(req, hiddenLoad);
 
 	totalRequestAccumulator++;
 
@@ -904,6 +912,7 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 
 	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
 	overlapTable->executionStalled();
+	criticalPathTable->commitPeriodEnded();
 
 	DPRINTF(OverlapEstimator, "Stalling, oldest core address is %d, relocated to %d\n", stalledOnCoreAddr, stalledOnAddr);
 }
@@ -949,6 +958,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	vector<RequestNode* > completedSharedReqs;
 
 	overlapTable->executionResumed();
+	criticalPathTable->commitPeriodStarted();
 
 	assert(stallLength > currentStallFullROB);
 	addBoisEstimateCycles(stallLength - currentStallFullROB);

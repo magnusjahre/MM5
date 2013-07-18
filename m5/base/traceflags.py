@@ -159,7 +159,8 @@ baseFlags = [
     'FuncMem',
     'OverlapEstimator',
     'OverlapEstimatorGraph',
-    'OverlapEstimatorTable'
+    'OverlapEstimatorTable',
+    'CPLTable'
     ]
 
 #

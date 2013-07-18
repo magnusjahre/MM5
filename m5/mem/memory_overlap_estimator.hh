@@ -18,10 +18,12 @@
 #include "mem/requesttrace.hh"
 #include "mem/interference_manager.hh"
 #include "mem/memory_overlap_table.hh"
+#include "mem/critical_path_table.hh"
 
 class InterferenceManager;
 class BaseCache;
 class MemoryOverlapTable;
+class CriticalPathTable;
 
 class EstimationEntry{
 public:
@@ -253,6 +255,7 @@ private:
 	};
 
 	MemoryOverlapTable* overlapTable;
+	CriticalPathTable* criticalPathTable;
 
 	std::vector<EstimationEntry*> pendingRequests;
 	std::vector<EstimationEntry*> completedRequests;
