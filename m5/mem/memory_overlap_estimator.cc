@@ -388,8 +388,9 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceRequestGroups(committedInstructions);
 
 	overlapTable->traceTable(committedInstructions);
+	int tableCPL = criticalPathTable->getCriticalPathLength();
 
-	assert(ols.cpl == criticalPathTable->getCriticalPathLength());
+	assert(ols.cpl == tableCPL);
 
 	return ols;
 }
@@ -764,6 +765,40 @@ void
 MemoryOverlapEstimator::unsetVisited(){
 	for(int i=0;i<completedComputeNodes.size();i++) completedComputeNodes[i]->visited = false;
 	for(int i=0;i<completedRequestNodes.size();i++) completedRequestNodes[i]->visited = false;
+}
+
+void
+MemoryGraphNode::addChild(MemoryGraphNode* child){
+	children->push_back(child);
+	child->addParent(this);
+
+	DPRINTF(OverlapEstimatorGraph, "Added child %s-%d (%d) for node %s-%d (%d), %d children in total\n",
+				child->name(), child->id, child->getAddr(),
+				name(), id, getAddr(),
+				children->size());
+}
+
+void
+MemoryGraphNode::addParent(MemoryGraphNode* parent){
+
+	for(int i=0;children->size();i++){
+		if(children->at(i) == parent){
+			DPRINTF(OverlapEstimatorGraph, "Node %s-%d (%d) and node %s-%d (%d) creates a cycle, not storing parent link\n",
+					parent->name(), parent->id, parent->getAddr(),
+					name(), id, getAddr());
+			return;
+		}
+	}
+
+	parents->push_back(parent);
+	validParents++;
+
+	DPRINTF(OverlapEstimatorGraph, "Added parent %s-%d (%d) for node %s-%d (%d), %d parents in total\n",
+			parent->name(), parent->id, parent->getAddr(),
+			name(), id, getAddr(),
+			validParents);
+
+	assert(validParents == parents->size());
 }
 
 void

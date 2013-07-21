@@ -95,15 +95,9 @@ public:
 		delete children;
 	}
 
-	void addChild(MemoryGraphNode* child){
-		children->push_back(child);
-		child->addParent(this);
-	}
+	void addChild(MemoryGraphNode* child);
 
-	void addParent(MemoryGraphNode* parent){
-		parents->push_back(parent);
-		validParents++;
-	}
+	void addParent(MemoryGraphNode* parent);
 
 	void removeParent(MemoryGraphNode* parent);
 
