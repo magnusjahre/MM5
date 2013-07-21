@@ -152,10 +152,6 @@ void
 CriticalPathTable::commitPeriodStarted(){
     DPRINTF(CPLTable, " %s: RESUME, commit period started\n", moe->name());
 
-    if(stalledOnAddr != pendingRequests[lastCompletedRequestIndex].addr){
-    	if(curTick-stalledAt >= 5) fatal("Assuming L1 hit stall, but the stall lasted %d cycles", curTick-stalledAt);
-    }
-
     if(lastIsShared){
     	assert(pendingRequests[lastCompletedRequestIndex].valid);
 
