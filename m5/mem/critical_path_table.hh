@@ -62,8 +62,6 @@ private:
     MemoryOverlapEstimator* moe;
 
     std::vector<CPTRequestEntry> pendingRequests;
-    int lastCompletedRequestIndex;
-    bool lastIsShared;
 
     Addr stalledOnAddr;
     Tick stalledAt;

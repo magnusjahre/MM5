@@ -22,9 +22,6 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     pendingRequests.resize(bufferSize, CPTRequestEntry());
 
     pendingCommit.depth = 0;
-
-    lastCompletedRequestIndex = -1;
-    lastIsShared = false;
 }
 
 int
@@ -121,14 +118,6 @@ CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
         pendingRequests[pendingIndex].valid = false;
         pendingCommit.removeChild(pendingIndex);
     }
-
-    lastCompletedRequestIndex = pendingIndex;
-    lastIsShared = pendingRequests[pendingIndex].isShared;
-
-    DPRINTF(CPLTable, " %s: Last completed request is address %d, %s\n",
-                            moe->name(),
-                            pendingRequests[lastCompletedRequestIndex].addr,
-                            pendingRequests[lastCompletedRequestIndex].isShared ? "shared" : "private");
 }
 
 void
@@ -141,6 +130,13 @@ CriticalPathTable::CPTCommitEntry::removeChild(int index){
 			foundAt = i;
 		}
 	}
+
+	if(foundAt == -1){
+		DPRINTF(CPLTable, "Removed request at index %d is not a child of the current commit\n",
+				index);
+		return;
+	}
+
 	children.erase(children.begin()+foundAt);
 
 	DPRINTF(CPLTable, "Removed child at buffer entry %d at index %d\n",
@@ -152,8 +148,25 @@ void
 CriticalPathTable::commitPeriodStarted(){
     DPRINTF(CPLTable, " %s: RESUME, commit period started\n", moe->name());
 
-    if(lastIsShared){
-    	assert(pendingRequests[lastCompletedRequestIndex].valid);
+    // Identify if this is a shared or a private stall
+    int causedStallIndex = -1;
+    for(int i=0;i<pendingRequests.size();i++){
+    	if(pendingRequests[i].valid && pendingRequests[i].addr == stalledOnAddr){
+    		if(pendingRequests[i].isShared){
+    			DPRINTF(CPLTable, " %s: Address %d (index %d) is a shared request, concluding shared stall\n",
+    					moe->name(),
+    					pendingRequests[i].addr,
+    					i);
+
+    			assert(causedStallIndex == -1);
+    			assert(pendingRequests[i].completed);
+    			causedStallIndex = i;
+    		}
+    	}
+    }
+
+    if(causedStallIndex != -1){
+    	assert(pendingRequests[causedStallIndex].valid);
 
     	// 1. Update children of resolved commit node (that completed before the stall)
 
@@ -193,15 +206,15 @@ CriticalPathTable::commitPeriodStarted(){
     	pendingCommit.startedAt = curTick;
 
     	// 2.1 Handle the request that committed last (and cleared the stall)
-    	assert(pendingRequests[lastCompletedRequestIndex].depth != -1);
+    	assert(pendingRequests[causedStallIndex].depth != -1);
     	assert(pendingCommit.depth == -1);
 
     	DPRINTF(CPLTable, " %s: Initializing pending commit depth to depth of last completed request %d (address %d)\n",
     			moe->name(),
-    			pendingRequests[lastCompletedRequestIndex].depth,
-    			pendingRequests[lastCompletedRequestIndex].addr);
+    			pendingRequests[causedStallIndex].depth,
+    			pendingRequests[causedStallIndex].addr);
 
-    	pendingCommit.depth = pendingRequests[lastCompletedRequestIndex].depth;
+    	pendingCommit.depth = pendingRequests[causedStallIndex].depth;
 
     	//2.2 Handle other requests that completed while we where stalled (and which this commit node is the child of)
     	for(int i=0;i<pendingRequests.size();i++){
