@@ -15,37 +15,62 @@ class MemoryOverlapEstimator;
 class CriticalPathTable{
 private:
 
-    class CPTCommitEntry{
-    public:
-       int depth;
-
-       CPTCommitEntry() : depth(-1){}
-    };
-
     class CPTRequestEntry{
     public:
        Addr addr;
        int depth;
        bool completed;
        bool valid;
+       bool isShared;
 
-       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false){}
+       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false){}
 
-       void update(Addr _addr, int _depth){
+       void update(Addr _addr){
            addr = _addr;
-           depth = _depth;
+           depth = -1;
            completed = false;
+           isShared = false;
 
            assert(!valid);
            valid = true;
        }
     };
 
+    class CPTCommitEntry{
+    public:
+       int depth;
+       Tick startedAt;
+       Tick stalledAt;
+
+       std::vector<int> children;
+
+       CPTCommitEntry(){
+    	   reset();
+       }
+
+       void reset(){
+    	   depth = -1;
+    	   startedAt = 0;
+    	   stalledAt = 0;
+
+    	   children.clear();
+       }
+
+       void removeChild(int index);
+    };
+
     MemoryOverlapEstimator* moe;
 
     std::vector<CPTRequestEntry> pendingRequests;
+    int lastCompletedRequestIndex;
+    bool lastIsShared;
+
+    Addr stalledOnAddr;
+    Tick stalledAt;
 
     int curCommitDepth;
+
+    CPTCommitEntry pendingCommit;
 
     int nextValidPtr;
 
@@ -65,7 +90,7 @@ public:
 
     void commitPeriodStarted();
 
-    void commitPeriodEnded();
+    void commitPeriodEnded(Addr stalledOn);
 
     int getCriticalPathLength();
 };

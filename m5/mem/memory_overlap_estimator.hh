@@ -68,6 +68,8 @@ class MemoryGraphNode{
 public:
 
 	std::vector<MemoryGraphNode*>* children;
+	std::vector<MemoryGraphNode*>* parents;
+	int validParents;
 
 	int id;
 	Tick startedAt;
@@ -84,7 +86,9 @@ public:
 		visited = false;
 
 		children = new std::vector<MemoryGraphNode* >();
+		parents = new std::vector<MemoryGraphNode* >();
 		depth = -1;
+		validParents = 0;
 	}
 
 	virtual ~MemoryGraphNode(){
@@ -93,7 +97,15 @@ public:
 
 	void addChild(MemoryGraphNode* child){
 		children->push_back(child);
+		child->addParent(this);
 	}
+
+	void addParent(MemoryGraphNode* parent){
+		parents->push_back(parent);
+		validParents++;
+	}
+
+	void removeParent(MemoryGraphNode* parent);
 
 	virtual bool addToCPL() = 0;
 
@@ -390,8 +402,7 @@ private:
 	//MemoryGraphNode* traverseTree(MemoryGraphNode* node, int id);
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
-	int findCriticalPathLengthDFS(MemoryGraphNode* node, int depth);
-	int findCriticalPathLengthBFS(MemoryGraphNode* node, int depth);
+	int findCriticalPathLength(MemoryGraphNode* node, int depth);
 	void clearData();
 
 //	RequestNode* findPendingNode(int id);
