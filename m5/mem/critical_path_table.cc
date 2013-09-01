@@ -276,7 +276,7 @@ CriticalPathTable::getCriticalPathLength(){
 
     for(int i=0;i<pendingRequests.size();i++){
         if(pendingRequests[i].valid){
-            pendingRequests[i].depth = 0;
+            pendingRequests[i].depth = -1;
             DPRINTF(CPLTable, "%s: Resetting depth for request %d, resetting commit depth\n",
                     moe->name(),
                     pendingRequests[i].depth);
