@@ -51,11 +51,12 @@ void
 CriticalPathTable::issuedRequest(MemReqPtr& req){
     Addr addr = req->paddr & ~(MOE_CACHE_BLK_SIZE-1);
 
-    DPRINTF(CPLTable, " %s: Got memory request for addr %d, command %s pos %d\n",
+    DPRINTF(CPLTable, " %s: Got memory request for addr %d, command %s pos %d, parent commit depth %d\n",
             moe->name(),
             addr,
             req->cmd,
-            nextValidPtr);
+            nextValidPtr,
+            pendingCommit.depth);
 
     if(hasAddress(addr)){
         DPRINTF(CPLTable, " %s: Addr %d already allocated, skipping\n",
@@ -96,12 +97,17 @@ CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
                         req->paddr,
                         pendingIndex);
 
-        if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
-        	pendingCommit.depth= pendingRequests[pendingIndex].depth;
-            DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
-                    moe->name(),
-                    pendingCommit.depth);
+        // If the request caused the stall, it will be the parent of the _next_ commit (not the pending one)
+        if(pendingRequests[pendingIndex].addr != stalledOnAddr){
+			if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
+				pendingCommit.depth = pendingRequests[pendingIndex].depth;
+				DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
+						moe->name(),
+						pendingCommit.depth);
 
+			}
+
+			updateCommitDepthCounter(pendingCommit.depth);
         }
 
         pendingRequests[pendingIndex].completed = true;
@@ -168,9 +174,9 @@ CriticalPathTable::commitPeriodStarted(){
     if(causedStallIndex != -1){
     	assert(pendingRequests[causedStallIndex].valid);
 
-    	// 1. Update children of resolved commit node (that completed before the stall)
+    	// 1. Process the completed commit node
 
-    	// 1.1 Updated the children that are still pending
+    	// 1.1 Update children of resolved commit node (that completed before the stall)
     	for(int i=0;i<pendingCommit.children.size();i++){
     		int curIndex = pendingCommit.children[i];
     		assert(pendingRequests[curIndex].valid);
@@ -185,17 +191,7 @@ CriticalPathTable::commitPeriodStarted(){
     		    			pendingRequests[curIndex].completed ? "complete" : "not complete");
     	}
 
-    	// 1.3 Update global maximum depth (i.e. critical path) counter
-    	assert(pendingCommit.depth != -1);
-    	if(pendingCommit.depth > curCommitDepth){
-    		curCommitDepth = pendingCommit.depth;
-
-    		DPRINTF(CPLTable, " %s: this commit is the current deepest at depth %d\n",
-    				moe->name(),
-    				curCommitDepth);
-    	}
-
-    	// 2. Initialize new commit node
+    	// 2. Process the new commit node
     	DPRINTF(CPLTable, " %s: shared request stall, updating last completed commit (duration %d to %d), pending commit start at %d\n",
     			moe->name(),
     			pendingCommit.startedAt,
@@ -216,7 +212,7 @@ CriticalPathTable::commitPeriodStarted(){
 
     	pendingCommit.depth = pendingRequests[causedStallIndex].depth;
 
-    	//2.2 Handle other requests that completed while we where stalled (and which this commit node is the child of)
+    	// 2.2 Handle other requests that completed while we where stalled (and which this commit node is the child of)
     	for(int i=0;i<pendingRequests.size();i++){
     		if(pendingRequests[i].valid && pendingRequests[i].completed){
 
@@ -240,6 +236,8 @@ CriticalPathTable::commitPeriodStarted(){
     		}
     	}
 
+    	// 2.3 Update the global depth counter if necessary
+    	updateCommitDepthCounter(pendingCommit.depth);
     }
     else{
     	DPRINTF(CPLTable, " %s: private request stall\n", moe->name());
@@ -272,9 +270,9 @@ CriticalPathTable::commitPeriodEnded(Addr stalledOn){
 int
 CriticalPathTable::getCriticalPathLength(){
 
-    DPRINTF(CPLTable, "%s: Returning current commit depth %d, resetting commit depth\n",
-            moe->name(),
-            curCommitDepth);
+	DPRINTF(CPLTable, "%s: Returning current commit depth %d, resetting commit depth\n",
+			moe->name(),
+			curCommitDepth);
 
     for(int i=0;i<pendingRequests.size();i++){
         if(pendingRequests[i].valid){
@@ -284,10 +282,22 @@ CriticalPathTable::getCriticalPathLength(){
                     pendingRequests[i].depth);
         }
     }
+    pendingCommit.depth = 0;
 
     int tmpCommitDepth = curCommitDepth;
     curCommitDepth = 0;
     return tmpCommitDepth;
+}
+void
+CriticalPathTable::updateCommitDepthCounter(int newdepth){
+	assert(newdepth != -1);
+	if(newdepth > curCommitDepth){
+		curCommitDepth = newdepth;
+
+		DPRINTF(CPLTable, " %s: this commit is the current deepest at depth %d\n",
+				moe->name(),
+				curCommitDepth);
+	}
 }
 
 bool

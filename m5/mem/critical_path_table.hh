@@ -78,6 +78,8 @@ private:
 
     bool hasAddress(Addr paddr);
 
+    void updateCommitDepthCounter(int newdepth);
+
 public:
 
     CriticalPathTable(MemoryOverlapEstimator* _moe);
