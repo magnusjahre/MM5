@@ -390,6 +390,8 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	overlapTable->traceTable(committedInstructions);
 	int tableCPL = criticalPathTable->getCriticalPathLength();
 
+	cout << curTick << ": Returning ols.cpl " << ols.cpl << " and tableCPL " << tableCPL << "\n";
+
 	assert(ols.cpl == tableCPL);
 
 	return ols;
@@ -700,6 +702,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
     	root = pendingComputeNode;
     }
     root->children->clear();
+    root->parents->clear();
 
 	DPRINTF(OverlapEstimatorGraph, "Commit %d (%p) is new root\n", root->id, root);
 

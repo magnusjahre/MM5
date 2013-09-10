@@ -150,6 +150,14 @@ CriticalPathTable::CPTCommitEntry::removeChild(int index){
 		               foundAt);
 }
 
+bool
+CriticalPathTable::CPTCommitEntry::hasChild(int index){
+    for(int i=0;i<children.size();i++){
+        if(index == children[i]) return true;
+    }
+    return false;
+}
+
 void
 CriticalPathTable::commitPeriodStarted(){
     DPRINTF(CPLTable, " %s: RESUME, commit period started\n", moe->name());
@@ -276,16 +284,26 @@ CriticalPathTable::getCriticalPathLength(){
 
     for(int i=0;i<pendingRequests.size();i++){
         if(pendingRequests[i].valid){
-            pendingRequests[i].depth = -1;
-            DPRINTF(CPLTable, "%s: Resetting depth for request %d, resetting commit depth\n",
+
+            DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d (depth %d), resetting commit depth\n",
                     moe->name(),
+                    i,
                     pendingRequests[i].depth);
+
+            pendingRequests[i].depth = -1;
+            if(!pendingCommit.hasChild(i)){
+                DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d, was the child of an older request, setting as child of current\n",
+                                    moe->name(),
+                                    i);
+                pendingCommit.children.push_back(i);
+            }
         }
     }
     pendingCommit.depth = 0;
 
     int tmpCommitDepth = curCommitDepth;
     curCommitDepth = 0;
+
     return tmpCommitDepth;
 }
 void

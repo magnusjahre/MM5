@@ -57,6 +57,8 @@ private:
        }
 
        void removeChild(int index);
+
+       bool hasChild(int index);
     };
 
     MemoryOverlapEstimator* moe;
