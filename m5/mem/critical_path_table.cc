@@ -66,6 +66,7 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
     }
 
     pendingRequests[nextValidPtr].update(addr);
+    assert(pendingCommit.startedAt < curTick);
     pendingCommit.children.push_back(nextValidPtr);
 
     int checkCnt = 0;
