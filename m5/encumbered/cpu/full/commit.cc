@@ -49,8 +49,7 @@
 
 using namespace std;
 
-//#define IPC_TRACE_FREQUENCY 500000
-#define IPC_TRACE_FREQUENCY 1000
+#define IPC_TRACE_FREQUENCY 500000
 
 /*======================================================================*/
 
