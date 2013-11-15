@@ -288,7 +288,8 @@ public:
 			AdaptiveMHA* _amha,
 			InterferenceManager* _intMan,
 			int _quitOnCPUID,
-			MemoryOverlapEstimator* _overlapEst
+			MemoryOverlapEstimator* _overlapEst,
+			int _commitTraceFrequency
 	);
 
 
@@ -385,6 +386,7 @@ public:
 	int commit_width;
 	CommitModelEnum commit_model;
 	bool prioritized_commit;
+	int commitTraceFrequency;
 
 	//
 	//  Other

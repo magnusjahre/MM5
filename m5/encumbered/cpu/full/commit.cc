@@ -49,8 +49,6 @@
 
 using namespace std;
 
-#define IPC_TRACE_FREQUENCY 500000
-
 /*======================================================================*/
 
 /*
@@ -944,9 +942,9 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		committedSinceLast++;
 
 		committedTraceCounter++;
-		if(committedTraceCounter == IPC_TRACE_FREQUENCY){
+		if(committedTraceCounter == commitTraceFrequency){
 			Tick ticksInSample = curTick - lastDumpTick;
-			double ipc = (double) IPC_TRACE_FREQUENCY / (double) ticksInSample;
+			double ipc = (double) commitTraceFrequency / (double) ticksInSample;
 
 			vector<RequestTraceEntry> data;
 			assert(thread == 0);
@@ -958,12 +956,12 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			OverlapStatistics ols = overlapEstimator->sampleCPU((int) stat_com_inst[thread].value());
 			double cwp = overlapEstimator->getAvgCWP();
 			Tick boisAloneStallEst = overlapEstimator->getBoisAloneStallEstimate();
-			interferenceManager->doCommitTrace(CPUParamsCpuID, IPC_TRACE_FREQUENCY, ticksInSample, ols, cwp, numWriteStalls, boisAloneStallEst);
+			interferenceManager->doCommitTrace(CPUParamsCpuID, commitTraceFrequency, ticksInSample, ols, cwp, numWriteStalls, boisAloneStallEst);
 
 			lastDumpTick = curTick;
 			committedTraceCounter = 0;
 		}
-		assert(committedTraceCounter <= IPC_TRACE_FREQUENCY);
+		assert(committedTraceCounter <= commitTraceFrequency);
 	}
 #else
 	fatal("IPC profiling for non-alpha not implemented");
