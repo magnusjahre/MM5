@@ -390,7 +390,10 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	overlapTable->traceTable(committedInstructions);
 	int tableCPL = criticalPathTable->getCriticalPathLength();
 
-	cout << curTick << ": Returning ols.cpl " << ols.cpl << " and tableCPL " << tableCPL << " (current shared request number: " << sharedTraceReqNum << ")\n";
+	DPRINTF(CPLTableProgress, "Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
+			ols.cpl,
+			tableCPL,
+			sharedTraceReqNum);
 
 	// Since the graph scheme samples at the beginning of a commit phase and the
 	// table based scheme updates the maximum depth continuously, the graph

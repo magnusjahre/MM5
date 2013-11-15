@@ -160,7 +160,8 @@ baseFlags = [
     'OverlapEstimator',
     'OverlapEstimatorGraph',
     'OverlapEstimatorTable',
-    'CPLTable'
+    'CPLTable',
+    'CPLTableProgress'
     ]
 
 #
@@ -179,7 +180,8 @@ compoundFlagMap = {
     'EthernetNoData' : [ 'Ethernet', 'EthernetPIO', 'EthernetDesc', 'EthernetIntr', 'EthernetSM', 'EthernetCksum' ],	
     'IdeAll' : [ 'IdeCtrl', 'IdeDisk' ],
     'FullCPUAll' : [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit', 'IQ', 'ROB', 'FreeList', 'RenameMap', 'LDSTQ', 'StoreSet', 'MemDepUnit', 'DynInst', 'FullCPU'],
-    'MissBWPolicyVerbose': ['MissBWPolicy', 'MissBWPolicyExtra']    
+    'MissBWPolicyVerbose': ['MissBWPolicy', 'MissBWPolicyExtra'],
+    'CPLTableAll' : ['CPLTable', 'CPLTableProgress']    
 }
 
 #############################################################
