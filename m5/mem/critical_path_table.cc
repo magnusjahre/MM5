@@ -22,6 +22,7 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     pendingRequests.resize(bufferSize, CPTRequestEntry());
 
     pendingCommit.depth = 0;
+    prevCommitDepth = 0;
 }
 
 int
@@ -51,7 +52,7 @@ void
 CriticalPathTable::issuedRequest(MemReqPtr& req){
     Addr addr = req->paddr & ~(MOE_CACHE_BLK_SIZE-1);
 
-    DPRINTF(CPLTable, " %s: Got memory request for addr %d, command %s pos %d, parent commit depth %d\n",
+    DPRINTF(CPLTable, " %s: Got memory request for addr %d, command %s pos %d, current commit depth %d\n",
             moe->name(),
             addr,
             req->cmd,
@@ -66,8 +67,18 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
     }
 
     pendingRequests[nextValidPtr].update(addr);
-    assert(pendingCommit.startedAt < curTick);
-    pendingCommit.children.push_back(nextValidPtr);
+    assert(pendingCommit.startedAt <= curTick);
+    if(pendingCommit.startedAt == curTick){
+    	DPRINTF(CPLTable, " %s: Request %d is issued in the same cycle as commit resumes, child of previous commit (depth %d)\n",
+    	                    moe->name(),
+    	                    addr,
+    	                    prevCommitDepth);
+
+    	updateChildRequest(nextValidPtr, prevCommitDepth);
+    }
+    else{
+    	pendingCommit.children.push_back(nextValidPtr);
+    }
 
     int checkCnt = 0;
     while(pendingRequests[nextValidPtr].valid){
@@ -160,6 +171,22 @@ CriticalPathTable::CPTCommitEntry::hasChild(int index){
 }
 
 void
+CriticalPathTable::updateChildRequest(int bufferIndex, int depth){
+	assert(pendingRequests[bufferIndex].valid);
+	assert(pendingRequests[bufferIndex].depth == -1);
+
+	int newdepth = depth + 1;
+
+	pendingRequests[bufferIndex].depth = newdepth;
+	DPRINTF(CPLTable, " %s: Setting depth of child request %d (index %d) to %d (is %s)\n",
+			moe->name(),
+			pendingRequests[bufferIndex].addr,
+			bufferIndex,
+			newdepth,
+			pendingRequests[bufferIndex].completed ? "complete" : "not complete");
+}
+
+void
 CriticalPathTable::commitPeriodStarted(){
     DPRINTF(CPLTable, " %s: RESUME, commit period started\n", moe->name());
 
@@ -184,20 +211,11 @@ CriticalPathTable::commitPeriodStarted(){
     	assert(pendingRequests[causedStallIndex].valid);
 
     	// 1. Process the completed commit node
+    	prevCommitDepth = pendingCommit.depth;
 
     	// 1.1 Update children of resolved commit node (that completed before the stall)
     	for(int i=0;i<pendingCommit.children.size();i++){
-    		int curIndex = pendingCommit.children[i];
-    		assert(pendingRequests[curIndex].valid);
-    		assert(pendingRequests[curIndex].depth == -1);
-
-    		pendingRequests[curIndex].depth = pendingCommit.depth+1;
-    		DPRINTF(CPLTable, " %s: Setting depth of child request %d (index %d) to %d (is %s)\n",
-    		    			moe->name(),
-    		    			pendingRequests[curIndex].addr,
-    		    			curIndex,
-    		    			pendingCommit.depth+1,
-    		    			pendingRequests[curIndex].completed ? "complete" : "not complete");
+    		updateChildRequest(pendingCommit.children[i], pendingCommit.depth);
     	}
 
     	// 2. Process the new commit node
@@ -301,6 +319,7 @@ CriticalPathTable::getCriticalPathLength(){
         }
     }
     pendingCommit.depth = 0;
+    prevCommitDepth = 0;
 
     int tmpCommitDepth = curCommitDepth;
     curCommitDepth = 0;

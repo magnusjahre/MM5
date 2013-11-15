@@ -71,6 +71,7 @@ private:
     int curCommitDepth;
 
     CPTCommitEntry pendingCommit;
+    int prevCommitDepth;
 
     int nextValidPtr;
 
@@ -81,6 +82,8 @@ private:
     bool hasAddress(Addr paddr);
 
     void updateCommitDepthCounter(int newdepth);
+
+    void updateChildRequest(int bufferIndex, int depth);
 
 public:
 
