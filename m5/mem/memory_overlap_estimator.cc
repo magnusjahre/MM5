@@ -19,7 +19,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       SharedStallIndentifier _ident,
 		                                       bool _sharedReqTraceEnabled,
 		                                       bool _graphAnalysisEnabled,
-		                                       MemoryOverlapTable* _overlapTable)
+		                                       MemoryOverlapTable* _overlapTable,
+		                                       int _traceSampleID)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -56,6 +57,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	initSharedRequestTrace();
 
 	sampleID = 0;
+	traceSampleID = _traceSampleID;
 
 	computeWhilePendingAccumulator = 0;
 	computeWhilePendingReqs = 0;
@@ -362,6 +364,9 @@ MemoryOverlapEstimator::initSharedRequestTrace(){
 
 void
 MemoryOverlapEstimator::traceSharedRequest(EstimationEntry* entry, Tick stalledAt, Tick resumedAt){
+
+	if(traceSampleID >= 0 && sampleID != traceSampleID) sharedReqTraceEnabled = false;
+
 	if(sharedReqTraceEnabled){
 		vector<RequestTraceEntry> data;
 
@@ -402,7 +407,10 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	// scheme might return a CPL that is one less that what is detected by the
 	// table scheme.
 	assert(ols.cpl == tableCPL || ols.cpl+1 == tableCPL);
+
 	sampleID++;
+	if(sampleID == traceSampleID || traceSampleID == -1) sharedReqTraceEnabled = true;
+	else sharedReqTraceEnabled = false;
 
 	return ols;
 }
@@ -1565,6 +1573,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	Param<bool> shared_req_trace_enabled;
 	Param<bool> graph_analysis_enabled;
 	SimObjectParam<MemoryOverlapTable *> overlapTable;
+	Param<int> trace_sample_id;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1574,7 +1583,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM_DFLT(shared_stall_heuristic, "The heuristic that decides if a processor stall is due to a shared event", "rob"),
 	INIT_PARAM_DFLT(shared_req_trace_enabled, "Trace all requests (warning: will create large files)", false),
 	INIT_PARAM_DFLT(graph_analysis_enabled, "Analyze miss graph to determine data (warning: performance overhead)", false),
-	INIT_PARAM_DFLT(overlapTable, "Overlap table", NULL)
+	INIT_PARAM_DFLT(overlapTable, "Overlap table", NULL),
+	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1603,7 +1613,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          ident,
     		                          shared_req_trace_enabled,
     		                          graph_analysis_enabled,
-    		                          overlapTable);
+    		                          overlapTable,
+    		                          trace_sample_id);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

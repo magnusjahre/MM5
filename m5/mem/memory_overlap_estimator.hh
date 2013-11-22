@@ -301,6 +301,7 @@ private:
 	int sharedTraceReqNum;
 
 	int sampleID;
+	int traceSampleID;
 
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
@@ -428,7 +429,8 @@ public:
 						   SharedStallIndentifier _ident,
 						   bool _sharedReqTraceEnabled,
 						   bool _graphAnalysisEnabled,
-						   MemoryOverlapTable* _overlapTable);
+						   MemoryOverlapTable* _overlapTable,
+						   int _traceSampleID);
 
 	~MemoryOverlapEstimator();
 
