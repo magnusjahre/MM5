@@ -16,6 +16,7 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     stalledOnAddr = 0;
     stalledAt = 0;
 
+    commitIDCounter = 0;
     curCommitDepth = 0;
 
     int bufferSize = 20;
@@ -23,6 +24,10 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
 
     pendingCommit.depth = 0;
     prevCommitDepth = 0;
+
+    traceSampleID = _moe->getTraceSampleID();
+    currentSampleID = 0;
+    initDependencyEdgeTrace();
 }
 
 int
@@ -74,7 +79,7 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
     	                    addr,
     	                    prevCommitDepth);
 
-    	updateChildRequest(nextValidPtr, prevCommitDepth);
+    	updateChildRequest(nextValidPtr, prevCommitDepth, pendingCommit.id-1);
     }
     else{
     	pendingCommit.children.push_back(nextValidPtr);
@@ -171,7 +176,7 @@ CriticalPathTable::CPTCommitEntry::hasChild(int index){
 }
 
 void
-CriticalPathTable::updateChildRequest(int bufferIndex, int depth){
+CriticalPathTable::updateChildRequest(int bufferIndex, int depth, int commitID){
 	assert(pendingRequests[bufferIndex].valid);
 	assert(pendingRequests[bufferIndex].depth == -1);
 
@@ -184,6 +189,8 @@ CriticalPathTable::updateChildRequest(int bufferIndex, int depth){
 			bufferIndex,
 			newdepth,
 			pendingRequests[bufferIndex].completed ? "complete" : "not complete");
+
+	traceDependencyEdge(commitID, pendingRequests[bufferIndex].addr, false);
 }
 
 void
@@ -215,7 +222,7 @@ CriticalPathTable::commitPeriodStarted(){
 
     	// 1.1 Update children of resolved commit node (that completed before the stall)
     	for(int i=0;i<pendingCommit.children.size();i++){
-    		updateChildRequest(pendingCommit.children[i], pendingCommit.depth);
+    		updateChildRequest(pendingCommit.children[i], pendingCommit.depth, pendingCommit.id);
     	}
 
     	// 2. Process the new commit node
@@ -227,6 +234,7 @@ CriticalPathTable::commitPeriodStarted(){
 
     	pendingCommit.reset();
     	pendingCommit.startedAt = curTick;
+    	pendingCommit.id = commitIDCounter++;
 
     	// 2.1 Handle the request that committed last (and cleared the stall)
     	assert(pendingRequests[causedStallIndex].depth != -1);
@@ -252,6 +260,7 @@ CriticalPathTable::commitPeriodStarted(){
     							pendingRequests[i].depth);
     					pendingCommit.depth = pendingRequests[i].depth;
     				}
+    				traceDependencyEdge(pendingRequests[i].addr, pendingCommit.id, true);
     			}
 
     			pendingRequests[i].valid = false;
@@ -295,7 +304,7 @@ CriticalPathTable::commitPeriodEnded(Addr stalledOn){
 }
 
 int
-CriticalPathTable::getCriticalPathLength(){
+CriticalPathTable::getCriticalPathLength(int nextSampleID){
 
 	DPRINTF(CPLTable, "%s: Returning current commit depth %d, resetting commit depth\n",
 			moe->name(),
@@ -323,6 +332,8 @@ CriticalPathTable::getCriticalPathLength(){
 
     int tmpCommitDepth = curCommitDepth;
     curCommitDepth = 0;
+
+    currentSampleID = nextSampleID;
 
     return tmpCommitDepth;
 }
@@ -354,4 +365,31 @@ CriticalPathTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
     }
     DPRINTF(CPLTable, "Request %d is private, skip it\n", req->paddr);
     return false;
+}
+
+void
+CriticalPathTable::initDependencyEdgeTrace(){
+	if(traceSampleID != -1){
+		CPTDependencyEdgeTrace = RequestTrace(name(), "CPTEdgeTrace", 1);
+
+		vector<string> headers;
+		headers.push_back("From Address");
+		headers.push_back("From Type");
+		headers.push_back("To Address");
+
+		CPTDependencyEdgeTrace.initalizeTrace(headers);
+	}
+}
+
+void
+CriticalPathTable::traceDependencyEdge(Addr from, Addr to, bool fromIsRequest){
+	if(traceSampleID == currentSampleID){
+		vector<RequestTraceEntry> data;
+
+		data.push_back(from);
+		data.push_back(to);
+		data.push_back(fromIsRequest ? "R" : "C");
+
+		CPTDependencyEdgeTrace.addTrace(data);
+	}
 }

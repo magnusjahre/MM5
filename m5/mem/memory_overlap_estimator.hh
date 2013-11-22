@@ -472,6 +472,10 @@ public:
 
 	Tick getBoisAloneStallEstimate();
 
+	int getTraceSampleID(){
+		return traceSampleID;
+	}
+
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

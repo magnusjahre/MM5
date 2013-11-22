@@ -394,7 +394,7 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceRequestGroups(committedInstructions);
 
 	overlapTable->traceTable(committedInstructions);
-	int tableCPL = criticalPathTable->getCriticalPathLength();
+	int tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
 
 	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
 			sampleID,

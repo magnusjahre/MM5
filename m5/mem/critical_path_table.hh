@@ -8,6 +8,7 @@
 #ifndef CRITICAL_PATH_TABLE_HH_
 #define CRITICAL_PATH_TABLE_HH_
 
+#include "mem/requesttrace.hh"
 #include "mem/memory_overlap_estimator.hh"
 
 class MemoryOverlapEstimator;
@@ -38,27 +39,29 @@ private:
 
     class CPTCommitEntry{
     public:
-       int depth;
-       Tick startedAt;
-       Tick stalledAt;
+    	int id;
+    	int depth;
+    	Tick startedAt;
+    	Tick stalledAt;
 
-       std::vector<int> children;
+    	std::vector<int> children;
 
-       CPTCommitEntry(){
-    	   reset();
-       }
+    	CPTCommitEntry(){
+    		reset();
+    	}
 
-       void reset(){
-    	   depth = -1;
-    	   startedAt = 0;
-    	   stalledAt = 0;
+    	void reset(){
+    		depth = -1;
+    		id = 0;
+    		startedAt = 0;
+    		stalledAt = 0;
 
-    	   children.clear();
-       }
+    		children.clear();
+    	}
 
-       void removeChild(int index);
+    	void removeChild(int index);
 
-       bool hasChild(int index);
+    	bool hasChild(int index);
     };
 
     MemoryOverlapEstimator* moe;
@@ -68,12 +71,17 @@ private:
     Addr stalledOnAddr;
     Tick stalledAt;
 
+    int commitIDCounter;
     int curCommitDepth;
 
     CPTCommitEntry pendingCommit;
     int prevCommitDepth;
 
     int nextValidPtr;
+
+    int traceSampleID;
+    int currentSampleID;
+    RequestTrace CPTDependencyEdgeTrace;
 
     bool isSharedRead(MemReqPtr& req, bool hiddenLoad);
 
@@ -83,7 +91,11 @@ private:
 
     void updateCommitDepthCounter(int newdepth);
 
-    void updateChildRequest(int bufferIndex, int depth);
+    void updateChildRequest(int bufferIndex, int depth, int commitID);
+
+    void initDependencyEdgeTrace();
+
+    void traceDependencyEdge(Addr from, Addr to, bool fromIsRequest);
 
 public:
 
@@ -97,7 +109,7 @@ public:
 
     void commitPeriodEnded(Addr stalledOn);
 
-    int getCriticalPathLength();
+    int getCriticalPathLength(int nextSampleID);
 };
 
 
