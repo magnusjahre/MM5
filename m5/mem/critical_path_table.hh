@@ -23,14 +23,16 @@ private:
        bool completed;
        bool valid;
        bool isShared;
+       bool deferred;
 
-       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false){}
+       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false), deferred(false){}
 
        void update(Addr _addr){
            addr = _addr;
            depth = -1;
            completed = false;
            isShared = false;
+           deferred = false;
 
            assert(!valid);
            valid = true;
@@ -96,6 +98,8 @@ private:
     void initDependencyEdgeTrace();
 
     void traceDependencyEdge(Addr from, Addr to, bool fromIsRequest);
+
+    bool isStalled();
 
 public:
 

@@ -114,18 +114,31 @@ CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
                         req->paddr,
                         pendingIndex);
 
-        // If the request caused the stall, it will be the parent of the _next_ commit (not the pending one)
-        if(pendingRequests[pendingIndex].addr != stalledOnAddr){
-			if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
-				pendingCommit.depth = pendingRequests[pendingIndex].depth;
-				DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
-						moe->name(),
-						pendingCommit.depth);
 
-			}
+        // If we still committing, the request is the parent of this commit and we can update it directly
+        if(!isStalled()){
+        	if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
+        		pendingCommit.depth = pendingRequests[pendingIndex].depth;
+        		DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
+        				moe->name(),
+        				pendingCommit.depth);
 
-			updateCommitDepthCounter(pendingCommit.depth);
+        		updateCommitDepthCounter(pendingCommit.depth);
+        	}
         }
+        // If we are stalled on a shared request, the request is the parent of the next commit.
+        // If we are stalled on a private request, it is the parent of the current commit. Unfortunately,
+        // we don't know if this is a shared or a private stall until the stall resolves. Therefore, we have to
+        // defer the processing of such requests.
+        else{
+        	pendingRequests[pendingIndex].deferred = true;
+
+        	DPRINTF(CPLTable, " %s: Processing of depth for address %d (%d) is deferred\n",
+        			moe->name(),
+        			req->paddr,
+        			pendingIndex);
+        }
+
 
         pendingRequests[pendingIndex].completed = true;
         pendingRequests[pendingIndex].isShared = true;
@@ -195,7 +208,9 @@ CriticalPathTable::updateChildRequest(int bufferIndex, int depth, int commitID){
 
 void
 CriticalPathTable::commitPeriodStarted(){
-    DPRINTF(CPLTable, " %s: RESUME, commit period started\n", moe->name());
+    DPRINTF(CPLTable, " %s: RESUME, commit period started, previous depth %d\n",
+    		moe->name(),
+    		pendingCommit.depth);
 
     // Identify if this is a shared or a private stall
     int causedStallIndex = -1;
@@ -226,8 +241,9 @@ CriticalPathTable::commitPeriodStarted(){
     	}
 
     	// 2. Process the new commit node
-    	DPRINTF(CPLTable, " %s: shared request stall, updating last completed commit (duration %d to %d), pending commit start at %d\n",
+    	DPRINTF(CPLTable, " %s: shared request stall, updating last completed commit %d (duration %d to %d), pending commit start at %d\n",
     			moe->name(),
+    			pendingCommit.id,
     			pendingCommit.startedAt,
     			stalledAt,
     			curTick);
@@ -240,14 +256,16 @@ CriticalPathTable::commitPeriodStarted(){
     	assert(pendingRequests[causedStallIndex].depth != -1);
     	assert(pendingCommit.depth == -1);
 
-    	DPRINTF(CPLTable, " %s: Initializing pending commit depth to depth of last completed request %d (address %d)\n",
+    	DPRINTF(CPLTable, " %s: Initializing pending commit %d depth to depth of last completed request %d (address %d)\n",
     			moe->name(),
+    			pendingCommit.id,
     			pendingRequests[causedStallIndex].depth,
     			pendingRequests[causedStallIndex].addr);
 
     	pendingCommit.depth = pendingRequests[causedStallIndex].depth;
 
     	// 2.2 Handle other requests that completed while we where stalled (and which this commit node is the child of)
+    	//     We now know that this is a shared stall, and deferred requests can be handled like any other request
     	for(int i=0;i<pendingRequests.size();i++){
     		if(pendingRequests[i].valid && pendingRequests[i].completed){
 
@@ -277,6 +295,17 @@ CriticalPathTable::commitPeriodStarted(){
     }
     else{
     	DPRINTF(CPLTable, " %s: private request stall\n", moe->name());
+
+    	// Check for deferred requests and update the pending commit accordingly
+    	for(int i=0;i<pendingRequests.size();i++){
+    		if(pendingRequests[i].valid
+    		   && pendingRequests[i].completed
+    		   && pendingRequests[i].isShared
+    		   && pendingRequests[i].deferred){
+
+    			fatal("deferred request processing not implemented");
+    		}
+    	}
     }
 
     assert(stalledOnAddr != 0);
@@ -289,8 +318,9 @@ CriticalPathTable::commitPeriodStarted(){
 void
 CriticalPathTable::commitPeriodEnded(Addr stalledOn){
 
-    DPRINTF(CPLTable, " %s: STALL, commit period ended, current commit depth %d, stalled on %d\n",
+    DPRINTF(CPLTable, " %s: STALL, commit period %d ended, current commit depth %d, stalled on %d\n",
             moe->name(),
+            pendingCommit.id,
             pendingCommit.depth,
             stalledOn);
 
@@ -301,6 +331,11 @@ CriticalPathTable::commitPeriodEnded(Addr stalledOn){
     stalledAt = curTick;
 
     assert(pendingCommit.stalledAt == 0);
+}
+
+bool
+CriticalPathTable::isStalled(){
+	return stalledOnAddr != 0;
 }
 
 int
