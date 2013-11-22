@@ -374,8 +374,8 @@ CriticalPathTable::initDependencyEdgeTrace(){
 
 		vector<string> headers;
 		headers.push_back("From Address");
-		headers.push_back("From Type");
 		headers.push_back("To Address");
+		headers.push_back("From Request?");
 
 		CPTDependencyEdgeTrace.initalizeTrace(headers);
 	}
@@ -388,7 +388,7 @@ CriticalPathTable::traceDependencyEdge(Addr from, Addr to, bool fromIsRequest){
 
 		data.push_back(from);
 		data.push_back(to);
-		data.push_back(fromIsRequest ? "R" : "C");
+		data.push_back(fromIsRequest ? 1 : 0);
 
 		CPTDependencyEdgeTrace.addTrace(data);
 	}
