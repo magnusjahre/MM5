@@ -55,6 +55,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	sharedReqTraceEnabled = _sharedReqTraceEnabled;
 	initSharedRequestTrace();
 
+	sampleID = 0;
+
 	computeWhilePendingAccumulator = 0;
 	computeWhilePendingReqs = 0;
 	computeWhilePendingTotalAccumulator = 0;
@@ -373,9 +375,8 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry* entry, Tick stalledA
 		data.push_back(resumedAt);
 
 		sharedRequestTrace.addTrace(data);
-
-		sharedTraceReqNum++;
 	}
+	sharedTraceReqNum++;
 }
 
 OverlapStatistics
@@ -390,7 +391,8 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	overlapTable->traceTable(committedInstructions);
 	int tableCPL = criticalPathTable->getCriticalPathLength();
 
-	DPRINTF(CPLTableProgress, "Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
+	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
+			sampleID,
 			ols.cpl,
 			tableCPL,
 			sharedTraceReqNum);
@@ -400,6 +402,7 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	// scheme might return a CPL that is one less that what is detected by the
 	// table scheme.
 	assert(ols.cpl == tableCPL || ols.cpl+1 == tableCPL);
+	sampleID++;
 
 	return ols;
 }

@@ -300,6 +300,8 @@ private:
 	bool sharedReqTraceEnabled;
 	int sharedTraceReqNum;
 
+	int sampleID;
+
 	Tick stallCycleAccumulator;
 	Tick sharedStallCycleAccumulator;
 	int totalRequestAccumulator;
