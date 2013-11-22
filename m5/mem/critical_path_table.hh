@@ -101,6 +101,8 @@ private:
 
     bool isStalled();
 
+    void handleCompletedRequestWhileCommitting(int pendingIndex);
+
 public:
 
     CriticalPathTable(MemoryOverlapEstimator* _moe);

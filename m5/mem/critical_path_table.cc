@@ -98,6 +98,30 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
 }
 
 void
+CriticalPathTable::handleCompletedRequestWhileCommitting(int pendingIndex){
+	if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
+		pendingCommit.depth = pendingRequests[pendingIndex].depth;
+		DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
+				moe->name(),
+				pendingCommit.depth);
+
+		updateCommitDepthCounter(pendingCommit.depth);
+	}
+
+	DPRINTF(CPLTable, " %s: Invalidating complete request for address %d\n",
+	        				moe->name(),
+	        				pendingRequests[pendingIndex].addr,
+	        				pendingCommit.depth);
+
+	pendingRequests[pendingIndex].completed = true;
+	pendingRequests[pendingIndex].isShared = true;
+	pendingRequests[pendingIndex].valid = false;
+	pendingCommit.removeChild(pendingIndex);
+
+	traceDependencyEdge(pendingRequests[pendingIndex].addr, pendingCommit.id, true);
+}
+
+void
 CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
 
     DPRINTF(CPLTable, " %s: Memory request completed for addr %d, %s, %s, %s\n",
@@ -117,14 +141,7 @@ CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
 
         // If we still committing, the request is the parent of this commit and we can update it directly
         if(!isStalled()){
-        	if(pendingRequests[pendingIndex].depth > pendingCommit.depth){
-        		pendingCommit.depth = pendingRequests[pendingIndex].depth;
-        		DPRINTF(CPLTable, " %s: Setting pending commit depth to %d\n",
-        				moe->name(),
-        				pendingCommit.depth);
-
-        		updateCommitDepthCounter(pendingCommit.depth);
-        	}
+        	handleCompletedRequestWhileCommitting(pendingIndex);
         }
         // If we are stalled on a shared request, the request is the parent of the next commit.
         // If we are stalled on a private request, it is the parent of the current commit. Unfortunately,
@@ -132,16 +149,14 @@ CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
         // defer the processing of such requests.
         else{
         	pendingRequests[pendingIndex].deferred = true;
+        	pendingRequests[pendingIndex].completed = true;
+        	pendingRequests[pendingIndex].isShared = true;
 
         	DPRINTF(CPLTable, " %s: Processing of depth for address %d (%d) is deferred\n",
         			moe->name(),
         			req->paddr,
         			pendingIndex);
         }
-
-
-        pendingRequests[pendingIndex].completed = true;
-        pendingRequests[pendingIndex].isShared = true;
     }
     else{
         DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it\n",
@@ -303,7 +318,7 @@ CriticalPathTable::commitPeriodStarted(){
     		   && pendingRequests[i].isShared
     		   && pendingRequests[i].deferred){
 
-    			fatal("deferred request processing not implemented");
+    			handleCompletedRequestWhileCommitting(i);
     		}
     	}
     }
