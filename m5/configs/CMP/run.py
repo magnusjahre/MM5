@@ -842,6 +842,10 @@ root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
 root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA,interferenceManager=root.interferenceManager,overlapEstimator=root.overlapEstimators[i]) for i in xrange(int(env['NP'])) ]
 
+if 'COMMIT-TRACE-FREQUENCY' in env:
+    for r in root.detailedCPU:
+        r.commit_trace_frequency = int(env['COMMIT-TRACE-FREQUENCY']) 
+
 if env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
     root.L1icaches = [ IL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
