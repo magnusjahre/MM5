@@ -404,9 +404,9 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 	// Since the graph scheme samples at the beginning of a commit phase and the
 	// table based scheme updates the maximum depth continuously, the graph
-	// scheme might return a CPL that is one less that what is detected by the
-	// table scheme.
-	assert(ols.cpl == tableCPL || ols.cpl+1 == tableCPL);
+	// scheme might return a slightly different CPL
+	int tolerance = 2;
+	assert(abs(ols.cpl - tableCPL) <= tolerance);
 
 	sampleID++;
 	if(sampleID == traceSampleID || traceSampleID == -1) sharedReqTraceEnabled = true;
