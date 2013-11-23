@@ -409,8 +409,12 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	assert(abs(ols.cpl - tableCPL) <= tolerance);
 
 	sampleID++;
-	if(sampleID == traceSampleID || traceSampleID == -1) sharedReqTraceEnabled = true;
-	else sharedReqTraceEnabled = false;
+	if(sampleID == traceSampleID){
+		sharedReqTraceEnabled = true;
+	}
+	else if(sharedReqTraceEnabled && sampleID != traceSampleID && traceSampleID >= 0){
+		sharedReqTraceEnabled = false;
+	}
 
 	return ols;
 }
