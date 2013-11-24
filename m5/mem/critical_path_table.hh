@@ -61,7 +61,7 @@ private:
     		children.clear();
     	}
 
-    	void removeChild(int index);
+    	bool removeChild(int index);
 
     	bool hasChild(int index);
     };

@@ -116,8 +116,10 @@ CriticalPathTable::handleCompletedRequestWhileCommitting(int pendingIndex){
 	pendingRequests[pendingIndex].completed = true;
 	pendingRequests[pendingIndex].isShared = true;
 	pendingRequests[pendingIndex].valid = false;
-	pendingCommit.removeChild(pendingIndex);
 
+	bool found = pendingCommit.removeChild(pendingIndex);
+
+	if(found) traceDependencyEdge(pendingCommit.id, pendingRequests[pendingIndex].addr, false);
 	traceDependencyEdge(pendingRequests[pendingIndex].addr, pendingCommit.id, true);
 }
 
@@ -184,7 +186,7 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
     }
 }
 
-void
+bool
 CriticalPathTable::CPTCommitEntry::removeChild(int index){
 
 	int foundAt = -1;
@@ -198,7 +200,7 @@ CriticalPathTable::CPTCommitEntry::removeChild(int index){
 	if(foundAt == -1){
 		DPRINTF(CPLTable, "Removed request at index %d is not a child of the current commit\n",
 				index);
-		return;
+		return false;
 	}
 
 	children.erase(children.begin()+foundAt);
@@ -206,6 +208,8 @@ CriticalPathTable::CPTCommitEntry::removeChild(int index){
 	DPRINTF(CPLTable, "Removed child at buffer entry %d at index %d\n",
 		               index,
 		               foundAt);
+
+	return true;
 }
 
 bool
