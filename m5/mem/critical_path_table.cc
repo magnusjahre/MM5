@@ -122,7 +122,20 @@ CriticalPathTable::handleCompletedRequestWhileCommitting(int pendingIndex){
 }
 
 void
-CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad){
+CriticalPathTable::completedRequest(MemReqPtr& req, bool hiddenLoad, Tick willCompleteAt){
+
+	DPRINTF(CPLTable, " %s: Memory request for addr %d will complete at %d, event scheduled\n",
+			moe->name(),
+			req->paddr,
+			willCompleteAt);
+
+	assert(willCompleteAt > curTick);
+	CPTMemoryRequestCompletionEvent* event = new CPTMemoryRequestCompletionEvent(this, req, hiddenLoad);
+	event->schedule(willCompleteAt);
+}
+
+void
+CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
 
     DPRINTF(CPLTable, " %s: Memory request completed for addr %d, %s, %s, %s\n",
             moe->name(),
@@ -410,17 +423,17 @@ bool
 CriticalPathTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
     if(req->beenInSharedMemSys){
         if(hiddenLoad){
-            DPRINTF(CPLTable, "%s: Request %d hides a load, add it\n", req->paddr, moe->name());
+            DPRINTF(CPLTable, "%s: Request %d hides a load, add it\n", moe->name(), req->paddr);
             return true;
         }
         if(req->isStore){
-            DPRINTF(CPLTable, "%s: Request %d is a store, skip it\n", req->paddr, moe->name());
+            DPRINTF(CPLTable, "%s: Request %d is a store, skip it\n", moe->name(), req->paddr);
             return false;
         }
-        DPRINTF(CPLTable, "%s: Request %d is a regular load, add it\n", req->paddr, moe->name());
+        DPRINTF(CPLTable, "%s: Request %d is a regular load, add it\n", moe->name(), req->paddr);
         return true;
     }
-    DPRINTF(CPLTable, "%s: Request %d is private, skip it\n", req->paddr, moe->name());
+    DPRINTF(CPLTable, "%s: Request %d is private, skip it\n", moe->name(), req->paddr);
     return false;
 }
 

@@ -109,7 +109,9 @@ public:
 
     void issuedRequest(MemReqPtr& req);
 
-    void completedRequest(MemReqPtr& req, bool hiddenLoad);
+    void completedRequest(MemReqPtr& req, bool hiddenLoad, Tick willCompleteAt);
+
+    void handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad);
 
     void commitPeriodStarted();
 
@@ -117,6 +119,37 @@ public:
 
     int getCriticalPathLength(int nextSampleID);
 };
+
+class CPTMemoryRequestCompletionEvent : public Event
+{
+    CriticalPathTable* cpt;
+	MemReqPtr req;
+	bool hiddenLoad;
+
+    public:
+    // constructor
+    /** A simple constructor. */
+	CPTMemoryRequestCompletionEvent (CriticalPathTable* _cpt, MemReqPtr& _req, bool _hiddenLoad)
+        : Event(&mainEventQueue), cpt(_cpt), req(_req), hiddenLoad(_hiddenLoad)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process(){
+        cpt->handleCompletedRequestEvent(req, hiddenLoad);
+        delete this;
+    }
+
+    /**
+    * Returns the string description of this event.
+    * @return The description of this event.
+     */
+    virtual const char *description(){
+        return "Critical Path Table Memory Request Completion Event";
+    }
+};
+
 
 
 #endif /* CRITICAL_PATH_TABLE_HH_ */

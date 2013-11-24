@@ -573,7 +573,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->interference = req->boisInterferenceSum;
 
 	overlapTable->requestCompleted(req, hiddenLoad);
-	criticalPathTable->completedRequest(req, hiddenLoad);
+	criticalPathTable->completedRequest(req, hiddenLoad, finishedAt);
 
 	totalRequestAccumulator++;
 
