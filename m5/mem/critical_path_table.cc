@@ -13,7 +13,7 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     moe = _moe;
 
     nextValidPtr = 0;
-    stalledOnAddr = 0;
+    stalledOnAddr = MemReq::inval_addr;
     stalledAt = 0;
 
     commitIDCounter = 0;
@@ -323,8 +323,8 @@ CriticalPathTable::commitPeriodStarted(){
     	}
     }
 
-    assert(stalledOnAddr != 0);
-    stalledOnAddr = 0;
+    assert(stalledOnAddr != MemReq::inval_addr);
+    stalledOnAddr = MemReq::inval_addr;
 
     assert(stalledAt != 0);
     stalledAt = 0;
@@ -339,7 +339,7 @@ CriticalPathTable::commitPeriodEnded(Addr stalledOn){
             pendingCommit.depth,
             stalledOn);
 
-    assert(stalledOnAddr == 0);
+    assert(stalledOnAddr == MemReq::inval_addr);
     stalledOnAddr = stalledOn;
 
     assert(stalledAt == 0);
@@ -350,7 +350,7 @@ CriticalPathTable::commitPeriodEnded(Addr stalledOn){
 
 bool
 CriticalPathTable::isStalled(){
-	return stalledOnAddr != 0;
+	return stalledOnAddr != MemReq::inval_addr;
 }
 
 int
