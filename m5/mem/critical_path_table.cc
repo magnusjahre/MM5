@@ -410,17 +410,17 @@ bool
 CriticalPathTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
     if(req->beenInSharedMemSys){
         if(hiddenLoad){
-            DPRINTF(CPLTable, "Request %d hides a load, add it\n", req->paddr);
+            DPRINTF(CPLTable, "%s: Request %d hides a load, add it\n", req->paddr, moe->name());
             return true;
         }
         if(req->isStore){
-            DPRINTF(CPLTable, "Request %d is a store, skip it\n", req->paddr);
+            DPRINTF(CPLTable, "%s: Request %d is a store, skip it\n", req->paddr, moe->name());
             return false;
         }
-        DPRINTF(CPLTable, "Request %d is a regular load, add it\n", req->paddr);
+        DPRINTF(CPLTable, "%s: Request %d is a regular load, add it\n", req->paddr, moe->name());
         return true;
     }
-    DPRINTF(CPLTable, "Request %d is private, skip it\n", req->paddr);
+    DPRINTF(CPLTable, "%s: Request %d is private, skip it\n", req->paddr, moe->name());
     return false;
 }
 
