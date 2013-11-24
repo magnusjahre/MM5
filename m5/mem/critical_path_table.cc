@@ -108,7 +108,7 @@ CriticalPathTable::handleCompletedRequestWhileCommitting(int pendingIndex){
 		updateCommitDepthCounter(pendingCommit.depth);
 	}
 
-	DPRINTF(CPLTable, " %s: Invalidating complete request for address %d\n",
+	DPRINTF(CPLTable, " %s: Invalidating complete request for address %d, depth %d\n",
 	        				moe->name(),
 	        				pendingRequests[pendingIndex].addr,
 	        				pendingCommit.depth);
@@ -223,9 +223,10 @@ CriticalPathTable::updateChildRequest(int bufferIndex, int depth, int commitID){
 
 void
 CriticalPathTable::commitPeriodStarted(){
-    DPRINTF(CPLTable, " %s: RESUME, commit period started, previous depth %d\n",
+    DPRINTF(CPLTable, " %s: RESUME, commit period started, previous depth %d, stalled on address %d\n",
     		moe->name(),
-    		pendingCommit.depth);
+    		pendingCommit.depth,
+    		stalledOnAddr);
 
     // Identify if this is a shared or a private stall
     int causedStallIndex = -1;
@@ -240,6 +241,12 @@ CriticalPathTable::commitPeriodStarted(){
     			assert(causedStallIndex == -1);
     			assert(pendingRequests[i].completed);
     			causedStallIndex = i;
+    		}
+    		else{
+    			DPRINTF(CPLTable, " %s: Address %d (index %d) is a private request, concluding private stall\n",
+    			    					moe->name(),
+    			    					pendingRequests[i].addr,
+    			    					i);
     		}
     	}
     }
