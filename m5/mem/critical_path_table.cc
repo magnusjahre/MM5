@@ -19,7 +19,7 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     commitIDCounter = 0;
     curCommitDepth = 0;
 
-    int bufferSize = 20;
+    int bufferSize = 100;
     pendingRequests.resize(bufferSize, CPTRequestEntry());
 
     pendingCommit.depth = 0;
