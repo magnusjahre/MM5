@@ -23,16 +23,16 @@ private:
        bool completed;
        bool valid;
        bool isShared;
-       bool deferred;
+       Tick completedAt;
 
-       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false), deferred(false){}
+       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false), completedAt(0){}
 
        void update(Addr _addr){
            addr = _addr;
            depth = -1;
            completed = false;
            isShared = false;
-           deferred = false;
+           completedAt = 0;
 
            assert(!valid);
            valid = true;
@@ -102,6 +102,8 @@ private:
     bool isStalled();
 
     void handleCompletedRequestWhileCommitting(int pendingIndex);
+
+    void updateStallState();
 
 public:
 
