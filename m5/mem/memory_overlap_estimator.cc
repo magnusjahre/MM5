@@ -1043,11 +1043,13 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		if(!completedRequests.front()->isStore() || completedRequests.front()->hidesLoad){
 			if(completedRequests.front()->isSharedReq){
 				bool innerCausedStall = false;
-				if(completedRequests.front()->address == stalledOnAddr){
+				if(completedRequests.front()->address == stalledOnAddr
+				   && completedRequests.front()->completedAt >= stalledAt){
 					assert(!stalledOnShared);
 					stalledOnShared = true;
 					issueToStallLat = stalledAt - completedRequests.front()->issuedAt;
-					DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n", issueToStallLat);
+					DPRINTF(OverlapEstimator, "This request caused the stall, issue to stall %d, stall is shared\n",
+							issueToStallLat);
 
 					hiddenSharedLatencyAccumulator += issueToStallLat;
 
