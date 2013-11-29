@@ -93,6 +93,7 @@ public:
 
 	virtual ~MemoryGraphNode(){
 		delete children;
+		delete parents;
 	}
 
 	void addChild(MemoryGraphNode* child);
