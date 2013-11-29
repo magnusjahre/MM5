@@ -794,6 +794,11 @@ MemoryOverlapEstimator::unsetVisited(){
 
 void
 MemoryGraphNode::addChild(MemoryGraphNode* child){
+	DPRINTF(OverlapEstimatorGraph, "Adding child %s-%d (%d) for node %s-%d (%d), currently %d children\n",
+					child->name(), child->id, child->getAddr(),
+					name(), id, getAddr(),
+					children->size());
+
 	children->push_back(child);
 	child->addParent(this);
 
@@ -806,7 +811,10 @@ MemoryGraphNode::addChild(MemoryGraphNode* child){
 void
 MemoryGraphNode::addParent(MemoryGraphNode* parent){
 
-	for(int i=0;children->size();i++){
+	DPRINTF(OverlapEstimatorGraph, "Adding parent link to %s-%d (%d), processing %d children\n",
+			name(), id, getAddr(), children->size());
+
+	for(int i=0;i<children->size();i++){
 		if(children->at(i) == parent){
 			DPRINTF(OverlapEstimatorGraph, "Node %s-%d (%d) and node %s-%d (%d) creates a cycle, not storing parent link\n",
 					parent->name(), parent->id, parent->getAddr(),
