@@ -157,7 +157,6 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
                         req->paddr,
                         pendingIndex);
 
-        assert(pendingRequests[pendingIndex].completedAt == 0);
         pendingRequests[pendingIndex].completedAt = curTick;
         pendingRequests[pendingIndex].completed = true;
         pendingRequests[pendingIndex].isShared = true;
