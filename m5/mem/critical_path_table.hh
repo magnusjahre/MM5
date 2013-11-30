@@ -107,7 +107,7 @@ private:
 
 public:
 
-    CriticalPathTable(MemoryOverlapEstimator* _moe);
+    CriticalPathTable(MemoryOverlapEstimator* _moe, int _bufferSize);
 
     void issuedRequest(MemReqPtr& req);
 

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
+CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe, int _bufferSize){
     moe = _moe;
 
     nextValidPtr = 0;
@@ -19,8 +19,7 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe){
     commitIDCounter = 0;
     curCommitDepth = 0;
 
-    int bufferSize = 100;
-    pendingRequests.resize(bufferSize, CPTRequestEntry());
+    pendingRequests.resize(_bufferSize, CPTRequestEntry());
 
     pendingCommit.depth = 0;
     prevCommitDepth = 0;

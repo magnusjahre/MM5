@@ -20,7 +20,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       bool _sharedReqTraceEnabled,
 		                                       bool _graphAnalysisEnabled,
 		                                       MemoryOverlapTable* _overlapTable,
-		                                       int _traceSampleID)
+		                                       int _traceSampleID,
+		                                       int _cplTableBufferSize)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -74,7 +75,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	currentStallFullROB = 0;
 	boisAloneStallEstimate = 0;
 
-	criticalPathTable = new CriticalPathTable(this);
+	criticalPathTable = new CriticalPathTable(this, _cplTableBufferSize);
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
@@ -1588,6 +1589,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	Param<bool> graph_analysis_enabled;
 	SimObjectParam<MemoryOverlapTable *> overlapTable;
 	Param<int> trace_sample_id;
+	Param<int> cpl_table_size;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1598,7 +1600,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM_DFLT(shared_req_trace_enabled, "Trace all requests (warning: will create large files)", false),
 	INIT_PARAM_DFLT(graph_analysis_enabled, "Analyze miss graph to determine data (warning: performance overhead)", false),
 	INIT_PARAM_DFLT(overlapTable, "Overlap table", NULL),
-	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1)
+	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1),
+	INIT_PARAM_DFLT(cpl_table_size, "The size of the CPL table", 64)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1628,7 +1631,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          shared_req_trace_enabled,
     		                          graph_analysis_enabled,
     		                          overlapTable,
-    		                          trace_sample_id);
+    		                          trace_sample_id,
+    		                          cpl_table_size);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

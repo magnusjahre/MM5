@@ -14,3 +14,4 @@ class MemoryOverlapEstimator(SimObject):
     graph_analysis_enabled = Param.Bool("Analyze miss graph to determine data (warning: performance overhead)")
     overlapTable = Param.MemoryOverlapTable("Overlap table")
     trace_sample_id = Param.Int("The id of the sample to trace, traces all if -1 (default)")
+    cpl_table_size = Param.Int("The size of the CPL table")

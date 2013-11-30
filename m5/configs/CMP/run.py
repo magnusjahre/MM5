@@ -635,6 +635,8 @@ def setUpOverlapMeasurement():
         root.overlapEstimators[i].overlapTable = root.overlapTables[i]
         if "SHARED-STALL-IDENT" in env:
             root.overlapEstimators[i].shared_stall_heuristic = env["SHARED-STALL-IDENT"]
+        if "CPL-TABLE-SIZE" in env:
+            root.overlapEstimators[i].cpl_table_size = int(env["CPL-TABLE-SIZE"])
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message
