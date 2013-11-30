@@ -406,8 +406,13 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	// Since the graph scheme samples at the beginning of a commit phase and the
 	// table based scheme updates the maximum depth continuously, the graph
 	// scheme might return a slightly different CPL
-	int tolerance = 2;
-	assert(abs(ols.graphCPL - ols.tableCPL) <= tolerance);
+	int tolerance = 3;
+	if(abs(ols.graphCPL - ols.tableCPL) >= tolerance){
+		fatal("CPL scheme difference to large: graph %d, table %d, tolerance %d",
+			  ols.graphCPL,
+			  ols.tableCPL,
+			  tolerance);
+	}
 
 	sampleID++;
 	if(sampleID == traceSampleID){
