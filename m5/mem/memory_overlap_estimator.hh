@@ -198,7 +198,8 @@ public:
 class OverlapStatistics{
 public:
 
-	int cpl;
+	int graphCPL;
+	int tableCPL;
 	double avgBurstSize;
 	double avgBurstLength;
 	double avgInterBurstOverlap;
@@ -206,7 +207,8 @@ public:
 	double avgComWhileBurst;
 
 	OverlapStatistics(){
-		cpl = 0;
+		graphCPL = 0;
+		tableCPL = 0;
 		avgBurstSize = 0.0;
 		avgBurstLength = 0.0;
 		avgInterBurstOverlap = 0.0;

@@ -654,7 +654,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Total Requests");
 	headers.push_back("Total Latency");
 	headers.push_back("Hidden Loads");
-	headers.push_back("CPL");
+	headers.push_back("Table CPL");
+	headers.push_back("Graph CPL");
 	headers.push_back("CWP");
 	headers.push_back("Num Write Stalls");
 	headers.push_back("OLS Avg BL");
@@ -740,7 +741,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 			              committedInsts,
 			              privateStallCycles,
 			              stallCycles,
-			              ols.cpl,
+			              ols.tableCPL,
 			              cwp);
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
@@ -758,7 +759,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(reqs);
 	data.push_back(reqs*(avgSharedLat+avgPrivateMemsysLat));
 	data.push_back(hiddenLoads);
-	data.push_back(ols.cpl);
+	data.push_back(ols.tableCPL);
+	data.push_back(ols.graphCPL);
 	data.push_back(cwp);
 	data.push_back(numWriteStalls);
 	data.push_back(ols.avgBurstLength);
@@ -772,7 +774,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      avgPrivateLatEstimate + avgPrivateMemsysLat,
 				                                      reqs,
 				                                      cpuID,
-				                                      ols.cpl,
+				                                      ols.tableCPL,
 				                                      privateMissRate,
 				                                      cwp,
 				                                      boisAloneStallEst);
@@ -827,20 +829,20 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneOverlap);
 		data.push_back(privateMissRate);
 		data.push_back(stallCycles+privateStallCycles);
-		double modelStallEstimate = ols.cpl*(avgSharedLat+avgPrivateMemsysLat-cwp);
+		double modelStallEstimate = ols.tableCPL*(avgSharedLat+avgPrivateMemsysLat-cwp);
 		data.push_back(modelStallEstimate);
 		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - stallCycles)/(double)stallCycles)*100);
 		else data.push_back(0.0);
 		data.push_back(avgSharedStoreLat);
 		data.push_back(numStores);
 
-		data.push_back((avgSharedLat+avgPrivateMemsysLat)*ols.cpl);
-		data.push_back((avgSharedLat+avgPrivateMemsysLat-cwp)*ols.cpl);
+		data.push_back((avgSharedLat+avgPrivateMemsysLat)*ols.tableCPL);
+		data.push_back((avgSharedLat+avgPrivateMemsysLat-cwp)*ols.tableCPL);
 
-		data.push_back(ols.avgBurstLength*ols.cpl);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.cpl);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgTotalComWhilePend)*ols.cpl);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgComWhileBurst)*ols.cpl);
+		data.push_back(ols.avgBurstLength*ols.tableCPL);
+		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.tableCPL);
+		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgTotalComWhilePend)*ols.tableCPL);
+		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgComWhileBurst)*ols.tableCPL);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);

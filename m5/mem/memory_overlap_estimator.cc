@@ -390,24 +390,24 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 	OverlapStatistics ols = gatherParaMeasurements(committedInstructions);
 
-	traceOverlap(committedInstructions, ols.cpl);
+	traceOverlap(committedInstructions, ols.graphCPL);
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 
 	overlapTable->traceTable(committedInstructions);
-	int tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
+	ols.tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
 
 	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
 			sampleID,
-			ols.cpl,
-			tableCPL,
+			ols.graphCPL,
+			ols.tableCPL,
 			sharedTraceReqNum);
 
 	// Since the graph scheme samples at the beginning of a commit phase and the
 	// table based scheme updates the maximum depth continuously, the graph
 	// scheme might return a slightly different CPL
 	int tolerance = 2;
-	assert(abs(ols.cpl - tableCPL) <= tolerance);
+	assert(abs(ols.graphCPL - ols.tableCPL) <= tolerance);
 
 	sampleID++;
 	if(sampleID == traceSampleID){
@@ -657,10 +657,10 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			completedRequestNodes.size());
 
 	//ols.cpl = findCriticalPathLengthDFS(root, 0);
-	ols.cpl = findCriticalPathLength(root, 0);
+	ols.graphCPL = findCriticalPathLength(root, 0);
 	assert(checkReachability());
 
-	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.cpl);
+	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.graphCPL);
 
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
@@ -698,12 +698,12 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			interBurstOverlapSum,
 			comWhileBurst);
 
-	if(ols.cpl > 0){
-		ols.avgBurstLength = burstLenSum / (double) ols.cpl;
-		ols.avgBurstSize = burstSizeSum / (double) ols.cpl;
-		ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.cpl;
-		ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.cpl;
-		ols.avgComWhileBurst = comWhileBurst / (double) ols.cpl;
+	if(ols.graphCPL > 0){
+		ols.avgBurstLength = burstLenSum / (double) ols.graphCPL;
+		ols.avgBurstSize = burstSizeSum / (double) ols.graphCPL;
+		ols.avgInterBurstOverlap = interBurstOverlapSum / (double) ols.graphCPL;
+		ols.avgTotalComWhilePend =  (double) computeWhilePendingTotalAccumulator / (double) ols.graphCPL;
+		ols.avgComWhileBurst = comWhileBurst / (double) ols.graphCPL;
 	}
 	else{
 		ols.avgBurstLength = 0;
