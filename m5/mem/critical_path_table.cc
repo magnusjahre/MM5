@@ -208,8 +208,14 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
             req->isStore ? "store" : "not store");
 
     int pendingIndex = findRequest(req->paddr);
+    if(pendingIndex == -1){
+    	DPRINTF(CPLTable, " %s: Request for address %d was already removed, returning\n",
+    			moe->name(),
+    			req->paddr);
+    	return;
+    }
+
     if(isSharedRead(req, hiddenLoad)){
-    	assert(pendingIndex != -1);
         DPRINTF(CPLTable, " %s: Request for address %d (index %d) is shared and complete\n",
                         moe->name(),
                         req->paddr,
@@ -220,14 +226,7 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
         pendingRequests[pendingIndex].isShared = true;
     }
     else{
-    	if(pendingIndex == -1){
-    		DPRINTF(CPLTable, " %s: Request for address %d was already removed, returning\n",
-    				moe->name(),
-    				req->paddr);
-    		return;
-    	}
-
-        DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it\n",
+    	DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it\n",
                 moe->name(),
                 req->paddr,
                 pendingIndex);
