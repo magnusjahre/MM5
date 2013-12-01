@@ -12,7 +12,9 @@ using namespace std;
 CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe, int _bufferSize){
     moe = _moe;
 
-    nextValidPtr = 0;
+    newestValidPtr = 0;
+    oldestValidPtr = 0;
+
     stalledOnAddr = MemReq::inval_addr;
     stalledAt = 0;
 
@@ -32,24 +34,73 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe, int _bufferSi
 int
 CriticalPathTable::findRequest(Addr paddr){
     int foundIndex = -1;
-    for(int i=0;i<pendingRequests.size();i++){
+
+    // handle oldest element
+    int i = oldestValidPtr;
+    if(pendingRequests[i].addr == paddr && pendingRequests[i].valid){
+    	return i;
+    }
+    incrementBufferPointer(&i);
+
+    // handle subsequent elements up to and including the newest valid element
+    int iterbound = newestValidPtr;
+    incrementBufferPointer(&iterbound);
+    while(i != iterbound){
         if(pendingRequests[i].addr == paddr && pendingRequests[i].valid){
             assert(foundIndex == -1);
             foundIndex = i;
         }
+        i = (i+1) % pendingRequests.size();
     }
     // May return -1 if the request is not found
     return foundIndex;
 }
 
-bool
-CriticalPathTable::hasAddress(Addr paddr){
-    for(int i=0;i<pendingRequests.size();i++){
-        if(pendingRequests[i].addr == paddr && pendingRequests[i].valid){
-            return true;
-        }
-    }
-    return false;
+void
+CriticalPathTable::dumpBufferContents(){
+	cout << "Buffer contents @ " << curTick << "\n";
+	cout << "Oldest valid pointer: " << oldestValidPtr << "\n";
+	cout << "Next valid pointer; " << newestValidPtr << "\n";
+	for(int i=0;i<pendingRequests.size();i++){
+		cout << "Buffer Element " << i << ": " << pendingRequests[i].addr << " " << (pendingRequests[i].valid ? "valid" : "invalid") << "\n";
+	}
+}
+
+void
+CriticalPathTable::handleFullBuffer(){
+
+	assert(newestValidPtr == oldestValidPtr);
+
+	DPRINTF(CPLTable, " %s: Invalidating %s request %d (index %d, depth %d) due to full buffer\n",
+			moe->name(),
+			pendingRequests[newestValidPtr].isShared ? "shared" : "private",
+			pendingRequests[newestValidPtr].addr,
+			newestValidPtr,
+			pendingRequests[newestValidPtr].depth);
+
+	if(pendingRequests[newestValidPtr].isShared){
+		bool isChild = pendingCommit.removeChild(newestValidPtr);
+		if(isChild){
+			traceDependencyEdge(pendingCommit.id, pendingRequests[newestValidPtr].addr, false);
+		}
+		if(pendingRequests[newestValidPtr].completed){
+			traceDependencyEdge(pendingRequests[newestValidPtr].addr, pendingCommit.id, true);
+		}
+	}
+
+	if(pendingCommit.hasChild(newestValidPtr)){
+		DPRINTF(CPLTable, " %s: Removing request %d (index %d) from the child list of the current commit\n",
+				moe->name(),
+				pendingRequests[newestValidPtr].addr,
+				newestValidPtr);
+
+		pendingCommit.removeChild(newestValidPtr);
+	}
+
+	pendingRequests[newestValidPtr].valid = false;
+	incrementBufferPointer(&oldestValidPtr);
+	incrementBufferPointerToNextValid(&oldestValidPtr);
+
 }
 
 void
@@ -60,17 +111,31 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
             moe->name(),
             addr,
             req->cmd,
-            nextValidPtr,
+            newestValidPtr,
             pendingCommit.depth);
 
-    if(hasAddress(addr)){
+    if(findRequest(addr) != -1){
         DPRINTF(CPLTable, " %s: Addr %d already allocated, skipping\n",
                     moe->name(),
                     addr);
         return;
     }
 
-    pendingRequests[nextValidPtr].update(addr);
+    // If the buffer is empty, the pointers will be equal and pointing to an invalid request
+    if(pendingRequests[newestValidPtr].valid){
+    	incrementBufferPointer(&newestValidPtr);
+    	if(newestValidPtr == oldestValidPtr){
+    		assert(pendingRequests[newestValidPtr].valid);
+    		handleFullBuffer();
+    	}
+    }
+
+    DPRINTF(CPLTable, " %s: Newest valid pointer is now %d, oldest valid pointer %d\n",
+    		moe->name(),
+    		newestValidPtr,
+    		oldestValidPtr);
+
+    pendingRequests[newestValidPtr].update(addr);
     assert(pendingCommit.startedAt <= curTick);
     if(pendingCommit.startedAt == curTick){
     	DPRINTF(CPLTable, " %s: Request %d is issued in the same cycle as commit resumes, child of previous commit (depth %d)\n",
@@ -78,22 +143,15 @@ CriticalPathTable::issuedRequest(MemReqPtr& req){
     	                    addr,
     	                    prevCommitDepth);
 
-    	updateChildRequest(nextValidPtr, prevCommitDepth, pendingCommit.id-1);
+    	updateChildRequest(newestValidPtr, prevCommitDepth, pendingCommit.id-1);
     }
     else{
-    	pendingCommit.children.push_back(nextValidPtr);
-    }
+    	DPRINTF(CPLTable, " %s: Request %d the child of the pending commit\n",
+    			moe->name(),
+    			addr);
 
-    int checkCnt = 0;
-    while(pendingRequests[nextValidPtr].valid){
-        nextValidPtr = (nextValidPtr + 1) % pendingRequests.size();
-        checkCnt++;
-        if(checkCnt > pendingRequests.size()) fatal("Ran out of CPL buffer space");
+    	pendingCommit.children.push_back(newestValidPtr);
     }
-
-    DPRINTF(CPLTable, " %s: Next valid pointer is now %d\n",
-            moe->name(),
-            nextValidPtr);
 }
 
 void
@@ -178,7 +236,34 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
         pendingRequests[pendingIndex].isShared = false;
         pendingRequests[pendingIndex].valid = false;
         pendingCommit.removeChild(pendingIndex);
+
+        if(pendingIndex == oldestValidPtr){
+        	incrementBufferPointerToNextValid(&oldestValidPtr);
+        	DPRINTF(CPLTable, " %s: Request was the oldest valid, new oldest valid is %d\n",
+        			moe->name(),
+        			oldestValidPtr);
+        }
     }
+}
+
+void
+CriticalPathTable::incrementBufferPointer(int* bufferPtr){
+	*bufferPtr = (*bufferPtr + 1) % pendingRequests.size();
+}
+
+void
+CriticalPathTable::incrementBufferPointerToNextValid(int* bufferPtr){
+	while(!pendingRequests[*bufferPtr].valid && *bufferPtr != newestValidPtr){
+		DPRINTF(CPLTable, " %s: Buffer element %d is not valid, incrementing pointer\n",
+				moe->name(),
+				*bufferPtr);
+		incrementBufferPointer(bufferPtr);
+	}
+
+	DPRINTF(CPLTable, " %s: Oldest valid pointer is %d, next valid pointer is %d\n",
+			moe->name(),
+			oldestValidPtr,
+			newestValidPtr);
 }
 
 bool
@@ -252,29 +337,30 @@ CriticalPathTable::commitPeriodStarted(){
     assert(stalledAt != 0);
 
     // Identify if this is a shared or a private stall
-    int causedStallIndex = -1;
-    for(int i=0;i<pendingRequests.size();i++){
-    	if(pendingRequests[i].valid && pendingRequests[i].addr == stalledOnAddr){
-    		if(pendingRequests[i].isShared){
-    			DPRINTF(CPLTable, " %s: Address %d (index %d) is a shared request, concluding shared stall\n",
-    					moe->name(),
-    					pendingRequests[i].addr,
-    					i);
+    int causedStallIndex = findRequest(stalledOnAddr);
 
-    			assert(causedStallIndex == -1);
-    			assert(pendingRequests[i].completed);
-    			causedStallIndex = i;
-    		}
-    		else{
-    			DPRINTF(CPLTable, " %s: Address %d (index %d) is a private request, concluding private stall\n",
-    			    					moe->name(),
-    			    					pendingRequests[i].addr,
-    			    					i);
-    		}
-    	}
+    if(causedStallIndex == -1){
+    	DPRINTF(CPLTable, " %s: Address %d not found, handling it as a private stall\n",
+    			moe->name(),
+    			stalledOnAddr);
     }
 
-    if(causedStallIndex != -1){
+    if(causedStallIndex != -1 && !pendingRequests[causedStallIndex].isShared){
+    	DPRINTF(CPLTable, " %s: Address %d (index %d) is a private request, concluding private stall\n",
+    			moe->name(),
+    			pendingRequests[causedStallIndex].addr,
+    			causedStallIndex);
+    }
+
+    // Shared stall processing algorithm
+    if(causedStallIndex != -1 && pendingRequests[causedStallIndex].isShared){
+
+		DPRINTF(CPLTable, " %s: Address %d (index %d) is a shared request, concluding shared stall\n",
+				moe->name(),
+				pendingRequests[causedStallIndex].addr,
+				causedStallIndex);
+
+		assert(pendingRequests[causedStallIndex].completed);
     	assert(pendingRequests[causedStallIndex].valid);
 
     	// 1. Process the completed commit node
@@ -356,12 +442,10 @@ CriticalPathTable::commitPeriodStarted(){
     					pendingRequests[i].depth);
     		}
     	}
-
     	// 2.3 Update the global depth counter if necessary
     	updateCommitDepthCounter(pendingCommit.depth);
-    }
-    else{
-    	DPRINTF(CPLTable, " %s: private request stall\n", moe->name());
+
+    	incrementBufferPointerToNextValid(&oldestValidPtr);
     }
 
     updateStallState();
@@ -397,22 +481,24 @@ CriticalPathTable::getCriticalPathLength(int nextSampleID){
 			moe->name(),
 			curCommitDepth);
 
-    for(int i=0;i<pendingRequests.size();i++){
-        if(pendingRequests[i].valid){
+	int pendingIndex = oldestValidPtr;
+    while(pendingIndex != newestValidPtr){
+        if(pendingRequests[pendingIndex].valid){
 
             DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d (depth %d), resetting commit depth\n",
                     moe->name(),
-                    i,
-                    pendingRequests[i].depth);
+                    pendingIndex,
+                    pendingRequests[pendingIndex].depth);
 
-            pendingRequests[i].depth = -1;
-            if(!pendingCommit.hasChild(i)){
+            pendingRequests[pendingIndex].depth = -1;
+            if(!pendingCommit.hasChild(pendingIndex)){
                 DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d, was the child of an older request, setting as child of current\n",
                                     moe->name(),
-                                    i);
-                pendingCommit.children.push_back(i);
+                                    pendingIndex);
+                pendingCommit.children.push_back(pendingIndex);
             }
         }
+        pendingIndex = (pendingIndex + 1) % pendingRequests.size();
     }
     pendingCommit.depth = 0;
     prevCommitDepth = 0;

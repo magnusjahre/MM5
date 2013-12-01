@@ -79,7 +79,8 @@ private:
     CPTCommitEntry pendingCommit;
     int prevCommitDepth;
 
-    int nextValidPtr;
+    int newestValidPtr;
+    int oldestValidPtr;
 
     int traceSampleID;
     int currentSampleID;
@@ -88,8 +89,6 @@ private:
     bool isSharedRead(MemReqPtr& req, bool hiddenLoad);
 
     int findRequest(Addr paddr);
-
-    bool hasAddress(Addr paddr);
 
     void updateCommitDepthCounter(int newdepth);
 
@@ -104,6 +103,14 @@ private:
     void handleCompletedRequestWhileCommitting(int pendingIndex);
 
     void updateStallState();
+
+    void incrementBufferPointer(int* bufferPtr);
+
+    void incrementBufferPointerToNextValid(int* bufferPtr);
+
+    void handleFullBuffer();
+
+    void dumpBufferContents();
 
 public:
 
