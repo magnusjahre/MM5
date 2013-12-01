@@ -482,24 +482,22 @@ CriticalPathTable::getCriticalPathLength(int nextSampleID){
 			moe->name(),
 			curCommitDepth);
 
-	int pendingIndex = oldestValidPtr;
-    while(pendingIndex != newestValidPtr){
-        if(pendingRequests[pendingIndex].valid){
+    for(int i=0;i<pendingRequests.size();i++){
+        if(pendingRequests[i].valid){
 
             DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d (depth %d), resetting commit depth\n",
                     moe->name(),
-                    pendingIndex,
-                    pendingRequests[pendingIndex].depth);
+                    i,
+                    pendingRequests[i].depth);
 
-            pendingRequests[pendingIndex].depth = -1;
-            if(!pendingCommit.hasChild(pendingIndex)){
+            pendingRequests[i].depth = -1;
+            if(!pendingCommit.hasChild(i)){
                 DPRINTF(CPLTable, "%s: Resetting depth for request in buffer %d, was the child of an older request, setting as child of current\n",
                                     moe->name(),
-                                    pendingIndex);
-                pendingCommit.children.push_back(pendingIndex);
+                                    i);
+                pendingCommit.children.push_back(i);
             }
         }
-        pendingIndex = (pendingIndex + 1) % pendingRequests.size();
     }
     pendingCommit.depth = 0;
     prevCommitDepth = 0;
