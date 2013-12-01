@@ -226,10 +226,11 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
         pendingRequests[pendingIndex].isShared = true;
     }
     else{
-    	DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it\n",
+    	DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it, oldest valid pointer %d\n",
                 moe->name(),
                 req->paddr,
-                pendingIndex);
+                pendingIndex,
+                oldestValidPtr);
 
         pendingRequests[pendingIndex].completed = true;
         pendingRequests[pendingIndex].isShared = false;
@@ -374,6 +375,7 @@ CriticalPathTable::commitPeriodStarted(){
     			handleCompletedRequestWhileCommitting(i);
     		}
     	}
+    	incrementBufferPointerToNextValid(&oldestValidPtr);
 
     	if(!pendingRequests[causedStallIndex].valid){
     		DPRINTF(CPLTable, " %s: The request that caused the stall was invalidated, commit period %d is still pending at depth %d\n",
@@ -441,10 +443,10 @@ CriticalPathTable::commitPeriodStarted(){
     					pendingRequests[i].depth);
     		}
     	}
+    	incrementBufferPointerToNextValid(&oldestValidPtr);
+
     	// 2.3 Update the global depth counter if necessary
     	updateCommitDepthCounter(pendingCommit.depth);
-
-    	incrementBufferPointerToNextValid(&oldestValidPtr);
     }
 
     updateStallState();
