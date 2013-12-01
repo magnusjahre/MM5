@@ -358,6 +358,8 @@ protected:
 	Stats::Scalar<> hiddenPrivateLoads;
 	Stats::Formula hiddenSharedLoadRate;
 
+	Stats::Distribution<> cpl_table_error;
+
 public:
 
 	enum StallCause{
