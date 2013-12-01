@@ -397,11 +397,12 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	overlapTable->traceTable(committedInstructions);
 	ols.tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
 
-	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (current shared request number: %d)\n",
+	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (request number: %d, committed instructions %d)\n",
 			sampleID,
 			ols.graphCPL,
 			ols.tableCPL,
-			sharedTraceReqNum);
+			sharedTraceReqNum,
+			committedInstructions);
 
 	cpl_table_error.sample(abs(ols.graphCPL - ols.tableCPL));
 
