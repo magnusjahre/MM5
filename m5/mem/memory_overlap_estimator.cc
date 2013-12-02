@@ -12,6 +12,8 @@
 
 using namespace std;
 
+#define CPL_TABLE_OVERFLOW_VALUE 20
+
 MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       InterferenceManager* _interferenceManager,
 		                                       int cpu_count,
@@ -404,7 +406,16 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 			sharedTraceReqNum,
 			committedInstructions);
 
-	cpl_table_error.sample(abs(ols.graphCPL - ols.tableCPL));
+	int error = abs(ols.graphCPL - ols.tableCPL);
+	cpl_table_error.sample(error);
+	if(error > CPL_TABLE_OVERFLOW_VALUE){
+		warn("CPL overflow at %d, table %d, graph %d, sample number %d, committed instructions %d",
+				curTick,
+				ols.tableCPL,
+				ols.graphCPL,
+				sampleID,
+				committedInstructions);
+	}
 
 	sampleID++;
 	if(sampleID == traceSampleID){
@@ -490,7 +501,7 @@ MemoryOverlapEstimator::regStats(){
 	hiddenSharedLoadRate = hiddenSharedLoads / sharedRequestCount;
 
 	cpl_table_error
-		.init(0, 20, 1)
+		.init(0, CPL_TABLE_OVERFLOW_VALUE, 1)
 		.name(name() +".cpl_table_error")
 		.desc("Histogram of deviation between graph and table CPL")
 		.flags(total | pdf | cdf);
