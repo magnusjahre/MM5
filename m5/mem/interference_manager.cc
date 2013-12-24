@@ -629,7 +629,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	double totalAvgBusServiceLat = 0.0;
 	double otherRequests = 0;
 	double totalQueueCycles = 0.0;
-	if(memoryBuses.size() > 1) fatal("bus measurements has not been tested with more than 1 channel");
+
 	for(int i=0;i<memoryBuses.size();i++){
 		vector<double> utilvals = memoryBuses[i]->getActualUtilization();
 		totalAvgBusServiceLat += utilvals[0];
