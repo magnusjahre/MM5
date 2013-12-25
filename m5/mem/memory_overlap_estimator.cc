@@ -1085,11 +1085,10 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					innerCausedStall = true;
 
 					Tick totalInterference = completedRequests.front()->interference;
-					//Heuristic: If the total interference is longer than the stall
-					//           we assume that the stall would not happen in private
-					//           mode
-					// I can't find any evidence of this in Du Bois' paper, but without
-					// it does not work at all
+					// Du Bois defines interference as any additional latency when the request is
+					// at the head of a full ROB. We define any additional latency to be interference.
+					// Consequently, Du Bois have the ability to detect stalls that are removed by the
+					// CPUs latency hiding techniques
 					if(currentStallFullROB > totalInterference){
 						boisMemsysInterferenceTrace += totalInterference;
 						Tick estAloneStall = currentStallFullROB - totalInterference;
