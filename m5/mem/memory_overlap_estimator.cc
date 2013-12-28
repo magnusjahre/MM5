@@ -396,7 +396,7 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 
-	overlapTable->traceTable(committedInstructions);
+	//overlapTable->traceTable(committedInstructions);
 	ols.tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
 
 	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (request number: %d, committed instructions %d)\n",
@@ -513,7 +513,7 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 			(req->paddr & ~(MOE_CACHE_BLK_SIZE-1)),
 			req->cmd);
 
-	overlapTable->requestIssued(req);
+	//overlapTable->requestIssued(req);
 	criticalPathTable->issuedRequest(req);
 
 	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(MOE_CACHE_BLK_SIZE-1),curTick, req->cmd);
@@ -589,7 +589,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	pendingRequests[useIndex]->hidesLoad = hiddenLoad;
 	pendingRequests[useIndex]->interference = req->boisInterferenceSum;
 
-	overlapTable->requestCompleted(req, hiddenLoad);
+	//overlapTable->requestCompleted(req, hiddenLoad);
 	criticalPathTable->completedRequest(req, hiddenLoad, finishedAt);
 
 	totalRequestAccumulator++;
@@ -1001,7 +1001,7 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	pendingComputeNode = NULL;
 
 	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
-	overlapTable->executionStalled();
+	//overlapTable->executionStalled();
 	criticalPathTable->commitPeriodEnded(stalledOnAddr);
 
 	DPRINTF(OverlapEstimator, "Stalling, oldest core address is %d, relocated to %d\n", stalledOnCoreAddr, stalledOnAddr);
@@ -1047,7 +1047,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 	vector<RequestNode* > completedSharedReqs;
 
-	overlapTable->executionResumed();
+	//overlapTable->executionResumed();
 	criticalPathTable->commitPeriodStarted();
 
 	assert(stallLength > currentStallFullROB);
