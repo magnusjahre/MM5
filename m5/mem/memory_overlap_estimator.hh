@@ -38,6 +38,7 @@ public:
 	bool isL1Hit;
 	bool hidesLoad;
 	int id;
+	int commitCyclesWhileActive;
 
 	EstimationEntry(int _id, Addr _a, Tick _issuedAt, MemCmd _origCmd){
 		id = _id;
@@ -51,6 +52,7 @@ public:
 		isPrivModeSharedCacheMiss = false;
 		isL1Hit = false;
 		hidesLoad = false;
+		commitCyclesWhileActive = 0;
 	}
 
 	int latency(){
@@ -269,7 +271,7 @@ private:
 	std::vector<EstimationEntry*> pendingRequests;
 	std::vector<EstimationEntry*> completedRequests;
 
-	std::vector<RequestNode*> pendingNodes;
+	//std::vector<RequestNode*> pendingNodes;
 
 	std::vector<RequestGroupSignature> groupSignatures;
 

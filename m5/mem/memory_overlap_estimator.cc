@@ -134,14 +134,18 @@ MemoryOverlapEstimator::addCommitCycle(){
 	commitCycles++;
 	isStalledOnWrite = false;
 
-	if(!pendingNodes.empty()){
-		// FIXME: this may potentially include overlap with private system requests
-		//        but we don't know if a request is private or shared before is
-		//        completes
-		computeWhilePendingTotalAccumulator++;
+//	if(!pendingNodes.empty()){
+//		// FIXME: this may potentially include overlap with private system requests
+//		//        but we don't know if a request is private or shared before is
+//		//        completes
+//		computeWhilePendingTotalAccumulator++;
+//	}
+
+	for(int i=0;i<pendingRequests.size();i++){
+		pendingRequests[i]->commitCyclesWhileActive++;
 	}
 
-	for(int i=0;i<pendingNodes.size();i++)pendingNodes[i]->commitCyclesWhileActive++;
+	//for(int i=0;i<pendingNodes.size();i++)pendingNodes[i]->commitCyclesWhileActive++;
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addCommitCycle(cpuID);
@@ -597,6 +601,9 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 	if(pendingRequests[useIndex]->isSharedReq){
 		sharedRequestCount++;
 		interferenceManager->addSharedReqTotalRoundtrip(req, pendingRequests[useIndex]->latency());
+
+		computeWhilePendingAccumulator += pendingRequests[useIndex]->commitCyclesWhileActive;
+		computeWhilePendingReqs++;
 	}
 
 	if(pendingRequests[useIndex]->isStore() && hiddenLoad){
@@ -770,14 +777,14 @@ MemoryOverlapEstimator::clearData(){
 		completedRequestNodes[i]->children->clear();
 		delete completedRequestNodes[i];
 	}
-	for(int i=0;i<pendingNodes.size();i++) delete pendingNodes[i];
+	//for(int i=0;i<pendingNodes.size();i++) delete pendingNodes[i];
 
 	completedComputeNodes.clear();
 	assert(completedComputeNodes.empty());
 	completedRequestNodes.clear();
 	assert(completedRequestNodes.empty());
 
-	pendingNodes.clear();
+	//pendingNodes.clear();
 	burstInfo.clear();
 	root = NULL;
 }
