@@ -138,6 +138,8 @@ MemoryOverlapEstimator::addCommitCycle(){
 		pendingRequests[i]->commitCyclesWhileActive++;
 	}
 
+	criticalPathTable->addCommitCycle();
+
 	assert(interferenceManager != NULL);
 	interferenceManager->addCommitCycle(cpuID);
 }
@@ -394,15 +396,19 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	ols.cptMeasurements = criticalPathTable->getCriticalPathLength(sampleID+1);
 	ols.tableCPL = ols.cptMeasurements.criticalPathLength;
 
-	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d, table latency %d, table interference %d, table cpl requests %d (request number: %d, committed instructions %d)\n",
+	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (request number: %d, committed instructions %d)\n",
 			sampleID,
 			ols.graphCPL,
 			ols.tableCPL,
-			ols.cptMeasurements.averageCPLatency(),
-			ols.cptMeasurements.averageCPInterference(),
-			ols.cptMeasurements.criticalPathRequests,
 			sharedTraceReqNum,
 			committedInstructions);
+
+	DPRINTF(CPLTableProgress, "Sample %d CPT measurements: Table latency %d, table interference %d, table cwp %d, table cpl requests %d\n",
+			sampleID,
+			ols.cptMeasurements.averageCPLatency(),
+			ols.cptMeasurements.averageCPInterference(),
+			ols.cptMeasurements.averageCPCWP(),
+			ols.cptMeasurements.criticalPathRequests);
 
 	int error = abs(ols.graphCPL - ols.tableCPL);
 	cpl_table_error.sample(error);

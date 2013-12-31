@@ -479,6 +479,15 @@ CriticalPathTable::isStalled(){
 	return stalledOnAddr != MemReq::inval_addr;
 }
 
+void
+CriticalPathTable::addCommitCycle(){
+	for(int i=0;i<pendingRequests.size();i++){
+		if(pendingRequests[i].valid){
+			pendingRequests[i].cwp++;
+		}
+	}
+}
+
 CriticalPathTableMeasurements
 CriticalPathTable::getCriticalPathLength(int nextSampleID){
 
@@ -523,10 +532,9 @@ CriticalPathTable::updateCommitDepthCounter(int newdepth, int criticalPathBuffer
 				moe->name(),
 				cplMeasurements->criticalPathLength);
 
-		//TODO: add CWP measumrement as well
-
 		cplMeasurements->criticalPathLatency += pendingRequests[criticalPathBufferEntry].latency();
 		cplMeasurements->criticalPathInterference += pendingRequests[criticalPathBufferEntry].interference;
+		cplMeasurements->criticalPathCommitWhilePending += pendingRequests[criticalPathBufferEntry].cwp;
 		cplMeasurements->criticalPathRequests++;
 	}
 }

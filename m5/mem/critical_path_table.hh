@@ -140,6 +140,8 @@ public:
     void commitPeriodEnded(Addr stalledOn);
 
     CriticalPathTableMeasurements getCriticalPathLength(int nextSampleID);
+
+    void addCommitCycle();
 };
 
 class CPTMemoryRequestCompletionEvent : public Event

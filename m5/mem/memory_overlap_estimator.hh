@@ -56,6 +56,11 @@ public:
 		if(criticalPathRequests == 0) return 0.0;
 		return (double) ((double) criticalPathInterference / (double) criticalPathRequests);
 	}
+
+	double averageCPCWP(){
+		if(criticalPathRequests == 0) return 0.0;
+		return (double) ((double) criticalPathCommitWhilePending / (double) criticalPathRequests);
+	}
 };
 
 
