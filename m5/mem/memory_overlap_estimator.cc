@@ -134,18 +134,9 @@ MemoryOverlapEstimator::addCommitCycle(){
 	commitCycles++;
 	isStalledOnWrite = false;
 
-//	if(!pendingNodes.empty()){
-//		// FIXME: this may potentially include overlap with private system requests
-//		//        but we don't know if a request is private or shared before is
-//		//        completes
-//		computeWhilePendingTotalAccumulator++;
-//	}
-
 	for(int i=0;i<pendingRequests.size();i++){
 		pendingRequests[i]->commitCyclesWhileActive++;
 	}
-
-	//for(int i=0;i<pendingNodes.size();i++)pendingNodes[i]->commitCyclesWhileActive++;
 
 	assert(interferenceManager != NULL);
 	interferenceManager->addCommitCycle(cpuID);
@@ -537,45 +528,7 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 	DPRINTF(OverlapEstimator, "L1 hit detected for addr %d, command %s\n",
 				blkAddr,
 				req->cmd);
-
-//	EstimationEntry ee = EstimationEntry(nextReqID, blkAddr, curTick, req->cmd);
-//	ee.completedAt = finishedAt;
-//	ee.isL1Hit = true;
-//	nextReqID++;
-//
-//	DPRINTF(OverlapEstimator, "Request is not a store, adding to completed requests with complete at %d\n",
-//			finishedAt);
-//	if(!completedRequests.empty()) assert(completedRequests.back().completedAt <= ee.completedAt);
-//	completedRequests.push_back(ee);
-
 }
-
-//RequestNode*
-//MemoryOverlapEstimator::findPendingNode(int id){
-//  for(int i=0;i<pendingNodes.size();i++){
-//    if(pendingNodes[i]->id == id) return pendingNodes[i];
-//  }
-//  return NULL;
-//}
-//
-//
-//void
-//MemoryOverlapEstimator::removePendingNode(int id, bool sharedreq){
-//  int removeIndex = -1;
-//  for(int i=0;i<pendingNodes.size();i++){
-//    if(pendingNodes[i]->id == id){
-//      assert(removeIndex == -1);
-//      removeIndex = i;
-//    }
-//  }
-//  assert(removeIndex != -1);
-//  if(sharedreq){
-//	  computeWhilePendingAccumulator += pendingNodes[removeIndex]->commitCyclesWhileActive;
-//	  computeWhilePendingReqs++;
-//  }
-//  pendingNodes.erase(pendingNodes.begin()+removeIndex);
-//}
-
 
 void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad){
