@@ -61,6 +61,10 @@ public:
 		if(criticalPathRequests == 0) return 0.0;
 		return (double) ((double) criticalPathCommitWhilePending / (double) criticalPathRequests);
 	}
+
+	double privateLatencyEstimate(){
+		return averageCPLatency() - averageCPInterference();
+	}
 };
 
 

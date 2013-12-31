@@ -657,15 +657,14 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("Table CPL");
 	headers.push_back("Graph CPL");
 	headers.push_back("CWP");
+	headers.push_back("CWP-table");
 	headers.push_back("Num Write Stalls");
-	headers.push_back("OLS Avg BL");
-	headers.push_back("OLS Avg IBO");
-	headers.push_back("OLS Avg CBO");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
 		headers.push_back("Average Shared Private Memsys Latency");
 		headers.push_back("Estimated Private Latency");
+		headers.push_back("CPT Private Mode Latency Estimate");
 		headers.push_back("Shared IPC");
 		headers.push_back("Estimated Alone IPC");
 		headers.push_back("Measured Shared Overlap");
@@ -683,21 +682,15 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	else{
 		headers.push_back("Alone Memory Latency");
 		headers.push_back("Average Alone Private Memsys Latency");
+		headers.push_back("Actual CPT Private Mode Latency");
 		headers.push_back("Measured Alone IPC");
 		headers.push_back("Measured Alone Overlap");
 		headers.push_back("Measured Private Mode Miss Rate");
 		headers.push_back("Actual Stall");
-		headers.push_back("Model Stall");
-		headers.push_back("Model error (%)");
-		headers.push_back("Actual Alone Store Lat");
-		headers.push_back("Num Shared Stores");
-
 		headers.push_back("CPL Stall Estimate");
 		headers.push_back("CPL-CWP Stall Estimate");
-		headers.push_back("BLS");
-		headers.push_back("BLS-IBO");
-		headers.push_back("BLS-IBO-CWP");
-		headers.push_back("BLS-IBO-BurstCWP");
+		headers.push_back("CPL-table Stall Estimate");
+		headers.push_back("CPL-CWP-table Stall Estimate");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -762,10 +755,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(ols.tableCPL);
 	data.push_back(ols.graphCPL);
 	data.push_back(cwp);
+	data.push_back(ols.cptMeasurements.averageCPCWP());
 	data.push_back(numWriteStalls);
-	data.push_back(ols.avgBurstLength);
-	data.push_back(ols.avgInterBurstOverlap);
-	data.push_back(ols.avgComWhileBurst);
 
 	if(cpuCount > 1){
 		double newStallEstimate = estimateStallCycles(stallCycles,
@@ -790,6 +781,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateMemsysLat);
 		data.push_back(avgPrivateLatEstimate);
+		data.push_back(ols.cptMeasurements.privateLatencyEstimate());
 		data.push_back(sharedIPC);
 		data.push_back(aloneIPCEstimate);
 
@@ -825,25 +817,19 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateMemsysLat);
+		data.push_back(ols.cptMeasurements.averageCPLatency());
 		data.push_back(aloneIPC);
 		data.push_back(aloneOverlap);
 		data.push_back(privateMissRate);
 		data.push_back(stallCycles+privateStallCycles);
-		double modelStallEstimate = (ols.tableCPL*(avgSharedLat+avgPrivateMemsysLat-cwp))+privateStallCycles;
-		data.push_back(modelStallEstimate);
 
-		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - (stallCycles+privateStallCycles) )/(double) (stallCycles+privateStallCycles))*100);
-		else data.push_back(0.0);
-		data.push_back(avgSharedStoreLat);
-		data.push_back(numStores);
-
+		// CPL models with global data
 		data.push_back(((avgSharedLat+avgPrivateMemsysLat)*ols.tableCPL)+privateStallCycles);
-		data.push_back(modelStallEstimate);
+		data.push_back(((avgSharedLat+avgPrivateMemsysLat-cwp)*ols.tableCPL)+privateStallCycles);
 
-		data.push_back(ols.avgBurstLength*ols.tableCPL);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.tableCPL);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgTotalComWhilePend)*ols.tableCPL);
-		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap-ols.avgComWhileBurst)*ols.tableCPL);
+		// CPL models with critical path data (latency is round trip and thus includes both the private and shared memsys)
+		data.push_back(((ols.cptMeasurements.averageCPLatency())*ols.tableCPL)+privateStallCycles);
+		data.push_back(((ols.cptMeasurements.averageCPLatency()-ols.cptMeasurements.averageCPCWP())*ols.tableCPL)+privateStallCycles);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
