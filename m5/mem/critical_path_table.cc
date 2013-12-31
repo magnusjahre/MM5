@@ -532,6 +532,8 @@ CriticalPathTable::updateCommitDepthCounter(int newdepth, int criticalPathBuffer
 				moe->name(),
 				cplMeasurements->criticalPathLength);
 
+		assert(pendingRequests[criticalPathBufferEntry].latency() >= pendingRequests[criticalPathBufferEntry].interference);
+
 		cplMeasurements->criticalPathLatency += pendingRequests[criticalPathBufferEntry].latency();
 		cplMeasurements->criticalPathInterference += pendingRequests[criticalPathBufferEntry].interference;
 		cplMeasurements->criticalPathCommitWhilePending += pendingRequests[criticalPathBufferEntry].cwp;

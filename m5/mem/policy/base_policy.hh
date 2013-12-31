@@ -33,6 +33,7 @@ class InterferenceManager;
 class BaseCache;
 class Bus;
 class OverlapStatistics;
+class CriticalPathTableMeasurements;
 
 class BasePolicy : public SimObject{
 
@@ -50,6 +51,8 @@ public:
         NO_MLP_CACHE,
         CPL,
         CPL_CWP,
+        CPL_TABLE,
+        CPL_CWP_TABLE,
         CPL_CWP_SER,
         BOIS
     } PerformanceEstimationMethod;
@@ -207,7 +210,8 @@ protected:
 							   int cpl,
 							   double privateMissRate,
 							   double cwp,
-							   Tick boisAloneStallEst);
+							   Tick boisAloneStallEst,
+							   CriticalPathTableMeasurements cptMeasurements);
 
 //	void dumpSearchSpace(std::vector<int>* mhaConfig, double metricValue);
 

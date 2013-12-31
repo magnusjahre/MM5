@@ -341,11 +341,12 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 								int cpl,
 								double privateMissRate,
 								double cwp,
-								Tick boisAloneStallEst){
+								Tick boisAloneStallEst,
+								CriticalPathTableMeasurements cptMeasurements){
 
 	DPRINTF(MissBWPolicyExtra, "Estimating private stall cycles for CPU %d\n", cpuID);
 
-	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ || perfEstMethod == NO_MLP_CACHE){
+	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ || perfEstMethod == NO_MLP_CACHE || perfEstMethod == CPL_CWP_SER){
 		fatal("deprecated performance estimation mode");
 	}
 	else if(perfEstMethod == NO_MLP ){
@@ -381,7 +382,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_CWP_SER){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_TABLE || perfEstMethod == CPL_CWP_TABLE){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
@@ -395,25 +396,12 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		else if(perfEstMethod == CPL){
 			newStallTime = cpl * newAvgSharedLat;
 		}
-		else if(perfEstMethod == CPL_CWP_SER){
-			double avgPara = 0.0;
-			double unadjpara = 0.0;
-			if(currentStallTime != 0){
-				unadjpara = (currentAvgSharedLat * sharedRequests) / currentStallTime;
-				avgPara = unadjpara - 1.0;
-			}
-
-			if(avgPara < 0) avgPara = 0.0;
-			double adjustedPara = avgPara * privateMissRate;
-
-			DPRINTF(MissBWPolicyExtra, "Computed avg para %d (%d) and adjusted para %d with estimated miss rate %d\n", avgPara, unadjpara, adjustedPara, privateMissRate);
-
-			assert(privateMissRate <= 1.0 && privateMissRate >= 0.0);
-
-			// FIXME: adjustment needs to be in relation to the _average_
-			//         The average allready contains some of the serialization delay
-			//         but not all...
-			newStallTime = cpl * (newAvgSharedLat - cwp + (adjustedPara*80)); //FIXME: parameterize
+		else if(perfEstMethod == CPL_TABLE){
+			newStallTime = cptMeasurements.criticalPathLength * cptMeasurements.privateLatencyEstimate();
+		}
+		else if(perfEstMethod == CPL_CWP_TABLE){
+			newStallTime = cptMeasurements.criticalPathLength *
+					(cptMeasurements.privateLatencyEstimate() - cptMeasurements.averageCPCWP());
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -768,7 +756,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 				                                      ols.tableCPL,
 				                                      privateMissRate,
 				                                      cwp,
-				                                      boisAloneStallEst);
+				                                      boisAloneStallEst,
+				                                      ols.cptMeasurements);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
@@ -933,6 +922,8 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 	if(methodName == "cpl") return CPL;
 	if(methodName == "cpl-cwp") return CPL_CWP;
+	if(methodName == "cpl-table") return CPL_TABLE;
+	if(methodName == "cpl-cwp-table") return CPL_CWP_TABLE;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 
