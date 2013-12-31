@@ -829,15 +829,16 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(aloneOverlap);
 		data.push_back(privateMissRate);
 		data.push_back(stallCycles+privateStallCycles);
-		double modelStallEstimate = ols.tableCPL*(avgSharedLat+avgPrivateMemsysLat-cwp);
+		double modelStallEstimate = (ols.tableCPL*(avgSharedLat+avgPrivateMemsysLat-cwp))+privateStallCycles;
 		data.push_back(modelStallEstimate);
-		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - stallCycles)/(double)stallCycles)*100);
+
+		if(stallCycles > 0.0) data.push_back(((modelStallEstimate - (stallCycles+privateStallCycles) )/(double) (stallCycles+privateStallCycles))*100);
 		else data.push_back(0.0);
 		data.push_back(avgSharedStoreLat);
 		data.push_back(numStores);
 
-		data.push_back((avgSharedLat+avgPrivateMemsysLat)*ols.tableCPL);
-		data.push_back((avgSharedLat+avgPrivateMemsysLat-cwp)*ols.tableCPL);
+		data.push_back(((avgSharedLat+avgPrivateMemsysLat)*ols.tableCPL)+privateStallCycles);
+		data.push_back(modelStallEstimate);
 
 		data.push_back(ols.avgBurstLength*ols.tableCPL);
 		data.push_back((ols.avgBurstLength-ols.avgInterBurstOverlap)*ols.tableCPL);
