@@ -12,6 +12,7 @@
 #include "mem/memory_overlap_estimator.hh"
 
 class MemoryOverlapEstimator;
+class CriticalPathTableMeasurements;
 
 class CriticalPathTable{
 private:
@@ -23,19 +24,30 @@ private:
        bool completed;
        bool valid;
        bool isShared;
+       Tick issuedAt;
        Tick completedAt;
+       Tick interference;
+       Tick cwp;
 
-       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false), completedAt(0){}
+       CPTRequestEntry() : addr(0), depth(-1), completed(false), valid(false), isShared(false), issuedAt(0), completedAt(0), interference(0), cwp(0){}
 
        void update(Addr _addr){
            addr = _addr;
            depth = -1;
            completed = false;
            isShared = false;
+
+           issuedAt = curTick;
            completedAt = 0;
+           interference = 0;
+           cwp = 0;
 
            assert(!valid);
            valid = true;
+       }
+
+       Tick latency(){
+    	   return completedAt - issuedAt;
        }
     };
 
@@ -74,7 +86,6 @@ private:
     Tick stalledAt;
 
     int commitIDCounter;
-    int curCommitDepth;
 
     CPTCommitEntry pendingCommit;
     int prevCommitDepth;
@@ -86,11 +97,13 @@ private:
     int currentSampleID;
     RequestTrace CPTDependencyEdgeTrace;
 
+    CriticalPathTableMeasurements* cplMeasurements;
+
     bool isSharedRead(MemReqPtr& req, bool hiddenLoad);
 
     int findRequest(Addr paddr);
 
-    void updateCommitDepthCounter(int newdepth);
+    void updateCommitDepthCounter(int newdepth, int criticalPathBufferEntry);
 
     void updateChildRequest(int bufferIndex, int depth, int commitID);
 
@@ -126,7 +139,7 @@ public:
 
     void commitPeriodEnded(Addr stalledOn);
 
-    int getCriticalPathLength(int nextSampleID);
+    CriticalPathTableMeasurements getCriticalPathLength(int nextSampleID);
 };
 
 class CPTMemoryRequestCompletionEvent : public Event

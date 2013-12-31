@@ -400,13 +400,16 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 	traceStalls(committedInstructions);
 	traceRequestGroups(committedInstructions);
 
-	//overlapTable->traceTable(committedInstructions);
-	ols.tableCPL = criticalPathTable->getCriticalPathLength(sampleID+1);
+	ols.cptMeasurements = criticalPathTable->getCriticalPathLength(sampleID+1);
+	ols.tableCPL = ols.cptMeasurements.criticalPathLength;
 
-	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (request number: %d, committed instructions %d)\n",
+	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d, table latency %d, table interference %d, table cpl requests %d (request number: %d, committed instructions %d)\n",
 			sampleID,
 			ols.graphCPL,
 			ols.tableCPL,
+			ols.cptMeasurements.averageCPLatency(),
+			ols.cptMeasurements.averageCPInterference(),
+			ols.cptMeasurements.criticalPathRequests,
 			sharedTraceReqNum,
 			committedInstructions);
 

@@ -25,6 +25,40 @@ class BaseCache;
 class MemoryOverlapTable;
 class CriticalPathTable;
 
+class CriticalPathTableMeasurements{
+public:
+	Tick criticalPathLatency;
+	Tick criticalPathInterference;
+	Tick criticalPathCommitWhilePending;
+	int criticalPathRequests;
+
+	int criticalPathLength;
+
+	CriticalPathTableMeasurements(){
+		reset();
+	}
+
+	void reset(){
+		criticalPathLatency = 0;
+		criticalPathInterference = 0;
+		criticalPathCommitWhilePending = 0;
+		criticalPathRequests = 0;
+
+		criticalPathLength = 0;
+	}
+
+	double averageCPLatency(){
+		if(criticalPathRequests == 0) return 0.0;
+		return (double) ((double) criticalPathLatency / (double) criticalPathRequests);
+	}
+
+	double averageCPInterference(){
+		if(criticalPathRequests == 0) return 0.0;
+		return (double) ((double) criticalPathInterference / (double) criticalPathRequests);
+	}
+};
+
+
 class EstimationEntry{
 public:
 	Addr address;
@@ -207,6 +241,7 @@ public:
 	double avgInterBurstOverlap;
 	double avgTotalComWhilePend;
 	double avgComWhileBurst;
+	CriticalPathTableMeasurements cptMeasurements;
 
 	OverlapStatistics(){
 		graphCPL = 0;

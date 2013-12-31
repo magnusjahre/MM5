@@ -19,12 +19,13 @@ CriticalPathTable::CriticalPathTable(MemoryOverlapEstimator* _moe, int _bufferSi
     stalledAt = 0;
 
     commitIDCounter = 0;
-    curCommitDepth = 0;
 
     pendingRequests.resize(_bufferSize, CPTRequestEntry());
 
     pendingCommit.depth = 0;
     prevCommitDepth = 0;
+
+    cplMeasurements = new CriticalPathTableMeasurements();
 
     traceSampleID = _moe->getTraceSampleID();
     currentSampleID = 0;
@@ -167,7 +168,7 @@ CriticalPathTable::handleCompletedRequestWhileCommitting(int pendingIndex){
 				moe->name(),
 				pendingCommit.depth);
 
-		updateCommitDepthCounter(pendingCommit.depth);
+		updateCommitDepthCounter(pendingCommit.depth, pendingIndex);
 	}
 
 	bool isChild = pendingCommit.removeChild(pendingIndex);
@@ -216,14 +217,18 @@ CriticalPathTable::handleCompletedRequestEvent(MemReqPtr& req, bool hiddenLoad){
     }
 
     if(isSharedRead(req, hiddenLoad)){
-        DPRINTF(CPLTable, " %s: Request for address %d (index %d) is shared and complete\n",
+
+    	pendingRequests[pendingIndex].completedAt = curTick;
+    	pendingRequests[pendingIndex].completed = true;
+    	pendingRequests[pendingIndex].isShared = true;
+    	pendingRequests[pendingIndex].interference = req->boisInterferenceSum;
+
+    	DPRINTF(CPLTable, " %s: Request for address %d (index %d) is shared and complete, latency %d, interference %d\n",
                         moe->name(),
                         req->paddr,
-                        pendingIndex);
-
-        pendingRequests[pendingIndex].completedAt = curTick;
-        pendingRequests[pendingIndex].completed = true;
-        pendingRequests[pendingIndex].isShared = true;
+                        pendingIndex,
+                        pendingRequests[pendingIndex].latency(),
+                        pendingRequests[pendingIndex].interference);
     }
     else{
     	DPRINTF(CPLTable, " %s: Request for address %d (index %d) is not applicable, invalidating it, oldest valid pointer %d\n",
@@ -418,6 +423,7 @@ CriticalPathTable::commitPeriodStarted(){
     			pendingRequests[causedStallIndex].addr);
 
     	pendingCommit.depth = pendingRequests[causedStallIndex].depth;
+    	updateCommitDepthCounter(pendingCommit.depth, causedStallIndex);
 
     	// 2.2 Handle other requests that completed while we where stalled (and which this commit node is the child of)
     	for(int i=0;i<pendingRequests.size();i++){
@@ -431,6 +437,7 @@ CriticalPathTable::commitPeriodStarted(){
     							i,
     							pendingRequests[i].depth);
     					pendingCommit.depth = pendingRequests[i].depth;
+    					updateCommitDepthCounter(pendingCommit.depth, i);
     				}
     				traceDependencyEdge(pendingRequests[i].addr, pendingCommit.id, true);
     			}
@@ -444,9 +451,6 @@ CriticalPathTable::commitPeriodStarted(){
     		}
     	}
     	incrementBufferPointerToNextValid(&oldestValidPtr);
-
-    	// 2.3 Update the global depth counter if necessary
-    	updateCommitDepthCounter(pendingCommit.depth);
     }
 
     updateStallState();
@@ -475,12 +479,12 @@ CriticalPathTable::isStalled(){
 	return stalledOnAddr != MemReq::inval_addr;
 }
 
-int
+CriticalPathTableMeasurements
 CriticalPathTable::getCriticalPathLength(int nextSampleID){
 
 	DPRINTF(CPLTable, "%s: Returning current commit depth %d, resetting commit depth\n",
 			moe->name(),
-			curCommitDepth);
+			cplMeasurements->criticalPathLength);
 
     for(int i=0;i<pendingRequests.size();i++){
         if(pendingRequests[i].valid){
@@ -501,23 +505,29 @@ CriticalPathTable::getCriticalPathLength(int nextSampleID){
     }
     pendingCommit.depth = 0;
     prevCommitDepth = 0;
-
-    int tmpCommitDepth = curCommitDepth;
-    curCommitDepth = 0;
-
     currentSampleID = nextSampleID;
 
-    return tmpCommitDepth;
+    CriticalPathTableMeasurements cplMeasurementCopy = *cplMeasurements;
+    cplMeasurements->reset();
+
+    return cplMeasurementCopy;
 }
+
 void
-CriticalPathTable::updateCommitDepthCounter(int newdepth){
+CriticalPathTable::updateCommitDepthCounter(int newdepth, int criticalPathBufferEntry){
 	assert(newdepth != -1);
-	if(newdepth > curCommitDepth){
-		curCommitDepth = newdepth;
+	if(newdepth > cplMeasurements->criticalPathLength){
+		cplMeasurements->criticalPathLength = newdepth;
 
 		DPRINTF(CPLTable, " %s: this commit is the current deepest at depth %d\n",
 				moe->name(),
-				curCommitDepth);
+				cplMeasurements->criticalPathLength);
+
+		//TODO: add CWP measumrement as well
+
+		cplMeasurements->criticalPathLatency += pendingRequests[criticalPathBufferEntry].latency();
+		cplMeasurements->criticalPathInterference += pendingRequests[criticalPathBufferEntry].interference;
+		cplMeasurements->criticalPathRequests++;
 	}
 }
 
