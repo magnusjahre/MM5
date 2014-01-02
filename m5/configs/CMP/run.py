@@ -566,7 +566,7 @@ def copyCheckpointFiles(directory):
                         
                     if name.endswith(".zip"):
                         print >> sys.stderr, "Uncompressing "+name
-                        subprocess.call(["unzip", directory+"/"+name])
+                        subprocess.call(["unzip", "-o", directory+"/"+name])
                         os.rename("diskpages0.bin", nozipname) 
                     else:
                         successful = False
