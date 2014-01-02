@@ -509,6 +509,26 @@ MemoryOverlapEstimator::regStats(){
 		.name(name() +".cpl_table_error")
 		.desc("Histogram of deviation between graph and table CPL")
 		.flags(total | pdf | cdf);
+
+	numSharedStallsForROB
+		.name(name() + ".num_shared_stalls")
+		.desc("Number of stalls due to a request that visited the shared memory system");
+
+	numSharedStallsWithFullROB
+		.name(name() + ".num_shared_stalls_with_full_rob")
+		.desc("Number of stalls due to a request that visited the shared memory system where the ROB filled at some point");
+
+	sharedStallFullROBRatio
+		.name(name() + ".num_shared_stalls_with_full_rob_ratio")
+		.desc("Ratio of full ROB stalls to shared stalls");
+
+	sharedStallFullROBRatio = numSharedStallsWithFullROB / numSharedStallsForROB;
+
+	sharedStallNotFullROBRatio
+		.name(name() + ".num_shared_stalls_without_full_rob_ratio")
+		.desc("Ratio of stalls without full ROB stalls to shared stalls");
+
+	sharedStallNotFullROBRatio = 1 - (numSharedStallsWithFullROB / numSharedStallsForROB);
 }
 
 void
@@ -1152,6 +1172,9 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		sharedStallCycles += stallLength;
 		sharedStallCycleAccumulator += stallLength;
 		stallWithFullROBAccumulator += currentStallFullROB;
+
+		if(currentStallFullROB > 0) numSharedStallsWithFullROB++;
+		numSharedStallsForROB++;
 
 		double avgIssueToStall = (double) issueToStallLat / (double) (sharedCacheHits+sharedCacheMisses);
 

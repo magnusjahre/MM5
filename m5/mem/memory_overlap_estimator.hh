@@ -396,6 +396,11 @@ protected:
 	Stats::Scalar<> totalLoadLatency;
 	Stats::Scalar<> totalStalls;
 
+	Stats::Scalar<> numSharedStallsForROB;
+	Stats::Scalar<> numSharedStallsWithFullROB;
+	Stats::Formula sharedStallFullROBRatio;
+	Stats::Formula sharedStallNotFullROBRatio;
+
 	Stats::Scalar<> burstAccumulator;
 	Stats::Scalar<> numSharedStalls;
 	Stats::Formula avgBurstSize;
