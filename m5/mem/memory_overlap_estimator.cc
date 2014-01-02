@@ -511,7 +511,7 @@ MemoryOverlapEstimator::regStats(){
 		.flags(total | pdf | cdf);
 
 	numSharedStallsForROB
-		.name(name() + ".num_shared_stalls")
+		.name(name() + ".num_shared_stalls_for_rob")
 		.desc("Number of stalls due to a request that visited the shared memory system");
 
 	numSharedStallsWithFullROB
