@@ -385,7 +385,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_TABLE || perfEstMethod == CPL_CWP_TABLE){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
-			DPRINTF(MissBWPolicyExtra, "No shared requests or clp=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
+			DPRINTF(MissBWPolicyExtra, "No shared requests or cpl=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
 			return privateStallTime;
 		}
 
