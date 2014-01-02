@@ -51,6 +51,8 @@ public:
         NO_MLP_CACHE,
         CPL,
         CPL_CWP,
+        CPL_DAMP,
+        CPL_CWP_DAMP,
         CPL_CWP_SER,
         BOIS
     } PerformanceEstimationMethod;
@@ -220,6 +222,10 @@ protected:
 	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls, double avgSharedmodeLat);
 	double estimatePrivateBlockedStall(double privBlocked);
 	double estimatePrivateROBStall(double writeStall, double avgPrivmodeLat, double avgSharedmodeLat);
+
+	double computeRawError(double estimate, double actual);
+
+	double computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime);
 
 public:
 

@@ -328,7 +328,39 @@ BasePolicy::computeCurrentMetricValue(){
 
 	double metricValue = performanceMetric->computeMetric(&speedups, &sharedIPCs);
 	DPRINTF(MissBWPolicy, "Estimated current metric value to be %f\n", metricValue);
+
+
 	return metricValue;
+}
+
+double
+BasePolicy::computeRawError(double estimate, double actual){
+	assert(actual != 0.0);
+	return (estimate - actual) / actual;
+}
+
+double
+BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime){
+
+	DPRINTF(MissBWPolicyExtra, "Computing damped estimate with cpl=%d and shared latency %d, initial estimate %d\n",
+			cpl,
+			curAvgSharedLat,
+			modelEstimate);
+
+	if(curAvgSharedLat < 120.0 || cpl < 50){ //TODO: parameterize
+		DPRINTF(MissBWPolicyExtra, "Latency or cpl below cutoff, returning pure model estimate %d\n",
+				modelEstimate);
+
+		return modelEstimate;
+	}
+
+	double sharedModeEstimate = cpl * curAvgSharedLat;
+	double error = computeRawError(sharedModeEstimate, curStallTime);
+	double newStallTime = modelEstimate * (1 - error);
+
+	DPRINTF(MissBWPolicyExtra, "Correcting error of %d, returning stall estimate is %d\n", error, newStallTime);
+
+	return newStallTime;
 }
 
 double
@@ -382,7 +414,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_DAMP || perfEstMethod == CPL_CWP_DAMP){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or cpl=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
@@ -390,11 +422,20 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		}
 
 		double newStallTime = 0.0;
-		if(perfEstMethod == CPL_CWP){
-			newStallTime = cpl * (newAvgSharedLat - cwp);
+		double cplAloneEstimate = cpl * newAvgSharedLat;
+		double cplCWPAloneEstimate =  cpl * (newAvgSharedLat - cwp);
+
+		if(perfEstMethod == CPL){
+			newStallTime = cplAloneEstimate;
 		}
-		else if(perfEstMethod == CPL){
-			newStallTime = cpl * newAvgSharedLat;
+		else if(perfEstMethod == CPL_DAMP){
+			newStallTime = computeDampedEstimate(cplAloneEstimate, cpl, currentAvgSharedLat, currentStallTime);
+		}
+		else if(perfEstMethod == CPL_CWP){
+			newStallTime = cplCWPAloneEstimate;
+		}
+		else if(perfEstMethod == CPL_CWP_DAMP){
+			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cpl, currentAvgSharedLat, currentStallTime);
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -915,6 +956,8 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 	if(methodName == "cpl") return CPL;
 	if(methodName == "cpl-cwp") return CPL_CWP;
+	if(methodName == "cpl-damp") return CPL_DAMP;
+	if(methodName == "cpl-cwp-damp") return CPL_CWP_DAMP;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 
