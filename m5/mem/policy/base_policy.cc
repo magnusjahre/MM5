@@ -25,7 +25,9 @@ BasePolicy::BasePolicy(string _name,
 					   std::vector<ThrottleControl* > _privateCacheThrottles,
 					   WriteStallTechnique _wst,
 					   PrivBlockedStallTechnique _pbst,
-					   EmptyROBStallTechnique _rst)
+					   EmptyROBStallTechnique _rst,
+					   double _cplCutoff,
+					   double _latencyCutoff)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -34,6 +36,9 @@ BasePolicy::BasePolicy(string _name,
 	writeStallTech = _wst;
 	privBlockedStallTech = _pbst;
 	emptyROBStallTech = _rst;
+
+	cplCutoff = _cplCutoff;
+	latencyCutoff = _latencyCutoff;
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
@@ -347,7 +352,7 @@ BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAv
 			curAvgSharedLat,
 			modelEstimate);
 
-	if(curAvgSharedLat < 120.0 || cpl < 50){ //TODO: parameterize
+	if(curAvgSharedLat < latencyCutoff || cpl < cplCutoff){
 		DPRINTF(MissBWPolicyExtra, "Latency or cpl below cutoff, returning pure model estimate %d\n",
 				modelEstimate);
 

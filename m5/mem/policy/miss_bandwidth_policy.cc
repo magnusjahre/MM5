@@ -28,7 +28,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 										 double _busRequestThresholdIntensity,
 										 WriteStallTechnique _wst,
 										 PrivBlockedStallTechnique _pbst,
-										 EmptyROBStallTechnique _rst)
+										 EmptyROBStallTechnique _rst,
+										 double _cplCutoff,
+										 double _latencyCutoff)
 : BasePolicy(_name,
 		_intManager,
 		_period,
@@ -42,7 +44,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 		_privateCacheThrottles,
 		_wst,
 		_pbst,
-		_rst)
+		_rst,
+		_cplCutoff,
+		_latencyCutoff)
 {
 
 	level = 0;
@@ -691,6 +695,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	Param<string> writeStallTechnique;
 	Param<string> privateBlockedStallTechnique;
 	Param<string> emptyROBStallTechnique;
+	Param<int> cplCutoff;
+	Param<int> latencyCutoff;
 END_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
@@ -714,7 +720,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	INIT_PARAM_DFLT(busRequestThreshold, "The bus request intensity necessary to consider request increases", 256),
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
-	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls")
+	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
+	INIT_PARAM_DFLT(cplCutoff, "CPL value where to cut the model damping", 50),
+	INIT_PARAM_DFLT(latencyCutoff, "Latency value where to cut the model damping", 120)
 END_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 CREATE_SIM_OBJECT(MissBandwidthPolicy)
@@ -754,7 +762,9 @@ CREATE_SIM_OBJECT(MissBandwidthPolicy)
 							       busRequestThreshold,
 							       wst,
 							       pbst,
-							       rst);
+							       rst,
+							       cplCutoff,
+							       latencyCutoff);
 }
 
 REGISTER_SIM_OBJECT("MissBandwidthPolicy", MissBandwidthPolicy)

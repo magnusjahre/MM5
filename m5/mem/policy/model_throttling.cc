@@ -29,8 +29,10 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 std::string _implStrategy,
 			   	    			 WriteStallTechnique _wst,
 			   	    			 PrivBlockedStallTechnique _pbst,
-			   	    			 EmptyROBStallTechnique _rst)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst)
+			   	    			 EmptyROBStallTechnique _rst,
+								 double _cplCutoff,
+								 double _latencyCutoff)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst, _cplCutoff, _latencyCutoff)
 {
 	//enableOccupancyTrace = true;
 
@@ -603,6 +605,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<string> writeStallTechnique;
 	Param<string> privateBlockedStallTechnique;
 	Param<string> emptyROBStallTechnique;
+	Param<int> cplCutoff;
+	Param<int> latencyCutoff;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -621,7 +625,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(implStrategy, "The way to enforce the bandwidth quotas", "throttle"),
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
-	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls")
+	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
+	INIT_PARAM_DFLT(cplCutoff, "CPL value where to cut the model damping", 50),
+	INIT_PARAM_DFLT(latencyCutoff, "Latency value where to cut the model damping", 120)
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -652,7 +658,9 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         implStrategy,
 							         wst,
 							         pbst,
-							         rst);
+							         rst,
+							         cplCutoff,
+							         latencyCutoff);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

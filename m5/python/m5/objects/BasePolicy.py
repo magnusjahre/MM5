@@ -23,3 +23,5 @@ class BasePolicy(SimObject):
     writeStallTechnique = Param.WriteStallTechnique("The technique to use to estimate private write stalls")
     privateBlockedStallTechnique = Param.PrivateBlockedStallTechnique("The technique to use to estimate private blocked stalls")
     emptyROBStallTechnique = Param.EmptyROBStallTechnique("The technique to use to estimate private mode empty ROB stalls")
+    cplCutoff = Param.Int("CPL value where to cut the model damping")
+    latencyCutoff = Param.Int("Latency value where to cut the model damping")

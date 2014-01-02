@@ -158,6 +158,9 @@ protected:
 	ThrottleControl* sharedCacheThrottle;
 	std::vector<ThrottleControl* > privateCacheThrottles;
 
+	double cplCutoff;
+	double latencyCutoff;
+
 	void initProjectionTrace(int cpuCount);
 	void traceBestProjection();
 	void traceNumMSHRs();
@@ -242,7 +245,9 @@ public:
 			   std::vector<ThrottleControl* > _privateCacheThrottles,
 			   WriteStallTechnique _wst,
 			   PrivBlockedStallTechnique _pbst,
-			   EmptyROBStallTechnique _rst);
+			   EmptyROBStallTechnique _rst,
+			   double _cplCutoff,
+			   double _latencyCutoff);
 
 	~BasePolicy();
 

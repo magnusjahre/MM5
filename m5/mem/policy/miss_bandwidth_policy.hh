@@ -71,7 +71,9 @@ public:
 			            double _busRequestThresholdIntensity,
 			            WriteStallTechnique _wst,
 			            PrivBlockedStallTechnique _pbst,
-			            EmptyROBStallTechnique _rst);
+			            EmptyROBStallTechnique _rst,
+			            double _cplCutoff,
+			            double _latencyCutoff);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
