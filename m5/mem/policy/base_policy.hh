@@ -51,8 +51,6 @@ public:
         NO_MLP_CACHE,
         CPL,
         CPL_CWP,
-        CPL_TABLE,
-        CPL_CWP_TABLE,
         CPL_CWP_SER,
         BOIS
     } PerformanceEstimationMethod;

@@ -382,7 +382,7 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_TABLE || perfEstMethod == CPL_CWP_TABLE){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or cpl=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
@@ -395,13 +395,6 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		}
 		else if(perfEstMethod == CPL){
 			newStallTime = cpl * newAvgSharedLat;
-		}
-		else if(perfEstMethod == CPL_TABLE){
-			newStallTime = cptMeasurements.criticalPathLength * cptMeasurements.privateLatencyEstimate();
-		}
-		else if(perfEstMethod == CPL_CWP_TABLE){
-			newStallTime = cptMeasurements.criticalPathLength *
-					(cptMeasurements.privateLatencyEstimate() - cptMeasurements.averageCPCWP());
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -922,8 +915,6 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "no-mlp-cache") return NO_MLP_CACHE;
 	if(methodName == "cpl") return CPL;
 	if(methodName == "cpl-cwp") return CPL_CWP;
-	if(methodName == "cpl-table") return CPL_TABLE;
-	if(methodName == "cpl-cwp-table") return CPL_CWP_TABLE;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 
