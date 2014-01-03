@@ -26,8 +26,7 @@ BasePolicy::BasePolicy(string _name,
 					   WriteStallTechnique _wst,
 					   PrivBlockedStallTechnique _pbst,
 					   EmptyROBStallTechnique _rst,
-					   double _cplCutoff,
-					   double _latencyCutoff)
+					   double _maximumDamping)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -37,8 +36,7 @@ BasePolicy::BasePolicy(string _name,
 	privBlockedStallTech = _pbst;
 	emptyROBStallTech = _rst;
 
-	cplCutoff = _cplCutoff;
-	latencyCutoff = _latencyCutoff;
+	maximumDamping = _maximumDamping;
 
 //	dumpInitalized = false;
 //	dumpSearchSpaceAt = 0; // set this to zero to turn off
@@ -352,15 +350,24 @@ BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAv
 			curAvgSharedLat,
 			modelEstimate);
 
-	if(curAvgSharedLat < latencyCutoff || cpl < cplCutoff){
-		DPRINTF(MissBWPolicyExtra, "Latency or cpl below cutoff, returning pure model estimate %d\n",
-				modelEstimate);
-
-		return modelEstimate;
-	}
-
 	double sharedModeEstimate = cpl * curAvgSharedLat;
 	double error = computeRawError(sharedModeEstimate, curStallTime);
+	DPRINTF(MissBWPolicyExtra, "Computed error %d from estimate %d, actual %d, error limit +/- %d\n",
+			error,
+			sharedModeEstimate,
+			curStallTime,
+			maximumDamping);
+
+	if(error > maximumDamping){
+		DPRINTF(MissBWPolicyExtra, "Enforcing positive limit\n");
+		error = maximumDamping;
+	}
+
+	if(error < -maximumDamping){
+		DPRINTF(MissBWPolicyExtra, "Enforcing negative limit\n");
+		error = -maximumDamping;
+	}
+
 	double newStallTime = modelEstimate * (1 - error);
 
 	DPRINTF(MissBWPolicyExtra, "Correcting error of %d, returning stall estimate is %d\n", error, newStallTime);

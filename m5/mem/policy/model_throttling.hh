@@ -54,8 +54,7 @@ public:
 			        WriteStallTechnique _wst,
 			        PrivBlockedStallTechnique _pbst,
 			        EmptyROBStallTechnique _rst,
-			        double _cplCutoff,
-			        double _latencyCutoff);
+			        double _maximumDamping);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

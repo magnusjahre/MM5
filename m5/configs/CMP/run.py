@@ -481,12 +481,9 @@ def setUpMissBwPolicy():
     else:
         missBandwidthPolicy.privateBlockedStallTechnique = "pbs-none"
         
-    if "MISS-BW-CPL-CUTOFF" in env:
-        missBandwidthPolicy.cplCutoff = int(env["MISS-BW-CPL-CUTOFF"])
+    if "MISS-BW-MAX-DAMP" in env:
+        missBandwidthPolicy.maximumDamping = float(env["MISS-BW-MAX-DAMP"])
         
-    if "MISS-BW-LATENCY-CUTOFF" in env:
-        missBandwidthPolicy.latencyCutoff = int(env["MISS-BW-LATENCY-CUTOFF"])
-
     if "MISS-BW-REQ-METHOD" in env:
         missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]
     else:

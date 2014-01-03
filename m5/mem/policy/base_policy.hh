@@ -158,8 +158,7 @@ protected:
 	ThrottleControl* sharedCacheThrottle;
 	std::vector<ThrottleControl* > privateCacheThrottles;
 
-	double cplCutoff;
-	double latencyCutoff;
+	double maximumDamping;
 
 	void initProjectionTrace(int cpuCount);
 	void traceBestProjection();
@@ -246,8 +245,7 @@ public:
 			   WriteStallTechnique _wst,
 			   PrivBlockedStallTechnique _pbst,
 			   EmptyROBStallTechnique _rst,
-			   double _cplCutoff,
-			   double _latencyCutoff);
+			   double _maximumDamping);
 
 	~BasePolicy();
 
