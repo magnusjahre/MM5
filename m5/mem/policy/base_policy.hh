@@ -117,6 +117,8 @@ protected:
 	std::vector<double> avgLatencyAloneIPCModel;
 
 	std::vector<double> computedOverlap;
+	std::vector<double> lastModelError;
+	std::vector<double> lastModelErrorWithCutoff;
 
 //	bool dumpInitalized;
 //	Tick dumpSearchSpaceAt;
@@ -227,7 +229,7 @@ protected:
 
 	double computeRawError(double estimate, double actual);
 
-	double computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime);
+	double computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime, int cpuID);
 
 public:
 

@@ -93,6 +93,8 @@ BasePolicy::BasePolicy(string _name,
 	reqsPerSampleStdDev.resize(cpuCount, 0.0);
 
 	computedOverlap.resize(cpuCount, 0.0);
+	lastModelError.resize(cpuCount, 0.0);
+	lastModelErrorWithCutoff.resize(cpuCount, 0.0);
 
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
@@ -343,7 +345,7 @@ BasePolicy::computeRawError(double estimate, double actual){
 }
 
 double
-BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime){
+BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime, int cpuID){
 
 	DPRINTF(MissBWPolicyExtra, "Computing damped estimate with cpl=%d and shared latency %d, initial estimate %d\n",
 			cpl,
@@ -358,6 +360,8 @@ BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAv
 			curStallTime,
 			maximumDamping);
 
+	lastModelError[cpuID] = error;
+
 	if(error > maximumDamping){
 		DPRINTF(MissBWPolicyExtra, "Enforcing positive limit\n");
 		error = maximumDamping;
@@ -367,6 +371,8 @@ BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAv
 		DPRINTF(MissBWPolicyExtra, "Enforcing negative limit\n");
 		error = -maximumDamping;
 	}
+
+	lastModelErrorWithCutoff[cpuID] = error;
 
 	double newStallTime = modelEstimate * (1 - error);
 
@@ -441,13 +447,13 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			newStallTime = cplAloneEstimate;
 		}
 		else if(perfEstMethod == CPL_DAMP){
-			newStallTime = computeDampedEstimate(cplAloneEstimate, cpl, currentAvgSharedLat, currentStallTime);
+			newStallTime = computeDampedEstimate(cplAloneEstimate, cpl, currentAvgSharedLat, currentStallTime, cpuID);
 		}
 		else if(perfEstMethod == CPL_CWP){
 			newStallTime = cplCWPAloneEstimate;
 		}
 		else if(perfEstMethod == CPL_CWP_DAMP){
-			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cpl, currentAvgSharedLat, currentStallTime);
+			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cpl, currentAvgSharedLat, currentStallTime, cpuID);
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -712,6 +718,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Num Shared Stores");
 		headers.push_back("Alone Empty ROB Stall Estimate");
 		headers.push_back("Bois et al. Alone Stall Estimate");
+		headers.push_back("Damping Model Error");
+		headers.push_back("Damping Model Error w/ Cutoff");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -836,6 +844,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(numStores);
 		data.push_back(aloneROBStallEstimate);
 		data.push_back(boisAloneStallEst);
+		data.push_back(lastModelError[cpuID]);
+		data.push_back(lastModelErrorWithCutoff[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
