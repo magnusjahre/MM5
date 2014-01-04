@@ -53,6 +53,8 @@ public:
         CPL_CWP,
         CPL_DAMP,
         CPL_CWP_DAMP,
+        CPL_HYBRID,
+        CPL_HYBRID_DAMP,
         CPL_CWP_SER,
         BOIS
     } PerformanceEstimationMethod;
@@ -229,7 +231,7 @@ protected:
 
 	double computeRawError(double estimate, double actual);
 
-	double computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime, int cpuID);
+	double computeDampedEstimate(double modelEstimate, double sharedModelEstimate, double curStallTime, int cpuID);
 
 public:
 

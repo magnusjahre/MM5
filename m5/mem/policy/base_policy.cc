@@ -345,18 +345,12 @@ BasePolicy::computeRawError(double estimate, double actual){
 }
 
 double
-BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAvgSharedLat, double curStallTime, int cpuID){
+BasePolicy::computeDampedEstimate(double privateModelEstimate, double sharedModelEstimate, double curStallTime, int cpuID){
 
-	DPRINTF(MissBWPolicyExtra, "Computing damped estimate with cpl=%d and shared latency %d, initial estimate %d\n",
-			cpl,
-			curAvgSharedLat,
-			modelEstimate);
-
-	double sharedModeEstimate = cpl * curAvgSharedLat;
-	double error = computeRawError(sharedModeEstimate, curStallTime);
+	double error = computeRawError(sharedModelEstimate, curStallTime);
 	DPRINTF(MissBWPolicyExtra, "Computed error %d from estimate %d, actual %d, error limit +/- %d\n",
 			error,
-			sharedModeEstimate,
+			sharedModelEstimate,
 			curStallTime,
 			maximumDamping);
 
@@ -374,9 +368,12 @@ BasePolicy::computeDampedEstimate(double modelEstimate, double cpl, double curAv
 
 	lastModelErrorWithCutoff[cpuID] = error;
 
-	double newStallTime = modelEstimate * (1 - error);
+	double newStallTime = privateModelEstimate * (1 - error);
 
-	DPRINTF(MissBWPolicyExtra, "Correcting error of %d, returning stall estimate is %d\n", error, newStallTime);
+	DPRINTF(MissBWPolicyExtra, "Correcting error of %d in estimate %d, returning stall estimate is %d\n",
+			error,
+			privateModelEstimate,
+			newStallTime);
 
 	return newStallTime;
 }
@@ -432,7 +429,9 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP || perfEstMethod == CPL_DAMP || perfEstMethod == CPL_CWP_DAMP){
+	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP
+			|| perfEstMethod == CPL_DAMP || perfEstMethod == CPL_CWP_DAMP
+			|| perfEstMethod == CPL_HYBRID || perfEstMethod == CPL_HYBRID_DAMP){
 		computedOverlap[cpuID] = 0.0;
 		if(sharedRequests == 0 || cpl == 0){
 			DPRINTF(MissBWPolicyExtra, "No shared requests or cpl=0, returning private stall time %d (reqs=%d, cpl=%d)\n", privateStallTime, sharedRequests, cpl);
@@ -443,17 +442,47 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		double cplAloneEstimate = cpl * newAvgSharedLat;
 		double cplCWPAloneEstimate =  cpl * (newAvgSharedLat - cwp);
 
+		double cplSharedEstimate = cpl * currentAvgSharedLat;
+		double cplCWPSharedEstimate = cpl * (currentAvgSharedLat - cwp);
+
 		if(perfEstMethod == CPL){
 			newStallTime = cplAloneEstimate;
 		}
 		else if(perfEstMethod == CPL_DAMP){
-			newStallTime = computeDampedEstimate(cplAloneEstimate, cpl, currentAvgSharedLat, currentStallTime, cpuID);
+			newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 		}
 		else if(perfEstMethod == CPL_CWP){
 			newStallTime = cplCWPAloneEstimate;
 		}
 		else if(perfEstMethod == CPL_CWP_DAMP){
-			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cpl, currentAvgSharedLat, currentStallTime, cpuID);
+			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplCWPSharedEstimate, currentStallTime, cpuID);
+		}
+		else if(perfEstMethod == CPL_HYBRID || perfEstMethod == CPL_HYBRID_DAMP){
+			double cplError = computeRawError(cplSharedEstimate, currentStallTime);
+			double cplCWPError = computeRawError(cplCWPSharedEstimate, currentStallTime);
+			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, CPL error is %d, CPL-CWP error is %d\n", cplError, cplCWPError);
+
+			if(abs(cplError) < abs(cplCWPError)){
+				if(perfEstMethod == CPL_HYBRID_DAMP){
+					newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
+					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL model, returning estimate %d\n", newStallTime);
+				}
+				else{
+					newStallTime = cplAloneEstimate;
+					DPRINTF(MissBWPolicyExtra, "Choosing CPL model, returning estimate %d\n", newStallTime);
+				}
+			}
+			else{
+				if(perfEstMethod == CPL_HYBRID_DAMP){
+					newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplCWPSharedEstimate, currentStallTime, cpuID);
+					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL-CWP model, returning estimate %d\n", newStallTime);
+				}
+				else{
+					newStallTime = cplCWPAloneEstimate;
+					DPRINTF(MissBWPolicyExtra, "Choosing CPL-CWP model, returning estimate %d\n", newStallTime);
+				}
+			}
+
 		}
 		else{
 			fatal("unknown CPL-based method");
@@ -980,6 +1009,8 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl-cwp") return CPL_CWP;
 	if(methodName == "cpl-damp") return CPL_DAMP;
 	if(methodName == "cpl-cwp-damp") return CPL_CWP_DAMP;
+	if(methodName == "cpl-hybrid") return CPL_HYBRID;
+	if(methodName == "cpl-hybrid-damp") return CPL_HYBRID_DAMP;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 
