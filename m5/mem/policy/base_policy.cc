@@ -443,7 +443,6 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		double cplCWPAloneEstimate =  cpl * (newAvgSharedLat - cwp);
 
 		double cplSharedEstimate = cpl * currentAvgSharedLat;
-		double cplCWPSharedEstimate = cpl * (currentAvgSharedLat - cwp);
 
 		if(perfEstMethod == CPL){
 			newStallTime = cplAloneEstimate;
@@ -455,14 +454,16 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			newStallTime = cplCWPAloneEstimate;
 		}
 		else if(perfEstMethod == CPL_CWP_DAMP){
-			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplCWPSharedEstimate, currentStallTime, cpuID);
+			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 		}
 		else if(perfEstMethod == CPL_HYBRID || perfEstMethod == CPL_HYBRID_DAMP){
-			double cplError = computeRawError(cplSharedEstimate, currentStallTime);
-			double cplCWPError = computeRawError(cplCWPSharedEstimate, currentStallTime);
-			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, CPL error is %d, CPL-CWP error is %d\n", cplError, cplCWPError);
+			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, shared actual %d, shared cpl estimate %d, %s\n",
+					currentStallTime,
+					cplSharedEstimate,
+					cplSharedEstimate < currentStallTime ? "Underestimate" : "Overestimate");
 
-			if(abs(cplError) < abs(cplCWPError)){
+			// This comparison is equivalent to error < 0.0 but saves actually computing the error
+			if(cplSharedEstimate < currentStallTime){ // Underestimate, don't subtract and make the error larger
 				if(perfEstMethod == CPL_HYBRID_DAMP){
 					newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL model, returning estimate %d\n", newStallTime);
@@ -472,9 +473,9 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 					DPRINTF(MissBWPolicyExtra, "Choosing CPL model, returning estimate %d\n", newStallTime);
 				}
 			}
-			else{
+			else{ // Overestimate, we can safely subtract the commit overlap
 				if(perfEstMethod == CPL_HYBRID_DAMP){
-					newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplCWPSharedEstimate, currentStallTime, cpuID);
+					newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL-CWP model, returning estimate %d\n", newStallTime);
 				}
 				else{
