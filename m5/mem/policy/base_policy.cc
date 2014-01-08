@@ -97,6 +97,9 @@ BasePolicy::BasePolicy(string _name,
 	lastModelErrorWithCutoff.resize(cpuCount, 0.0);
 	lastCPLPolicyDesicion.resize(cpuCount, 0.0);
 
+	hybridErrorBuffer.resize(cpuCount, vector<double>());
+	hybridErrorBufferSize = 5; //FIXME: parameterize!!!
+
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
 	initNumMSHRsTrace(_cpuCount);
@@ -377,6 +380,23 @@ BasePolicy::computeDampedEstimate(double privateModelEstimate, double sharedMode
 	return newStallTime;
 }
 
+void
+BasePolicy::addHybridError(int cpuID, double error){
+    hybridErrorBuffer[cpuID].push_back(error);
+    if(hybridErrorBuffer[cpuID].size() > hybridErrorBufferSize){
+        hybridErrorBuffer[cpuID].erase(hybridErrorBuffer[cpuID].begin());
+    }
+}
+
+double
+BasePolicy::getHybridAverageError(int cpuID){
+    double sum = 0;
+    for(int i=0;i<hybridErrorBuffer[cpuID].size();i++){
+        sum += hybridErrorBuffer[cpuID][i];
+    }
+    return sum / (double) hybridErrorBuffer[cpuID].size();
+}
+
 double
 BasePolicy::estimateStallCycles(double currentStallTime,
 								double privateStallTime,
@@ -462,13 +482,18 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 			lastCPLPolicyDesicion[cpuID] = CPL_CWP_DAMP;
 		}
 		else if(perfEstMethod == CPL_HYBRID || perfEstMethod == CPL_HYBRID_DAMP){
-			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, shared actual %d, shared cpl estimate %d, %s\n",
+
+		    addHybridError(cpuID, sharedModelError);
+		    double avgError = getHybridAverageError(cpuID);
+
+			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, shared actual %d, shared cpl estimate %d, %s, current error %d, average error %d\n",
 					currentStallTime,
 					cplSharedEstimate,
-					cplSharedEstimate < currentStallTime ? "Underestimate" : "Overestimate");
+					cplSharedEstimate < currentStallTime ? "Underestimate" : "Overestimate",
+					sharedModelError,
+					avgError);
 
-			// This comparison is equivalent to error < 0.0 but saves actually computing the error
-			if(cplSharedEstimate < currentStallTime){ // Underestimate, don't subtract and make the error larger
+			if(avgError < 0.0){ // Underestimate, don't subtract and make the error larger
 				if(perfEstMethod == CPL_HYBRID_DAMP){
 					newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL model, returning estimate %d\n", newStallTime);
@@ -762,6 +787,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Damping Model Error");
 		headers.push_back("Damping Model Error w/ Cutoff");
 		headers.push_back("Policy type");
+		headers.push_back("Average Shared Model Error");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -889,6 +915,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(lastModelError[cpuID]);
 		data.push_back(lastModelErrorWithCutoff[cpuID]);
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
+		data.push_back(getHybridAverageError(cpuID));
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;

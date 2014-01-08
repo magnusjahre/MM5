@@ -123,6 +123,9 @@ protected:
 	std::vector<double> lastModelErrorWithCutoff;
 	std::vector<int> lastCPLPolicyDesicion;
 
+	int hybridErrorBufferSize;
+	std::vector<std::vector<double> > hybridErrorBuffer;
+
 //	bool dumpInitalized;
 //	Tick dumpSearchSpaceAt;
 
@@ -233,6 +236,10 @@ protected:
 	double computeRawError(double estimate, double actual);
 
 	double computeDampedEstimate(double modelEstimate, double sharedModelEstimate, double curStallTime, int cpuID);
+
+	void addHybridError(int cpuID, double error);
+
+	double getHybridAverageError(int cpuID);
 
 public:
 
