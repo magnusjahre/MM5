@@ -99,6 +99,7 @@ BasePolicy::BasePolicy(string _name,
 
 	hybridErrorBuffer.resize(cpuCount, vector<double>());
 	hybridErrorBufferSize = 5; //FIXME: parameterize!!!
+	hybridDesicionError = -0.1; //FIXME: parameterize!!
 
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
@@ -486,14 +487,12 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		    addHybridError(cpuID, sharedModelError);
 		    double avgError = getHybridAverageError(cpuID);
 
-			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, shared actual %d, shared cpl estimate %d, %s, current error %d, average error %d\n",
-					currentStallTime,
-					cplSharedEstimate,
-					cplSharedEstimate < currentStallTime ? "Underestimate" : "Overestimate",
+			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, current error %d, average error %d, desicion error %d\n",
 					sharedModelError,
-					avgError);
+					avgError,
+					hybridDesicionError);
 
-			if(avgError < 0.0){ // Underestimate, don't subtract and make the error larger
+			if(avgError < hybridDesicionError){ // Underestimate, don't subtract and make the error larger
 				if(perfEstMethod == CPL_HYBRID_DAMP){
 					newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL model, returning estimate %d\n", newStallTime);

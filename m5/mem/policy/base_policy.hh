@@ -125,6 +125,7 @@ protected:
 
 	int hybridErrorBufferSize;
 	std::vector<std::vector<double> > hybridErrorBuffer;
+	double hybridDesicionError;
 
 //	bool dumpInitalized;
 //	Tick dumpSearchSpaceAt;
