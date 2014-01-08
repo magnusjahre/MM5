@@ -49,10 +49,10 @@ public:
         RATIO_MWS,
         NO_MLP,
         NO_MLP_CACHE,
-        CPL,
-        CPL_CWP,
-        CPL_DAMP,
-        CPL_CWP_DAMP,
+        CPL,          // number 5 (useful for reading the policy trace)
+        CPL_CWP,      // number 6
+        CPL_DAMP,     // number 7
+        CPL_CWP_DAMP, // number 8
         CPL_HYBRID,
         CPL_HYBRID_DAMP,
         CPL_CWP_SER,
@@ -121,6 +121,7 @@ protected:
 	std::vector<double> computedOverlap;
 	std::vector<double> lastModelError;
 	std::vector<double> lastModelErrorWithCutoff;
+	std::vector<int> lastCPLPolicyDesicion;
 
 //	bool dumpInitalized;
 //	Tick dumpSearchSpaceAt;

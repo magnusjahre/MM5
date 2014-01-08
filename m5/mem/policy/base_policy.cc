@@ -95,6 +95,7 @@ BasePolicy::BasePolicy(string _name,
 	computedOverlap.resize(cpuCount, 0.0);
 	lastModelError.resize(cpuCount, 0.0);
 	lastModelErrorWithCutoff.resize(cpuCount, 0.0);
+	lastCPLPolicyDesicion.resize(cpuCount, 0.0);
 
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);
@@ -446,15 +447,19 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		if(perfEstMethod == CPL){
 			newStallTime = cplAloneEstimate;
+			lastCPLPolicyDesicion[cpuID] = CPL;
 		}
 		else if(perfEstMethod == CPL_DAMP){
 			newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
+			lastCPLPolicyDesicion[cpuID] = CPL_DAMP;
 		}
 		else if(perfEstMethod == CPL_CWP){
 			newStallTime = cplCWPAloneEstimate;
+			lastCPLPolicyDesicion[cpuID] = CPL_CWP;
 		}
 		else if(perfEstMethod == CPL_CWP_DAMP){
 			newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
+			lastCPLPolicyDesicion[cpuID] = CPL_CWP_DAMP;
 		}
 		else if(perfEstMethod == CPL_HYBRID || perfEstMethod == CPL_HYBRID_DAMP){
 			DPRINTF(MissBWPolicyExtra, "Hybrid scheme, shared actual %d, shared cpl estimate %d, %s\n",
@@ -467,20 +472,26 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 				if(perfEstMethod == CPL_HYBRID_DAMP){
 					newStallTime = computeDampedEstimate(cplAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL model, returning estimate %d\n", newStallTime);
+
+					lastCPLPolicyDesicion[cpuID] = CPL_DAMP;
 				}
 				else{
 					newStallTime = cplAloneEstimate;
 					DPRINTF(MissBWPolicyExtra, "Choosing CPL model, returning estimate %d\n", newStallTime);
+					lastCPLPolicyDesicion[cpuID] = CPL;
 				}
 			}
 			else{ // Overestimate, we can safely subtract the commit overlap
 				if(perfEstMethod == CPL_HYBRID_DAMP){
 					newStallTime = computeDampedEstimate(cplCWPAloneEstimate, cplSharedEstimate, currentStallTime, cpuID);
 					DPRINTF(MissBWPolicyExtra, "Choosing damped CPL-CWP model, returning estimate %d\n", newStallTime);
+
+					lastCPLPolicyDesicion[cpuID] = CPL_CWP_DAMP;
 				}
 				else{
 					newStallTime = cplCWPAloneEstimate;
 					DPRINTF(MissBWPolicyExtra, "Choosing CPL-CWP model, returning estimate %d\n", newStallTime);
+					lastCPLPolicyDesicion[cpuID] = CPL_CWP;
 				}
 			}
 
@@ -750,6 +761,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Bois et al. Alone Stall Estimate");
 		headers.push_back("Damping Model Error");
 		headers.push_back("Damping Model Error w/ Cutoff");
+		headers.push_back("Policy type");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -876,6 +888,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(boisAloneStallEst);
 		data.push_back(lastModelError[cpuID]);
 		data.push_back(lastModelErrorWithCutoff[cpuID]);
+		data.push_back(lastCPLPolicyDesicion[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
