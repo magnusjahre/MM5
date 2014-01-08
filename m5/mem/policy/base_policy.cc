@@ -354,8 +354,6 @@ BasePolicy::computeDampedEstimate(double privateModelEstimate, double sharedMode
 			curStallTime,
 			maximumDamping);
 
-	lastModelError[cpuID] = error;
-
 	if(error > maximumDamping){
 		DPRINTF(MissBWPolicyExtra, "Enforcing positive limit\n");
 		error = maximumDamping;
@@ -443,6 +441,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		double cplCWPAloneEstimate =  cpl * (newAvgSharedLat - cwp);
 
 		double cplSharedEstimate = cpl * currentAvgSharedLat;
+		double sharedModelError = computeRawError(cplSharedEstimate, currentStallTime);
+		lastModelError[cpuID] = sharedModelError;
 
 		if(perfEstMethod == CPL){
 			newStallTime = cplAloneEstimate;
