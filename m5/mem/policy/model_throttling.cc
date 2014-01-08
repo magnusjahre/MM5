@@ -30,8 +30,10 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 WriteStallTechnique _wst,
 			   	    			 PrivBlockedStallTechnique _pbst,
 			   	    			 EmptyROBStallTechnique _rst,
-								 double _maximumDamping)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst, _maximumDamping)
+								 double _maximumDamping,
+								 double _hybridDecisionError,
+								 int _hybridBufferSize)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst, _maximumDamping, _hybridDecisionError, _hybridBufferSize)
 {
 	//enableOccupancyTrace = true;
 
@@ -605,6 +607,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<string> privateBlockedStallTechnique;
 	Param<string> emptyROBStallTechnique;
 	Param<double> maximumDamping;
+    Param<double> hybridDecisionError;
+    Param<int> hybridBufferSize;
 END_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
@@ -624,7 +628,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
 	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
-	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25)
+	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
+    INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
+    INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3)
 END_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 
 CREATE_SIM_OBJECT(ModelThrottlingPolicy)
@@ -656,7 +662,9 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         wst,
 							         pbst,
 							         rst,
-							         maximumDamping);
+							         maximumDamping,
+							         hybridDecisionError,
+							         hybridBufferSize);
 }
 
 REGISTER_SIM_OBJECT("ModelThrottlingPolicy", ModelThrottlingPolicy)

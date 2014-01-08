@@ -26,7 +26,9 @@ BasePolicy::BasePolicy(string _name,
 					   WriteStallTechnique _wst,
 					   PrivBlockedStallTechnique _pbst,
 					   EmptyROBStallTechnique _rst,
-					   double _maximumDamping)
+					   double _maximumDamping,
+					   double _hybridDecisionError,
+					   int _hybridBufferSize)
 : SimObject(_name){
 
 	intManager = _intManager;
@@ -98,8 +100,8 @@ BasePolicy::BasePolicy(string _name,
 	lastCPLPolicyDesicion.resize(cpuCount, 0.0);
 
 	hybridErrorBuffer.resize(cpuCount, vector<double>());
-	hybridErrorBufferSize = 5; //FIXME: parameterize!!!
-	hybridDesicionError = -0.1; //FIXME: parameterize!!
+	hybridErrorBufferSize = _hybridBufferSize;
+	hybridDesicionError = _hybridDecisionError;
 
 	initProjectionTrace(_cpuCount);
 	initAloneIPCTrace(_cpuCount, _enforcePolicy);

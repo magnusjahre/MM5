@@ -24,3 +24,5 @@ class BasePolicy(SimObject):
     privateBlockedStallTechnique = Param.PrivateBlockedStallTechnique("The technique to use to estimate private blocked stalls")
     emptyROBStallTechnique = Param.EmptyROBStallTechnique("The technique to use to estimate private mode empty ROB stalls")
     maximumDamping = Param.Float("The maximum absolute damping the damping policies can apply")
+    hybridDecisionError = Param.Float("The error at which to switch from CPL to CPL-CWP with the hybrid scheme")
+    hybridBufferSize = Param.Int("The number of errors to use in the decision buffer")

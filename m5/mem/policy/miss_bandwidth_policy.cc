@@ -29,7 +29,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 										 WriteStallTechnique _wst,
 										 PrivBlockedStallTechnique _pbst,
 										 EmptyROBStallTechnique _rst,
-										 double _maximumDamping)
+										 double _maximumDamping,
+										 double _hybridDecisionError,
+										 int _hybridBufferSize)
 : BasePolicy(_name,
 		_intManager,
 		_period,
@@ -44,7 +46,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 		_wst,
 		_pbst,
 		_rst,
-		_maximumDamping)
+		_maximumDamping,
+		_hybridDecisionError,
+		_hybridBufferSize)
 {
 
 	level = 0;
@@ -694,6 +698,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	Param<string> privateBlockedStallTechnique;
 	Param<string> emptyROBStallTechnique;
 	Param<double> maximumDamping;
+	Param<double> hybridDecisionError;
+	Param<int> hybridBufferSize;
 END_DECLARE_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
@@ -718,7 +724,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
 	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
-	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25)
+	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
+	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
+	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3)
 END_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 
 CREATE_SIM_OBJECT(MissBandwidthPolicy)
@@ -759,7 +767,9 @@ CREATE_SIM_OBJECT(MissBandwidthPolicy)
 							       wst,
 							       pbst,
 							       rst,
-							       maximumDamping);
+							       maximumDamping,
+							       hybridDecisionError,
+							       hybridBufferSize);
 }
 
 REGISTER_SIM_OBJECT("MissBandwidthPolicy", MissBandwidthPolicy)

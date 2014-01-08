@@ -483,6 +483,12 @@ def setUpMissBwPolicy():
         
     if "MISS-BW-MAX-DAMP" in env:
         missBandwidthPolicy.maximumDamping = float(env["MISS-BW-MAX-DAMP"])
+    
+    if "MISS-BW-HYBRID-BUFFER-SIZE" in env:
+        missBandwidthPolicy.hybridBufferSize = int(env["MISS-BW-HYBRID-BUFFER-SIZE"])
+    
+    if "MISS-BW-HYBRID-DEC-ERROR" in env:
+        missBandwidthPolicy.hybridDecisionError = float(env["MISS-BW-HYBRID-DEC-ERROR"])
         
     if "MISS-BW-REQ-METHOD" in env:
         missBandwidthPolicy.requestEstimationMethod = env["MISS-BW-REQ-METHOD"]

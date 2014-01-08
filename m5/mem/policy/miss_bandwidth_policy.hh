@@ -72,7 +72,9 @@ public:
 			            WriteStallTechnique _wst,
 			            PrivBlockedStallTechnique _pbst,
 			            EmptyROBStallTechnique _rst,
-			            double _maximumDamping);
+			            double _maximumDamping,
+			            double _hybridDecisionError,
+			            int _hybridBufferSize);
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
