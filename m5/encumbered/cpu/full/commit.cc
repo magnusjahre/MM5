@@ -451,6 +451,7 @@ FullCPU::commit()
 			break;
 		default:
 			fatal("commit causes screwed up");
+			break;
 		}
 		floss_state.commit_end_cause[0] = reason;
 
