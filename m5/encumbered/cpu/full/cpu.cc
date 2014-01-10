@@ -662,12 +662,12 @@ FullCPU::FullCPU(Params *p,
     }
     amha = _amha;
 
-    noCommitCycles = 0;
-    string tracename = name() + "BlockedTrace.txt";
-    ofstream tracefile(tracename.c_str());
-    tracefile << "Tick;Blocked Fraction\n";
-    tracefile.flush();
-    tracefile.close();
+//    noCommitCycles = 0;
+//    string tracename = name() + "BlockedTrace.txt";
+//    ofstream tracefile(tracename.c_str());
+//    tracefile << "Tick;Blocked Fraction\n";
+//    tracefile.flush();
+//    tracefile.close();
 
     tmpBlockedCycles = 0;
     l1MissStallCycles = 0;

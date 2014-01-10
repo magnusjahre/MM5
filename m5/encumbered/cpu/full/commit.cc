@@ -156,14 +156,14 @@ FullCPU::commit()
 		panic("We stopped committing instructions!!!");
 	}
 
-	if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
-		string tracename = name() + "BlockedTrace.txt";
-		ofstream tracefile(tracename.c_str(), ofstream::app);
-		tracefile << curTick << "; " <<  ((double) ((double) noCommitCycles /  (double) MEM_BLOCKED_TRACE_FREQUENCY)) << "\n";
-		tracefile.flush();
-		tracefile.close();
-		noCommitCycles = 0;
-	}
+//	if(curTick % MEM_BLOCKED_TRACE_FREQUENCY == 0){
+//		string tracename = name() + "BlockedTrace.txt";
+//		ofstream tracefile(tracename.c_str(), ofstream::app);
+//		tracefile << curTick << "; " <<  ((double) ((double) noCommitCycles /  (double) MEM_BLOCKED_TRACE_FREQUENCY)) << "\n";
+//		tracefile.flush();
+//		tracefile.close();
+//		noCommitCycles = 0;
+//	}
 
 	//
 	//  Determine which threads we don't need to worry about
@@ -436,7 +436,7 @@ FullCPU::commit()
 				if(ROB.num_free() == 0) overlapEstimator->addROBFullCycle();
 			}
 
-			noCommitCycles++;
+			//noCommitCycles++;
 
 			//HACK: the hit latency should be retrieved from the L1 cache
 			if(tmpBlockedCycles > 3) l1MissStallCycles++;

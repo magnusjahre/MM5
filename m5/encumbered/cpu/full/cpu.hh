@@ -79,7 +79,7 @@ class MemoryOverlapEstimator;
 class FullCPU : public BaseCPU
 {
 private:
-	Tick noCommitCycles;
+	//Tick noCommitCycles;
 	Tick tmpBlockedCycles;
 	Tick l1MissStallCycles;
 	std::string statsOrderFileName;
