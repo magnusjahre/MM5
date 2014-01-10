@@ -151,7 +151,7 @@ MemoryOverlapEstimator::addROBFullCycle(){
 
 void
 MemoryOverlapEstimator::initOverlapTrace(){
-	overlapTrace = RequestTrace(name(), "OverlapTrace");
+	overlapTrace = RequestTrace(name(), "OverlapTrace", true);
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -325,7 +325,7 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 
 void
 MemoryOverlapEstimator::initRequestGroupTrace(){
-	requestGroupTrace = RequestTrace(name(), "RequestGroupTrace");
+	requestGroupTrace = RequestTrace(name(), "RequestGroupTrace", true);
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
