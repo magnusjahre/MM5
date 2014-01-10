@@ -63,11 +63,11 @@ BasePolicy::BasePolicy(string _name,
 		policyEvent = NULL;
 	}
 
-	measurementTrace = RequestTrace(_name, "MeasurementTrace", 1);
-	predictionTrace = RequestTrace(_name, "PredictionTrace", 1);
-	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", 1);
-	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace", 1);
-	searchTrace = RequestTrace(_name, "SearchTrace", 1);
+	measurementTrace = RequestTrace(_name, "MeasurementTrace");
+	predictionTrace = RequestTrace(_name, "PredictionTrace");
+	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace");
+	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace");
+	searchTrace = RequestTrace(_name, "SearchTrace");
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, NULL);
@@ -806,7 +806,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
 	for(int i=0;i<cpuCount;i++){
-		comInstModelTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("CommittedInsts", i).c_str(), 1);
+		comInstModelTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("CommittedInsts", i).c_str());
 		comInstModelTraces[i].initalizeTrace(headers);
 	}
 }

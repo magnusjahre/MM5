@@ -45,7 +45,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 
 	predictedCPI.resize(_cpuCount, 0.0);
 
-	modelValueTrace = RequestTrace(_name, "ModelValueTrace", 1);
+	modelValueTrace = RequestTrace(_name, "ModelValueTrace");
 	initModelValueTrace(_cpuCount);
 
 	if(_implStrategy == "nfq"){
@@ -61,12 +61,12 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 		fatal("Unknown bandwidth allocation implementation strategy");
 	}
 
-	throttleTrace = RequestTrace(_name, "ThrottleTrace", 1);
+	throttleTrace = RequestTrace(_name, "ThrottleTrace");
 	initThrottleTrace(_cpuCount);
 
 	searchItemNum = 0;
 	if(doVerification){
-		modelSearchTrace = RequestTrace(_name, "ModelSearchTrace", 1);
+		modelSearchTrace = RequestTrace(_name, "ModelSearchTrace");
 		initSearchTrace(_cpuCount);
 
 		registerExitCallback(new PolicyCallback(this));

@@ -15,7 +15,7 @@ MemoryOverlapTable::MemoryOverlapTable(string _name, int totalL1MSHRs, int unkno
 
 void
 MemoryOverlapTable::initTableTrace(){
-	overlapTableTrace = RequestTrace(name(), "Data", 1);
+	overlapTableTrace = RequestTrace(name(), "Data");
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");

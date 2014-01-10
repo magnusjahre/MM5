@@ -118,7 +118,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
 
     if(params.isShared){
-        capacityProfileTrace = RequestTrace(name(), "CapacityProfile", 1);
+        capacityProfileTrace = RequestTrace(name(), "CapacityProfile");
         vector<string> headers;
         for(int i=0;i<params.cpu_count;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
         headers.push_back("Not touched");

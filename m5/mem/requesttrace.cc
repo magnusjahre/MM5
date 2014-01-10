@@ -9,7 +9,7 @@
 
 using namespace std;
 
-RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, int _dumpInterval){
+RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename){
 
     stringstream filenamestream;
     filenamestream << _simobjectname << _filename << ".txt";
@@ -17,10 +17,10 @@ RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, in
 
     if(fileExists(".rundir")){
     	dumpInterval = 1000000;
-    	warn("File .rundir present in current directory, forcing dump interval to %d for file %s", dumpInterval, filename);
+    	warn("File .rundir present in current directory, setting dump interval to %d for file %s", dumpInterval, filename);
     }
     else{
-    	dumpInterval = _dumpInterval;
+    	dumpInterval = 1;
     }
 
     assert(dumpInterval > 0);

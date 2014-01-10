@@ -688,7 +688,7 @@ FullCPU::FullCPU(Params *p,
 	issueStallMessageCounter = 0;
 	stallMessageIssued = false;
 
-	committedInstTrace = RequestTrace(name(), "IPCTrace", 1);
+	committedInstTrace = RequestTrace(name(), "IPCTrace");
 	committedTraceCounter = 0;
 	stallCycleTraceCounter = 0;
 	lastDumpTick = 0;

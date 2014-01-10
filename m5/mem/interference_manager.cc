@@ -101,8 +101,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 		stringstream ltitle;
 		ltitle << "CPU" << i << "LatencyTrace";
 
-		estimateTraces[i] = RequestTrace(etitle.str(),"", 1);
-		latencyTraces[i] = RequestTrace(ltitle.str(),"", 1);
+		estimateTraces[i] = RequestTrace(etitle.str(),"");
+		latencyTraces[i] = RequestTrace(ltitle.str(),"");
 
 		vector<string> traceHeaders;
 		traceHeaders.push_back("Requests");
@@ -116,7 +116,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 		stringstream mtitle;
 		mtitle << "CPU" << i << "MissTrace";
-		aloneMissTrace[i] = RequestTrace(mtitle.str(), "", 1);
+		aloneMissTrace[i] = RequestTrace(mtitle.str(), "");
 
 		vector<string> mTraceHeaders;
 		mTraceHeaders.push_back("Requests");
@@ -127,7 +127,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 
         stringstream ptitle;
         ptitle << "CPU" << i << "PrivateLatencyTrace";
-		privateLatencyTraces[i] = RequestTrace(ptitle.str(),"", 1);
+		privateLatencyTraces[i] = RequestTrace(ptitle.str(),"");
 
 		vector<string> privateLatencyHeaders;
 		privateLatencyHeaders.push_back("Committed instructions");

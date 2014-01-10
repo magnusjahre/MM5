@@ -1291,7 +1291,7 @@ MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
 
 	np = _np;
 
-    bandwidthTrace = RequestTrace(_name, "BandwidthTrace", 1);
+    bandwidthTrace = RequestTrace(_name, "BandwidthTrace");
     vector<string> headers;
     headers.push_back("Utilization");
     headers.push_back("Total Bandwidth");

@@ -562,7 +562,7 @@ CriticalPathTable::isSharedRead(MemReqPtr& req, bool hiddenLoad){
 void
 CriticalPathTable::initDependencyEdgeTrace(){
 	if(traceSampleID != -1){
-		CPTDependencyEdgeTrace = RequestTrace(name(), "CPTEdgeTrace", 1);
+		CPTDependencyEdgeTrace = RequestTrace(name(), "CPTEdgeTrace");
 
 		vector<string> headers;
 		headers.push_back("From Address");

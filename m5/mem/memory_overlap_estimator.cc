@@ -151,7 +151,7 @@ MemoryOverlapEstimator::addROBFullCycle(){
 
 void
 MemoryOverlapEstimator::initOverlapTrace(){
-	overlapTrace = RequestTrace(name(), "OverlapTrace", 1);
+	overlapTrace = RequestTrace(name(), "OverlapTrace");
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -272,7 +272,7 @@ MemoryOverlapEstimator::traceOverlap(int committedInstructions, int cpl){
 
 void
 MemoryOverlapEstimator::initStallTrace(){
-	stallTrace = RequestTrace(name(), "StallTrace", 1);
+	stallTrace = RequestTrace(name(), "StallTrace");
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -325,7 +325,7 @@ MemoryOverlapEstimator::traceStalls(int committedInstructions){
 
 void
 MemoryOverlapEstimator::initRequestGroupTrace(){
-	requestGroupTrace = RequestTrace(name(), "RequestGroupTrace", 1);
+	requestGroupTrace = RequestTrace(name(), "RequestGroupTrace");
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
@@ -345,7 +345,7 @@ MemoryOverlapEstimator::initSharedRequestTrace(){
 	sharedTraceReqNum = 0;
 
 	if(sharedReqTraceEnabled){
-		sharedRequestTrace = RequestTrace(name(), "SharedRequestTrace", 1);
+		sharedRequestTrace = RequestTrace(name(), "SharedRequestTrace");
 
 		vector<string> headers;
 		headers.push_back("Number");

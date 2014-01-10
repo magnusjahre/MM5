@@ -83,7 +83,7 @@ class RequestTrace{
             initialized = false;
         }
 
-        RequestTrace(std::string _simobjectname, const char* _filename, int _dumpInterval = 1000000);
+        RequestTrace(std::string _simobjectname, const char* _filename);
 
         void initalizeTrace(std::vector<std::string>& headers);
 
