@@ -104,48 +104,48 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     sampleEvent = new AdaptiveMHASampleEvent(this);
     sampleEvent->schedule(start);
 
-    if(!onlyTraceBus){
-        adaptiveMHATraceFileName = "adaptiveMHATrace.txt";
-        ofstream mhafile(adaptiveMHATraceFileName.c_str());
-        mhafile << "Tick";
-        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " MSHRs";
-        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " WB";
-        for(int i=0;i<cpu_count;i++) mhafile << ";I" << i << " MSHRs";
-        for(int i=0;i<cpu_count;i++) mhafile << ";I " << i << " WB";
-        mhafile << "\n";
-        mhafile.flush();
-        mhafile.close();
-    }
+//    if(!onlyTraceBus){
+//        adaptiveMHATraceFileName = "adaptiveMHATrace.txt";
+//        ofstream mhafile(adaptiveMHATraceFileName.c_str());
+//        mhafile << "Tick";
+//        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " MSHRs";
+//        for(int i=0;i<cpu_count;i++) mhafile << ";D " << i << " WB";
+//        for(int i=0;i<cpu_count;i++) mhafile << ";I" << i << " MSHRs";
+//        for(int i=0;i<cpu_count;i++) mhafile << ";I " << i << " WB";
+//        mhafile << "\n";
+//        mhafile.flush();
+//        mhafile.close();
+//    }
 
-    memTraceFileName = "memoryBusTrace.txt";
-    ofstream memfile(memTraceFileName.c_str());
-    memfile << "Tick;DataUtil";
-    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Data";
-    memfile << ";Avg Queue";
-    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Avg Queue";
-    memfile << "\n";
-    memfile.flush();
-    memfile.close();
-
-    ipcTraceFileName = "ipcTrace.txt";
-    ofstream ipcfile(ipcTraceFileName.c_str());
-    ipcfile << "Tick";
-    for(int i=0;i<cpu_count;i++) ipcfile << ";CPU " << i;
-    ipcfile << "\n";
-    ipcfile.flush();
-    ipcfile.close();
+//    memTraceFileName = "memoryBusTrace.txt";
+//    ofstream memfile(memTraceFileName.c_str());
+//    memfile << "Tick;DataUtil";
+//    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Data";
+//    memfile << ";Avg Queue";
+//    for(int i=0;i<cpu_count;i++) memfile << ";Cache " << i << " Avg Queue";
+//    memfile << "\n";
+//    memfile.flush();
+//    memfile.close();
+//
+//    ipcTraceFileName = "ipcTrace.txt";
+//    ofstream ipcfile(ipcTraceFileName.c_str());
+//    ipcfile << "Tick";
+//    for(int i=0;i<cpu_count;i++) ipcfile << ";CPU " << i;
+//    ipcfile << "\n";
+//    ipcfile.flush();
+//    ipcfile.close();
 
     dumpAtNumReqs = _numReqsBetweenIDumps;
 
-    aloneInterferenceFileName = "AMHAInterferenceTrace.txt";
-    for(int i=0;i<adaptiveMHAcpuCount;i++){
-        stringstream filename;
-        filename << "CPU" << i << aloneInterferenceFileName;
-        ofstream interferencefile(filename.str().c_str());
-        interferencefile << "Requests;Avg shared latency;Avg interference;Bus;Bus Blocking;Bus Private Blocking;L2 Cap;L2 BW;Interconnect\n";
-        interferencefile.flush();
-        interferencefile.close();
-    }
+//    aloneInterferenceFileName = "AMHAInterferenceTrace.txt";
+//    for(int i=0;i<adaptiveMHAcpuCount;i++){
+//        stringstream filename;
+//        filename << "CPU" << i << aloneInterferenceFileName;
+//        ofstream interferencefile(filename.str().c_str());
+//        interferencefile << "Requests;Avg shared latency;Avg interference;Bus;Bus Blocking;Bus Private Blocking;L2 Cap;L2 BW;Interconnect\n";
+//        interferencefile.flush();
+//        interferencefile.close();
+//    }
 
     busInterference.resize(adaptiveMHAcpuCount, 0);
     busBlockedInterference.resize(adaptiveMHAcpuCount, 0);
@@ -292,7 +292,7 @@ AdaptiveMHA::handleSampleEvent(Tick time){
     // gather information
     double dataBusUtil = bus->getDataBusUtilisation(sampleFrequency);
     vector<int> dataUsers = bus->getDataUsePerCPUId();
-    double avgQueueDelay = bus->getAverageQueue(sampleFrequency);
+//    double avgQueueDelay = bus->getAverageQueue(sampleFrequency);
     vector<double> avgQueueDelayPerUser = bus->getAverageQueuePerCPU();
     bus->resetAdaptiveStats();
     assert(dataUsers.size() == adaptiveMHAcpuCount);
@@ -323,46 +323,46 @@ AdaptiveMHA::handleSampleEvent(Tick time){
             }
         }
 
-        if(wasFirst){
-            ofstream fairfile("fairAlgTrace.txt");
-            fairfile << "";
-            fairfile.flush();
-            fairfile.close();
-        }
-
-        // write Adaptive MHA trace file
-        ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
-        mhafile << time;
-        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(true);
-        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(false);
-        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(true);
-        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(false);
-        mhafile << "\n";
-        mhafile.flush();
-        mhafile.close();
+//        if(wasFirst){
+//            ofstream fairfile("fairAlgTrace.txt");
+//            fairfile << "";
+//            fairfile.flush();
+//            fairfile.close();
+//        }
+//
+//        // write Adaptive MHA trace file
+//        ofstream mhafile(adaptiveMHATraceFileName.c_str(), ofstream::app);
+//        mhafile << time;
+//        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(true);
+//        for(int i=0;i<dataCaches.size();i++) mhafile << ";" << dataCaches[i]->getCurrentMSHRCount(false);
+//        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(true);
+//        for(int i=0;i<instructionCaches.size();i++) mhafile << ";" << instructionCaches[i]->getCurrentMSHRCount(false);
+//        mhafile << "\n";
+//        mhafile.flush();
+//        mhafile.close();
     }
 
 
-    //write bus use trace
-    ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
-    memTraceFile << time;
-    memTraceFile << ";" << dataBusUtil;
-    for(int i=0;i<dataUsers.size();i++) memTraceFile << ";" << dataUsers[i];
-    memTraceFile << ";" << avgQueueDelay;
-    for(int i=0;i<avgQueueDelayPerUser.size();i++) memTraceFile << ";" << avgQueueDelayPerUser[i];
-    memTraceFile << "\n";
-
-    memTraceFile.flush();
-    memTraceFile.close();
-
-    // write IPC trace
-    ipcTraceFileName = "ipcTrace.txt";
-    ofstream ipcfile(ipcTraceFileName.c_str(), ofstream::app);
-    ipcfile << curTick;
-    for(int i=0;i<IPCs.size();i++) ipcfile << ";" << IPCs[i];
-    ipcfile << "\n";
-    ipcfile.flush();
-    ipcfile.close();
+//    //write bus use trace
+//    ofstream memTraceFile(memTraceFileName.c_str(), ofstream::app);
+//    memTraceFile << time;
+//    memTraceFile << ";" << dataBusUtil;
+//    for(int i=0;i<dataUsers.size();i++) memTraceFile << ";" << dataUsers[i];
+//    memTraceFile << ";" << avgQueueDelay;
+//    for(int i=0;i<avgQueueDelayPerUser.size();i++) memTraceFile << ";" << avgQueueDelayPerUser[i];
+//    memTraceFile << "\n";
+//
+//    memTraceFile.flush();
+//    memTraceFile.close();
+//
+//    // write IPC trace
+//    ipcTraceFileName = "ipcTrace.txt";
+//    ofstream ipcfile(ipcTraceFileName.c_str(), ofstream::app);
+//    ipcfile << curTick;
+//    for(int i=0;i<IPCs.size();i++) ipcfile << ";" << IPCs[i];
+//    ipcfile << "\n";
+//    ipcfile.flush();
+//    ipcfile.close();
 
 
     if(staticAsymmetricMHAs.size() == 0){

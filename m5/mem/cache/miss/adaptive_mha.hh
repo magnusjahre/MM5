@@ -58,10 +58,10 @@ class AdaptiveMHA : public SimObject{
 
         AdaptiveMHASampleEvent* sampleEvent;
 
-        std::string memTraceFileName;
-        std::string adaptiveMHATraceFileName;
-        std::string ipcTraceFileName;
-        std::string aloneInterferenceFileName;
+//        std::string memTraceFileName;
+//        std::string adaptiveMHATraceFileName;
+//        std::string ipcTraceFileName;
+//        std::string aloneInterferenceFileName;
 
         bool firstSample;
 
