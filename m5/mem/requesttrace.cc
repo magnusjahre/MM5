@@ -9,27 +9,29 @@
 
 using namespace std;
 
-RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename){
+RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, bool _disableTrace){
 
     stringstream filenamestream;
     filenamestream << _simobjectname << _filename << ".txt";
     filename = filenamestream.str();
 
-    if(fileExists(".rundir")){
-    	dumpInterval = 1000000;
-    	warn("File .rundir present in current directory, setting dump interval to %d for file %s", dumpInterval, filename);
-    }
-    else{
-    	dumpInterval = 1;
-    }
-
-    assert(dumpInterval > 0);
     curTracePos = 0;
-    tracebuffer.resize(dumpInterval, string(""));
-
     initialized = false;
+    traceDisabled = _disableTrace;
 
+    if(!traceDisabled){
+    	if(fileExists(".rundir")){
+    		dumpInterval = 1000000;
+    		warn("File .rundir present in current directory, setting dump interval to %d for file %s", dumpInterval, filename);
+    	}
+    	else{
+    		dumpInterval = 1;
+    	}
 
+    	assert(dumpInterval > 0);
+
+    	tracebuffer.resize(dumpInterval, string(""));
+    }
 }
 
 bool
@@ -47,6 +49,8 @@ RequestTrace::fileExists(string name) {
 void
 RequestTrace::initalizeTrace(std::vector<std::string>& headers){
 
+	if(traceDisabled) return;
+
     registerExitCallback(new RequestTraceCallback(this));
     initialized = true;
 
@@ -60,6 +64,8 @@ RequestTrace::initalizeTrace(std::vector<std::string>& headers){
 
 void
 RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
+
+	if(traceDisabled) return;
 
     assert(isInitialized());
 
@@ -85,7 +91,8 @@ RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
                 tracestring << ";" << values[i].strVal;
                 break;
             default:
-            fatal("Unknown trace type");
+            	fatal("Unknown trace type");
+            	break;
         }
     }
 
@@ -101,6 +108,8 @@ RequestTrace::addTrace(std::vector<RequestTraceEntry>& values){
 
 void
 RequestTrace::dumpTracebuffer(){
+
+	if(traceDisabled) return;
 
     assert(isInitialized());
 

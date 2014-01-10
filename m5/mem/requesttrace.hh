@@ -75,6 +75,8 @@ class RequestTrace{
         bool initialized;
         int dumpInterval;
 
+        bool traceDisabled;
+
         bool fileExists(std::string name);
 
     public:
@@ -83,7 +85,7 @@ class RequestTrace{
             initialized = false;
         }
 
-        RequestTrace(std::string _simobjectname, const char* _filename);
+        RequestTrace(std::string _simobjectname, const char* _filename, bool _disableTrace = false);
 
         void initalizeTrace(std::vector<std::string>& headers);
 
