@@ -75,6 +75,8 @@ class RequestTrace{
         bool initialized;
         int dumpInterval;
 
+        bool fileExists(std::string name);
+
     public:
 
         RequestTrace(){

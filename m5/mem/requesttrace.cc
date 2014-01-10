@@ -15,7 +15,14 @@ RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, in
     filenamestream << _simobjectname << _filename << ".txt";
     filename = filenamestream.str();
 
-    dumpInterval = _dumpInterval;
+    if(fileExists(".rundir")){
+    	dumpInterval = 1000000;
+    	warn("File .rundir present in current directory, forcing dump interval to %d for file %s", dumpInterval, filename);
+    }
+    else{
+    	dumpInterval = _dumpInterval;
+    }
+
     assert(dumpInterval > 0);
     curTracePos = 0;
     tracebuffer.resize(dumpInterval, string(""));
@@ -23,6 +30,18 @@ RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, in
     initialized = false;
 
 
+}
+
+bool
+RequestTrace::fileExists(string name) {
+    ifstream f(name.c_str());
+    if (f.good()) {
+        f.close();
+        return true;
+    } else {
+        f.close();
+        return false;
+    }
 }
 
 void
