@@ -63,11 +63,11 @@ BasePolicy::BasePolicy(string _name,
 		policyEvent = NULL;
 	}
 
-	measurementTrace = RequestTrace(_name, "MeasurementTrace");
-	predictionTrace = RequestTrace(_name, "PredictionTrace");
-	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace");
-	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace");
-	searchTrace = RequestTrace(_name, "SearchTrace");
+	measurementTrace = RequestTrace(_name, "MeasurementTrace", true);
+	predictionTrace = RequestTrace(_name, "PredictionTrace", true);
+	aloneIPCTrace = RequestTrace(_name, "AloneIPCTrace", true);
+	numMSHRsTrace = RequestTrace(_name, "NumMSHRsTrace", true);
+	searchTrace = RequestTrace(_name, "SearchTrace", true);
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, NULL);
