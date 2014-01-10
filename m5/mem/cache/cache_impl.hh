@@ -118,13 +118,11 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
 
     if(params.isShared){
-        profileFileName = name() + "CapacityProfile.txt";
-        ofstream file(profileFileName.c_str());
-        file << "Tick";
-        for(int i=0;i<params.cpu_count;i++) file << ";CPU " << i;
-        file << ";Not touched\n";
-        file.flush();
-        file.close();
+        capacityProfileTrace = RequestTrace(name(), "CapacityProfile", 1);
+        vector<string> headers;
+        for(int i=0;i<params.cpu_count;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
+        headers.push_back("Not touched");
+        capacityProfileTrace.initalizeTrace(headers);
 
         profileEvent = new CacheProfileEvent(this);
         if(params.detailedSimStartTick > 0){
@@ -1546,12 +1544,9 @@ Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
     vector<int> ownedBlocks = tags->perCoreOccupancy();
     assert(ownedBlocks.size() == cpuCount + 2);
 
-    ofstream file(profileFileName.c_str(), ofstream::app);
-    file << curTick;
-    for(int i=0;i<cpuCount+1;i++) file << ";" << (double) ((double) ownedBlocks[i] / (double) ownedBlocks[cpuCount+1]);
-    file << "\n";
-    file.flush();
-    file.close();
+    vector<RequestTraceEntry> data;
+    for(int i=0;i<cpuCount+1;i++) data.push_back((double) ((double) ownedBlocks[i] / (double) ownedBlocks[cpuCount+1]));
+    capacityProfileTrace.addTrace(data);
 
     profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }

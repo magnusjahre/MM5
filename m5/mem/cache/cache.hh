@@ -67,7 +67,7 @@ class Cache : public BaseCache
 {
   private:
     bool idIsSet;
-    std::string profileFileName;
+    RequestTrace capacityProfileTrace;
 
 //    MultipleTimeSharingParititions* mtp;
 
