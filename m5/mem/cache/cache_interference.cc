@@ -578,38 +578,41 @@ CacheInterference::FixedPointProbability::compute(int numerator, int denominator
 	assert(ready);
 
 	if(denominator == 0){
-		value = max;
+//		value = max;
 		floatValue = 1.0;
 	}
 	else if(numerator <= 0){
 		floatValue = 0.0;
-		value = 0;
+//		value = 0;
 	}
 	else if(numerator >= denominator){
-		value = max;
+//		value = max;
 		floatValue = 1.0;
 	}
 	else{
 
 		floatValue = (double) ((double) numerator / (double) denominator);
 
-		uint64_t tmpval = numerator << numBits;
-		uint32_t result = tmpval / denominator;
-		assert(result <= max);
-
-		value = result;
+//		uint64_t tmpval = numerator << numBits;
+//		uint32_t result = tmpval / denominator;
+//		assert(result <= max);
+//
+//		value = result;
 	}
 }
 
 bool
 CacheInterference::FixedPointProbability::doInsertion(FixedWidthCounter* counter){
 
+	fatal("deprecated, fixed point value computation is broken");
+
 	assert(ready);
 	assert(counter->width() == numBits);
 
-	if(counter->get() < value){
-		return true;
-	}
+//	if(counter->get() < value){
+//		return true;
+//	}
+//	return false;
 	return false;
 }
 

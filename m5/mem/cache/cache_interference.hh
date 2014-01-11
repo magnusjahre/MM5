@@ -42,7 +42,7 @@ public:
 
 	class FixedPointProbability{
 	private:
-		uint32_t value;
+//		uint32_t value;
 		int numBits;
 		bool ready;
 		uint32_t max;
@@ -58,17 +58,17 @@ public:
 		void compute(int numerator, int denominator);
 		bool doInsertion(FixedWidthCounter* counter);
 
-		bool isZero(){
-			assert(ready);
-			assert(numBits > 0);
-			return value == 0;
-		}
-
-		bool isMax(){
-			assert(ready);
-			assert(numBits > 0);
-			return value == max;
-		}
+//		bool isZero(){
+//			assert(ready);
+//			assert(numBits > 0);
+//			return value == 0;
+//		}
+//
+//		bool isMax(){
+//			assert(ready);
+//			assert(numBits > 0);
+//			return value == max;
+//		}
 
 		float getFloatValue(){
 			assert(ready);
