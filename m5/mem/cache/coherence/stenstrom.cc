@@ -33,7 +33,7 @@ StenstromProtocol<TagStore>::sendNACK(MemReqPtr& req,
 
     numNACKs++;
 
-    writeTraceLine(cacheName,
+    this->writeTraceLine(cacheName,
                    "NACK Sent",
                    -1,
                    DirNoState,
@@ -62,7 +62,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                 if(req->cmd == DirSharerWriteback){
 
                     // the block is not shared anymore, discard message
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Recieved NACK to block that is no longer "
                                    "shared, discarding message",
                                    -1,
@@ -95,7 +95,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                 parentPtr->setOwner(tmpL2BlkAddr, fromCpuId);
                 req->owner = fromCpuId;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Redirected Read to not owned block recieved, "
                                "requester is new owner",
                                parentPtr->getOwner(tmpL2BlkAddr),
@@ -141,7 +141,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                     outstandingOwnerTransAddrs.erase(
                             outstandingOwnerTransAddrs.find(tmpL2BlkAddr));
 
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Owner Transfer ACK recieved",
                                    parentPtr->getOwner(tmpL2BlkAddr),
                                    DirNoState,
@@ -181,7 +181,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                     req->fromProcessorID = -1;
                     req->toInterfaceID = -1;
 
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Recieved NACK on sharer writeback, "
                                    "retransmitting",
                                    parentPtr->getOwner(tmpL2BlkAddr),
@@ -212,7 +212,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                 int oldOwner = parentPtr->getOwner(tmpL2BlkAddr);
                 parentPtr->setOwner(tmpL2BlkAddr, fromCpuId);
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Write miss to owned block",
                                oldOwner,
                                DirNoState,
@@ -260,7 +260,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
 
                 parentPtr->setOwner(tmpL2BlkAddr, newOwner);
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Owner Change Request Granted",
                                parentPtr->getOwner(tmpL2BlkAddr),
                                DirNoState,
@@ -293,7 +293,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                 req->fromInterfaceID = -1;
                 req->replacedByID = fromCpuId;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Forwarding sharer writeback to owner",
                                req->owner,
                                DirNoState,
@@ -313,7 +313,7 @@ StenstromProtocol<TagStore>::doDirectoryAccess(MemReqPtr& req){
                 req->toInterfaceID = -1;
                 req->fromInterfaceID = -1;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Got Redirected Read, "
                                "informing requester of current owner",
                                req->owner,
@@ -362,7 +362,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
 
                 numOwnerRequests++;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Issuing owner transfer request",
                                blk->owner,
                                blk->dirState,
@@ -386,7 +386,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
 
                 numRedirectedReads++;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Issuing Redirected Read (1)",
                                blk->owner,
                                blk->dirState,
@@ -426,7 +426,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
                 }
                 if(newSharerCount == 1){
                     // the block is present in our cache, answer the request
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Answering Redirected Read from myself "
                                    "(return to cache) (1)",
                                    blk->owner,
@@ -457,7 +457,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
                 // sending redirected reads to ourselves
                 // will cause a deadlock, let it finish
                 if(fromCpuID == cache->getCacheCPUid()){
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Answering Redirected Read from myself "
                                    "(return to cache) (2)",
                                    blk->owner,
@@ -485,7 +485,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
                 return true;
             }
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Answering Redirected Read Request",
                            blk->owner,
                            blk->dirState,
@@ -526,7 +526,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
             if(sharerCount == 1) blk->dirState = DirOwnedExGR;
             else blk->dirState = DirOwnedNonExGR;
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Owner transfer complete",
                            blk->owner,
                            blk->dirState,
@@ -572,7 +572,7 @@ StenstromProtocol<TagStore>::doL1DirectoryAccess(MemReqPtr& req, BlkType* blk){
             sendDirectoryMessage(req, lat);
             sendDirectoryMessage(ownershipReq, lat);
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Accepting ownership, ACK and ownership request sent",
                            blk->owner,
                            blk->dirState,
@@ -610,7 +610,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                 assert(req->writeMiss);
                 req->cmd = Read;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Owner Transfer NACK recieved, owner wrote back,"
                                " retransmitting as read",
                                req->owner,
@@ -623,7 +623,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                     (tmpBlk->dirState == DirOwnedExGR
                     || tmpBlk->dirState == DirOwnedNonExGR)){
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Owner Transfer NACK recieved, "
                                "we have become the owner",
                                tmpBlk->owner,
@@ -646,7 +646,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                 }
             }
             else{
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Owner Transfer NACK recieved, "
                                "retransmitting to L2 cache",
                                req->owner,
@@ -670,7 +670,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
             req->dirNACK = false;
             req->flags &= ~SATISFIED;
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Redirected Read NACK recieved, "
                            "retransmitting to L2 cache",
                            req->owner,
@@ -722,7 +722,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                 outstandingWritebackWSAddrs.erase(
                         outstandingWritebackWSAddrs.find(tmpBlkAddr));
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "No sharers left, doing normal writeback",
                                req->owner,
                                DirNoState,
@@ -748,7 +748,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                 req->toInterfaceID = -1;
                 req->fromInterfaceID = -1;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Attempting to transfer ownership to "
                                "different sharer",
                                req->owner,
@@ -775,7 +775,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                 req->toProcessorID = -1;
                 req->toInterfaceID = -1;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Write miss, recieved NACK, retransmitting",
                                -1,
                                DirNoState,
@@ -803,7 +803,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
         if(req->isDirectoryACK()){
             assert(req->presentFlags == NULL);
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Owner with sharers, recieved ACK",
                            req->owner,
                            DirNoState,
@@ -844,7 +844,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                     != outstandingWritebackWSAddrs.end());
             outstandingWritebackWSAddrs[tmpBlkAddr][req->replacedByID] = false;
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Sharer writeback recieved to block that is "
                            "being written back",
                            -1,
@@ -873,7 +873,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
         if(req->replacedByID == cache->cacheCpuID){
             // if a sharer and the owner writes back a block at the same time
             // this can happen, discard this update
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Recieved sharer writeback from ourselves",
                            tmpBlk->owner,
                            tmpBlk->dirState,
@@ -894,7 +894,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
         if(sharers == 1) tmpBlk->dirState = DirOwnedExGR;
         else tmpBlk->dirState = DirOwnedNonExGR;
 
-        writeTraceLine(cacheName,
+        this->writeTraceLine(cacheName,
                        "Sharer writeback recieved and handled",
                        tmpBlk->owner,
                        tmpBlk->dirState,
@@ -910,7 +910,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
 
         if(tmpBlk == NULL){
             //we have written back this block and don't care who owns it
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Owner info discarded, block written back",
                            -1,
                            DirNoState,
@@ -927,7 +927,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
 
         tmpBlk->owner = req->owner;
 
-        writeTraceLine(cacheName,
+        this->writeTraceLine(cacheName,
                        "New owner info recieved and stored",
                        tmpBlk->owner,
                        tmpBlk->dirState,
@@ -950,7 +950,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
 
         numRedirectedReads++;
 
-        writeTraceLine(cacheName,
+        this->writeTraceLine(cacheName,
                        "Issuing Redirected Read (2)",
                        req->owner,
                        DirNoState,
@@ -1015,7 +1015,7 @@ StenstromProtocol<TagStore>::handleDirectoryResponse(MemReqPtr& req,
                     || tmpBlk->dirState == DirOwnedNonExGR);
             assert(tmpBlk->owner == cache->getCacheCPUid());
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "This cache is the owner, send response to CPU",
                            req->owner,
                            DirNoState,
@@ -1066,7 +1066,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
                 req->presentFlags = oldFlags;
                 req->owner = newOwner;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Transfering Owner State "
                                "(end of owner with sharers replacement)",
                                newOwner,
@@ -1103,7 +1103,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
                 blk->status &= ~BlkDirty;
                 blk->owner = newOwner;
 
-                writeTraceLine(cacheName,
+                this->writeTraceLine(cacheName,
                                "Transfering Owner State",
                                blk->owner,
                                blk->dirState,
@@ -1132,7 +1132,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
                     tmpReq->toProcessorID = i;
                     tmpReq->presentFlags = NULL;
 
-                    writeTraceLine(cacheName,
+                    this->writeTraceLine(cacheName,
                                    "Informing sharer of new owner",
                                    (blk != NULL) ? blk->owner : -1,
                                    (blk != NULL) ? blk->dirState : DirNoState,
@@ -1175,7 +1175,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
             // not deleted together with the request
             req->presentFlags = NULL;
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Recieved owner state (write miss)",
                            blk->owner,
                            blk->dirState,
@@ -1211,7 +1211,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
             // not deleted together with the request
             req->presentFlags = NULL;
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Owner transfer complete, needed block was replaced",
                            blk->owner,
                            blk->dirState,
@@ -1260,7 +1260,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
             assert(blk->presentFlags != NULL);
             assert(req->presentFlags == NULL);
 
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Redirected Read Response Recieved,"
                            " we have become the owner",
                            blk->owner,
@@ -1275,7 +1275,7 @@ StenstromProtocol<TagStore>::handleDirectoryFill(MemReqPtr& req,
 
             blk->dirState = DirInvalid;
             blk->owner = req->owner;
-            writeTraceLine(cacheName,
+            this->writeTraceLine(cacheName,
                            "Redirected Read Response Recieved",
                            blk->owner,
                            blk->dirState,
@@ -1376,7 +1376,7 @@ StenstromProtocol<TagStore>::doDirectoryWriteback(MemReqPtr& req){
 
         numOwnerWritebacks++;
 
-        writeTraceLine(cacheName,
+        this->writeTraceLine(cacheName,
                        "Replacing owned block with sharers",
                        cache->getCacheCPUid(),
                        DirInvalid,
@@ -1399,7 +1399,7 @@ StenstromProtocol<TagStore>::doDirectoryWriteback(MemReqPtr& req){
 
         numSharerWritebacks++;
 
-        writeTraceLine(cacheName,
+        this->writeTraceLine(cacheName,
                        "Replacing not owned block",
                        -1,
                        DirInvalid,

@@ -75,7 +75,7 @@ MemTest::MemTest(const string &name,
       progressInterval(_progressInterval),
       nextProgressMessage(_progressInterval),
       percentSourceUnaligned(_percentSourceUnaligned),
-      percentDestUnaligned(percentDestUnaligned),
+      percentDestUnaligned(_percentDestUnaligned),
       maxLoads(_max_loads)
 {
     vector<string> cmd;

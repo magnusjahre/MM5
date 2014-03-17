@@ -224,7 +224,7 @@ public:
 	void initPresentFlags(int cpu_count){
 		presentFlags = new bool[cpu_count];
 		for(int i=0;i<cpu_count;i++){
-			presentFlags = false;
+			presentFlags[i] = false;
 		}
 	}
 
