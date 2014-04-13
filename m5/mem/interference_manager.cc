@@ -885,7 +885,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	// Performance model
 	performanceModels[cpuID]->reset();
-	performanceModels[cpuID]->setHelperVariables(committedInstructions, ols.tableCPL);
+	performanceModels[cpuID]->setHelperVariables(committedInstructions, ols.tableCPL, ticksInSample);
 	performanceModels[cpuID]->updateCPIMemInd(commitTraceCommitCycles[cpuID], commitTraceMemIndStall[cpuID]);
 	performanceModels[cpuID]->updateCPIOther(commitTraceWriteStall[cpuID],
 			                                 commitTracePrivateBlockedStall[cpuID],
@@ -893,8 +893,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	performanceModels[cpuID]->updateCPIPrivLoads(commitTracePrivateStall[cpuID]);
 	performanceModels[cpuID]->updateCPIOverlap(cwp);
 	double avgNoBusLat = getAvgNoBusLat(avgTotalLat, cpuID);
-	//Remember that avgBusLat = avgTotalLat - avgNoBusLat
 	performanceModels[cpuID]->updateCPINoBus(avgNoBusLat);
+	performanceModels[cpuID]->updateMeasuredCPIBus(avgTotalLat - avgNoBusLat);
+
 	performanceModels[cpuID]->traceModelParameters();
 
 	instTraceInterferenceSum[cpuID] = 0;

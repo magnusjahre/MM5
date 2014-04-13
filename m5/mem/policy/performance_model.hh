@@ -32,6 +32,8 @@ private:
 	// helper variables
 	double instructions;
 	double CPL;
+	double ticksInSample;
+	double measuredCPIBus;
 	Tick cummulativeInstructions;
 
 	double computeCPINoShare();
@@ -45,7 +47,7 @@ public:
 
 	void reset();
 
-	void setHelperVariables(double _instructions, double _CPL);
+	void setHelperVariables(double _instructions, double _CPL, double _ticksInSample);
 
 	void updateCPIMemInd(double commitCycles, double memIndStallCycles);
 
@@ -56,6 +58,8 @@ public:
 	void updateCPIOverlap(double overlap);
 
 	void updateCPINoBus(double avgNoBusLat);
+
+	void updateMeasuredCPIBus(double avgBusLat);
 
 	void updateCPIOverlap();
 
