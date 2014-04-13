@@ -218,6 +218,7 @@ base_sources = Split('''
 	mem/policy/base_policy.cc
 	mem/policy/miss_bandwidth_policy.cc
 	mem/policy/performance_measurement.cc
+	mem/policy/performance_model.cc
 	mem/policy/performance_directed.cc
 	mem/policy/model_throttling.cc
 	mem/policy/metrics/metric.cc

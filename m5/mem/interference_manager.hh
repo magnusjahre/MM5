@@ -14,6 +14,7 @@
 #include "mem/bus/bus.hh"
 #include "mem/policy/performance_measurement.hh"
 #include "mem/memory_overlap_estimator.hh"
+#include "mem/policy/performance_model.hh"
 
 class CacheInterference;
 class BasePolicy;
@@ -21,6 +22,7 @@ class BaseCache;
 class Bus;
 class MSHROccupancy;
 class OverlapStatistics;
+class PerformanceModel;
 
 #include <vector>
 
@@ -59,8 +61,10 @@ private:
 	std::vector<double> sharedLatencyAccumulator;
 	std::vector<double> interferenceAccumulator;
 	std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator;
+	std::vector<std::vector<double> > commitTraceSharedLatencyBreakdownAccumulator;
 	std::vector<std::vector<double> > interferenceBreakdownAccumulator;
 	std::vector<int> currentRequests;
+	std::vector<int> commitTraceBreakdownRequests;
 
 	std::vector<double> privateLatencyAccumulator;
 	std::vector<std::vector<double> > privateLatencyBreakdownAccumulator;
@@ -126,6 +130,8 @@ private:
 
 	std::vector<Tick> cpuComTraceTotalRoundtrip;
 	std::vector<int> cpuComTraceTotalRoundtripRequests;
+
+	std::vector<PerformanceModel* > performanceModels;
 
 public:
 
@@ -241,6 +247,8 @@ public:
 //	bool isStalledForMemory(int cpuID);
 
 	void addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall, Tick emptyROBStall);
+
+	double getAvgNoBusLat(double avgRoundTripLatency, int cpuID);
 
 	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst);
 

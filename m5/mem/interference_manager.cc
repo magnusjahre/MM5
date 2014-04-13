@@ -39,7 +39,9 @@ InterferenceManager::InterferenceManager(std::string _name,
 	interferenceAccumulator.resize(_cpu_count, 0);
 	sharedLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
 	interferenceBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
+	commitTraceSharedLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
 	currentRequests.resize(_cpu_count, 0);
+	commitTraceBreakdownRequests.resize(_cpu_count, 0);
 
 	privateLatencyAccumulator.resize(_cpu_count, 0);
 	privateLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
@@ -156,6 +158,11 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 	cpuComTraceTotalRoundtrip.resize(_cpu_count, 0);
     cpuComTraceTotalRoundtripRequests.resize(_cpu_count, 0);
+
+    performanceModels.resize(_cpu_count, NULL);
+    for(int i=0;i<_cpu_count;i++){
+    	performanceModels[i] = new PerformanceModel(i);
+    }
 }
 
 void
@@ -428,6 +435,7 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	totalLatency[req->adaptiveMHASenderID] += latency;
 
 	sharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
+	commitTraceSharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
 }
 
 void
@@ -464,6 +472,7 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	requestsSinceLastSample[req->adaptiveMHASenderID]++;
 
 	currentRequests[req->adaptiveMHASenderID]++;
+	commitTraceBreakdownRequests[req->adaptiveMHASenderID]++;
 	sharedLatencyAccumulator[req->adaptiveMHASenderID] += roundTripLatency;
 
 	instTraceLatencySum[req->adaptiveMHASenderID] += roundTripLatency;
@@ -798,6 +807,27 @@ InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions)
 	for(int i=0;i<NUM_LAT_TYPES;i++) privateLatencyBreakdownAccumulator[fromCPU][i] = 0;
 }
 
+double
+InterferenceManager::getAvgNoBusLat(double avgRoundTripLatency, int cpuID){
+
+	double busLatSum = commitTraceSharedLatencyBreakdownAccumulator[cpuID][MemoryBusEntry];
+	busLatSum += commitTraceSharedLatencyBreakdownAccumulator[cpuID][MemoryBusQueue];
+	busLatSum += commitTraceSharedLatencyBreakdownAccumulator[cpuID][MemoryBusService];
+
+	double avgBusLat = 0.0;
+	if(commitTraceBreakdownRequests[cpuID]){
+		avgBusLat = busLatSum / (double) commitTraceBreakdownRequests[cpuID];
+	}
+
+	commitTraceBreakdownRequests[cpuID] = 0;
+	for(int j=0;j<NUM_LAT_TYPES;j++){
+		commitTraceSharedLatencyBreakdownAccumulator[cpuID][j] = 0;
+	}
+
+	assert(avgRoundTripLatency >= avgBusLat);
+	return avgRoundTripLatency - avgBusLat;
+}
+
 void
 InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst){
 
@@ -825,6 +855,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 		avgTotalLat = (double) cpuComTraceTotalRoundtrip[cpuID] / (double) cpuComTraceTotalRoundtripRequests[cpuID];
 	}
 
+
+	// Base policy trace
 	if(missBandwidthPolicy != NULL){
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
@@ -850,6 +882,20 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 commitTraceEmptyROBStall[cpuID],
 														 boisAloneStallEst);
 	}
+
+	// Performance model
+	performanceModels[cpuID]->reset();
+	performanceModels[cpuID]->setHelperVariables(committedInstructions, ols.tableCPL);
+	performanceModels[cpuID]->updateCPIMemInd(commitTraceCommitCycles[cpuID], commitTraceMemIndStall[cpuID]);
+	performanceModels[cpuID]->updateCPIOther(commitTraceWriteStall[cpuID],
+			                                 commitTracePrivateBlockedStall[cpuID],
+			                                 commitTraceEmptyROBStall[cpuID]);
+	performanceModels[cpuID]->updateCPIPrivLoads(commitTracePrivateStall[cpuID]);
+	performanceModels[cpuID]->updateCPIOverlap(cwp);
+	double avgNoBusLat = getAvgNoBusLat(avgTotalLat, cpuID);
+	//Remember that avgBusLat = avgTotalLat - avgNoBusLat
+	performanceModels[cpuID]->updateCPINoBus(avgNoBusLat);
+	performanceModels[cpuID]->traceModelParameters();
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
