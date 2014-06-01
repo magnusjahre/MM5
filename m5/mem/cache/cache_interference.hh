@@ -216,6 +216,8 @@ private:
 
     void measureOverlap(MemReqPtr &req, bool possibleIncrease);
 
+    int estimateConstituencyAccesses(bool writeback);
+
 public:
 
 	CacheInterference(std::string _name,

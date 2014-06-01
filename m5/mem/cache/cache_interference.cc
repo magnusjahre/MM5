@@ -234,22 +234,24 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	req->isShadowMiss = !shadowHit;
 
 	if(shadowLeaderSet){
+		int estConstAccesses = estimateConstituencyAccesses(false);
+
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
-				samplePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
+				samplePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
+				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 			}
-			estimatedShadowMisses[req->adaptiveMHASenderID] += setsInConstituency;
+			estimatedShadowMisses[req->adaptiveMHASenderID] += estConstAccesses;
 		}
 		else{ // shadow hit
 			if(isCacheMiss && curTick >= detailedSimStart){
 				// shared cache miss and shadow hit -> need to tag reqs as interference requests
-				sequentialReadCount[req->adaptiveMHASenderID] += setsInConstituency;
-				interferenceMissAccumulator[req->adaptiveMHASenderID] += setsInConstituency;
+				sequentialReadCount[req->adaptiveMHASenderID] += estConstAccesses;
+				interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 		}
-		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-		estimatedShadowAccesses[req->adaptiveMHASenderID] += setsInConstituency;
+		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
+		estimatedShadowAccesses[req->adaptiveMHASenderID] += estConstAccesses;
 	}
 	if(curTick >= detailedSimStart){
 		if(isCacheMiss){
@@ -279,6 +281,11 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			}
 		}
 	}
+}
+
+int
+CacheInterference::estimateConstituencyAccesses(bool writeback){
+	return setsInConstituency;
 }
 
 void
@@ -407,13 +414,13 @@ CacheInterference::doShadowReplacement(MemReqPtr& req, BaseCache* cache){
 			sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID] = 0;
 		}
 		else if(isShadowLeaderSet){
-
+			int estConstAccesses = estimateConstituencyAccesses(true);
 			if(curTick >= cache->detailedSimulationStartTick){
-				samplePrivateWritebacks[req->adaptiveMHASenderID].increment(req, setsInConstituency);
-				sequentialWritebackCount[req->adaptiveMHASenderID] += setsInConstituency;
+				samplePrivateWritebacks[req->adaptiveMHASenderID].increment(req, estConstAccesses);
+				sequentialWritebackCount[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 
-			shadowTagWritebacks[req->adaptiveMHASenderID] += setsInConstituency;
+			shadowTagWritebacks[req->adaptiveMHASenderID] += estConstAccesses;
 		}
 	}
 
@@ -514,7 +521,6 @@ CacheInterference::isLeaderSet(int set){
 	assert(numLeaderSets != -1);
 	if(numLeaderSets == totalSetNumber) return true;
 
-	int setsInConstituency = totalSetNumber / numLeaderSets;
 	int constituencyNumber = set / setsInConstituency;
 	int leaderSet = constituencyNumber * setsInConstituency + (constituencyNumber % setsInConstituency);
 
