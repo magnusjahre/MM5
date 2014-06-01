@@ -15,3 +15,4 @@ class CacheInterference(SimObject):
     assoc= Param.Int("Associativity")
     hitLatency = Param.Latency("The cache hit latency")
     divisionFactor = Param.Int("The number of cores in shared mode when run in private mode")
+    constituencyFactor = Param.Float("The average percentage of blocks accessed in a constituency")

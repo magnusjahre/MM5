@@ -22,6 +22,7 @@ CacheInterference::CacheInterference(std::string _name,
 		                             int _assoc,
 		                             int _hitLat,
 		                             int _divFac,
+		                             double _constituencyFactor,
 		                             HierParams* hp)
 : BaseHier(_name, hp){
 
@@ -52,6 +53,11 @@ CacheInterference::CacheInterference(std::string _name,
 		fatal("The the total number for sets must be divisible by the number of leader sets");
 	}
 	assert(numLeaderSets <= totalSetNumber && numLeaderSets > 0);
+
+	constituencyFactor = _constituencyFactor;
+	if(constituencyFactor > 1.0 || constituencyFactor < 0.0){
+		fatal("The constituencyFactor must be a number between 0 and 1");
+	}
 
 	doInterferenceInsertion.resize(cpuCount, numLeaderSets == totalSetNumber);
 
@@ -285,7 +291,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 int
 CacheInterference::estimateConstituencyAccesses(bool writeback){
-	return setsInConstituency;
+	if(setsInConstituency == 1) return 1;
+	return constituencyFactor * setsInConstituency;
 }
 
 void
@@ -706,6 +713,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
     Param<int> assoc;
     Param<int> hitLatency;
     Param<int> divisionFactor;
+    Param<double> constituencyFactor;
 END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
@@ -718,7 +726,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM(blockSize, "Cache block size"),
     INIT_PARAM(assoc, "Associativity"),
     INIT_PARAM(hitLatency, "The cache hit latency"),
-    INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode")
+    INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode"),
+    INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0)
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
 CREATE_SIM_OBJECT(CacheInterference)
@@ -755,6 +764,7 @@ CREATE_SIM_OBJECT(CacheInterference)
 								 assoc,
 								 hitLatency,
 								 divisionFactor,
+								 constituencyFactor,
 								 hp);
 }
 

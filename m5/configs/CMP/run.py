@@ -262,6 +262,9 @@ def createCacheInterference(bank):
     if "SHADOW-TAG-LEADER-SETS" in env:
         cacheInt.leaderSets = int(env["SHADOW-TAG-LEADER-SETS"]) 
 
+    if "SHADOW-TAG-CONSTITUENCY-FACTOR" in env:
+        cacheInt.constituencyFactor = float(env["SHADOW-TAG-CONSTITUENCY-FACTOR"]) 
+
     if "IPP" in env:
         cacheInt.interference_probability_policy = env["IPP"]
             

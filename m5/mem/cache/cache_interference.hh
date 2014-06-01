@@ -161,6 +161,8 @@ private:
 	int totalSetNumber;
 	int setsInConstituency;
 
+	double constituencyFactor;
+
 	int randomCounterBits;
 	std::vector<FixedWidthCounter> requestCounters;
 	std::vector<FixedWidthCounter> responseCounters;
@@ -231,6 +233,7 @@ public:
 			          int _assoc,
 			          int _hitLat,
 			          int _divFac,
+			          double _constituencyFactor,
 			          HierParams* _hp);
 
 	int getNumLeaderSets(){
