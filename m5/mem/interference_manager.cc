@@ -824,7 +824,9 @@ InterferenceManager::getAvgNoBusLat(double avgRoundTripLatency, int cpuID){
 		commitTraceSharedLatencyBreakdownAccumulator[cpuID][j] = 0;
 	}
 
-	assert(avgRoundTripLatency >= avgBusLat);
+	// A pending requests add latency to the accumulator as it experiences the latency.
+	// Thus, the total queue cycles may in some rare cases exceed the roundtrip latency.
+	if(avgRoundTripLatency < avgBusLat) return 0;
 	return avgRoundTripLatency - avgBusLat;
 }
 
@@ -854,7 +856,6 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	if(cpuComTraceTotalRoundtripRequests[cpuID] > 0){
 		avgTotalLat = (double) cpuComTraceTotalRoundtrip[cpuID] / (double) cpuComTraceTotalRoundtripRequests[cpuID];
 	}
-
 
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
