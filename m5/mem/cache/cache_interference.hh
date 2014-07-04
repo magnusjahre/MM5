@@ -28,13 +28,12 @@ public:
 
 	enum InterferenceProbabilityPolicy{
 		IPP_FULL_RANDOM_FLOAT, // float
-		IPP_COUNTER_FIXED_INTMAN, // fixed
-		IPP_COUNTER_FIXED_PRIVATE, // fixed-private
 		IPP_SEQUENTIAL_INSERT,
 		IPP_INVALID
 	};
 
-	InterferenceProbabilityPolicy intProbabilityPolicy;
+	InterferenceProbabilityPolicy loadProbabilityPolicy;
+	InterferenceProbabilityPolicy writebackProbabilityPolicy;
 
 
 	class MissCounter;
@@ -163,15 +162,11 @@ private:
 
 	double constituencyFactor;
 
-	int randomCounterBits;
-	std::vector<FixedWidthCounter> requestCounters;
-	std::vector<FixedWidthCounter> responseCounters;
+	std::vector<int> requestCounters;
+	std::vector<int> responseCounters;
 
-	std::vector<bool> doInterferenceInsertion;
-
-	std::vector<InterferenceMissProbability> interferenceMissProbabilities;
-
-	std::vector<InterferenceMissProbability> privateWritebackProbability;
+	std::vector<double> interferenceMissProbabilities;
+	std::vector<double> privateWritebackProbability;
 
 	std::vector<MissCounter> samplePrivateMisses;
 	std::vector<MissCounter> sampleSharedMisses;
@@ -206,7 +201,7 @@ private:
 
     void tagAsInterferenceMiss(MemReqPtr& req, int hitLat);
 
-    bool addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter);
+    bool addAsInterference(double probability, int cpuID, bool useRequestCounter);
 
     LRUBlk* findShadowTagBlock(MemReqPtr& req, int cpuID, bool isLeaderSet, int hitLat);
 
@@ -226,8 +221,8 @@ public:
 			          int _cpuCount,
 			          int _numLeaderSets,
 			          int _size,
-			          int _numBits,
-			          InterferenceProbabilityPolicy _ipp,
+			          InterferenceProbabilityPolicy _loadIPP,
+			          InterferenceProbabilityPolicy _writebackIPP,
 			          InterferenceManager* _intman,
 			          int _blockSize,
 			          int _assoc,
@@ -245,14 +240,6 @@ public:
 	void handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCache* cache);
 
 	void computeInterferenceProbabilities(int cpuID);
-
-	void initiateInterferenceInsertions(int cpuID){
-		doInterferenceInsertion[cpuID] = true;
-	}
-
-	bool interferenceInsertionsInitiated(int cpuID){
-		return doInterferenceInsertion[cpuID];
-	}
 
 	void regStats();
 

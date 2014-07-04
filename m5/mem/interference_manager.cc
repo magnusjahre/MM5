@@ -487,13 +487,7 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
 		resetInterferenceMeasurements(req->adaptiveMHASenderID);
 
-
 		cacheInterference->computeInterferenceProbabilities(req->adaptiveMHASenderID);
-
-		if(!cacheInterference->interferenceInsertionsInitiated(req->adaptiveMHASenderID)){
-			cacheInterference->initiateInterferenceInsertions(req->adaptiveMHASenderID);
-		}
-
 	}
 }
 

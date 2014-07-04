@@ -15,8 +15,8 @@ CacheInterference::CacheInterference(std::string _name,
 		                             int _cpuCount,
 		                             int _numLeaderSets,
 		                             int _size,
-		                             int _numBits,
-		                             InterferenceProbabilityPolicy _ipp,
+		                             InterferenceProbabilityPolicy _loadIPP,
+		                             InterferenceProbabilityPolicy _writebackIPP,
 		                             InterferenceManager* _intman,
 		                             int _blockSize,
 		                             int _assoc,
@@ -30,7 +30,8 @@ CacheInterference::CacheInterference(std::string _name,
 
 	totalSetNumber = size / (_blockSize * _assoc);
 	cpuCount = _cpuCount;
-	intProbabilityPolicy = _ipp;
+	loadProbabilityPolicy = _loadIPP;
+	writebackProbabilityPolicy = _writebackIPP;
 
 	shadowTags = vector<LRU*>(cpuCount, NULL);
 
@@ -59,28 +60,11 @@ CacheInterference::CacheInterference(std::string _name,
 		fatal("The constituencyFactor must be a number between 0 and 1");
 	}
 
-	doInterferenceInsertion.resize(cpuCount, numLeaderSets == totalSetNumber);
-
-	if(intProbabilityPolicy == IPP_COUNTER_FIXED_INTMAN || intProbabilityPolicy == IPP_COUNTER_FIXED_PRIVATE){
-		randomCounterBits = _numBits;
-		requestCounters.resize(cpuCount, FixedWidthCounter(false, randomCounterBits));
-		responseCounters.resize(cpuCount, FixedWidthCounter(false, randomCounterBits));
-	}
-	else if(intProbabilityPolicy == IPP_FULL_RANDOM_FLOAT){
-		randomCounterBits = 0;
-		requestCounters.resize(cpuCount, FixedWidthCounter(false, 0));
-		responseCounters.resize(cpuCount, FixedWidthCounter(false, 0));
-	}
-	else if(intProbabilityPolicy == IPP_SEQUENTIAL_INSERT){
-		for(int i=0;i<doInterferenceInsertion.size();i++) doInterferenceInsertion[i] = true;
-	}
-	else{
-		fatal("cache interference probability policy not set");
-	}
+	requestCounters.resize(cpuCount, 0);
+	responseCounters.resize(cpuCount, 0);
 
 	sequentialReadCount.resize(cpuCount, 0);
 	sequentialWritebackCount.resize(cpuCount, 0);
-
 
 	samplePrivateMisses.resize(cpuCount, MissCounter(0));
 	sampleSharedMisses.resize(cpuCount, MissCounter(0));
@@ -89,12 +73,12 @@ CacheInterference::CacheInterference(std::string _name,
 	commitTracePrivateAccesses.resize(cpuCount, MissCounter(0));
 	commitTraceSharedMisses.resize(cpuCount, MissCounter(0));
 
-	interferenceMissProbabilities.resize(cpuCount, InterferenceMissProbability(true, randomCounterBits));
+	interferenceMissProbabilities.resize(cpuCount, 0.0);
 
 	samplePrivateWritebacks.resize(cpuCount, MissCounter(0));
 	sampleSharedResponses.resize(cpuCount, MissCounter(0));
 
-	privateWritebackProbability.resize(cpuCount, InterferenceMissProbability(false, randomCounterBits));
+	privateWritebackProbability.resize(cpuCount, 0.0);
 
 	_intman->registerCacheInterferenceObj(this);
 
@@ -271,7 +255,6 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	if(isCacheMiss) measureOverlap(req, true);
 
 	if(curTick >= detailedSimStart
-       && doInterferenceInsertion[req->adaptiveMHASenderID]
 	   && cpuCount > 1
 	   && isCacheMiss){
 
@@ -281,7 +264,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			}
 		}
 		else{
-			if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID].get(req->cmd), req->adaptiveMHASenderID, true)){
+			if(addAsInterference(interferenceMissProbabilities[req->adaptiveMHASenderID], req->adaptiveMHASenderID, true)){
 				assert(isCacheMiss);
 				tagAsInterferenceMiss(req, hitLat);
 			}
@@ -353,33 +336,30 @@ CacheInterference::doAccessStatistics(int numberOfSets, MemReqPtr& req, bool isC
 }
 
 bool
-CacheInterference::addAsInterference(FixedPointProbability probability, int cpuID, bool useRequestCounter){
+CacheInterference::addAsInterference(double probability, int cpuID, bool isLoad){
 
 	assert(numLeaderSets < totalSetNumber);
 
-	if(intProbabilityPolicy == IPP_COUNTER_FIXED_INTMAN){
+	InterferenceProbabilityPolicy policy = loadProbabilityPolicy;
+	if(!isLoad) policy = writebackProbabilityPolicy;
 
-		FixedWidthCounter* counter = NULL;
-		if(useRequestCounter) counter = &requestCounters[cpuID];
-		else counter = &responseCounters[cpuID];
+	if(policy == IPP_FULL_RANDOM_FLOAT){
 
-		bool doInsertion = probability.doInsertion(counter);
+		//FIXME: test the random policy
 
-		counter->inc();
-
-		return doInsertion;
-	}
-	else if(intProbabilityPolicy == IPP_FULL_RANDOM_FLOAT){
 		double randNum = rand() / (double) RAND_MAX;
 
-		if(randNum < probability.getFloatValue()){
+		if(randNum < probability){
 			return true;
 		}
 		return false;
 	}
-	else if(intProbabilityPolicy == IPP_SEQUENTIAL_INSERT){
+	else if(policy == IPP_SEQUENTIAL_INSERT){
+
+		//FIXME: implement sequential with reset
+
 		int* counter = 0;
-		if(useRequestCounter) counter = &sequentialReadCount[cpuID];
+		if(isLoad) counter = &sequentialReadCount[cpuID];
 		else counter = &sequentialWritebackCount[cpuID];
 
 		if(*counter > 0){
@@ -388,11 +368,10 @@ CacheInterference::addAsInterference(FixedPointProbability probability, int cpuI
 		}
 		return false;
 	}
-	else if(intProbabilityPolicy == IPP_COUNTER_FIXED_PRIVATE){
-		fatal("private counter based policy interference determination not implemented");
-	}
 
-	fatal("unknown interference probabilty policy");
+	//FIXME: implement a policy that never inserts interference requests
+
+	fatal("unknown interference probability policy");
 	return false;
 }
 
@@ -474,11 +453,10 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCac
 		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
 	}
 
-	if(doInterferenceInsertion[req->adaptiveMHASenderID]
-	                           && cpuCount > 1
-	                           && numLeaderSets < totalSetNumber
-	                           && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
-	                           && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID].get(Read), req->adaptiveMHASenderID, false)){
+	if(cpuCount > 1
+	   && numLeaderSets < totalSetNumber
+	   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
+	   && addAsInterference(privateWritebackProbability[req->adaptiveMHASenderID], req->adaptiveMHASenderID, false)){
 
 		int set = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 		issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, cache, set);
@@ -510,16 +488,20 @@ CacheInterference::tagAsInterferenceMiss(MemReqPtr& req, int hitLat){
 void
 CacheInterference::computeInterferenceProbabilities(int cpuID){
 
+	//FIXME: make sure this is synchronized with instruction samples
+
 	// Update interference miss probability
-	interferenceMissProbabilities[cpuID].updateInterference(samplePrivateMisses[cpuID], sampleSharedMisses[cpuID]);
+	interferenceMissProbabilities[cpuID] = (double) ((double) samplePrivateMisses[cpuID].value / (double) sampleSharedMisses[cpuID].value);
 	samplePrivateMisses[cpuID].reset();
 	sampleSharedMisses[cpuID].reset();
 
 	// Update private writeback probability
-	privateWritebackProbability[cpuID].update(samplePrivateWritebacks[cpuID], sampleSharedResponses[cpuID]);
+	privateWritebackProbability[cpuID] = (double) ((double) samplePrivateWritebacks[cpuID].value / (double) sampleSharedResponses[cpuID].value);
 
 	samplePrivateWritebacks[cpuID].reset();
 	sampleSharedResponses[cpuID].reset();
+
+	//FIXME: implement counter reset here
 }
 
 bool
@@ -706,8 +688,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 	Param<int> cpuCount;
 	Param<int> leaderSets;
 	Param<int> size;
-    Param<string> interference_probability_policy;
-    Param<int> ipp_bits;
+    Param<string> load_ipp;
+    Param<string> writeback_ipp;
     SimObjectParam<InterferenceManager* > interferenceManager;
     Param<int> blockSize;
     Param<int> assoc;
@@ -720,8 +702,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 	INIT_PARAM(cpuCount, "Number of cores"),
 	INIT_PARAM_DFLT(leaderSets, "Number of leader sets", 64),
 	INIT_PARAM(size, "The size of the cache in bytes"),
-    INIT_PARAM_DFLT(interference_probability_policy, "interference probability policy to use", "float"),
-    INIT_PARAM_DFLT(ipp_bits, "The resolution of the probability (used in a subset of IPP modes)", 6),
+    INIT_PARAM_DFLT(load_ipp, "interference probability policy to use for loads", "sequential"),
+    INIT_PARAM_DFLT(writeback_ipp, "interference probability policy to use for writebacks", "sequential"),
     INIT_PARAM(interferenceManager, "Pointer to the interference manager"),
     INIT_PARAM(blockSize, "Cache block size"),
     INIT_PARAM(assoc, "Associativity"),
@@ -730,42 +712,45 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0)
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
+
+#define IPPOBJ(ipp_name, ipp) do { \
+	if(ipp_name == "random"){ \
+		ipp = CacheInterference::IPP_FULL_RANDOM_FLOAT; \
+	} \
+	else if(ipp_name == "sequential"){ \
+		ipp = CacheInterference::IPP_SEQUENTIAL_INSERT; \
+	} \
+	} while(0)
+
 CREATE_SIM_OBJECT(CacheInterference)
 {
 
-    CacheInterference::InterferenceProbabilityPolicy ipp;
-    string ipp_name = interference_probability_policy;
-    if(ipp_name == "float"){
-    	ipp = CacheInterference::IPP_FULL_RANDOM_FLOAT;
-    }
-    else if(ipp_name == "fixed"){
-    	ipp = CacheInterference::IPP_COUNTER_FIXED_INTMAN;
-    }
-    else if(ipp_name == "fixed-private"){
-    	ipp = CacheInterference::IPP_COUNTER_FIXED_PRIVATE;
-    }
-    else if(ipp_name == "sequential"){
-    	ipp = CacheInterference::IPP_SEQUENTIAL_INSERT;
-    }
-    else{
-    	fatal("Unknown interference probability policy provided");
-    }
+    CacheInterference::InterferenceProbabilityPolicy load_ipp_obj = CacheInterference::IPP_INVALID;
+    string load_ipp_name = load_ipp;
+    IPPOBJ(load_ipp_name, load_ipp_obj);
+
+    CacheInterference::InterferenceProbabilityPolicy writeback_ipp_obj = CacheInterference::IPP_INVALID;
+    string writeback_ipp_name = writeback_ipp;
+    IPPOBJ(writeback_ipp_name, writeback_ipp_obj);
+
+    assert(load_ipp_obj != CacheInterference::IPP_INVALID);
+    assert(writeback_ipp_obj != CacheInterference::IPP_INVALID);
 
     HierParams* hp = new HierParams("InterferenceHier", false, true, cpuCount);
 
 	return new CacheInterference(getInstanceName(),
-								 cpuCount,
-								 leaderSets,
-								 size,
-								 ipp_bits,
-								 ipp,
-								 interferenceManager,
-								 blockSize,
-								 assoc,
-								 hitLatency,
-								 divisionFactor,
-								 constituencyFactor,
-								 hp);
+								  cpuCount,
+								  leaderSets,
+								  size,
+								  load_ipp_obj,
+								  writeback_ipp_obj,
+								  interferenceManager,
+								  blockSize,
+								  assoc,
+								  hitLatency,
+								  divisionFactor,
+								  constituencyFactor,
+								  hp);
 }
 
 REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)

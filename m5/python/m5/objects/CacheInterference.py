@@ -1,6 +1,6 @@
 from m5 import *
 
-class InterferenceProbabilityPolicy(Enum): vals = ['float', 'fixed', 'fixed-private', 'sequential']
+class InterferenceProbabilityPolicy(Enum): vals = ['random', 'sequential']
 
 class CacheInterference(SimObject):
     type = 'CacheInterference'
@@ -8,8 +8,8 @@ class CacheInterference(SimObject):
     cpuCount = Param.Int("Number of cores")
     leaderSets = Param.Int("Number of leader sets")
     size = Param.MemorySize("Cache capacity in bytes")
-    interference_probability_policy = Param.InterferenceProbabilityPolicy("interference probability policy to use")
-    ipp_bits= Param.Int("The resolution of the probability (used in a subset of IPP modes)")
+    load_ipp = Param.InterferenceProbabilityPolicy("interference probability policy to use for loads")
+    writeback_ipp = Param.InterferenceProbabilityPolicy("interference probability policy to use for writebacks")
     interferenceManager= Param.InterferenceManager("Pointer to the interference manager")
     blockSize= Param.Int("Cache block size")
     assoc= Param.Int("Associativity")

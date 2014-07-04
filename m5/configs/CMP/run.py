@@ -265,12 +265,12 @@ def createCacheInterference(bank):
     if "SHADOW-TAG-CONSTITUENCY-FACTOR" in env:
         cacheInt.constituencyFactor = float(env["SHADOW-TAG-CONSTITUENCY-FACTOR"]) 
 
-    if "IPP" in env:
-        cacheInt.interference_probability_policy = env["IPP"]
-            
-    if "IPP-BITS" in env:
-        cacheInt.ipp_bits = env["IPP-BITS"]
+    if "LOAD-IPP" in env:
+        cacheInt.load_ipp = env["LOAD-IPP"]
     
+    if "WRITEBACK-IPP" in env:
+        cacheInt.writeback_ipp = env["WRITEBACK-IPP"]
+            
     return cacheInt
 
 def initSharedCache(bankcnt, optPart):
