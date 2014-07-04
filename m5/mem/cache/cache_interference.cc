@@ -66,7 +66,7 @@ CacheInterference::CacheInterference(std::string _name,
 	sequentialReadCount.resize(cpuCount, 0);
 	sequentialWritebackCount.resize(cpuCount, 0);
 
-	samplePrivateMisses.resize(cpuCount, MissCounter(0));
+	sampleInterferenceMisses.resize(cpuCount, MissCounter(0));
 	sampleSharedMisses.resize(cpuCount, MissCounter(0));
 
 	commitTracePrivateMisses.resize(cpuCount, MissCounter(0));
@@ -228,7 +228,6 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
-				samplePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 			}
 			estimatedShadowMisses[req->adaptiveMHASenderID] += estConstAccesses;
@@ -237,6 +236,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			if(isCacheMiss && curTick >= detailedSimStart){
 				// shared cache miss and shadow hit -> need to tag reqs as interference requests
 				sequentialReadCount[req->adaptiveMHASenderID] += estConstAccesses;
+				sampleInterferenceMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 				interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 		}
@@ -352,10 +352,7 @@ CacheInterference::addAsInterference(double probability, int cpuID, bool isLoad)
 		}
 		return false;
 	}
-	else if(policy == IPP_SEQUENTIAL_INSERT){
-
-		//FIXME: implement sequential with reset
-
+	else if(policy == IPP_SEQUENTIAL_INSERT || policy == IPP_SEQUENTIAL_INSERT_RESET){
 		int* counter = 0;
 		if(isLoad) counter = &sequentialReadCount[cpuID];
 		else counter = &sequentialWritebackCount[cpuID];
@@ -364,10 +361,12 @@ CacheInterference::addAsInterference(double probability, int cpuID, bool isLoad)
 			(*counter)--;
 			return true;
 		}
+
 		return false;
 	}
-
-	//FIXME: implement a policy that never inserts interference requests
+	else if(policy == IPP_NONE){
+		return false;
+	}
 
 	fatal("unknown interference probability policy");
 	return false;
@@ -488,15 +487,19 @@ CacheInterference::computeInterferenceProbabilities(int cpuID){
 
 	// Update interference miss probability
 	if(sampleSharedMisses[cpuID].value > 0){
-		interferenceMissProbabilities[cpuID] = (double) ((double) samplePrivateMisses[cpuID].value / (double) sampleSharedMisses[cpuID].value);
+		interferenceMissProbabilities[cpuID] = (double) ((double) sampleInterferenceMisses[cpuID].value / (double) sampleSharedMisses[cpuID].value);
 	}
 	else{
 		interferenceMissProbabilities[cpuID] = 0.0;
 	}
-	samplePrivateMisses[cpuID].reset();
+	sampleInterferenceMisses[cpuID].reset();
 	sampleSharedMisses[cpuID].reset();
 
 	if(interferenceMissProbabilities[cpuID] > 1.0) interferenceMissProbabilities[cpuID] = 1.0;
+
+	if(loadProbabilityPolicy == IPP_SEQUENTIAL_INSERT_RESET){
+		sequentialReadCount[cpuID] = 0;
+	}
 
 	// Update private writeback probability
 	if(sampleSharedResponses[cpuID].value > 0){
@@ -510,7 +513,9 @@ CacheInterference::computeInterferenceProbabilities(int cpuID){
 
 	if(privateWritebackProbability[cpuID] > 1.0) privateWritebackProbability[cpuID] = 1.0;
 
-	//FIXME: implement counter reset here
+	if(writebackProbabilityPolicy == IPP_SEQUENTIAL_INSERT_RESET){
+		sequentialWritebackCount[cpuID] = 0;
+	}
 }
 
 bool
@@ -728,6 +733,12 @@ END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 	} \
 	else if(ipp_name == "sequential"){ \
 		ipp = CacheInterference::IPP_SEQUENTIAL_INSERT; \
+	} \
+	else if(ipp_name == "sequential-reset"){ \
+		ipp = CacheInterference::IPP_SEQUENTIAL_INSERT_RESET; \
+	} \
+	else if(ipp_name == "none"){ \
+		ipp = CacheInterference::IPP_NONE; \
 	} \
 	} while(0)
 

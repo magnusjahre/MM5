@@ -1,6 +1,6 @@
 from m5 import *
 
-class InterferenceProbabilityPolicy(Enum): vals = ['random', 'sequential']
+class InterferenceProbabilityPolicy(Enum): vals = ['random', 'sequential', 'sequential-reset', 'none']
 
 class CacheInterference(SimObject):
     type = 'CacheInterference'

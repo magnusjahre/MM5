@@ -29,6 +29,8 @@ public:
 	enum InterferenceProbabilityPolicy{
 		IPP_FULL_RANDOM_FLOAT, // float
 		IPP_SEQUENTIAL_INSERT,
+		IPP_SEQUENTIAL_INSERT_RESET,
+		IPP_NONE,
 		IPP_INVALID
 	};
 
@@ -168,7 +170,7 @@ private:
 	std::vector<double> interferenceMissProbabilities;
 	std::vector<double> privateWritebackProbability;
 
-	std::vector<MissCounter> samplePrivateMisses;
+	std::vector<MissCounter> sampleInterferenceMisses;
 	std::vector<MissCounter> sampleSharedMisses;
 
 	std::vector<MissCounter> commitTracePrivateMisses;
