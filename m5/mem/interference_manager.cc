@@ -486,8 +486,6 @@ InterferenceManager::incrementTotalReqCount(MemReqPtr& req, int roundTripLatency
 
 	if(resetInterval != -1 && totalRequestCount[req->adaptiveMHASenderID] % resetInterval == 0 && traceStarted){
 		resetInterferenceMeasurements(req->adaptiveMHASenderID);
-
-		cacheInterference->computeInterferenceProbabilities(req->adaptiveMHASenderID);
 	}
 }
 
@@ -892,6 +890,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	performanceModels[cpuID]->updateMeasuredCPIBus(avgTotalLat - avgNoBusLat);
 
 	performanceModels[cpuID]->traceModelParameters();
+
+	// compute interference probabilities for next sample (needed by the random IPP)
+	cacheInterference->computeInterferenceProbabilities(cpuID);
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;

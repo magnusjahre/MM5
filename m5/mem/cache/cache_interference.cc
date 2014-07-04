@@ -488,18 +488,29 @@ CacheInterference::tagAsInterferenceMiss(MemReqPtr& req, int hitLat){
 void
 CacheInterference::computeInterferenceProbabilities(int cpuID){
 
-	//FIXME: make sure this is synchronized with instruction samples
-
 	// Update interference miss probability
-	interferenceMissProbabilities[cpuID] = (double) ((double) samplePrivateMisses[cpuID].value / (double) sampleSharedMisses[cpuID].value);
+	if(sampleSharedMisses[cpuID].value > 0){
+		interferenceMissProbabilities[cpuID] = (double) ((double) samplePrivateMisses[cpuID].value / (double) sampleSharedMisses[cpuID].value);
+	}
+	else{
+		interferenceMissProbabilities[cpuID] = 0.0;
+	}
 	samplePrivateMisses[cpuID].reset();
 	sampleSharedMisses[cpuID].reset();
 
-	// Update private writeback probability
-	privateWritebackProbability[cpuID] = (double) ((double) samplePrivateWritebacks[cpuID].value / (double) sampleSharedResponses[cpuID].value);
+	if(interferenceMissProbabilities[cpuID] > 1.0) interferenceMissProbabilities[cpuID] = 1.0;
 
+	// Update private writeback probability
+	if(sampleSharedResponses[cpuID].value > 0){
+		privateWritebackProbability[cpuID] = (double) ((double) samplePrivateWritebacks[cpuID].value / (double) sampleSharedResponses[cpuID].value);
+	}
+	else{
+		privateWritebackProbability[cpuID] = 0;
+	}
 	samplePrivateWritebacks[cpuID].reset();
 	sampleSharedResponses[cpuID].reset();
+
+	if(privateWritebackProbability[cpuID] > 1.0) privateWritebackProbability[cpuID] = 1.0;
 
 	//FIXME: implement counter reset here
 }
