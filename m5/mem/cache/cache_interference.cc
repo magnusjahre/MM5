@@ -345,8 +345,6 @@ CacheInterference::addAsInterference(double probability, int cpuID, bool isLoad)
 
 	if(policy == IPP_FULL_RANDOM_FLOAT){
 
-		//FIXME: test the random policy
-
 		double randNum = rand() / (double) RAND_MAX;
 
 		if(randNum < probability){
