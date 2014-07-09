@@ -19,6 +19,7 @@
 #include "mem/interference_manager.hh"
 #include "mem/memory_overlap_table.hh"
 #include "mem/critical_path_table.hh"
+#include "mem/itca.hh"
 
 class InterferenceManager;
 class BaseCache;
@@ -311,6 +312,7 @@ private:
 
 	MemoryOverlapTable* overlapTable;
 	CriticalPathTable* criticalPathTable;
+	ITCA* itca;
 
 	std::vector<EstimationEntry*> pendingRequests;
 	std::vector<EstimationEntry*> completedRequests;

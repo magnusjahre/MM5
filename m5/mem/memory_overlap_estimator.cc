@@ -78,11 +78,13 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	boisAloneStallEstimate = 0;
 
 	criticalPathTable = new CriticalPathTable(this, _cplTableBufferSize);
+	itca = new ITCA(cpu_count);
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
 	delete overlapTable;
 	delete criticalPathTable;
+	delete itca;
 }
 
 

@@ -179,6 +179,7 @@ base_sources = Split('''
 	mem/memory_overlap_estimator.cc
 	mem/memory_overlap_table.cc
 	mem/critical_path_table.cc
+	mem/itca.cc
 	mem/bus/base_interface.cc
 	mem/bus/bus.cc
 	mem/bus/bus_bridge.cc
