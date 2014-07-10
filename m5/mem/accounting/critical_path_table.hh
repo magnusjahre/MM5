@@ -9,7 +9,7 @@
 #define CRITICAL_PATH_TABLE_HH_
 
 #include "mem/requesttrace.hh"
-#include "mem/memory_overlap_estimator.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
 
 class MemoryOverlapEstimator;
 class CriticalPathTableMeasurements;

@@ -167,6 +167,12 @@ base_sources = Split('''
         encumbered/cpu/full/iq/standard/iq_standard.cc
 	encumbered/mem/functional/main.cc
 
+	mem/accounting/critical_path_table.cc
+	mem/accounting/interference_manager.cc
+	mem/accounting/itca.cc
+	mem/accounting/memory_overlap_estimator.cc
+	mem/accounting/memory_overlap_table.cc
+	
 	mem/base_hier.cc
 	mem/base_mem.cc
 	mem/hier_params.cc
@@ -176,10 +182,6 @@ base_sources = Split('''
 	mem/requesttrace.cc
 	mem/datadump.cc
 	mem/memory_interface.cc
-	mem/memory_overlap_estimator.cc
-	mem/memory_overlap_table.cc
-	mem/critical_path_table.cc
-	mem/itca.cc
 	mem/bus/base_interface.cc
 	mem/bus/bus.cc
 	mem/bus/bus_bridge.cc
@@ -253,7 +255,6 @@ base_sources = Split('''
 	mem/interconnect/butterfly.cc
 	mem/interconnect/peer_to_peer_link.cc
 	mem/interconnect/ring.cc
-	mem/interference_manager.cc
 	mem/functional/functional.cc
 	mem/timing/base_memory.cc
 	mem/timing/memory_builder.cc

@@ -2,7 +2,7 @@
 #ifndef MEMORY_OVERLAP_TABLE_HH_
 #define MEMORY_OVERLAP_TABLE_HH_
 
-#include "mem/memory_overlap_estimator.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
 #include "sim/sim_object.hh"
 
 class MemoryOverlapTable : public SimObject{

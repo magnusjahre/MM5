@@ -46,9 +46,9 @@
 #include "mem/mem_cmd.hh"
 #include "mem/mem_req.hh" // For MemReqPtr
 #include "mem/cache/miss/adaptive_mha.hh"
-#include "mem/interference_manager.hh"
+#include "mem/accounting/interference_manager.hh"
 #include "cache_interference.hh"
-#include "mem/memory_overlap_estimator.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
 
 #include "mem/cache/coherence/directory.hh"
 #include "mem/cache/cache_blk.hh"

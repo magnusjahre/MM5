@@ -10,9 +10,9 @@
 #include "sim/sim_exit.hh"
 #include "base/callback.hh"
 
-#include "mem/interference_manager.hh"
+#include "mem/accounting/interference_manager.hh"
 #include "mem/requesttrace.hh"
-#include "mem/memory_overlap_estimator.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/throttle_control.hh"
 #include "mem/bus/bus.hh"

@@ -3,7 +3,7 @@
 #define __ADDRESS_DEPENDENT_IC_HH__
 
 #include "interconnect.hh"
-#include "mem/interference_manager.hh"
+#include "mem/accounting/interference_manager.hh"
 
 class AddressDependentIC : public Interconnect
 {

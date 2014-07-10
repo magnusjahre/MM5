@@ -6,7 +6,7 @@
  */
 
 #include "performance_measurement.hh"
-#include "mem/interference_manager.hh" // for latency type names
+#include "mem/accounting/interference_manager.hh" // for latency type names
 
 using namespace std;
 

@@ -12,7 +12,7 @@
 #include "mem/mem_req.hh"
 #include "mem/cache/tags/lru.hh"
 #include "mem/policy/performance_measurement.hh"
-#include "mem/interference_manager.hh"
+#include "mem/accounting/interference_manager.hh"
 
 #include <vector>
 #include <iostream>

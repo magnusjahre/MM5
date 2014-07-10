@@ -4,16 +4,16 @@
 
 #include "sim/sim_object.hh"
 #include "base/misc.hh"
-#include "mem_req.hh"
+#include "mem/mem_req.hh"
 #include "base/statistics.hh"
-#include "requesttrace.hh"
+#include "mem/requesttrace.hh"
 #include "mem/cache/cache_interference.hh"
 #include "mem/policy/base_policy.hh"
 #include "encumbered/cpu/full/cpu.hh"
-#include "cache/base_cache.hh"
+#include "mem/cache/base_cache.hh"
 #include "mem/bus/bus.hh"
 #include "mem/policy/performance_measurement.hh"
-#include "mem/memory_overlap_estimator.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
 #include "mem/policy/performance_model.hh"
 
 class CacheInterference;

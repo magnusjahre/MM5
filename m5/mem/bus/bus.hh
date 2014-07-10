@@ -50,7 +50,7 @@
 #include "sim/eventq.hh"
 
 #include "mem/cache/miss/adaptive_mha.hh"
-#include "mem/interference_manager.hh"
+#include "mem/accounting/interference_manager.hh"
 
 #include "mem/bus/controller/memory_controller.hh"
 

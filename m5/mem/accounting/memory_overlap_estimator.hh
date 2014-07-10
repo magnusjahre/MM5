@@ -16,10 +16,10 @@
 #include "mem/base_hier.hh"
 #include "base/statistics.hh"
 #include "mem/requesttrace.hh"
-#include "mem/interference_manager.hh"
-#include "mem/memory_overlap_table.hh"
-#include "mem/critical_path_table.hh"
-#include "mem/itca.hh"
+#include "mem/accounting/interference_manager.hh"
+#include "mem/accounting/memory_overlap_table.hh"
+#include "mem/accounting/critical_path_table.hh"
+#include "mem/accounting/itca.hh"
 
 class InterferenceManager;
 class BaseCache;
