@@ -67,6 +67,7 @@ private:
 	int cpuID;
 	ITCAAccountingState accountingState;
 	ITCASignalState signalState;
+	Tick lastSampleAt;
 
 	std::vector<ITCATableEntry> dataMissTable;
 	std::vector<ITCATableEntry> instructionMissTable;
@@ -86,7 +87,7 @@ public:
 
 	void unsetSignal(ITCASignals signal);
 
-	Tick getAccountedCycles(Tick sampleSize);
+	Tick getAccountedCycles();
 
 	void l1DataMiss(Addr addr);
 

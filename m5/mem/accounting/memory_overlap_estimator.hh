@@ -252,6 +252,7 @@ public:
 	double avgTotalComWhilePend;
 	double avgComWhileBurst;
 	CriticalPathTableMeasurements cptMeasurements;
+	Tick itcaAccountedCycles;
 
 	OverlapStatistics(){
 		graphCPL = 0;
@@ -261,6 +262,7 @@ public:
 		avgInterBurstOverlap = 0.0;
 		avgTotalComWhilePend = 0.0;
 		avgComWhileBurst = 0.0;
+		itcaAccountedCycles = 0;
 	}
 };
 

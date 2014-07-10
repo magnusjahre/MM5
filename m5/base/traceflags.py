@@ -162,7 +162,8 @@ baseFlags = [
     'OverlapEstimatorTable',
     'CPLTable',
     'CPLTableProgress',
-    'ITCA'
+    'ITCA',
+    'ITCAProgress'
     ]
 
 #

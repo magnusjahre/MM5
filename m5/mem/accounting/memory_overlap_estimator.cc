@@ -398,6 +398,7 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 
 	ols.cptMeasurements = criticalPathTable->getCriticalPathLength(sampleID+1);
 	ols.tableCPL = ols.cptMeasurements.criticalPathLength;
+	ols.itcaAccountedCycles = itca->getAccountedCycles();
 
 	DPRINTF(CPLTableProgress, "Sample %d: Returning ols.cpl %d and tableCPL %d (request number: %d, committed instructions %d)\n",
 			sampleID,

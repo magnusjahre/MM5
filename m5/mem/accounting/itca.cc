@@ -9,6 +9,7 @@ ITCA::ITCA(int _cpuID){
 	accountingState.setCPUID(_cpuID);
 	signalState = ITCASignalState();
 	cpuID = _cpuID;
+	lastSampleAt = 0;
 }
 
 void
@@ -113,14 +114,25 @@ ITCA::unsetSignal(ITCASignals signal){
 }
 
 Tick
-ITCA::getAccountedCycles(Tick sampleSize){
+ITCA::getAccountedCycles(){
+	Tick sampleSize = curTick - lastSampleAt;
+
 	accountingState.handleSampleTransition(sampleSize);
 	Tick accountedCycles = accountingState.accountedCycles;
+
+	DPRINTF(ITCAProgress, "CPU %d: SAMPLING, accounted %d cycles, cycles in sample %d\n",
+			cpuID,
+			accountedCycles,
+			sampleSize);
+
 	accountingState.reset();
+	lastSampleAt = curTick;
+
 	return accountedCycles;
 }
 
 ITCA::ITCAAccountingState::ITCAAccountingState(){
+	cpuID = -1;
 	accounting = true;
 	stateChangedAt = 0;
 	accountedCycles = 0;
@@ -156,16 +168,34 @@ ITCA::ITCAAccountingState::update(bool doNotAccount){
 
 void
 ITCA::ITCAAccountingState::handleSampleTransition(Tick sampleSize){
-	fatal("sample transitions not implemented");
+	Tick length = curTick - stateChangedAt;
+
+	if(accounting){
+		accountedCycles += length;
+
+		DPRINTF(ITCA, "CPU %d: Accounting the final %d cycles of the sample\n",
+				cpuID,
+				length);
+	}
+	else{
+		notAccountedCycles += length;
+
+		DPRINTF(ITCA, "CPU %d: Not accounting the final %d cycles of the sample\n",
+				cpuID,
+				length);
+	}
+
+	stateChangedAt = curTick;
+
 	assert(accountedCycles + notAccountedCycles == sampleSize);
 }
 
 void
 ITCA::ITCAAccountingState::reset(){
+	// Note: stateChangedAt is reset in handleSampleTransition()
+	// Since no signals have changed, there is no accounting state change
 	accountedCycles = 0;
 	notAccountedCycles = 0;
-
-	fatal("Reset needs to update accounting and stateChangedAt");
 }
 
 void

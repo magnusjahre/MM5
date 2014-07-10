@@ -789,6 +789,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Damping Model Error w/ Cutoff");
 		headers.push_back("Policy type");
 		headers.push_back("Average Shared Model Error");
+		headers.push_back("ITCA Accounted Cycles");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -917,6 +918,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(lastModelErrorWithCutoff[cpuID]);
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
+		data.push_back(ols.itcaAccountedCycles);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
