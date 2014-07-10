@@ -33,8 +33,10 @@ private:
 		Tick stateChangedAt;
 		Tick accountedCycles;
 		Tick notAccountedCycles;
+		int cpuID;
 
 		ITCAAccountingState();
+		void setCPUID(int _cpuID) { cpuID = _cpuID; }
 
 		void update(bool stopAccounting);
 		void reset();
@@ -75,6 +77,8 @@ private:
 
 	void removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
 
+	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
+
 public:
 	ITCA(int _cpuID);
 
@@ -89,6 +93,8 @@ public:
 	void l1MissResolved(Addr addr, Tick willFinishAt);
 
 	void handleL1MissResolvedEvent(Addr addr);
+
+	void intertaskMiss(Addr addr, bool isInstructionMiss);
 
 };
 

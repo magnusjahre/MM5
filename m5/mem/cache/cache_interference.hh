@@ -164,6 +164,8 @@ private:
 
 	double constituencyFactor;
 
+	InterferenceManager* interferenceManager;
+
 	std::vector<int> requestCounters;
 	std::vector<int> responseCounters;
 

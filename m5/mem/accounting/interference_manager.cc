@@ -62,6 +62,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 	totalRequestCount.resize(_cpu_count, 0);
 	runningLatencySum.resize(_cpu_count, 0);
 
+	overlapEstimators.resize(_cpu_count, NULL);
 
 	instTraceInterferenceSum.resize(_cpu_count, 0);
 	instTraceLatencySum.resize(_cpu_count, 0);
@@ -945,6 +946,19 @@ InterferenceManager::clearMSHROccupancyLists(){
 	for(int i=0;i<lastPrivateCaches.size();i++){
 		lastPrivateCaches[i]->clearOccupancyList();
 	}
+}
+
+void
+InterferenceManager::itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss){
+	assert(cpuID != -1);
+	assert(overlapEstimators[cpuID] != NULL);
+	overlapEstimators[cpuID]->itcaIntertaskMiss(addr, isInstructionMiss);
+}
+
+void
+InterferenceManager::registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe, int cpuID){
+	assert(overlapEstimators[cpuID] == NULL);
+	overlapEstimators[cpuID] = moe;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

@@ -535,6 +535,9 @@ public:
 		return traceSampleID;
 	}
 
+	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss){
+		itca->intertaskMiss(addr, isInstructionMiss);
+	}
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

@@ -39,6 +39,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	cpuID = id;
 	cpuCount = cpu_count;
 	interferenceManager = _interferenceManager;
+	interferenceManager->registerMemoryOverlapEstimator(this, cpuID);
 
 	for(int i=0;i<NUM_STALL_CAUSES;i++) stallCycles[i] = 0;
 	lastTraceAt = 1;
@@ -78,7 +79,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	boisAloneStallEstimate = 0;
 
 	criticalPathTable = new CriticalPathTable(this, _cplTableBufferSize);
-	itca = new ITCA(cpu_count);
+	itca = new ITCA(id);
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){

@@ -102,6 +102,7 @@ private:
 	std::vector<Tick> commitTracePrivateBlockedStall;
 	std::vector<Tick> commitTraceEmptyROBStall;
 
+	std::vector<MemoryOverlapEstimator*> overlapEstimators;
 
 	int intManCPUCount;
 
@@ -265,6 +266,10 @@ public:
 	void addL1BlockedCycle(int cpuID);
 
 	void hiddenLoadDetected(int cpuID);
+
+	void itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss);
+
+	void registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe, int cpuID);
 };
 
 #endif

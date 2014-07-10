@@ -6,6 +6,7 @@ using namespace std;
 
 ITCA::ITCA(int _cpuID){
 	accountingState = ITCAAccountingState();
+	accountingState.setCPUID(_cpuID);
 	signalState = ITCASignalState();
 	cpuID = _cpuID;
 }
@@ -16,23 +17,24 @@ ITCA::processSignalChange(){
 	// This code implements Figure 5 from Luque et al. (2012)
 	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
 	bool portTwo = signalState.signalOn[ITCA_INTER_TOP_ROB] && signalState.signalOn[ITCA_RENAME_STALLED];
-	//FIXME: drawn as a NOR gate, but OR makes more sense to me now...
-	bool stopAccounting = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
+	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
+	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
 
-	DPRINTF(ITCA, "SignalChange: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
-				portOne ? "on": "off",
-				portTwo ? "on": "off",
-				signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
-				stopAccounting ? "on": "off");
+	DPRINTF(ITCA, "CPU %d: SignalChange: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
+			cpuID,
+			portOne ? "on": "off",
+			portTwo ? "on": "off",
+			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
+			doNotAccount ? "on": "off");
 
-	accountingState.update(stopAccounting);
-	fatal("ITCA process signal change not tested");
+	accountingState.update(doNotAccount);
 }
 
 void
 ITCA::l1DataMiss(Addr addr){
 	dataMissTable.push_back(ITCATableEntry(addr));
-	DPRINTF(ITCA, "Adding address %d to the data table, %d pending misses\n",
+	DPRINTF(ITCA, "CPU %d: Adding address %d to the data table, %d pending misses\n",
+			cpuID,
 			addr,
 			dataMissTable.size());
 
@@ -44,7 +46,8 @@ ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
 	ITCAMemoryRequestCompletionEvent* event = new ITCAMemoryRequestCompletionEvent(this, addr);
 	event->schedule(willFinishAt);
 
-	DPRINTF(ITCA, "Miss for addr %d resolved, scheduling handling for cycle %d\n",
+	DPRINTF(ITCA, "CPU %d: Miss for addr %d resolved, scheduling handling for cycle %d\n",
+			cpuID,
 			addr,
 			willFinishAt);
 }
@@ -52,6 +55,22 @@ ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
 void
 ITCA::handleL1MissResolvedEvent(Addr addr){
 	removeTableEntry(&dataMissTable, addr);
+	checkAllMSHRsInterSig();
+}
+
+void
+ITCA::intertaskMiss(Addr addr, bool isInstructionMiss){
+	vector<ITCATableEntry>* table = &dataMissTable;
+	if(isInstructionMiss) table = &instructionMissTable;
+
+	int entryID = findTableEntry(table, addr);
+	table->at(entryID).intertaskMiss = true;
+
+	DPRINTF(ITCA, "CPU %d: Address %d is an %s intertask miss\n",
+			cpuID,
+			isInstructionMiss ? "instruction" : "data",
+			addr);
+
 	checkAllMSHRsInterSig();
 }
 
@@ -71,12 +90,12 @@ ITCA::checkAllMSHRsInterSig(){
 		}
 	}
 
-	DPRINTF(ITCA, "Signal ALL_MSHRS_INTER set to %s\n",
+	DPRINTF(ITCA, "CPU %d: Signal ALL_MSHRS_INTER set to %s\n",
+			cpuID,
 			newState ? "ON" : "OFF");
 
 	signalState.signalOn[ITCA_ALL_MSHRS_INTER] = newState;
 	if(newState != prevState){
-		fatal("signal change on all MSHRs INTER not tested");
 		processSignalChange();
 	}
 }
@@ -102,22 +121,36 @@ ITCA::getAccountedCycles(Tick sampleSize){
 }
 
 ITCA::ITCAAccountingState::ITCAAccountingState(){
-	accounting = false;
+	accounting = true;
 	stateChangedAt = 0;
-
 	accountedCycles = 0;
 	notAccountedCycles = 0;
 }
 
 void
-ITCA::ITCAAccountingState::update(bool stopAccounting){
-	if(accounting && stopAccounting){
+ITCA::ITCAAccountingState::update(bool doNotAccount){
+	Tick length = curTick - stateChangedAt;
+	if(accounting && doNotAccount){
 		accounting = false;
-		fatal("Change from accounting to not accounting not impl");
+		accountedCycles += length;
+
+		DPRINTF(ITCA, "CPU %d: Accounted %d cycles, last change at %d\n",
+				cpuID,
+				length,
+				stateChangedAt);
+
+		stateChangedAt = curTick;
 	}
-	else if(!accounting && !stopAccounting){
+	else if(!accounting && !doNotAccount){
 		accounting = true;
-		fatal("Change from not accounting to accounting not impl");
+		notAccountedCycles += length;
+
+		DPRINTF(ITCA, "CPU %d: Accounting was off for %d cycles, last change at %d\n",
+				cpuID,
+				length,
+				stateChangedAt);
+
+		stateChangedAt = curTick;
 	}
 }
 
@@ -147,8 +180,8 @@ ITCA::ITCASignalState::unset(ITCASignals signal){
 	signalOn[signal] = false;
 }
 
-void
-ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+int
+ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 	int foundAt = -1;
 	for(int i=0;i<table->size();i++){
 		if(table->at(i).addr == addr){
@@ -156,9 +189,17 @@ ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 			foundAt = i;
 		}
 	}
+	assert(foundAt != -1);
+	return foundAt;
+}
+
+void
+ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+	int foundAt = findTableEntry(table, addr);
 	table->erase(table->begin()+foundAt);
 
-	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
+	DPRINTF(ITCA, "CPU %d: Removed element at position %d, addr %d, new size is %d\n",
+			cpuID,
 		 	foundAt,
 		 	addr,
 		 	table->size());

@@ -81,6 +81,7 @@ CacheInterference::CacheInterference(std::string _name,
 	privateWritebackProbability.resize(cpuCount, 0.0);
 
 	_intman->registerCacheInterferenceObj(this);
+	interferenceManager = _intman;
 
 	setsInConstituency = totalSetNumber / numLeaderSets;
 
@@ -261,6 +262,11 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		if(numberOfSets == numLeaderSets){
 			if(shadowHit && isCacheMiss){
 				tagAsInterferenceMiss(req, hitLat);
+
+				if(req->cmd == Read){
+					assert(req->adaptiveMHASenderID != -1);
+					interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss);
+				}
 			}
 		}
 		else{
