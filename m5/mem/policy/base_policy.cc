@@ -542,6 +542,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	    DPRINTF(MissBWPolicyExtra, "Returning Bois estimate of stall time, %d cycles\n", boisAloneStallEst);
 	    return boisAloneStallEst;
 	}
+	else if(perfEstMethod == ITCA){
+		//ITCA is handled directly in the trace since they do not partition the categories like we do
+		return 0.0;
+	}
 
 	fatal("Unknown performance estimation method");
 	return 0.0;
@@ -871,17 +875,18 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 	data.push_back(numWriteStalls);
 
 	if(cpuCount > 1){
+
 		double newStallEstimate = estimateStallCycles(stallCycles,
 													  privateStallCycles,
-				                                      avgSharedLat + avgPrivateMemsysLat,
-				                                      avgPrivateLatEstimate + avgPrivateMemsysLat,
-				                                      reqs,
-				                                      cpuID,
-				                                      ols.tableCPL,
-				                                      privateMissRate,
-				                                      cwp,
-				                                      boisAloneStallEst,
-				                                      ols.cptMeasurements);
+													  avgSharedLat + avgPrivateMemsysLat,
+													  avgPrivateLatEstimate + avgPrivateMemsysLat,
+													  reqs,
+													  cpuID,
+													  ols.tableCPL,
+													  privateMissRate,
+													  cwp,
+													  boisAloneStallEst,
+													  ols.cptMeasurements);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
 		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
@@ -889,6 +894,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + aloneROBStallEstimate + newStallEstimate);
+		if(perfEstMethod == ITCA){
+			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles;
+		}
 
 
 		data.push_back(avgSharedLat);
@@ -1057,6 +1065,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl-hybrid-damp") return CPL_HYBRID_DAMP;
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
+	if(methodName == "ITCA") return ITCA;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;
