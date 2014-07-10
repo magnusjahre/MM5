@@ -30,6 +30,58 @@ ITCA::processSignalChange(){
 }
 
 void
+ITCA::l1DataMiss(Addr addr){
+	dataMissTable.push_back(ITCATableEntry(addr));
+	DPRINTF(ITCA, "Adding address %d to the data table, %d pending misses\n",
+			addr,
+			dataMissTable.size());
+
+	checkAllMSHRsInterSig();
+}
+
+void
+ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
+	ITCAMemoryRequestCompletionEvent* event = new ITCAMemoryRequestCompletionEvent(this, addr);
+	event->schedule(willFinishAt);
+
+	DPRINTF(ITCA, "Miss for addr %d resolved, scheduling handling for cycle %d\n",
+			addr,
+			willFinishAt);
+}
+
+void
+ITCA::handleL1MissResolvedEvent(Addr addr){
+	removeTableEntry(&dataMissTable, addr);
+	checkAllMSHRsInterSig();
+}
+
+void
+ITCA::checkAllMSHRsInterSig(){
+	bool prevState = signalState.signalOn[ITCA_ALL_MSHRS_INTER];
+	bool newState = true;
+
+	if(dataMissTable.empty()){
+		newState = false;
+	}
+	else{
+		for(int i=0;i<dataMissTable.size();i++){
+			if(!dataMissTable[i].intertaskMiss){
+				newState = false;
+			}
+		}
+	}
+
+	DPRINTF(ITCA, "Signal ALL_MSHRS_INTER set to %s\n",
+			newState ? "ON" : "OFF");
+
+	signalState.signalOn[ITCA_ALL_MSHRS_INTER] = newState;
+	if(newState != prevState){
+		fatal("signal change on all MSHRs INTER not tested");
+		processSignalChange();
+	}
+}
+
+void
 ITCA::setSignal(ITCASignals signal){
 	signalState.set(signal);
 	processSignalChange();
@@ -93,4 +145,21 @@ void
 ITCA::ITCASignalState::unset(ITCASignals signal){
 	assert(signalOn[signal]);
 	signalOn[signal] = false;
+}
+
+void
+ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+	int foundAt = -1;
+	for(int i=0;i<table->size();i++){
+		if(table->at(i).addr == addr){
+			assert(foundAt == -1);
+			foundAt = i;
+		}
+	}
+	table->erase(table->begin()+foundAt);
+
+	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
+		 	foundAt,
+		 	addr,
+		 	table->size());
 }

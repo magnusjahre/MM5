@@ -541,6 +541,7 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 
 	//overlapTable->requestIssued(req);
 	criticalPathTable->issuedRequest(req);
+	itca->l1DataMiss(req->paddr & ~(MOE_CACHE_BLK_SIZE-1));
 
 	EstimationEntry* ee = new EstimationEntry(nextReqID, req->paddr & ~(MOE_CACHE_BLK_SIZE-1),curTick, req->cmd);
 	pendingRequests.push_back(ee);
@@ -579,6 +580,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 	//overlapTable->requestCompleted(req, hiddenLoad);
 	criticalPathTable->completedRequest(req, hiddenLoad, finishedAt);
+	itca->l1MissResolved(req->paddr, finishedAt);
 
 	totalRequestAccumulator++;
 

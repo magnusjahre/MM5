@@ -9,6 +9,8 @@
 #define ITCA_HH_
 
 #include "sim/sim_object.hh"
+#include "sim/eventq.hh"
+#include "mem/base_hier.hh"
 #include "base/misc.hh"
 #include "base/trace.hh"
 #include <iostream>
@@ -51,11 +53,27 @@ private:
 		void unset(ITCASignals signal);
 	};
 
+	class ITCATableEntry{
+	public:
+		Addr addr;
+		bool intertaskMiss;
+
+		ITCATableEntry() : addr(0), intertaskMiss(false) {}
+		ITCATableEntry(Addr _addr) : addr(_addr), intertaskMiss(false) {}
+	};
+
 	int cpuID;
 	ITCAAccountingState accountingState;
 	ITCASignalState signalState;
 
+	std::vector<ITCATableEntry> dataMissTable;
+	std::vector<ITCATableEntry> instructionMissTable;
+
 	void processSignalChange();
+
+	void checkAllMSHRsInterSig();
+
+	void removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
 
 public:
 	ITCA(int _cpuID);
@@ -66,7 +84,41 @@ public:
 
 	Tick getAccountedCycles(Tick sampleSize);
 
+	void l1DataMiss(Addr addr);
+
+	void l1MissResolved(Addr addr, Tick willFinishAt);
+
+	void handleL1MissResolvedEvent(Addr addr);
+
 };
 
+
+class ITCAMemoryRequestCompletionEvent : public Event{
+    ITCA* itca;
+	Addr addr;
+
+    public:
+    // constructor
+    /** A simple constructor. */
+	ITCAMemoryRequestCompletionEvent (ITCA* _itca, Addr _addr)
+        : Event(&mainEventQueue), itca(_itca), addr(_addr)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process(){
+        itca->handleL1MissResolvedEvent(addr);
+        delete this;
+    }
+
+    /**
+    * Returns the string description of this event.
+    * @return The description of this event.
+     */
+    virtual const char *description(){
+        return "ITCA Memory Request Completion Event";
+    }
+};
 
 #endif /* ITCA_HH_ */
