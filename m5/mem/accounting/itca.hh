@@ -65,7 +65,7 @@ private:
 		}
 
 		void set(ITCASignals signal);
-		void unset(ITCASignals signal);
+		void clear(ITCASignals signal);
 	};
 
 	class ITCATableEntry{

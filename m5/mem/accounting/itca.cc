@@ -35,7 +35,7 @@ ITCA::updateInterTopROB(){
 		}
 	}
 	if(found) signalState.set(ITCA_INTER_TOP_ROB);
-	else signalState.unset(ITCA_INTER_TOP_ROB);
+	else signalState.clear(ITCA_INTER_TOP_ROB);
 
 	DPRINTF(ITCA, "Signal ITCA_INTER_TOP_ROB set to %s, head of ROB addr %d\n",
 			signalState.signalOn[ITCA_INTER_TOP_ROB] ? "ON" : "OFF",
@@ -84,7 +84,7 @@ ITCA::updateInterTaskInstruction(){
 	}
 	else{
 		DPRINTF(ITCA, "ITCA_IT_INSTRUCTION not set (%d instruction misses)\n", instructionMissTable.size());
-		signalState.unset(ITCA_IT_INSTRUCTION);
+		signalState.clear(ITCA_IT_INSTRUCTION);
 	}
 }
 
@@ -208,7 +208,7 @@ void
 ITCA::itcaCPUResumed(ITCACPUStalls type){
 	if(type == useCPUStallSignal){
 		DPRINTF(ITCA, "CPU resumed execution on signal %s, unsetting CPU stall signal\n", cpuStallSignalNames[type]);
-		signalState.unset(ITCA_CPU_STALLED);
+		signalState.clear(ITCA_CPU_STALLED);
 		processSignalChange();
 	}
 	else{
@@ -271,7 +271,7 @@ ITCA::setROBEmpty(){
 void
 ITCA::clearROBEmpty(){
 	assert(signalState.signalOn[ITCA_ROB_EMPTY]);
-	signalState.unset(ITCA_ROB_EMPTY);
+	signalState.clear(ITCA_ROB_EMPTY);
 	DPRINTF(ITCA, "Clearing signal ITCA_ROB_EMPTY\n");
 	processSignalChange();
 }
@@ -357,7 +357,7 @@ ITCA::ITCASignalState::set(ITCASignals signal){
 }
 
 void
-ITCA::ITCASignalState::unset(ITCASignals signal){
+ITCA::ITCASignalState::clear(ITCASignals signal){
 	signalOn[signal] = false;
 }
 
