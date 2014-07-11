@@ -364,451 +364,451 @@ FullCPU::checkGlobalResourcesForDispatch(unsigned needSlots)
 void
 FullCPU::dispatch()
 {
-    DispatchEndCause &endCause = floss_state.dispatch_end_cause;
-    endCause = FLOSS_DIS_CAUSE_NOT_SET;
-
-    //  We will sort this vector to determine which thread to attempt
-    //  to dispatch first, second, etc...
-    vector<ThreadList> tlist(SMT_MAX_THREADS);
-
-
-    //
-    //  bail early if no instructions to dispatch
-    //
-    if (decodeQueue->instsAvailable() == 0) {
-	endCause = FLOSS_DIS_NO_INSN;
-	return;
-    }
-
-    endCause = checkGlobalResourcesForDispatch(1);
-    if (endCause != FLOSS_DIS_CAUSE_NOT_SET)
-	return;
-
-    m5_assert(chainWires == 0 || chainWires->sanityCheckOK());
-    m5_assert(clusterSharedInfo->ci_table == 0 ||
-	      clusterSharedInfo->ci_table->sanityCheckOK());
-
-
-    //
-    //  For each thread:
-    //    - Populate ThreadList entry
-    //    - Check for dispatch-able instrucitons
-    //    - Calculate score
-    //
-    for (int t = 0; t < SMT_MAX_THREADS; ++t) {
-	int idx = choose_iqueue(t);
-
-	if (idx < 0) {
-	    //  no available clusters
-	    tlist[t].eligable = false;
-
-	    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_POLICY);
-
-	    continue;   // try next thread
-	}
-
-	tlist[t].iq_idx = idx;
-	tlist[t].thread_number = t;
-	tlist[t].lastDispatchTime = lastDispatchTime[t];
-
-	//  how many insturctions can we possibly dispatch?
-	tlist[t].disp_insts = decodeQueue->instsAvailable(t);
-	if (tlist[t].disp_insts > dispatch_width)
-	    tlist[t].disp_insts = dispatch_width;
-
-	if (tlist[t].disp_insts == 0) {
-	    tlist[t].eligable = false;
-
-	    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
-
-	    continue;   // try next thread
-	}
-
-	//
-	//  modify the score based on the fetch policy
-	//
-	unsigned adj = 0;
-	switch (fetch_policy) {
-	  case IC:
-	    //  The number of slots available to this thread without regard
-	    //  to the cap...
-	    tlist[t].score += IQNumSlots;
-
-	    //
-	    //  adjust the score by the number of instructions in the IQ
-	    //  ==> Be careful not to underflow the unsigned score value
-	    //
-	    adj = IQNumInstructions(t) + static_icount_bias[t];
-
-	    if (adj > tlist[t].score)
-		tlist[t].score = 0;
-	    else
-		tlist[t].score -= adj;
-
-	    break;
-	  default:
-	    //  The number of cycles since this thread last dispatched
-	    tlist[t].score += (curTick - lastDispatchTime[t]);
-	    break;
-	}
-
-	tlist[t].eligable = true;
-    }
-
-    //
-    //  Now that the scores have been calculated... sort threads...
-    //
-    sort(tlist.begin(), tlist.end(), ThreadListSortComp());
-
-    //
-    //  If the first element isn't going to dispatch, none are...
-    //  --> bail out early
-    //
-    if (tlist[0].eligable) {
-	//  reset the end cause... we've got something to dispatch...
+	DispatchEndCause &endCause = floss_state.dispatch_end_cause;
 	endCause = FLOSS_DIS_CAUSE_NOT_SET;
-    } else {
-	// The only possible floss cause here is NO_INSN
-	return;
-    }
+
+	//  We will sort this vector to determine which thread to attempt
+	//  to dispatch first, second, etc...
+	vector<ThreadList> tlist(SMT_MAX_THREADS);
 
 
-    //---------------------------------------------------------------------
-    //
-    //  We're finally ready to start dispatching. If there is only one
-    //  IQ, then we simply dispatch the thread with the highest score to
-    //  the sole IQ.
-    //
-    //  The clustered architecture is slightly more interesting...
-    //
-    unsigned dispatched_this_cycle = 0;
-
-    if (numIQueues == 1) {
 	//
-	//  Non-clustered architecture:
+	//  bail early if no instructions to dispatch
 	//
-	for (int i = 0; i < number_of_threads; ++i) {
-	    //  early exit...
-	    if (!tlist[i].eligable)
-		break;
+	if (decodeQueue->instsAvailable() == 0) {
+		endCause = FLOSS_DIS_NO_INSN;
+		return;
+	}
 
-	    unsigned thread = tlist[i].thread_number;
-	    unsigned count = dispatch_thread(thread, 0, 0, endCause);
+	endCause = checkGlobalResourcesForDispatch(1);
+	if (endCause != FLOSS_DIS_CAUSE_NOT_SET)
+		return;
 
-	    if (endCause == FLOSS_DIS_CAUSE_NOT_SET && count == dispatch_width)
-		endCause = FLOSS_DIS_BW;
+	m5_assert(chainWires == 0 || chainWires->sanityCheckOK());
+	m5_assert(clusterSharedInfo->ci_table == 0 ||
+			clusterSharedInfo->ci_table->sanityCheckOK());
 
-	    if (count) {
+
+	//
+	//  For each thread:
+	//    - Populate ThreadList entry
+	//    - Check for dispatch-able instrucitons
+	//    - Calculate score
+	//
+	for (int t = 0; t < SMT_MAX_THREADS; ++t) {
+		int idx = choose_iqueue(t);
+
+		if (idx < 0) {
+			//  no available clusters
+			tlist[t].eligable = false;
+
+			SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_POLICY);
+
+			continue;   // try next thread
+		}
+
+		tlist[t].iq_idx = idx;
+		tlist[t].thread_number = t;
+		tlist[t].lastDispatchTime = lastDispatchTime[t];
+
+		//  how many insturctions can we possibly dispatch?
+		tlist[t].disp_insts = decodeQueue->instsAvailable(t);
+		if (tlist[t].disp_insts > dispatch_width)
+			tlist[t].disp_insts = dispatch_width;
+
+		if (tlist[t].disp_insts == 0) {
+			tlist[t].eligable = false;
+
+			SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
+
+			continue;   // try next thread
+		}
+
+		//
+		//  modify the score based on the fetch policy
+		//
+		unsigned adj = 0;
+		switch (fetch_policy) {
+		case IC:
+			//  The number of slots available to this thread without regard
+			//  to the cap...
+			tlist[t].score += IQNumSlots;
+
+			//
+			//  adjust the score by the number of instructions in the IQ
+			//  ==> Be careful not to underflow the unsigned score value
+			//
+			adj = IQNumInstructions(t) + static_icount_bias[t];
+
+			if (adj > tlist[t].score)
+				tlist[t].score = 0;
+			else
+				tlist[t].score -= adj;
+
+			break;
+		default:
+			//  The number of cycles since this thread last dispatched
+			tlist[t].score += (curTick - lastDispatchTime[t]);
+			break;
+		}
+
+		tlist[t].eligable = true;
+	}
+
+	//
+	//  Now that the scores have been calculated... sort threads...
+	//
+	sort(tlist.begin(), tlist.end(), ThreadListSortComp());
+
+	//
+	//  If the first element isn't going to dispatch, none are...
+	//  --> bail out early
+	//
+	if (tlist[0].eligable) {
+		//  reset the end cause... we've got something to dispatch...
+		endCause = FLOSS_DIS_CAUSE_NOT_SET;
+	} else {
+		// The only possible floss cause here is NO_INSN
+		return;
+	}
+
+
+	//---------------------------------------------------------------------
+	//
+	//  We're finally ready to start dispatching. If there is only one
+	//  IQ, then we simply dispatch the thread with the highest score to
+	//  the sole IQ.
+	//
+	//  The clustered architecture is slightly more interesting...
+	//
+	unsigned dispatched_this_cycle = 0;
+
+	if (numIQueues == 1) {
+		//
+		//  Non-clustered architecture:
+		//
+		for (int i = 0; i < number_of_threads; ++i) {
+			//  early exit...
+			if (!tlist[i].eligable)
+				break;
+
+			unsigned thread = tlist[i].thread_number;
+			unsigned count = dispatch_thread(thread, 0, 0, endCause);
+
+			if (endCause == FLOSS_DIS_CAUSE_NOT_SET && count == dispatch_width)
+				endCause = FLOSS_DIS_BW;
+
+			if (count) {
+				lastDispatchTime[thread] = curTick;
+				// exit after we dispatch from a thread
+				break;
+			}
+		}
+#if DUMP_IQ
+		IQ[0]->dump();
+#endif
+		return;
+	}
+
+
+	//------------------------------------------------------------------------
+	//
+	//  Clustered machine...
+	//
+	//   Dispatch behavior depends on dispatch policy
+	//
+	unsigned iq_idx = tlist[0].iq_idx;
+	unsigned thread = tlist[0].thread_number;
+	bool done = false;
+
+
+	switch (dispatch_policy) {
+	case DEPENDENCE:
+		//
+		//  We dispatch A SINGLE thread to as many IQ's as necessary.
+		//
+		//  rotate through all the IQ's until:
+		//    (1) We run out of instructions to dispatch
+		//    (2) We try to dispatch to an IQ, and fail
+		//
+		//  ==> This means that we have to check each IQ for caps, etc
+		//      as we rotate through...
+		//
 		lastDispatchTime[thread] = curTick;
-		// exit after we dispatch from a thread
-		break;
-	    }
-	}
-#if DUMP_IQ
-	IQ[0]->dump();
-#endif
-	return;
-    }
 
+		do {
+			DispatchEndCause queue_endCause = FLOSS_DIS_CAUSE_NOT_SET;
 
-    //------------------------------------------------------------------------
-    //
-    //  Clustered machine...
-    //
-    //   Dispatch behavior depends on dispatch policy
-    //
-    unsigned iq_idx = tlist[0].iq_idx;
-    unsigned thread = tlist[0].thread_number;
-    bool done = false;
+			//
+			//  Logic internal to dispatch_thread() will direct instructions
+			//  to the appropriate instruction queues
+			//
+			unsigned dispatched_this_queue =
+					dispatch_thread(thread, iq_idx, dispatch_width,
+							queue_endCause);
 
+			dispatched_this_cycle += dispatched_this_queue;
 
-    switch (dispatch_policy) {
-      case DEPENDENCE:
-	//
-	//  We dispatch A SINGLE thread to as many IQ's as necessary.
-	//
-	//  rotate through all the IQ's until:
-	//    (1) We run out of instructions to dispatch
-	//    (2) We try to dispatch to an IQ, and fail
-	//
-	//  ==> This means that we have to check each IQ for caps, etc
-	//      as we rotate through...
-	//
-	lastDispatchTime[thread] = curTick;
+			switch( queue_endCause ) {
+			//
+			// The following end-causes indicate that we can't dispatch
+			// any more instructions this cycle
+			//
+			case FLOSS_DIS_ROB_FULL:
+			case FLOSS_DIS_LSQ_FULL:
+			case FLOSS_DIS_IREG_FULL:
+			case FLOSS_DIS_FPREG_FULL:
+				done = true;
+				endCause = queue_endCause;
+				break;
 
-	do {
-	    DispatchEndCause queue_endCause = FLOSS_DIS_CAUSE_NOT_SET;
+				//
+				// The following end-causes indicate that we can't continue
+				// dispatching this thread this cycle
+				//
+			case FLOSS_DIS_ROB_CAP:
+			case FLOSS_DIS_NO_INSN:
+				done = true;
+				endCause = queue_endCause;
+				break;
 
-	    //
-	    //  Logic internal to dispatch_thread() will direct instructions
-	    //  to the appropriate instruction queues
-	    //
-	    unsigned dispatched_this_queue =
-		dispatch_thread(thread, iq_idx, dispatch_width,
-				queue_endCause);
+				//
+				// The following end-causes indicate that we can't dispatch
+				// the next instruction, so we should give up now...
+				//
+			case FLOSS_DIS_IQ_FULL:
+			case FLOSS_DIS_IQ_CAP:
+			case FLOSS_DIS_BW:
+				done = true;
+				break;
 
-	    dispatched_this_cycle += dispatched_this_queue;
+				//
+				//  If we run out of chains...
+				//
+			case FLOSS_DIS_POLICY:
+				done = true;
+				break;
 
-	    switch( queue_endCause ) {
-		//
-		// The following end-causes indicate that we can't dispatch
-		// any more instructions this cycle
-		//
-	      case FLOSS_DIS_ROB_FULL:
-	      case FLOSS_DIS_LSQ_FULL:
-	      case FLOSS_DIS_IREG_FULL:
-	      case FLOSS_DIS_FPREG_FULL:
-		done = true;
-		endCause = queue_endCause;
-		break;
+			case FLOSS_DIS_CAUSE_NOT_SET:
+				done = false;
+				break;
 
-		//
-		// The following end-causes indicate that we can't continue
-		// dispatching this thread this cycle
-		//
-	      case FLOSS_DIS_ROB_CAP:
-	      case FLOSS_DIS_NO_INSN:
-		done = true;
-		endCause = queue_endCause;
-		break;
+			default:
+				warn("need to adjust endCauses for dispatch_thread()");
+				done = false;
+			}
 
-		//
-		// The following end-causes indicate that we can't dispatch
-		// the next instruction, so we should give up now...
-		//
-	      case FLOSS_DIS_IQ_FULL:
-	      case FLOSS_DIS_IQ_CAP:
-	      case FLOSS_DIS_BW:
-		done = true;
-		break;
+			if (queue_endCause == FLOSS_DIS_CAUSE_NOT_SET) {
+				if (decodeQueue->instsAvailable(thread) == 0) {
+					SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
+					done = true; // nothing left to dispatch
+				}
+			}
 
-		//
-		//  If we run out of chains...
-		//
-	      case FLOSS_DIS_POLICY:
-		done = true;
+			if (dispatched_this_cycle == dispatch_width) {
+				SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
+				done = true;  // we used all available BW
+			}
+
+			if (done)
+				SET_FIRST_FLOSS_CAUSE(endCause, queue_endCause);
+
+		} while (!done);
+		assert(endCause != FLOSS_DIS_CAUSE_NOT_SET);
 		break;
 
-	      case FLOSS_DIS_CAUSE_NOT_SET:
-		done = false;
-		break;
-
-	      default:
-		warn("need to adjust endCauses for dispatch_thread()");
-		done = false;
-	    }
-
-	    if (queue_endCause == FLOSS_DIS_CAUSE_NOT_SET) {
-		if (decodeQueue->instsAvailable(thread) == 0) {
-		    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
-		    done = true; // nothing left to dispatch
-		}
-	    }
-
-	    if (dispatched_this_cycle == dispatch_width) {
-		SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
-		done = true;  // we used all available BW
-	    }
-
-	    if (done)
-		SET_FIRST_FLOSS_CAUSE(endCause, queue_endCause);
-
-	} while (!done);
-	assert(endCause != FLOSS_DIS_CAUSE_NOT_SET);
-	break;
-
-      case MODULO_N:
-	//
-	//  We dispatch A SINGLE thread to as many IQ's as necessary.
-	//
-	//  rotate through all the IQ's until:
-	//    (1) We run out of instructions to dispatch
-	//    (2) We try to dispatch to an IQ, and fail
-	//
-	//  ==> This means that we have to check each IQ for caps, etc
-	//      as we rotate through...
-	//
-	lastDispatchTime[thread] = curTick;
-
-	do {
-	    DispatchEndCause queue_endCause = FLOSS_DIS_CAUSE_NOT_SET;
-	    unsigned dispatched_this_queue =
-		dispatch_thread(thread, iq_idx, dispatch_width,
-				queue_endCause);
-
-	    dispatched_this_cycle += dispatched_this_queue;
-
-	    switch (queue_endCause) {
+	case MODULO_N:
 		//
-		// The following end-causes indicate that we can't dispatch
-		// any more instructions this cycle
+		//  We dispatch A SINGLE thread to as many IQ's as necessary.
 		//
-	      case FLOSS_DIS_ROB_FULL:
-	      case FLOSS_DIS_LSQ_FULL:
-	      case FLOSS_DIS_IREG_FULL:
-	      case FLOSS_DIS_FPREG_FULL:
-		done = true;
-		endCause = queue_endCause;
-		break;
-
+		//  rotate through all the IQ's until:
+		//    (1) We run out of instructions to dispatch
+		//    (2) We try to dispatch to an IQ, and fail
 		//
-		// The following end-causes indicate that we can't continue
-		// dispatching this thread this cycle
+		//  ==> This means that we have to check each IQ for caps, etc
+		//      as we rotate through...
 		//
-	      case FLOSS_DIS_ROB_CAP:
-	      case FLOSS_DIS_NO_INSN:
-		done = true;
-		endCause = queue_endCause;
-		break;
+		lastDispatchTime[thread] = curTick;
 
-		//
-		// The following end-causes indicate that we can't continue
-		// dispatching to this Queue, but should try the next one
-		//
-	      case FLOSS_DIS_IQ_FULL:
-	      case FLOSS_DIS_IQ_CAP:
-	      case FLOSS_DIS_BW:
-	      case FLOSS_DIS_POLICY:
-		endCause = queue_endCause;
-		//		done = false;
-		done = true;
-		break;
+		do {
+			DispatchEndCause queue_endCause = FLOSS_DIS_CAUSE_NOT_SET;
+			unsigned dispatched_this_queue =
+					dispatch_thread(thread, iq_idx, dispatch_width,
+							queue_endCause);
 
-	      case FLOSS_DIS_CAUSE_NOT_SET:
-		done = false;
-		break;
+			dispatched_this_cycle += dispatched_this_queue;
 
-	      default:
-		warn("need to adjust endCauses for dispatch_thread()");
-		done = false;
-	    }
+			switch (queue_endCause) {
+			//
+			// The following end-causes indicate that we can't dispatch
+			// any more instructions this cycle
+			//
+			case FLOSS_DIS_ROB_FULL:
+			case FLOSS_DIS_LSQ_FULL:
+			case FLOSS_DIS_IREG_FULL:
+			case FLOSS_DIS_FPREG_FULL:
+				done = true;
+				endCause = queue_endCause;
+				break;
 
-	    if (queue_endCause == FLOSS_DIS_CAUSE_NOT_SET) {
-		if (decodeQueue->instsAvailable(thread) == 0) {
-		    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
-		    done = true; // nothing left to dispatch
-		}
-	    }
+				//
+				// The following end-causes indicate that we can't continue
+				// dispatching this thread this cycle
+				//
+			case FLOSS_DIS_ROB_CAP:
+			case FLOSS_DIS_NO_INSN:
+				done = true;
+				endCause = queue_endCause;
+				break;
 
-	    if (dispatched_this_cycle == dispatch_width) {
-		SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
-		done = true;  // we used all available BW
-	    }
+				//
+				// The following end-causes indicate that we can't continue
+				// dispatching to this Queue, but should try the next one
+				//
+			case FLOSS_DIS_IQ_FULL:
+			case FLOSS_DIS_IQ_CAP:
+			case FLOSS_DIS_BW:
+			case FLOSS_DIS_POLICY:
+				endCause = queue_endCause;
+				//		done = false;
+				done = true;
+				break;
 
-	    if (!done) {
+			case FLOSS_DIS_CAUSE_NOT_SET:
+				done = false;
+				break;
+
+			default:
+				warn("need to adjust endCauses for dispatch_thread()");
+				done = false;
+			}
+
+			if (queue_endCause == FLOSS_DIS_CAUSE_NOT_SET) {
+				if (decodeQueue->instsAvailable(thread) == 0) {
+					SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_NO_INSN);
+					done = true; // nothing left to dispatch
+				}
+			}
+
+			if (dispatched_this_cycle == dispatch_width) {
+				SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
+				done = true;  // we used all available BW
+			}
+
+			if (!done) {
 #if 0
-		//  Rotate to the next IQ
-		iq_idx = choose_iqueue(thread);
+				//  Rotate to the next IQ
+				iq_idx = choose_iqueue(thread);
 
-		if ((iq_idx < 0) || (iq_idx == first)) {
-		    done = true;
+				if ((iq_idx < 0) || (iq_idx == first)) {
+					done = true;
 
-		    // we call this policy...
-		    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_POLICY);
-		}
+					// we call this policy...
+					SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_POLICY);
+				}
 #endif
-	    } else
-		SET_FIRST_FLOSS_CAUSE(endCause, queue_endCause);
-	} while (!done);
-	assert(endCause != FLOSS_DIS_CAUSE_NOT_SET);
-	break;
+			} else
+				SET_FIRST_FLOSS_CAUSE(endCause, queue_endCause);
+		} while (!done);
+		assert(endCause != FLOSS_DIS_CAUSE_NOT_SET);
+		break;
 
-      case THREAD_PER_QUEUE:
-	//
-	//  Walk the sorted list of threads, dispatching as many insts
-	//  from each as possible.
-	//
-	for (unsigned t = 0; t < SMT_MAX_THREADS; ++t) {
-	    if (tlist[t].eligable) {
-		unsigned dispatched_this_thread = 0;
-		unsigned iq_idx = tlist[t].iq_idx;
-		unsigned thread = tlist[t].thread_number;
-
-		unsigned possible_dispatches =
-		    dispatch_width - dispatched_this_cycle;
-
-		dispatched_this_thread =
-		    dispatch_thread(thread, iq_idx, possible_dispatches,
-				    endCause);
-
-		dispatched_this_cycle += dispatched_this_thread;
-
-		bool done;
-		switch (endCause) {
-		    //
-		    // The following end-causes indicate that we can't dispatch
-		    // any more instructions this cycle
-		    //
-		  case FLOSS_DIS_ROB_FULL:
-		  case FLOSS_DIS_LSQ_FULL:
-		  case FLOSS_DIS_IREG_FULL:
-		  case FLOSS_DIS_FPREG_FULL:
-		    done = true;  // stop dispatching
-		    break;
-
-		    //
-		    // The following end-causes indicate that we can't
-		    // continue dispatching this thread this cycle
-		    //
-		  case FLOSS_DIS_ROB_CAP:
-		  case FLOSS_DIS_NO_INSN:
-		  case FLOSS_DIS_POLICY:
-		    done = false; // continue dispatching
-		    break;
-
-		    //
-		    // The following end-causes indicate that we can't continue
-		    // dispatching to this Queue, but should try the next one
-		    //
-		  case FLOSS_DIS_IQ_FULL:
-		  case FLOSS_DIS_IQ_CAP:
-		  case FLOSS_DIS_BW:
-		    done = false; // continue dispatching
-		    break;
-
-		  case FLOSS_DIS_CAUSE_NOT_SET:
-		    done = false;
-		    break;
-
-		  default:
-		    warn("need to adjust endCauses for dispatch_thread()");
-		    done = false;
-		}
-
-		if (done)
-		    break;
-
-		if (dispatched_this_cycle == dispatch_width) {
-		    SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
-		    break;  // we used _all_ available BW
-		}
-
+	case THREAD_PER_QUEUE:
 		//
-		//  If we dispatched all available instructions
-		//  for this thread, and the "next" thread is going
-		//  to try to dispatch, then reset the endCause
+		//  Walk the sorted list of threads, dispatching as many insts
+		//  from each as possible.
 		//
-		if (dispatched_this_thread == tlist[t].disp_insts &&
-		    t < (SMT_MAX_THREADS - 1) && tlist[t + 1].eligable)
-		    endCause = FLOSS_DIS_CAUSE_NOT_SET;
-	    } else {
-		//  endCause will have been set earlier, when we assigned
-		//  scores
-		break;  // no other threads will be eligible
-	    }
+		for (unsigned t = 0; t < SMT_MAX_THREADS; ++t) {
+			if (tlist[t].eligable) {
+				unsigned dispatched_this_thread = 0;
+				unsigned iq_idx = tlist[t].iq_idx;
+				unsigned thread = tlist[t].thread_number;
+
+				unsigned possible_dispatches =
+						dispatch_width - dispatched_this_cycle;
+
+				dispatched_this_thread =
+						dispatch_thread(thread, iq_idx, possible_dispatches,
+								endCause);
+
+				dispatched_this_cycle += dispatched_this_thread;
+
+				bool done;
+				switch (endCause) {
+				//
+				// The following end-causes indicate that we can't dispatch
+				// any more instructions this cycle
+				//
+				case FLOSS_DIS_ROB_FULL:
+				case FLOSS_DIS_LSQ_FULL:
+				case FLOSS_DIS_IREG_FULL:
+				case FLOSS_DIS_FPREG_FULL:
+					done = true;  // stop dispatching
+					break;
+
+					//
+					// The following end-causes indicate that we can't
+					// continue dispatching this thread this cycle
+					//
+				case FLOSS_DIS_ROB_CAP:
+				case FLOSS_DIS_NO_INSN:
+				case FLOSS_DIS_POLICY:
+					done = false; // continue dispatching
+					break;
+
+					//
+					// The following end-causes indicate that we can't continue
+					// dispatching to this Queue, but should try the next one
+					//
+				case FLOSS_DIS_IQ_FULL:
+				case FLOSS_DIS_IQ_CAP:
+				case FLOSS_DIS_BW:
+					done = false; // continue dispatching
+					break;
+
+				case FLOSS_DIS_CAUSE_NOT_SET:
+					done = false;
+					break;
+
+				default:
+					warn("need to adjust endCauses for dispatch_thread()");
+					done = false;
+				}
+
+				if (done)
+					break;
+
+				if (dispatched_this_cycle == dispatch_width) {
+					SET_FIRST_FLOSS_CAUSE(endCause, FLOSS_DIS_BW);
+					break;  // we used _all_ available BW
+				}
+
+				//
+				//  If we dispatched all available instructions
+				//  for this thread, and the "next" thread is going
+				//  to try to dispatch, then reset the endCause
+				//
+				if (dispatched_this_thread == tlist[t].disp_insts &&
+						t < (SMT_MAX_THREADS - 1) && tlist[t + 1].eligable)
+					endCause = FLOSS_DIS_CAUSE_NOT_SET;
+			} else {
+				//  endCause will have been set earlier, when we assigned
+				//  scores
+				break;  // no other threads will be eligible
+			}
+		}
+		break;
 	}
-	break;
-    }
 
-    //
-    //  Anything that we didn't set a cause for before this point, MUST
-    //  be a thread that we _could_ have dispatched, but chose not to
-    //
-    if (floss_state.dispatch_end_cause == FLOSS_DIS_CAUSE_NOT_SET)
-	floss_state.dispatch_end_cause = FLOSS_DIS_BROKEN;
+	//
+	//  Anything that we didn't set a cause for before this point, MUST
+	//  be a thread that we _could_ have dispatched, but chose not to
+	//
+	if (floss_state.dispatch_end_cause == FLOSS_DIS_CAUSE_NOT_SET)
+		floss_state.dispatch_end_cause = FLOSS_DIS_BROKEN;
 
 #if DUMP_IQ
-    IQ[0]->dump(0);
+	IQ[0]->dump(0);
 #endif
 }
 
