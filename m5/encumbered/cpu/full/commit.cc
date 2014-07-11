@@ -114,10 +114,22 @@ FullCPU::getCommittedInstructions(){
 	return tmpCommitted;
 }
 
+void
+FullCPU::updateITCACommitStalled(bool stalled){
+	if(stalled && !itcaCommitStalled){
+		itcaCommitStalled = true;
+		overlapEstimator->itcaCPUStalled(ITCA::ITCA_COMMIT_STALL);
+	}
+	if(!stalled && itcaCommitStalled){
+		itcaCommitStalled = false;
+		overlapEstimator->itcaCPUResumed(ITCA::ITCA_COMMIT_STALL);
+	}
+
+}
+
 /* this function commits the results of the oldest completed entries from the
    IQ and LSQ to the architected reg file, stores in the LSQ will commit
    their store data to the data cache at this point as well */
-
 
 void
 FullCPU::commit()
@@ -389,6 +401,7 @@ FullCPU::commit()
 	detail = detail_overall;
 
 	if (num_eligible == 0) {
+		updateITCACommitStalled(true);
 		//
 		//  Assign blame
 		//
@@ -520,6 +533,7 @@ FullCPU::commit()
 		stalledOnAddr = MemReq::inval_addr;
 		stalledOnInstSeqNum = 0;
 	}
+	updateITCACommitStalled(false);
 
 	//
 	//  Main commit loop

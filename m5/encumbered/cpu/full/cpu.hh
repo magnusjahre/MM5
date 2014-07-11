@@ -515,6 +515,7 @@ public:
 	Addr commitPC[SMT_MAX_THREADS];	/* Last PC committed */
 
 	unsigned rr_commit_last_thread;
+	bool itcaCommitStalled;
 
 	//----------------------------------------------------------------------
 	//
@@ -1037,6 +1038,7 @@ public:
 
 			bool requestInROB(MemReqPtr& req, int blockSize);
 			int getCommittedInstructions();
+			void updateITCACommitStalled(bool stalled);
 
 
 			//----------------------------------------------------------------------

@@ -571,6 +571,7 @@ FullCPU::FullCPU(Params *p,
       branch_pred->setCPU(this);
 
     rr_commit_last_thread = 0;
+    itcaCommitStalled = false;
 
     dispatch_seq = 0;
 

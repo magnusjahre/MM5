@@ -1,6 +1,6 @@
 from m5 import *
 
-class ITCACPUStallPolicy(Enum): vals = ['dispatch', 'rename', 'rob']
+class ITCACPUStallPolicy(Enum): vals = ['dispatch', 'rename', 'commit']
 #class ITCAInstructionMissPolicy(Enum): vals = ['one', 'all']
 
 class ITCA(SimObject):

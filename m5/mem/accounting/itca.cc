@@ -7,7 +7,7 @@ char*
 ITCA::cpuStallSignalNames[ITCA_CPU_STALL_CNT] = {
     (char*) "dispatch",
     (char*) "register rename",
-    (char*) "ROB"
+    (char*) "commit"
 };
 
 ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall) : SimObject(_name){
@@ -276,7 +276,7 @@ END_INIT_SIM_OBJECT_PARAMS(ITCA)
 CREATE_SIM_OBJECT(ITCA)
 {
 	ITCA::ITCACPUStalls cpuStall = ITCA::ITCA_REG_RENAME_STALL;
-	if((string) cpu_stall_policy == "rob") cpuStall = ITCA::ITCA_ROB_STALL;
+	if((string) cpu_stall_policy == "commit") cpuStall = ITCA::ITCA_COMMIT_STALL;
     else if((string) cpu_stall_policy == "dispatch") cpuStall = ITCA::ITCA_DISPATCH_STALL;
     else if((string) cpu_stall_policy == "rename") cpuStall = ITCA::ITCA_REG_RENAME_STALL;
     else fatal("Unknown cpu_stall_policy provided");
