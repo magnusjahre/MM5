@@ -20,8 +20,7 @@ ITCA::processSignalChange(){
 	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
 	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
 
-	DPRINTF(ITCA, "CPU %d: SignalChange: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
-			cpuID,
+	DPRINTF(ITCA, "SignalChange: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
 			portOne ? "on": "off",
 			portTwo ? "on": "off",
 			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
@@ -33,8 +32,7 @@ ITCA::processSignalChange(){
 void
 ITCA::l1DataMiss(Addr addr){
 	dataMissTable.push_back(ITCATableEntry(addr));
-	DPRINTF(ITCA, "CPU %d: Adding address %d to the data table, %d pending misses\n",
-			cpuID,
+	DPRINTF(ITCA, "Adding address %d to the data table, %d pending misses\n",
 			addr,
 			dataMissTable.size());
 
@@ -46,8 +44,7 @@ ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
 	ITCAMemoryRequestCompletionEvent* event = new ITCAMemoryRequestCompletionEvent(this, addr);
 	event->schedule(willFinishAt);
 
-	DPRINTF(ITCA, "CPU %d: Miss for addr %d resolved, scheduling handling for cycle %d\n",
-			cpuID,
+	DPRINTF(ITCA, "Miss for addr %d resolved, scheduling handling for cycle %d\n",
 			addr,
 			willFinishAt);
 }
@@ -66,8 +63,7 @@ ITCA::intertaskMiss(Addr addr, bool isInstructionMiss){
 	int entryID = findTableEntry(table, addr);
 	table->at(entryID).intertaskMiss = true;
 
-	DPRINTF(ITCA, "CPU %d: Address %d is an %s intertask miss\n",
-			cpuID,
+	DPRINTF(ITCA, "Address %d is an %s intertask miss\n",
 			isInstructionMiss ? "instruction" : "data",
 			addr);
 
@@ -90,8 +86,7 @@ ITCA::checkAllMSHRsInterSig(){
 		}
 	}
 
-	DPRINTF(ITCA, "CPU %d: Signal ALL_MSHRS_INTER set to %s\n",
-			cpuID,
+	DPRINTF(ITCA, "Signal ALL_MSHRS_INTER set to %s\n",
 			newState ? "ON" : "OFF");
 
 	signalState.signalOn[ITCA_ALL_MSHRS_INTER] = newState;
@@ -119,8 +114,7 @@ ITCA::getAccountedCycles(){
 	accountingState.handleSampleTransition(sampleSize);
 	Tick accountedCycles = accountingState.accountedCycles;
 
-	DPRINTF(ITCAProgress, "CPU %d: SAMPLING, accounted %d cycles, cycles in sample %d\n",
-			cpuID,
+	DPRINTF(ITCAProgress, "SAMPLING, accounted %d cycles, cycles in sample %d\n",
 			accountedCycles,
 			sampleSize);
 
@@ -227,8 +221,7 @@ ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 	int foundAt = findTableEntry(table, addr);
 	table->erase(table->begin()+foundAt);
 
-	DPRINTF(ITCA, "CPU %d: Removed element at position %d, addr %d, new size is %d\n",
-			cpuID,
+	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
 		 	foundAt,
 		 	addr,
 		 	table->size());
