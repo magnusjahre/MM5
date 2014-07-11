@@ -20,10 +20,51 @@ ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall) : SimObject(_
 	cpuID = _cpuID;
 	useCPUStallSignal = _cpuStall;
 	lastSampleAt = 0;
+	headOfROBAddr = 0;
+}
+
+void
+ITCA::updateInterTopROB(){
+	bool found = false;
+	for(int i=0;i<dataMissTable.size();i++){
+		if(dataMissTable[i].intertaskMiss && dataMissTable[i].addr == headOfROBAddr){
+			assert(!found);
+			found = true;
+		}
+	}
+	if(found) signalState.set(ITCA_INTER_TOP_ROB);
+	else signalState.unset(ITCA_INTER_TOP_ROB);
+
+	DPRINTF(ITCA, "Signal ITCA_INTER_TOP_ROB set to %s, head of ROB addr %d\n",
+			signalState.signalOn[ITCA_INTER_TOP_ROB] ? "ON" : "OFF",
+			headOfROBAddr);
+}
+
+void
+ITCA::checkAllMSHRsInterSig(){
+	bool newState = true;
+
+	if(dataMissTable.empty()){
+		newState = false;
+	}
+	else{
+		for(int i=0;i<dataMissTable.size();i++){
+			if(!dataMissTable[i].intertaskMiss){
+				newState = false;
+			}
+		}
+	}
+
+	signalState.signalOn[ITCA_ALL_MSHRS_INTER] = newState;
+	DPRINTF(ITCA, "Signal ALL_MSHRS_INTER set to %s\n",newState ? "ON" : "OFF");
 }
 
 void
 ITCA::processSignalChange(){
+
+	// Update ITCA internal signals
+	updateInterTopROB();
+	checkAllMSHRsInterSig();
 
 	// This code implements Figure 5 from Luque et al. (2012)
 	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
@@ -31,13 +72,17 @@ ITCA::processSignalChange(){
 	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
 	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
 
-	DPRINTF(ITCA, "SignalChange: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
+	DPRINTF(ITCA, "Processing signal change: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
 			portOne ? "on": "off",
 			portTwo ? "on": "off",
 			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
 			doNotAccount ? "on": "off");
 
 	accountingState.update(doNotAccount);
+
+	DPRINTF(ITCA, "Status: %d cycles accounted, %d cycles not accounted\n",
+			accountingState.accountedCycles,
+			accountingState.notAccountedCycles);
 }
 
 void
@@ -47,7 +92,7 @@ ITCA::l1DataMiss(Addr addr){
 			addr,
 			dataMissTable.size());
 
-	checkAllMSHRsInterSig();
+	processSignalChange();
 }
 
 void
@@ -63,7 +108,7 @@ ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
 void
 ITCA::handleL1MissResolvedEvent(Addr addr){
 	removeTableEntry(&dataMissTable, addr);
-	checkAllMSHRsInterSig();
+	processSignalChange();
 }
 
 void
@@ -78,43 +123,6 @@ ITCA::intertaskMiss(Addr addr, bool isInstructionMiss){
 			isInstructionMiss ? "instruction" : "data",
 			addr);
 
-	checkAllMSHRsInterSig();
-}
-
-void
-ITCA::checkAllMSHRsInterSig(){
-	bool prevState = signalState.signalOn[ITCA_ALL_MSHRS_INTER];
-	bool newState = true;
-
-	if(dataMissTable.empty()){
-		newState = false;
-	}
-	else{
-		for(int i=0;i<dataMissTable.size();i++){
-			if(!dataMissTable[i].intertaskMiss){
-				newState = false;
-			}
-		}
-	}
-
-	DPRINTF(ITCA, "Signal ALL_MSHRS_INTER set to %s\n",
-			newState ? "ON" : "OFF");
-
-	signalState.signalOn[ITCA_ALL_MSHRS_INTER] = newState;
-	if(newState != prevState){
-		processSignalChange();
-	}
-}
-
-void
-ITCA::setSignal(ITCASignals signal){
-	signalState.set(signal);
-	processSignalChange();
-}
-
-void
-ITCA::unsetSignal(ITCASignals signal){
-	signalState.unset(signal);
 	processSignalChange();
 }
 
@@ -158,6 +166,50 @@ ITCA::itcaCPUResumed(ITCACPUStalls type){
 		DPRINTF(ITCA, "Ignoring CPU resume on signal %s\n", cpuStallSignalNames[type]);
 	}
 }
+
+void
+ITCA::setROBHeadAddr(Addr addr){
+	headOfROBAddr = addr;
+	DPRINTF(ITCA, "Stalled on load for address %d\n", addr);
+
+	processSignalChange();
+}
+
+void
+ITCA::clearROBHeadAddr(){
+	headOfROBAddr = 0;
+	DPRINTF(ITCA, "Oldest ROB load completed, head of rob addr is now %d\n", headOfROBAddr);
+
+	processSignalChange();
+}
+
+int
+ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+	int foundAt = -1;
+	for(int i=0;i<table->size();i++){
+		if(table->at(i).addr == addr){
+			assert(foundAt == -1);
+			foundAt = i;
+		}
+	}
+	assert(foundAt != -1);
+	return foundAt;
+}
+
+void
+ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+	int foundAt = findTableEntry(table, addr);
+	table->erase(table->begin()+foundAt);
+
+	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
+		 	foundAt,
+		 	addr,
+		 	table->size());
+}
+
+/// ***************************************************************************
+/// ITCAAccountingState
+/// ***************************************************************************
 
 ITCA::ITCAAccountingState::ITCAAccountingState(){
 	cpuID = -1;
@@ -226,41 +278,20 @@ ITCA::ITCAAccountingState::reset(){
 	notAccountedCycles = 0;
 }
 
+/// ***************************************************************************
+/// ITCASignalState
+/// ***************************************************************************
+
 void
 ITCA::ITCASignalState::set(ITCASignals signal){
-	assert(!signalOn[signal]);
 	signalOn[signal] = true;
 }
 
 void
 ITCA::ITCASignalState::unset(ITCASignals signal){
-	assert(signalOn[signal]);
 	signalOn[signal] = false;
 }
 
-int
-ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
-	int foundAt = -1;
-	for(int i=0;i<table->size();i++){
-		if(table->at(i).addr == addr){
-			assert(foundAt == -1);
-			foundAt = i;
-		}
-	}
-	assert(foundAt != -1);
-	return foundAt;
-}
-
-void
-ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
-	int foundAt = findTableEntry(table, addr);
-	table->erase(table->begin()+foundAt);
-
-	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
-		 	foundAt,
-		 	addr,
-		 	table->size());
-}
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(ITCA)

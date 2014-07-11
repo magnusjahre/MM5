@@ -990,6 +990,8 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	cacheBlockedCycles = 0;
 	totalStalls++;
 
+	itca->setROBHeadAddr(stalledOnCoreAddr);
+
 	assert(pendingComputeNode != NULL);
 	pendingComputeNode->finishedAt = curTick;
 	lastComputeNode = pendingComputeNode;
@@ -1023,6 +1025,8 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 	Tick stallLength = curTick - stalledAt;
 	stallCycleAccumulator += stallLength;
+
+	itca->clearROBHeadAddr();
 
 	DPRINTF(OverlapEstimator, "Resuming execution, CPU was stalled for %d cycles, due to %s, stalled on %d, blocked for %d cycles, pending completed requests is %d, full ROB for %d cycles\n",
 			stallLength,

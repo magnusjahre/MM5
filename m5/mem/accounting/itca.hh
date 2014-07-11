@@ -76,6 +76,7 @@ private:
 	ITCASignalState signalState;
 	Tick lastSampleAt;
 	ITCACPUStalls useCPUStallSignal;
+	Addr headOfROBAddr;
 
 	std::vector<ITCATableEntry> dataMissTable;
 	std::vector<ITCATableEntry> instructionMissTable;
@@ -90,27 +91,24 @@ private:
 
 	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
 
+	void updateInterTopROB();
+
 public:
 	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall);
-
-	void setSignal(ITCASignals signal);
-
-	void unsetSignal(ITCASignals signal);
 
 	Tick getAccountedCycles();
 
 	void l1DataMiss(Addr addr);
-
 	void l1MissResolved(Addr addr, Tick willFinishAt);
-
 	void handleL1MissResolvedEvent(Addr addr);
 
 	void intertaskMiss(Addr addr, bool isInstructionMiss);
 
 	void itcaCPUStalled(ITCACPUStalls type);
-
 	void itcaCPUResumed(ITCACPUStalls type);
 
+	void setROBHeadAddr(Addr addr);
+	void clearROBHeadAddr();
 };
 
 
