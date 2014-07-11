@@ -553,6 +553,9 @@ public:
 	void itcaInstructionMiss(Addr addr);
 	void itcaInstructionMissResolved(Addr addr, Tick willFinishAt);
 	void itcaSquash(Addr addr);
+
+	void itcaSetROBEmpty() { itca->setROBEmpty(); }
+	void itcaClearROBEmpty() { itca->clearROBEmpty(); }
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

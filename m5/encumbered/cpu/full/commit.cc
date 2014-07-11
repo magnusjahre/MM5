@@ -127,6 +127,18 @@ FullCPU::updateITCACommitStalled(bool stalled){
 
 }
 
+void
+FullCPU::updateITCAEmptyROB(bool stalled){
+	if(stalled && !itcaEmptyROB){
+		itcaEmptyROB = true;
+		overlapEstimator->itcaSetROBEmpty();
+	}
+	if(!stalled && itcaEmptyROB){
+		itcaEmptyROB = false;
+		overlapEstimator->itcaClearROBEmpty();
+	}
+}
+
 /* this function commits the results of the oldest completed entries from the
    IQ and LSQ to the architected reg file, stores in the LSQ will commit
    their store data to the data cache at this point as well */
@@ -210,9 +222,10 @@ FullCPU::commit()
 
 		assert(!isStalled);
 		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_EMPTY_ROB, 1);
+		updateITCAEmptyROB(true);
 		return;
 	}
-
+	updateITCAEmptyROB(false);
 	//
 	//  Initialize & allocate per-thread data structs...
 	//

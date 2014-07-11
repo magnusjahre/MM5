@@ -120,6 +120,9 @@ public:
 
 	void setROBHeadAddr(Addr addr);
 	void clearROBHeadAddr();
+
+	void setROBEmpty();
+	void clearROBEmpty();
 };
 
 

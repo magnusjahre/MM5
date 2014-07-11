@@ -260,6 +260,22 @@ ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr, bool accep
 		 	table->size());
 }
 
+void
+ITCA::setROBEmpty(){
+	assert(!signalState.signalOn[ITCA_ROB_EMPTY]);
+	signalState.set(ITCA_ROB_EMPTY);
+	DPRINTF(ITCA, "Setting signal ITCA_ROB_EMPTY\n");
+	processSignalChange();
+}
+
+void
+ITCA::clearROBEmpty(){
+	assert(signalState.signalOn[ITCA_ROB_EMPTY]);
+	signalState.unset(ITCA_ROB_EMPTY);
+	DPRINTF(ITCA, "Clearing signal ITCA_ROB_EMPTY\n");
+	processSignalChange();
+}
+
 /// ***************************************************************************
 /// ITCAAccountingState
 /// ***************************************************************************

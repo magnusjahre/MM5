@@ -572,6 +572,7 @@ FullCPU::FullCPU(Params *p,
 
     rr_commit_last_thread = 0;
     itcaCommitStalled = false;
+    itcaEmptyROB  = false;
 
     dispatch_seq = 0;
 

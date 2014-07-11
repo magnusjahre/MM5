@@ -516,6 +516,7 @@ public:
 
 	unsigned rr_commit_last_thread;
 	bool itcaCommitStalled;
+	bool itcaEmptyROB;
 
 	//----------------------------------------------------------------------
 	//
@@ -1039,6 +1040,7 @@ public:
 			bool requestInROB(MemReqPtr& req, int blockSize);
 			int getCommittedInstructions();
 			void updateITCACommitStalled(bool stalled);
+			void updateITCAEmptyROB(bool stalled);
 
 
 			//----------------------------------------------------------------------
