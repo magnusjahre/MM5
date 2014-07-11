@@ -124,6 +124,22 @@ ITCA::getAccountedCycles(){
 	return accountedCycles;
 }
 
+void
+ITCA::itcaCPUStalled(ITCACPUStalls type){
+	assert(type == ITCA_DISPATCH_STALL);
+	DPRINTF(ITCA, "CPU stall detected, setting CPU stall signal\n");
+	signalState.set(ITCA_RENAME_STALLED);
+	processSignalChange();
+}
+
+void
+ITCA::itcaCPUResumed(ITCACPUStalls type){
+	assert(type == ITCA_DISPATCH_STALL);
+	DPRINTF(ITCA, "CPU resumed execution, unsetting CPU stall signal\n");
+	signalState.unset(ITCA_RENAME_STALLED);
+	processSignalChange();
+}
+
 ITCA::ITCAAccountingState::ITCAAccountingState(){
 	cpuID = -1;
 	accounting = true;

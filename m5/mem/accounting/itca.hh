@@ -26,6 +26,11 @@ public:
 		ITCA_SIGNAL_CNT
 	};
 
+	enum ITCACPUStalls{
+		ITCA_DISPATCH_STALL,
+		ITCA_CPU_STALL_CNT
+	};
+
 private:
 	class ITCAAccountingState{
 	public:
@@ -96,6 +101,10 @@ public:
 	void handleL1MissResolvedEvent(Addr addr);
 
 	void intertaskMiss(Addr addr, bool isInstructionMiss);
+
+	void itcaCPUStalled(ITCACPUStalls type);
+
+	void itcaCPUResumed(ITCACPUStalls type);
 
 };
 

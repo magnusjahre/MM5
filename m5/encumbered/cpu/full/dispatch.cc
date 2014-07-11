@@ -351,7 +351,19 @@ FullCPU::checkGlobalResourcesForDispatch(unsigned needSlots)
 }
 
 
-
+void
+FullCPU::updateDispatchStalled(bool stalled){
+	if(stalled && !dispatchStalled){
+		dispatchStalled = true;
+		overlapEstimator->itcaCPUStalled(ITCA::ITCA_DISPATCH_STALL);
+	}
+	if(!stalled && dispatchStalled){
+		dispatchStalled = false;
+		overlapEstimator->itcaCPUResumed(ITCA::ITCA_DISPATCH_STALL);
+	}
+
+}
+
 //============================================================================
 //
 //  This dispatch stage itself:
@@ -371,18 +383,20 @@ FullCPU::dispatch()
 	//  to dispatch first, second, etc...
 	vector<ThreadList> tlist(SMT_MAX_THREADS);
 
-
 	//
 	//  bail early if no instructions to dispatch
 	//
 	if (decodeQueue->instsAvailable() == 0) {
 		endCause = FLOSS_DIS_NO_INSN;
+		updateDispatchStalled(true);
 		return;
 	}
 
 	endCause = checkGlobalResourcesForDispatch(1);
-	if (endCause != FLOSS_DIS_CAUSE_NOT_SET)
+	if (endCause != FLOSS_DIS_CAUSE_NOT_SET){
+		updateDispatchStalled(true);
 		return;
+	}
 
 	m5_assert(chainWires == 0 || chainWires->sanityCheckOK());
 	m5_assert(clusterSharedInfo->ci_table == 0 ||
@@ -469,9 +483,12 @@ FullCPU::dispatch()
 		endCause = FLOSS_DIS_CAUSE_NOT_SET;
 	} else {
 		// The only possible floss cause here is NO_INSN
+		updateDispatchStalled(true);
 		return;
 	}
 
+	//At this point, we know we will dispatch at least one instruction
+	updateDispatchStalled(false);
 
 	//---------------------------------------------------------------------
 	//
@@ -510,6 +527,7 @@ FullCPU::dispatch()
 		return;
 	}
 
+	fatal("Dispatch stall code not implemented for clustered machines");
 
 	//------------------------------------------------------------------------
 	//

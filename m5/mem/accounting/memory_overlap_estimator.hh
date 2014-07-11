@@ -541,6 +541,14 @@ public:
 	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss){
 		itca->intertaskMiss(addr, isInstructionMiss);
 	}
+
+	void itcaCPUStalled(ITCA::ITCACPUStalls type){
+		itca->itcaCPUStalled(type);
+	}
+
+	void itcaCPUResumed(ITCA::ITCACPUStalls type){
+		itca->itcaCPUResumed(type);
+	}
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */

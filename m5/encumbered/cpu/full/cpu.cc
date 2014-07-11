@@ -475,6 +475,7 @@ FullCPU::FullCPU(Params *p,
 	      "and L/R predictors");
 
     mod_n_queue_idx = 0;
+    dispatchStalled = false;
 
     //  dispatch_width is not (currently) a user-modifiable value
     dispatch_width = decode_width;

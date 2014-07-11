@@ -474,6 +474,7 @@ public:
 
 	//  Clustering:  which IQ we should use for mod-n instruction placement
 	unsigned mod_n_queue_idx;
+	bool dispatchStalled;
 
 	//----------------------------------------------------------------------
 	//
@@ -966,6 +967,7 @@ public:
 			void start_decode();
 			int choose_decode_thread();
 			unsigned choose_dependence_cluster(DynInst *);
+			void updateDispatchStalled(bool stalled);
 			void dispatch();
 			enum DispatchEndCause checkThreadForDispatch(unsigned t,
 					unsigned idx, unsigned insts);
