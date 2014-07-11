@@ -634,6 +634,7 @@ def readOptimalPartition():
 def setUpOverlapMeasurement():
 
     root.overlapTables = [MemoryOverlapTable() for i in  xrange(int(env['NP']))]
+    root.ITCAs = [ITCA(cpu_id=i) for i in  xrange(int(env['NP']))]
     
     for ot in root.overlapTables:
         if "MOT-REQ-SIZE" in env: 
@@ -649,6 +650,9 @@ def setUpOverlapMeasurement():
             root.overlapEstimators[i].shared_stall_heuristic = env["SHARED-STALL-IDENT"]
         if "CPL-TABLE-SIZE" in env:
             root.overlapEstimators[i].cpl_table_size = int(env["CPL-TABLE-SIZE"])
+            
+    for i in range(int(env["NP"])):
+        root.overlapEstimators[i].itca = root.ITCAs[i]
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message

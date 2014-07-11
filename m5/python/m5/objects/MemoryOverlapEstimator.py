@@ -15,3 +15,4 @@ class MemoryOverlapEstimator(SimObject):
     overlapTable = Param.MemoryOverlapTable("Overlap table")
     trace_sample_id = Param.Int("The id of the sample to trace, traces all if -1 (default)")
     cpl_table_size = Param.Int("The size of the CPL table")
+    itca = Param.ITCA("A pointer to the class implementing the ITCA accounting scheme")

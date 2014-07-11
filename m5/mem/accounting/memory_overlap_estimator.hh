@@ -491,7 +491,8 @@ public:
 						   bool _graphAnalysisEnabled,
 						   MemoryOverlapTable* _overlapTable,
 						   int _traceSampleID,
-						   int _cplTableBufferSize);
+						   int _cplTableBufferSize,
+						   ITCA* _itca);
 
 	~MemoryOverlapEstimator();
 

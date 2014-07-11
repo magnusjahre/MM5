@@ -23,7 +23,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       bool _graphAnalysisEnabled,
 		                                       MemoryOverlapTable* _overlapTable,
 		                                       int _traceSampleID,
-		                                       int _cplTableBufferSize)
+		                                       int _cplTableBufferSize,
+		                                       ITCA* _itca)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -79,13 +80,12 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	boisAloneStallEstimate = 0;
 
 	criticalPathTable = new CriticalPathTable(this, _cplTableBufferSize);
-	itca = new ITCA(id);
+	itca = _itca;
 }
 
 MemoryOverlapEstimator::~MemoryOverlapEstimator(){
 	delete overlapTable;
 	delete criticalPathTable;
-	delete itca;
 }
 
 
@@ -1603,6 +1603,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	SimObjectParam<MemoryOverlapTable *> overlapTable;
 	Param<int> trace_sample_id;
 	Param<int> cpl_table_size;
+	SimObjectParam<ITCA *> itca;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1614,7 +1615,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM_DFLT(graph_analysis_enabled, "Analyze miss graph to determine data (warning: performance overhead)", false),
 	INIT_PARAM_DFLT(overlapTable, "Overlap table", NULL),
 	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1),
-	INIT_PARAM_DFLT(cpl_table_size, "The size of the CPL table", 64)
+	INIT_PARAM_DFLT(cpl_table_size, "The size of the CPL table", 64),
+	INIT_PARAM(itca, "A pointer to the class implementing the ITCA accounting scheme")
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1645,7 +1647,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          graph_analysis_enabled,
     		                          overlapTable,
     		                          trace_sample_id,
-    		                          cpl_table_size);
+    		                          cpl_table_size,
+    		                          itca);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

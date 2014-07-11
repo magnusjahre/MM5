@@ -15,7 +15,7 @@
 #include "base/trace.hh"
 #include <iostream>
 
-class ITCA{
+class ITCA : public SimObject{
 public:
 	enum ITCASignals{
 		ITCA_IT_INSTRUCTION,
@@ -81,7 +81,7 @@ private:
 	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
 
 public:
-	ITCA(int _cpuID);
+	ITCA(std::string _name, int _cpuID);
 
 	void setSignal(ITCASignals signal);
 

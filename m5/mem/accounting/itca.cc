@@ -1,10 +1,9 @@
-
-
 #include "itca.hh"
+#include "sim/builder.hh"
 
 using namespace std;
 
-ITCA::ITCA(int _cpuID){
+ITCA::ITCA(std::string _name, int _cpuID) : SimObject(_name){
 	accountingState = ITCAAccountingState();
 	accountingState.setCPUID(_cpuID);
 	signalState = ITCASignalState();
@@ -146,10 +145,10 @@ ITCA::ITCAAccountingState::update(bool doNotAccount){
 		accounting = false;
 		accountedCycles += length;
 
-		DPRINTF(ITCA, "CPU %d: Accounted %d cycles, last change at %d\n",
-				cpuID,
-				length,
-				stateChangedAt);
+		DPRINTFR(ITCA, "CPU %d: Accounted %d cycles, last change at %d\n",
+				 cpuID,
+				 length,
+				 stateChangedAt);
 
 		stateChangedAt = curTick;
 	}
@@ -157,10 +156,10 @@ ITCA::ITCAAccountingState::update(bool doNotAccount){
 		accounting = true;
 		notAccountedCycles += length;
 
-		DPRINTF(ITCA, "CPU %d: Accounting was off for %d cycles, last change at %d\n",
-				cpuID,
-				length,
-				stateChangedAt);
+		DPRINTFR(ITCA, "CPU %d: Accounting was off for %d cycles, last change at %d\n",
+				 cpuID,
+				 length,
+				 stateChangedAt);
 
 		stateChangedAt = curTick;
 	}
@@ -173,16 +172,16 @@ ITCA::ITCAAccountingState::handleSampleTransition(Tick sampleSize){
 	if(accounting){
 		accountedCycles += length;
 
-		DPRINTF(ITCA, "CPU %d: Accounting the final %d cycles of the sample\n",
-				cpuID,
-				length);
+		DPRINTFR(ITCA, "CPU %d: Accounting the final %d cycles of the sample\n",
+				 cpuID,
+				 length);
 	}
 	else{
 		notAccountedCycles += length;
 
-		DPRINTF(ITCA, "CPU %d: Not accounting the final %d cycles of the sample\n",
-				cpuID,
-				length);
+		DPRINTFR(ITCA, "CPU %d: Not accounting the final %d cycles of the sample\n",
+				 cpuID,
+				 length);
 	}
 
 	stateChangedAt = curTick;
@@ -234,3 +233,22 @@ ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 		 	addr,
 		 	table->size());
 }
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(ITCA)
+    Param<int> cpu_id;
+END_DECLARE_SIM_OBJECT_PARAMS(ITCA)
+
+BEGIN_INIT_SIM_OBJECT_PARAMS(ITCA)
+	INIT_PARAM_DFLT(cpu_id, "CPU ID", -1)
+END_INIT_SIM_OBJECT_PARAMS(ITCA)
+
+CREATE_SIM_OBJECT(ITCA)
+{
+    return new ITCA(getInstanceName(),
+    		         cpu_id);
+}
+
+REGISTER_SIM_OBJECT("ITCA", ITCA)
+
+#endif
