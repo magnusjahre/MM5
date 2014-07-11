@@ -653,6 +653,8 @@ def setUpOverlapMeasurement():
             
     for i in range(int(env["NP"])):
         root.overlapEstimators[i].itca = root.ITCAs[i]
+        if "ITCA-CPU-STALL-POLICY" in env:
+            root.ITCAs[i].cpu_stall_policy = env["ITCA-CPU-STALL-POLICY"]
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message

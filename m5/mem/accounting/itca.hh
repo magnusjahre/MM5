@@ -21,13 +21,15 @@ public:
 		ITCA_IT_INSTRUCTION,
 		ITCA_ROB_EMPTY,
 		ITCA_INTER_TOP_ROB,
-		ITCA_RENAME_STALLED,
+		ITCA_CPU_STALLED,
 		ITCA_ALL_MSHRS_INTER,
 		ITCA_SIGNAL_CNT
 	};
 
 	enum ITCACPUStalls{
 		ITCA_DISPATCH_STALL,
+		ITCA_REG_RENAME_STALL,
+		ITCA_ROB_STALL,
 		ITCA_CPU_STALL_CNT
 	};
 
@@ -73,9 +75,12 @@ private:
 	ITCAAccountingState accountingState;
 	ITCASignalState signalState;
 	Tick lastSampleAt;
+	ITCACPUStalls useCPUStallSignal;
 
 	std::vector<ITCATableEntry> dataMissTable;
 	std::vector<ITCATableEntry> instructionMissTable;
+
+	static char *cpuStallSignalNames[ITCA_CPU_STALL_CNT];
 
 	void processSignalChange();
 
@@ -86,7 +91,7 @@ private:
 	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
 
 public:
-	ITCA(std::string _name, int _cpuID);
+	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall);
 
 	void setSignal(ITCASignals signal);
 

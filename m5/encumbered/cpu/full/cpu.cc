@@ -476,6 +476,7 @@ FullCPU::FullCPU(Params *p,
 
     mod_n_queue_idx = 0;
     dispatchStalled = false;
+    regRenameStalled = false;
 
     //  dispatch_width is not (currently) a user-modifiable value
     dispatch_width = decode_width;

@@ -3,11 +3,22 @@
 
 using namespace std;
 
-ITCA::ITCA(std::string _name, int _cpuID) : SimObject(_name){
+char*
+ITCA::cpuStallSignalNames[ITCA_CPU_STALL_CNT] = {
+    (char*) "dispatch",
+    (char*) "register rename",
+    (char*) "ROB"
+};
+
+ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall) : SimObject(_name){
+
 	accountingState = ITCAAccountingState();
 	accountingState.setCPUID(_cpuID);
+
 	signalState = ITCASignalState();
+
 	cpuID = _cpuID;
+	useCPUStallSignal = _cpuStall;
 	lastSampleAt = 0;
 }
 
@@ -16,7 +27,7 @@ ITCA::processSignalChange(){
 
 	// This code implements Figure 5 from Luque et al. (2012)
 	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
-	bool portTwo = signalState.signalOn[ITCA_INTER_TOP_ROB] && signalState.signalOn[ITCA_RENAME_STALLED];
+	bool portTwo = signalState.signalOn[ITCA_INTER_TOP_ROB] && signalState.signalOn[ITCA_CPU_STALLED];
 	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
 	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
 
@@ -126,18 +137,26 @@ ITCA::getAccountedCycles(){
 
 void
 ITCA::itcaCPUStalled(ITCACPUStalls type){
-	assert(type == ITCA_DISPATCH_STALL);
-	DPRINTF(ITCA, "CPU stall detected, setting CPU stall signal\n");
-	signalState.set(ITCA_RENAME_STALLED);
-	processSignalChange();
+	if(type == useCPUStallSignal){
+		DPRINTF(ITCA, "CPU stall on signal %s detected, setting CPU stall signal\n", cpuStallSignalNames[type]);
+		signalState.set(ITCA_CPU_STALLED);
+		processSignalChange();
+	}
+	else{
+		DPRINTF(ITCA, "Ignoring CPU stall on signal %s\n", cpuStallSignalNames[type]);
+	}
 }
 
 void
 ITCA::itcaCPUResumed(ITCACPUStalls type){
-	assert(type == ITCA_DISPATCH_STALL);
-	DPRINTF(ITCA, "CPU resumed execution, unsetting CPU stall signal\n");
-	signalState.unset(ITCA_RENAME_STALLED);
-	processSignalChange();
+	if(type == useCPUStallSignal){
+		DPRINTF(ITCA, "CPU resumed execution on signal %s, unsetting CPU stall signal\n", cpuStallSignalNames[type]);
+		signalState.unset(ITCA_CPU_STALLED);
+		processSignalChange();
+	}
+	else{
+		DPRINTF(ITCA, "Ignoring CPU resume on signal %s\n", cpuStallSignalNames[type]);
+	}
 }
 
 ITCA::ITCAAccountingState::ITCAAccountingState(){
@@ -246,16 +265,25 @@ ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(ITCA)
     Param<int> cpu_id;
+	Param<string> cpu_stall_policy;
 END_DECLARE_SIM_OBJECT_PARAMS(ITCA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ITCA)
-	INIT_PARAM_DFLT(cpu_id, "CPU ID", -1)
+	INIT_PARAM_DFLT(cpu_id, "CPU ID", -1),
+	INIT_PARAM_DFLT(cpu_stall_policy, "The signal that determines if the CPU is stalled", "rename")
 END_INIT_SIM_OBJECT_PARAMS(ITCA)
 
 CREATE_SIM_OBJECT(ITCA)
 {
-    return new ITCA(getInstanceName(),
-    		         cpu_id);
+	ITCA::ITCACPUStalls cpuStall = ITCA::ITCA_REG_RENAME_STALL;
+	if((string) cpu_stall_policy == "rob") cpuStall = ITCA::ITCA_ROB_STALL;
+    else if((string) cpu_stall_policy == "dispatch") cpuStall = ITCA::ITCA_DISPATCH_STALL;
+    else if((string) cpu_stall_policy == "rename") cpuStall = ITCA::ITCA_REG_RENAME_STALL;
+    else fatal("Unknown cpu_stall_policy provided");
+
+	return new ITCA(getInstanceName(),
+    		         cpu_id,
+    		         cpuStall);
 }
 
 REGISTER_SIM_OBJECT("ITCA", ITCA)

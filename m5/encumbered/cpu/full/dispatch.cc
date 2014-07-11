@@ -364,6 +364,19 @@ FullCPU::updateDispatchStalled(bool stalled){
 
 }
 
+void
+FullCPU::updateRegRenameStalled(bool stalled){
+	if(stalled && !regRenameStalled){
+		regRenameStalled = true;
+		overlapEstimator->itcaCPUStalled(ITCA::ITCA_REG_RENAME_STALL);
+	}
+	if(!stalled && regRenameStalled){
+		regRenameStalled = false;
+		overlapEstimator->itcaCPUResumed(ITCA::ITCA_REG_RENAME_STALL);
+	}
+
+}
+
 //============================================================================
 //
 //  This dispatch stage itself:
@@ -395,6 +408,9 @@ FullCPU::dispatch()
 	endCause = checkGlobalResourcesForDispatch(1);
 	if (endCause != FLOSS_DIS_CAUSE_NOT_SET){
 		updateDispatchStalled(true);
+		if(endCause == FLOSS_DIS_IREG_FULL || endCause == FLOSS_DIS_FPREG_FULL){
+			updateRegRenameStalled(true);
+		}
 		return;
 	}
 
@@ -489,6 +505,7 @@ FullCPU::dispatch()
 
 	//At this point, we know we will dispatch at least one instruction
 	updateDispatchStalled(false);
+	updateRegRenameStalled(false);
 
 	//---------------------------------------------------------------------
 	//
