@@ -677,8 +677,15 @@ MissQueue::allocateMiss(MemReqPtr &req, int size, Tick time)
 		assert(req->adaptiveMHASenderID != -1);
 
 		if(cache->overlapEstimator != NULL){
-			assert(req->cmd == Read || req->cmd == Soft_Prefetch || req->cmd == Write);
-			cache->overlapEstimator->issuedMemoryRequest(req);
+			if(cache->isReadOnly){
+				assert(req->cmd == Read);
+				assert(req->instructionMiss);
+				cache->overlapEstimator->itcaInstructionMiss(req->paddr);
+			}
+			else{
+				assert(req->cmd == Read || req->cmd == Soft_Prefetch || req->cmd == Write);
+				cache->overlapEstimator->issuedMemoryRequest(req);
+			}
 		}
 
 		if(throttleControl != NULL){
@@ -731,7 +738,6 @@ MissQueue::allocateWrite(MemReqPtr &req, int size, Tick time)
 void
 MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 {
-
 	if (prefetchMiss) prefetcher->handleMiss(req, time);
 
 	int size = blkSize;
@@ -742,7 +748,6 @@ MissQueue::handleMiss(MemReqPtr &req, int blkSize, Tick time)
 		mshr = mq.findMatch(blkAddr, req->asid);
 
 		if (mshr){
-
 			//@todo remove hw_pf here
 			mshr_hits[req->cmd.toIndex()][req->thread_num]++;
 			if (mshr->threadNum != req->thread_num) {
@@ -1028,7 +1033,7 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 			cache->interferenceManager->incrementTotalReqCount(req, curTick - (req->time + cache->getHitLatency()));
 		}
 
-		if(!cache->isShared && cache->overlapEstimator != NULL){
+		if(!cache->isShared && cache->overlapEstimator != NULL && !cache->isReadOnly){
 			cache->overlapEstimator->incrementPrivateRequestCount(req);
 		}
 
@@ -1099,6 +1104,10 @@ MissQueue::handleResponse(MemReqPtr &req, Tick time)
 				}
 				cache->respond(target, time);
 			}
+		}
+
+		if(!mshr->hasTargets() && mshr->itcaWasSquashed){
+			fatal("Response on squashed request not handled by ITCA");
 		}
 
 		if (req->cmd.isWrite()) {

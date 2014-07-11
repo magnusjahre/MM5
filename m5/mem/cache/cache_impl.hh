@@ -134,7 +134,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     }
 
     overlapEstimator = params.overlapEstimator;
-    if(overlapEstimator != NULL){
+    if(overlapEstimator != NULL && !params.isReadOnly){
     	overlapEstimator->registerL1DataCache(cacheCpuID, this);
     }
 
@@ -373,7 +373,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 		}
-		if(overlapEstimator != NULL){
+		if(overlapEstimator != NULL && !isReadOnly){
 			//TODO: may want to handle MSHR hits explicitly
 			overlapEstimator->addL1Access(req, hitLatency, blk != NULL);
 		}
@@ -409,10 +409,6 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		hits[req->cmd.toIndex()][req->thread_num]++;
 		// clear dirty bit if write through
 		if (!req->cmd.isNoResponse()){
-//			if(overlapEstimator != NULL && req->cmd == Read){
-//				overlapEstimator->issuedMemoryRequest(req);
-//				overlapEstimator->completedMemoryRequest(req, curTick+lat, false);
-//			}
 			respond(req, curTick+lat);
 		}
 		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
@@ -572,7 +568,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
 		}
-		if(overlapEstimator != NULL){
+		if(overlapEstimator != NULL && !isReadOnly){
 			overlapEstimator->addPrivateLatency(req, hitLatency);
 		}
 	}

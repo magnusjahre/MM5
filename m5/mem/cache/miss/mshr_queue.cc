@@ -561,12 +561,17 @@ MSHRQueue::squash(int thread_number)
 		MSHR *mshr = *i;
 		assert(mshr >= minMSHRAddr && mshr <= maxMSHRAddr);
 		if (mshr->threadNum == thread_number) {
+			Addr tgtAddr = MemReq::inval_addr;
 			while (mshr->hasTargets()) {
 				MemReqPtr target = mshr->getTarget();
-#ifdef CACHE_DEBUG
+				//#ifdef CACHE_DEBUG
 				assert(cache != NULL);
 				cache->removePendingRequest(target->paddr, target);
-#endif
+
+				if(tgtAddr == MemReq::inval_addr) tgtAddr = (target->paddr & ~((Addr) cache->getBlockSize()- 1));
+				else assert(tgtAddr == (target->paddr & ~((Addr) cache->getBlockSize()- 1)));
+
+				//#endif
 				mshr->popTarget();
 
 				assert(target->thread_num == thread_number);
@@ -578,8 +583,12 @@ MSHRQueue::squash(int thread_number)
 			assert(!mshr->hasTargets());
 			assert(mshr->ntargets==0);
 			if (!mshr->inService) {
+				if(cache->overlapEstimator != NULL){
+					cache->overlapEstimator->itcaSquash(tgtAddr);
+				}
 				i = deallocateOne(mshr);
 			} else {
+				mshr->itcaWasSquashed = true;
 				//mshr->req->flags &= ~CACHE_LINE_FILL;
 				++i;
 			}

@@ -65,6 +65,8 @@ public:
     short asid;
     /** True if the request has been sent to the bus. */
     bool inService;
+
+    bool itcaWasSquashed;
     /** Thread number of the miss. */
     int threadNum;
     /** The request that is forwarded to the next level of the hierarchy. */

@@ -655,6 +655,8 @@ def setUpOverlapMeasurement():
         root.overlapEstimators[i].itca = root.ITCAs[i]
         if "ITCA-CPU-STALL-POLICY" in env:
             root.ITCAs[i].cpu_stall_policy = env["ITCA-CPU-STALL-POLICY"]
+        if "ITCA-ITIP" in env:
+            root.ITCAs[i].itip = env["ITCA-ITIP"]
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message
@@ -883,7 +885,7 @@ else:
     assert env['MEMORY-SYSTEM'] == "RingBased"
     root.PointToPointLink = [PointToPointLink(interference_manager=root.interferenceManager) for i in range(int(env['NP']))]
     root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in range(int(env['NP'])) ]
-    root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i]) for i in xrange(int(env['NP'])) ]
+    root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in xrange(int(env['NP'])) ]
     
 
 if env['PROTOCOL'] != 'none':

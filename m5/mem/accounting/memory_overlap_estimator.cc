@@ -551,6 +551,20 @@ MemoryOverlapEstimator::issuedMemoryRequest(MemReqPtr& req){
 	nextReqID++;
 }
 
+void
+MemoryOverlapEstimator::itcaInstructionMiss(Addr addr){
+	itca->l1InstructionMiss(addr & ~(MOE_CACHE_BLK_SIZE-1));
+}
+
+void
+MemoryOverlapEstimator::itcaInstructionMissResolved(Addr addr, Tick willFinishAt){
+	itca->l1MissResolved(addr & ~(MOE_CACHE_BLK_SIZE-1), willFinishAt, false);
+}
+
+void
+MemoryOverlapEstimator::itcaSquash(Addr addr){
+	itca->squash(addr & ~(MOE_CACHE_BLK_SIZE-1));
+}
 
 void
 MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
@@ -582,7 +596,7 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 	//overlapTable->requestCompleted(req, hiddenLoad);
 	criticalPathTable->completedRequest(req, hiddenLoad, finishedAt);
-	itca->l1MissResolved(req->paddr, finishedAt);
+	itca->l1MissResolved(req->paddr, finishedAt, true);
 
 	totalRequestAccumulator++;
 

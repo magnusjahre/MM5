@@ -10,7 +10,7 @@ ITCA::cpuStallSignalNames[ITCA_CPU_STALL_CNT] = {
     (char*) "commit"
 };
 
-ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall) : SimObject(_name){
+ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip) : SimObject(_name){
 
 	accountingState = ITCAAccountingState();
 	accountingState.setCPUID(_cpuID);
@@ -19,6 +19,8 @@ ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall) : SimObject(_
 
 	cpuID = _cpuID;
 	useCPUStallSignal = _cpuStall;
+	useITIP = _itip;
+
 	lastSampleAt = 0;
 	headOfROBAddr = 0;
 }
@@ -60,11 +62,39 @@ ITCA::checkAllMSHRsInterSig(){
 }
 
 void
+ITCA::updateInterTaskInstruction(){
+	bool interTaskCnt = 0;
+	for(int i=0;i<instructionMissTable.size();i++){
+		if(instructionMissTable[i].intertaskMiss){
+			interTaskCnt++;
+		}
+	}
+
+	if(useITIP == ITCA_ITIP_ONE && interTaskCnt >= 1){
+		signalState.set(ITCA_IT_INSTRUCTION);
+		DPRINTF(ITCA, "Setting ITCA_IT_INSTRUCTION with %d intertask instruction misses (%d total)\n",
+				interTaskCnt,
+				instructionMissTable.size());
+	}
+	else if(useITIP == ITCA_ITIP_ALL && interTaskCnt == instructionMissTable.size()){
+		signalState.set(ITCA_IT_INSTRUCTION);
+		DPRINTF(ITCA, "Setting ITCA_IT_INSTRUCTION with %d intertask instruction misses (%d total)\n",
+						interTaskCnt,
+						instructionMissTable.size());
+	}
+	else{
+		DPRINTF(ITCA, "ITCA_IT_INSTRUCTION not set (%d instruction misses)\n", instructionMissTable.size());
+		signalState.unset(ITCA_IT_INSTRUCTION);
+	}
+}
+
+void
 ITCA::processSignalChange(){
 
 	// Update ITCA internal signals
 	updateInterTopROB();
 	checkAllMSHRsInterSig();
+	updateInterTaskInstruction();
 
 	// This code implements Figure 5 from Luque et al. (2012)
 	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
@@ -96,18 +126,37 @@ ITCA::l1DataMiss(Addr addr){
 }
 
 void
-ITCA::l1MissResolved(Addr addr, Tick willFinishAt){
-	ITCAMemoryRequestCompletionEvent* event = new ITCAMemoryRequestCompletionEvent(this, addr);
+ITCA::l1InstructionMiss(Addr addr){
+	instructionMissTable.push_back(ITCATableEntry(addr));
+	DPRINTF(ITCA, "Adding address %d to the instruction table, %d pending misses\n",
+			addr,
+			instructionMissTable.size());
+
+	processSignalChange();
+}
+
+void
+ITCA::squash(Addr addr){
+	DPRINTF(ITCA, "Address %d was squashed, attempting to remove it from both data and instruction tables\n", addr);
+	removeTableEntry(&dataMissTable, addr, true);
+	removeTableEntry(&instructionMissTable, addr, true);
+}
+
+void
+ITCA::l1MissResolved(Addr addr, Tick willFinishAt, bool isDataMiss){
+	ITCAMemoryRequestCompletionEvent* event = new ITCAMemoryRequestCompletionEvent(this, addr, isDataMiss);
 	event->schedule(willFinishAt);
 
-	DPRINTF(ITCA, "Miss for addr %d resolved, scheduling handling for cycle %d\n",
+	DPRINTF(ITCA, "Miss for addr %d resolved, %s miss, scheduling handling for cycle %d\n",
 			addr,
+			isDataMiss ? "data" : "instruction",
 			willFinishAt);
 }
 
 void
-ITCA::handleL1MissResolvedEvent(Addr addr){
-	removeTableEntry(&dataMissTable, addr);
+ITCA::handleL1MissResolvedEvent(Addr addr, bool isDataMiss){
+	if(isDataMiss) removeTableEntry(&dataMissTable, addr);
+	else removeTableEntry(&instructionMissTable, addr);
 	processSignalChange();
 }
 
@@ -184,7 +233,7 @@ ITCA::clearROBHeadAddr(){
 }
 
 int
-ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
+ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr, bool acceptNotFound){
 	int foundAt = -1;
 	for(int i=0;i<table->size();i++){
 		if(table->at(i).addr == addr){
@@ -192,13 +241,17 @@ ITCA::findTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
 			foundAt = i;
 		}
 	}
-	assert(foundAt != -1);
+	if(!acceptNotFound) assert(foundAt != -1);
 	return foundAt;
 }
 
 void
-ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr){
-	int foundAt = findTableEntry(table, addr);
+ITCA::removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr, bool acceptNotFound){
+	int foundAt = findTableEntry(table, addr, acceptNotFound);
+	if(foundAt == -1){
+		assert(acceptNotFound);
+		return;
+	}
 	table->erase(table->begin()+foundAt);
 
 	DPRINTF(ITCA, "Removed element at position %d, addr %d, new size is %d\n",
@@ -297,11 +350,13 @@ ITCA::ITCASignalState::unset(ITCASignals signal){
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(ITCA)
     Param<int> cpu_id;
 	Param<string> cpu_stall_policy;
+	Param<string> itip;
 END_DECLARE_SIM_OBJECT_PARAMS(ITCA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ITCA)
 	INIT_PARAM_DFLT(cpu_id, "CPU ID", -1),
-	INIT_PARAM_DFLT(cpu_stall_policy, "The signal that determines if the CPU is stalled", "rename")
+	INIT_PARAM_DFLT(cpu_stall_policy, "The signal that determines if the CPU is stalled", "rename"),
+	INIT_PARAM_DFLT(itip, "How to handle intertask instruction misses", "one")
 END_INIT_SIM_OBJECT_PARAMS(ITCA)
 
 CREATE_SIM_OBJECT(ITCA)
@@ -312,9 +367,15 @@ CREATE_SIM_OBJECT(ITCA)
     else if((string) cpu_stall_policy == "rename") cpuStall = ITCA::ITCA_REG_RENAME_STALL;
     else fatal("Unknown cpu_stall_policy provided");
 
+	ITCA::ITCAInterTaskInstructionPolicy itipval = ITCA::ITCA_ITIP_ONE;
+	if((string) itip == "one") itipval = ITCA::ITCA_ITIP_ONE;
+	else if((string) itip == "all") itipval = ITCA::ITCA_ITIP_ALL;
+	else fatal("Unknown ITIP");
+
 	return new ITCA(getInstanceName(),
     		         cpu_id,
-    		         cpuStall);
+    		         cpuStall,
+    		         itipval);
 }
 
 REGISTER_SIM_OBJECT("ITCA", ITCA)

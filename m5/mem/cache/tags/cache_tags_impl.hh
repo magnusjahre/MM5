@@ -382,7 +382,12 @@ CacheTags<Tags,Compression>::handleFill(BlkType *blk,
 
 	assert(req->cmd == Read);
 	if(cache->overlapEstimator != NULL){
-		cache->overlapEstimator->completedMemoryRequest(req, response_base, hiddenLoad);
+		if(cache->isReadOnly){
+			cache->overlapEstimator->itcaInstructionMissResolved(req->paddr, response_base);
+		}
+		else{
+			cache->overlapEstimator->completedMemoryRequest(req, response_base, hiddenLoad);
+		}
 	}
 
 	if (blk && cache->doData()) {

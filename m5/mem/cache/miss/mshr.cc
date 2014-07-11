@@ -48,6 +48,7 @@ using namespace std;
 MSHR::MSHR()
 {
     inService = false;
+    itcaWasSquashed = false;
     ntargets = 0;
     threadNum = -1;
     mlpCost = 0;
@@ -198,6 +199,7 @@ MSHR::deallocate()
     assert(ntargets == 0);
     req = NULL;
     inService = false;
+    itcaWasSquashed = false;
 //     allocIter = NULL;
 //     readyIter = NULL;
 }

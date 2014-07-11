@@ -33,6 +33,12 @@ public:
 		ITCA_CPU_STALL_CNT
 	};
 
+	enum ITCAInterTaskInstructionPolicy{
+		ITCA_ITIP_ONE,
+		ITCA_ITIP_ALL,
+		ITCA_ITPI_CNT
+	};
+
 private:
 	class ITCAAccountingState{
 	public:
@@ -76,6 +82,7 @@ private:
 	ITCASignalState signalState;
 	Tick lastSampleAt;
 	ITCACPUStalls useCPUStallSignal;
+	ITCAInterTaskInstructionPolicy useITIP;
 	Addr headOfROBAddr;
 
 	std::vector<ITCATableEntry> dataMissTable;
@@ -87,20 +94,24 @@ private:
 
 	void checkAllMSHRsInterSig();
 
-	void removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
+	void removeTableEntry(std::vector<ITCATableEntry>* table, Addr addr, bool acceptNotFound = false);
 
-	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr);
+	int findTableEntry(std::vector<ITCATableEntry>* table, Addr addr, bool acceptNotFound = false);
 
 	void updateInterTopROB();
 
+	void updateInterTaskInstruction();
+
 public:
-	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall);
+	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip);
 
 	Tick getAccountedCycles();
 
 	void l1DataMiss(Addr addr);
-	void l1MissResolved(Addr addr, Tick willFinishAt);
-	void handleL1MissResolvedEvent(Addr addr);
+	void l1InstructionMiss(Addr addr);
+	void squash(Addr addr);
+	void l1MissResolved(Addr addr, Tick willFinishAt, bool isDataMiss);
+	void handleL1MissResolvedEvent(Addr addr, bool isDataMiss);
 
 	void intertaskMiss(Addr addr, bool isInstructionMiss);
 
@@ -115,19 +126,20 @@ public:
 class ITCAMemoryRequestCompletionEvent : public Event{
     ITCA* itca;
 	Addr addr;
+	bool isDataMiss;
 
     public:
     // constructor
     /** A simple constructor. */
-	ITCAMemoryRequestCompletionEvent (ITCA* _itca, Addr _addr)
-        : Event(&mainEventQueue), itca(_itca), addr(_addr)
+	ITCAMemoryRequestCompletionEvent (ITCA* _itca, Addr _addr, bool _isDataMiss)
+        : Event(&mainEventQueue), itca(_itca), addr(_addr), isDataMiss(_isDataMiss)
     {
     }
 
     // event execution function
     /** Calls BusInterface::deliver() */
     void process(){
-        itca->handleL1MissResolvedEvent(addr);
+        itca->handleL1MissResolvedEvent(addr, isDataMiss);
         delete this;
     }
 

@@ -549,6 +549,10 @@ public:
 	void itcaCPUResumed(ITCA::ITCACPUStalls type){
 		itca->itcaCPUResumed(type);
 	}
+
+	void itcaInstructionMiss(Addr addr);
+	void itcaInstructionMissResolved(Addr addr, Tick willFinishAt);
+	void itcaSquash(Addr addr);
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */
