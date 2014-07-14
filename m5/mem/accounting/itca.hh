@@ -13,6 +13,7 @@
 #include "mem/base_hier.hh"
 #include "base/misc.hh"
 #include "base/trace.hh"
+#include "mem/requesttrace.hh"
 #include <iostream>
 
 class ITCA : public SimObject{
@@ -88,7 +89,10 @@ private:
 	std::vector<ITCATableEntry> dataMissTable;
 	std::vector<ITCATableEntry> instructionMissTable;
 
+	RequestTrace debugtrace;
+
 	static char *cpuStallSignalNames[ITCA_CPU_STALL_CNT];
+	static char *mainSignalNames[ITCA_SIGNAL_CNT];
 
 	void processSignalChange();
 
@@ -102,8 +106,12 @@ private:
 
 	void updateInterTaskInstruction();
 
+	void initVerificationTrace(bool doTrace);
+
+	void traceSignals(bool doNotAccount);
+
 public:
-	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip);
+	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip, bool _doVerification);
 
 	Tick getAccountedCycles();
 

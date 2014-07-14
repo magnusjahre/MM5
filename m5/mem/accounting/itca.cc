@@ -10,7 +10,17 @@ ITCA::cpuStallSignalNames[ITCA_CPU_STALL_CNT] = {
     (char*) "commit"
 };
 
-ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip) : SimObject(_name){
+char*
+ITCA::mainSignalNames[ITCA_SIGNAL_CNT] = {
+    (char*) "ITCA_IT_INSTRUCTION",
+    (char*) "ITCA_ROB_EMPTY",
+    (char*) "ITCA_INTER_TOP_ROB",
+    (char*) "ITCA_CPU_STALLED",
+    (char*) "ITCA_ALL_MSHRS_INTER"
+};
+
+ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip, bool _doVerification)
+: SimObject(_name){
 
 	accountingState = ITCAAccountingState();
 	accountingState.setCPUID(_cpuID);
@@ -23,6 +33,30 @@ ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTask
 
 	lastSampleAt = 0;
 	headOfROBAddr = 0;
+
+	initVerificationTrace(_doVerification);
+}
+
+void
+ITCA::initVerificationTrace(bool doTrace){
+	debugtrace = RequestTrace(name(), "VerificationTrace", !doTrace);
+
+	vector<string> headers;
+	for(int i=0;i<ITCA_SIGNAL_CNT;i++){
+		headers.push_back(mainSignalNames[i]);
+	}
+	headers.push_back("DO_NOT_ACCOUNT");
+	debugtrace.initalizeTrace(headers);
+}
+
+void
+ITCA::traceSignals(bool doNotAccount){
+	vector<RequestTraceEntry> entries;
+	for(int i=0;i<ITCA_SIGNAL_CNT;i++){
+		entries.push_back(RequestTraceEntry(signalState.signalOn[i] ? 1 : 0));
+	}
+	entries.push_back(RequestTraceEntry(doNotAccount ? 1 : 0));
+	debugtrace.addTrace(entries);
 }
 
 void
@@ -108,6 +142,7 @@ ITCA::processSignalChange(){
 			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
 			doNotAccount ? "on": "off");
 
+	traceSignals(doNotAccount);
 	accountingState.update(doNotAccount);
 
 	DPRINTF(ITCA, "Status: %d cycles accounted, %d cycles not accounted\n",
@@ -367,12 +402,14 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ITCA)
     Param<int> cpu_id;
 	Param<string> cpu_stall_policy;
 	Param<string> itip;
+	Param<bool> do_verification;
 END_DECLARE_SIM_OBJECT_PARAMS(ITCA)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ITCA)
 	INIT_PARAM_DFLT(cpu_id, "CPU ID", -1),
 	INIT_PARAM_DFLT(cpu_stall_policy, "The signal that determines if the CPU is stalled", "rename"),
-	INIT_PARAM_DFLT(itip, "How to handle intertask instruction misses", "one")
+	INIT_PARAM_DFLT(itip, "How to handle intertask instruction misses", "one"),
+	INIT_PARAM_DFLT(do_verification, "Turn on the verification trace (Warning: creates large files)", false)
 END_INIT_SIM_OBJECT_PARAMS(ITCA)
 
 CREATE_SIM_OBJECT(ITCA)
@@ -391,7 +428,8 @@ CREATE_SIM_OBJECT(ITCA)
 	return new ITCA(getInstanceName(),
     		         cpu_id,
     		         cpuStall,
-    		         itipval);
+    		         itipval,
+    		         do_verification);
 }
 
 REGISTER_SIM_OBJECT("ITCA", ITCA)

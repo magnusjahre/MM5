@@ -657,6 +657,8 @@ def setUpOverlapMeasurement():
             root.ITCAs[i].cpu_stall_policy = env["ITCA-CPU-STALL-POLICY"]
         if "ITCA-ITIP" in env:
             root.ITCAs[i].itip = env["ITCA-ITIP"]
+        if "ITCA-VERIFY" in env:
+            root.ITCAs[i].do_verification = env["ITCA-VERIFY"]
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message
