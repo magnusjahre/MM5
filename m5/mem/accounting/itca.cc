@@ -34,37 +34,9 @@ ITCA::ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTask
 	lastSampleAt = 0;
 	headOfROBAddr = 0;
 
-	initVerificationTrace(_doVerification);
-}
-
-void
-ITCA::initVerificationTrace(bool doTrace){
-	debugtrace = RequestTrace(name(), "VerificationTrace", !doTrace);
-
-	vector<string> headers;
-	for(int i=0;i<ITCA_SIGNAL_CNT;i++){
-		headers.push_back(mainSignalNames[i]);
-	}
-	headers.push_back("DO_NOT_ACCOUNT");
-	debugtrace.initalizeTrace(headers);
-}
-
-void
-ITCA::traceSignals(bool doNotAccount){
-	vector<RequestTraceEntry> entries;
-	bool allFalse = true;
-	bool onlyCPUStalledTrue = true;
-	bool onlyROBEmpty = true;
-	for(int i=0;i<ITCA_SIGNAL_CNT;i++){
-		entries.push_back(RequestTraceEntry(signalState.signalOn[i] ? 1 : 0));
-		if(signalState.signalOn[i]) allFalse = false;
-		if(signalState.signalOn[i] && i != ITCA_CPU_STALLED) onlyCPUStalledTrue = false;
-		if(signalState.signalOn[i] && i != ITCA_ROB_EMPTY) onlyROBEmpty = false;
-	}
-	entries.push_back(RequestTraceEntry(doNotAccount ? 1 : 0));
-
-	if(!(allFalse || onlyCPUStalledTrue || onlyROBEmpty)){
-		debugtrace.addTrace(entries);
+	if(_doVerification){
+		ITCATestEvent* event = new ITCATestEvent(this);
+		event->schedule(curTick+1);
 	}
 }
 
@@ -132,6 +104,32 @@ ITCA::updateInterTaskInstruction(){
 }
 
 void
+ITCA::runITCALogic(){
+	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
+	DPRINTF(ITCA, "IT_INSTRUCTION %s, ROB_EMPTY %s; Decision %s\n",
+			      signalState.signalOn[ITCA_IT_INSTRUCTION] ? "on": "off",
+			      signalState.signalOn[ITCA_ROB_EMPTY] ? "on": "off",
+				  portOne ? "on": "off");
+
+	bool portTwo = signalState.signalOn[ITCA_INTER_TOP_ROB] && signalState.signalOn[ITCA_CPU_STALLED];
+	DPRINTF(ITCA, "INTER_TOP_ROB %s, CPU_STALLED %s; Decision %s\n",
+				  signalState.signalOn[ITCA_INTER_TOP_ROB] ? "on": "off",
+				  signalState.signalOn[ITCA_CPU_STALLED] ? "on": "off",
+				  portTwo ? "on": "off");
+
+	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
+	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
+
+	DPRINTF(ITCA, "Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
+			portOne ? "on": "off",
+			portTwo ? "on": "off",
+			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
+			doNotAccount ? "on": "off");
+
+	accountingState.update(doNotAccount);
+}
+
+void
 ITCA::processSignalChange(){
 
 	// Update ITCA internal signals
@@ -139,20 +137,8 @@ ITCA::processSignalChange(){
 	checkAllMSHRsInterSig();
 	updateInterTaskInstruction();
 
-	// This code implements Figure 5 from Luque et al. (2012)
-	bool portOne = signalState.signalOn[ITCA_IT_INSTRUCTION] && signalState.signalOn[ITCA_ROB_EMPTY];
-	bool portTwo = signalState.signalOn[ITCA_INTER_TOP_ROB] && signalState.signalOn[ITCA_CPU_STALLED];
-	// When one or more of these signals are set, we do not account (last gate in Fig 5 should be an OR and not a NOR)
-	bool doNotAccount = portOne || portTwo || signalState.signalOn[ITCA_ALL_MSHRS_INTER];
-
-	DPRINTF(ITCA, "Processing signal change: Port 1 %s, Port 2 %s, Port 3 %s; Decision %s\n",
-			portOne ? "on": "off",
-			portTwo ? "on": "off",
-			signalState.signalOn[ITCA_ALL_MSHRS_INTER] ? "on": "off",
-			doNotAccount ? "on": "off");
-
-	traceSignals(doNotAccount);
-	accountingState.update(doNotAccount);
+	// This method implements Figure 5 from Luque et al. (2012)
+	runITCALogic();
 
 	DPRINTF(ITCA, "Status: %d cycles accounted, %d cycles not accounted\n",
 			accountingState.accountedCycles,
@@ -404,6 +390,55 @@ void
 ITCA::ITCASignalState::clear(ITCASignals signal){
 	signalOn[signal] = false;
 }
+
+/// ***************************************************************************
+/// Unit Tests
+/// ***************************************************************************
+
+void
+ITCA::testSignals(){
+	cout << "\nVerifying ITCA state processing\n\n";
+
+	bool expectedAccounting[32] = {true, true, true, false,
+			                       true, true, true, false,
+			                       true, true, true, false,
+		  			               false, false, false, false,
+		  			               false, false, false, false,
+		  			               false, false, false, false,
+		  			               false, false, false, false,
+		  			               false, false, false, false};
+	double errors = 0.0;
+	for(int i=0;i<32;i++){
+
+		cout << "Testing state " << i << ":\n";
+		int mask = 16;
+		for(int j=4;j>=0;j--){
+			int state = mask & i;
+			mask = mask >> 1;
+			if(state != 0) signalState.set((ITCASignals) j);
+			else signalState.clear((ITCASignals) j);
+			cout << "Setting " << mainSignalNames[j] << " to " <<  (signalState.signalOn[j] ? 1 : 0) << "\n";
+		}
+
+		runITCALogic();
+
+		cout << "Expected " << (expectedAccounting[i] ? "account" : "don't account" )
+		     << ", got " << (accountingState.accounting ? "accounting" : "not accounting")
+		     << ": ";
+
+		if(accountingState.accounting == expectedAccounting[i]){
+			cout << "OK!\n\n";
+		}
+		else{
+			errors++;
+			cout << "Failed...\n\n";
+		}
+	}
+
+	if(errors > 0.0) fatal("Verification failed, %d correct", (32.0-errors)/32.0);
+	else fatal("Verification completed successfully");
+}
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 

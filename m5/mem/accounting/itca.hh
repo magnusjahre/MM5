@@ -13,7 +13,6 @@
 #include "mem/base_hier.hh"
 #include "base/misc.hh"
 #include "base/trace.hh"
-#include "mem/requesttrace.hh"
 #include <iostream>
 
 class ITCA : public SimObject{
@@ -89,8 +88,6 @@ private:
 	std::vector<ITCATableEntry> dataMissTable;
 	std::vector<ITCATableEntry> instructionMissTable;
 
-	RequestTrace debugtrace;
-
 	static char *cpuStallSignalNames[ITCA_CPU_STALL_CNT];
 	static char *mainSignalNames[ITCA_SIGNAL_CNT];
 
@@ -106,9 +103,7 @@ private:
 
 	void updateInterTaskInstruction();
 
-	void initVerificationTrace(bool doTrace);
-
-	void traceSignals(bool doNotAccount);
+	void runITCALogic();
 
 public:
 	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip, bool _doVerification);
@@ -131,6 +126,8 @@ public:
 
 	void setROBEmpty();
 	void clearROBEmpty();
+
+	void testSignals();
 };
 
 
@@ -160,6 +157,33 @@ class ITCAMemoryRequestCompletionEvent : public Event{
      */
     virtual const char *description(){
         return "ITCA Memory Request Completion Event";
+    }
+};
+
+class ITCATestEvent: public Event{
+    ITCA* itca;
+
+    public:
+    // constructor
+    /** A simple constructor. */
+	ITCATestEvent (ITCA* _itca)
+        : Event(&mainEventQueue), itca(_itca)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process(){
+        itca->testSignals();
+        delete this;
+    }
+
+    /**
+    * Returns the string description of this event.
+    * @return The description of this event.
+     */
+    virtual const char *description(){
+        return "ITCA Test Event";
     }
 };
 
