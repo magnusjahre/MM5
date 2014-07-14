@@ -52,11 +52,20 @@ ITCA::initVerificationTrace(bool doTrace){
 void
 ITCA::traceSignals(bool doNotAccount){
 	vector<RequestTraceEntry> entries;
+	bool allFalse = true;
+	bool onlyCPUStalledTrue = true;
+	bool onlyROBEmpty = true;
 	for(int i=0;i<ITCA_SIGNAL_CNT;i++){
 		entries.push_back(RequestTraceEntry(signalState.signalOn[i] ? 1 : 0));
+		if(signalState.signalOn[i]) allFalse = false;
+		if(signalState.signalOn[i] && i != ITCA_CPU_STALLED) onlyCPUStalledTrue = false;
+		if(signalState.signalOn[i] && i != ITCA_ROB_EMPTY) onlyROBEmpty = false;
 	}
 	entries.push_back(RequestTraceEntry(doNotAccount ? 1 : 0));
-	debugtrace.addTrace(entries);
+
+	if(!(allFalse || onlyCPUStalledTrue || onlyROBEmpty)){
+		debugtrace.addTrace(entries);
+	}
 }
 
 void
