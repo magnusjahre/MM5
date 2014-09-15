@@ -131,6 +131,9 @@ class Bus : public BaseHier
 
     MemoryBusTraceData* bandwidthTraceData;
 
+    Tick simContTokens;
+    Tick simContLastCompletedAt;
+
   public:
     /** Width of the bus in bytes. */
     int width;

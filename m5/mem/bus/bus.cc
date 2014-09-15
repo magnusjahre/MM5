@@ -192,6 +192,9 @@ Bus::Bus(const string &_name,
     MemoryBusBandwidthTraceEvent* bwte = new MemoryBusBandwidthTraceEvent(this, bwtracefreq);
     bwte->schedule(bwtracefreq);
 
+    simContLastCompletedAt = 0;
+    simContTokens = 0;
+
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
     file << "";
@@ -579,10 +582,25 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 	assert(cpu_count == 1);
 
+	simContTokens += curTick - simContLastCompletedAt;
+
+	int addedContention = 0;
 	int serviceLat = time - curTick;
 	int period = serviceLat * (int) (1.0 / utilizationLimit);
-	int addedContention = period - serviceLat;
 
+	assert(simContTokens >= 0);
+	if(simContTokens >= period){
+		simContTokens -= period;
+	}
+	else if(simContTokens == 0){
+		addedContention = period - serviceLat;
+	}
+	else{
+		addedContention = period - serviceLat - simContTokens;
+		simContTokens = 0;
+	}
+
+	simContLastCompletedAt = time + addedContention;
 	return addedContention;
 }
 
@@ -636,9 +654,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             unknownSenderCycles += slaveInterfaces[0]->getDataTransTime();
         }
 
-
         totalServiceCycles += time - curTick;
-
         serviceCyclesSample += time - curTick;
         requestSample++;
 
