@@ -155,7 +155,7 @@ class Bus : public BaseHier
     AdaptiveMHA* adaptiveMHA;
     InterferenceManager* interferenceManager;
 
-    int getOtherProcUseTime(MemReqPtr& req);
+    int getOtherProcUseTime(MemReqPtr& req, Tick time);
 
   protected:
 

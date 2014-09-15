@@ -571,7 +571,7 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 }
 
 int
-Bus::getOtherProcUseTime(MemReqPtr& req){
+Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 	if(utilizationLimit == 0.0 || req->cmd == Activate || req->cmd == Close){
 		return 0;
@@ -579,17 +579,18 @@ Bus::getOtherProcUseTime(MemReqPtr& req){
 
 	assert(cpu_count == 1);
 
-	int delayPeriod = (int) ((double) slaveInterfaces[0]->getDataTransTime() / utilizationLimit);
-	int otherProcUseTime = delayPeriod - slaveInterfaces[0]->getDataTransTime();
+	int serviceLat = time - curTick;
+	int period = serviceLat * (int) (1.0 / utilizationLimit);
+	int addedContention = period - serviceLat;
 
-	return otherProcUseTime;
+	return addedContention;
 }
 
 /* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 {
 
-	int simulatedContention = getOtherProcUseTime(req);
+	int simulatedContention = getOtherProcUseTime(req, time);
 
     assert(!memoryControllerEvent->scheduled());
     assert(time >= curTick);
@@ -625,8 +626,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     	traceQueuedRequests(false);
     	bandwidthTraceData->addData(req, time);
 
-        assert(slaveInterfaces.size() == 1);
-        busUseCycles += slaveInterfaces[0]->getDataTransTime();
+        busUseCycles += time - curTick;
         memoryController->lastRequestLatency(req->adaptiveMHASenderID, (time - curTick));
 
         if(req->adaptiveMHASenderID != -1){
@@ -673,6 +673,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     	assert(req->adaptiveMHASenderID != -1);
 
         Tick serviceLatency = time - curTick;
+
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
 //         Tick totalLat = time - req->inserted_into_memory_controller;
 
