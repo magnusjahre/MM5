@@ -576,7 +576,7 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 int
 Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
-	if(utilizationLimit == 0.0 || req->cmd == Activate || req->cmd == Close){
+	if(utilizationLimit == 0.0 || utilizationLimit == 1.0 || req->cmd == Activate || req->cmd == Close){
 		return 0;
 	}
 
@@ -586,7 +586,7 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 	int addedContention = 0;
 	int serviceLat = time - curTick;
-	int period = serviceLat * (int) (1.0 / utilizationLimit);
+	int period = (int) ((double) serviceLat * (1.0 / utilizationLimit));
 
 	assert(simContTokens >= 0);
 	if(simContTokens >= period){
@@ -596,9 +596,18 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 		addedContention = period - serviceLat;
 	}
 	else{
-		addedContention = period - serviceLat - simContTokens;
-		simContTokens = 0;
+		int quota = serviceLat + simContTokens;
+		if(quota > period){
+			simContTokens -= (period - serviceLat);
+		}
+		else{
+			addedContention = period - quota;
+			simContTokens = 0;
+		}
+
 	}
+
+	assert(addedContention >= 0);
 
 	simContLastCompletedAt = time + addedContention;
 	return addedContention;
