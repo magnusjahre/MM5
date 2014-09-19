@@ -195,6 +195,10 @@ Bus::Bus(const string &_name,
     simContLastCompletedAt = 0;
     simContTokens = 0;
 
+    modelBusServiceAccumulator = 0;
+    modelBusQueueAccumulator = 0;
+    modelBusRequests = 0;
+
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
     file << "";
@@ -613,6 +617,25 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 	return addedContention;
 }
 
+PerformanceModelMeasurements
+Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
+	measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
+	measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
+	measurements.busRequests = modelBusRequests;
+
+	modelBusQueueAccumulator = 0;
+	modelBusServiceAccumulator = 0;
+	modelBusRequests = 0;
+
+	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests\n",
+			measurements.avgMemoryBusQueueLat,
+			measurements.avgMemoryBusServiceLat,
+			measurements.busRequests);
+
+	return measurements;
+
+}
+
 /* This function is called when the DRAM has calculated the latency */
 void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 {
@@ -698,9 +721,11 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     	assert(req->adaptiveMHASenderID != -1);
 
         Tick serviceLatency = time - curTick;
-
         Tick queueLatency = curTick - req->inserted_into_memory_controller;
-//         Tick totalLat = time - req->inserted_into_memory_controller;
+
+        modelBusServiceAccumulator += serviceLatency;
+        modelBusQueueAccumulator += queueLatency;
+        modelBusRequests++;
 
         if(req->interferenceMissAt == 0){
 			req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;

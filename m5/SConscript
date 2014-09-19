@@ -172,6 +172,7 @@ base_sources = Split('''
 	mem/accounting/itca.cc
 	mem/accounting/memory_overlap_estimator.cc
 	mem/accounting/memory_overlap_table.cc
+	mem/accounting/performance_model_measurements.cc
 	
 	mem/base_hier.cc
 	mem/base_mem.cc

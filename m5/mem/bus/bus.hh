@@ -51,6 +51,7 @@
 
 #include "mem/cache/miss/adaptive_mha.hh"
 #include "mem/accounting/interference_manager.hh"
+#include "mem/accounting/performance_model_measurements.hh"
 
 #include "mem/bus/controller/memory_controller.hh"
 
@@ -133,6 +134,10 @@ class Bus : public BaseHier
 
     Tick simContTokens;
     Tick simContLastCompletedAt;
+
+    Tick modelBusServiceAccumulator;
+    Tick modelBusQueueAccumulator;
+    int modelBusRequests;
 
   public:
     /** Width of the bus in bytes. */
@@ -375,6 +380,8 @@ class Bus : public BaseHier
 
     void addBusQueueInterference(Tick interference, MemReqPtr& req);
     void addBusServiceInterference(Tick interference, MemReqPtr& req);
+
+    PerformanceModelMeasurements updateModelMeasurements(PerformanceModelMeasurements measurements);
 
   private:
     std::vector<int> perCPUDataBusUse;

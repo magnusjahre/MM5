@@ -15,6 +15,7 @@
 #include "mem/policy/performance_measurement.hh"
 #include "mem/accounting/memory_overlap_estimator.hh"
 #include "mem/policy/performance_model.hh"
+#include "mem/accounting/performance_model_measurements.hh"
 
 class CacheInterference;
 class BasePolicy;
@@ -270,6 +271,8 @@ public:
 	void itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss);
 
 	void registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe, int cpuID);
+
+	PerformanceModelMeasurements buildModelMeasurements(int committedInstructions, Tick ticksInSample);
 };
 
 #endif

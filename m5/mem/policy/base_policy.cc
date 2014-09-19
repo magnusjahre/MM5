@@ -807,6 +807,10 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("CPL-CWP Stall Estimate");
 		headers.push_back("CPL-table Stall Estimate");
 		headers.push_back("CPL-CWP-table Stall Estimate");
+
+		headers.push_back("Actual Bus Service Latency");
+		headers.push_back("Actual Bus Latency");
+		headers.push_back("Model Bus Latency");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -839,7 +843,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 					                    double numStores,
 					                    int numWriteStalls,
 					                    int emptyROBStallCycles,
-					                    Tick boisAloneStallEst){
+					                    Tick boisAloneStallEst,
+					                    PerformanceModelMeasurements modelMeasurements){
 
 	vector<RequestTraceEntry> data;
 
@@ -956,6 +961,12 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		// CPL models with critical path data (latency is round trip and thus includes both the private and shared memsys)
 		data.push_back(((ols.cptMeasurements.averageCPLatency())*ols.tableCPL)+privateStallCycles);
 		data.push_back(((ols.cptMeasurements.averageCPLatency()-ols.cptMeasurements.averageCPCWP())*ols.tableCPL)+privateStallCycles);
+
+
+		// Bus Queue latency model
+		data.push_back(modelMeasurements.avgMemoryBusServiceLat);
+		data.push_back(modelMeasurements.avgMemoryBusQueueLat);
+		data.push_back(modelMeasurements.getModelBusQueueLatency());
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);

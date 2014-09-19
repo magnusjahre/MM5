@@ -823,6 +823,21 @@ InterferenceManager::getAvgNoBusLat(double avgRoundTripLatency, int cpuID){
 	return avgRoundTripLatency - avgBusLat;
 }
 
+PerformanceModelMeasurements
+InterferenceManager::buildModelMeasurements(int committedInstructions, Tick ticksInSample){
+	PerformanceModelMeasurements modelMeasurements = PerformanceModelMeasurements();
+	modelMeasurements.committedInstructions = committedInstructions;
+	modelMeasurements.ticksInSample = ticksInSample;
+
+	DPRINTF(PerformanceModelMeasurements, "Initializing performance model measurements with instructions %d total ticks %d\n",
+			modelMeasurements.committedInstructions,
+			modelMeasurements.ticksInSample);
+
+	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
+
+	return modelMeasurements;
+}
+
 void
 InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst){
 
@@ -852,6 +867,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
+
+		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample);
+
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
 														 predictedAloneLat,
@@ -874,7 +892,8 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 instTraceStoreRequests[cpuID],
 														 numWriteStalls,
 														 commitTraceEmptyROBStall[cpuID],
-														 boisAloneStallEst);
+														 boisAloneStallEst,
+														 modelMeasurements);
 	}
 
 	// Performance model

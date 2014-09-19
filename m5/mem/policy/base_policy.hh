@@ -13,6 +13,7 @@
 #include "mem/accounting/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/accounting/memory_overlap_estimator.hh"
+#include "mem/accounting/performance_model_measurements.hh"
 #include "mem/cache/base_cache.hh"
 #include "mem/cache/miss/throttle_control.hh"
 #include "mem/bus/bus.hh"
@@ -299,7 +300,8 @@ public:
 				                     double numStores,
 				                     int numWriteStalls,
 				                     int emptyROBStallCycles,
-				                     Tick boisAloneStallEst);
+				                     Tick boisAloneStallEst,
+				                     PerformanceModelMeasurements modelMeasurements);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);
