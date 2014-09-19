@@ -41,6 +41,10 @@ PerformanceModelMeasurements::getModelBusQueueLatency(){
 			ticksInSample,
 			denominator);
 
+	DPRINTF(PerformanceModelMeasurements, "Average number of requests in the system is %f and they spend %f ticks in the system\n",
+			(busRequests*avgMemoryBusServiceLat) / (ticksInSample*bandwidthAllocation),
+			avgMemoryBusServiceLat / bandwidthAllocation);
+
 	assert(denominator > 0.0);
 	double res = numerator / denominator;
 
