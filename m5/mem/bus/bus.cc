@@ -622,15 +622,17 @@ Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
 	measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
 	measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
 	measurements.busRequests = modelBusRequests;
+	measurements.bandwidthAllocation = utilizationLimit;
 
 	modelBusQueueAccumulator = 0;
 	modelBusServiceAccumulator = 0;
 	modelBusRequests = 0;
 
-	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests\n",
+	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests, allocation %d\n",
 			measurements.avgMemoryBusQueueLat,
 			measurements.avgMemoryBusServiceLat,
-			measurements.busRequests);
+			measurements.busRequests,
+			measurements.bandwidthAllocation);
 
 	return measurements;
 

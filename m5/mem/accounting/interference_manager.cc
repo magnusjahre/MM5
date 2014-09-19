@@ -833,6 +833,7 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 			modelMeasurements.committedInstructions,
 			modelMeasurements.ticksInSample);
 
+	if(memoryBuses.size() != 1) fatal("Multichannel memory bus not supported by performance model measurements");
 	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
 
 	return modelMeasurements;

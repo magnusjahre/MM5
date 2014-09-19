@@ -43,6 +43,10 @@ PerformanceModelMeasurements::getModelBusQueueLatency(){
 	assert(denominator > 0.0);
 	double res = numerator / denominator;
 
+	DPRINTF(PerformanceModelMeasurements, "Model queue latency %f (measured %f)\n",
+			res,
+			avgMemoryBusQueueLat);
+
 	return res;
 
 }
