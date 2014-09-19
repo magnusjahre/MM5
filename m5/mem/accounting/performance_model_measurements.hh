@@ -23,10 +23,13 @@ public:
 	int busRequests;
 
 	double bandwidthAllocation;
+	double busUseCycles;
 
 	PerformanceModelMeasurements();
 
 	double getModelBusQueueLatency();
+
+	double getActualBusUtilization();
 
 };
 

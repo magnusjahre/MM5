@@ -198,6 +198,7 @@ Bus::Bus(const string &_name,
     modelBusServiceAccumulator = 0;
     modelBusQueueAccumulator = 0;
     modelBusRequests = 0;
+    modelBusUseCycles = 0;
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -580,6 +581,8 @@ Bus::handleMemoryController(bool isShadow, int ctrlID)
 int
 Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
+	//TODO: should we allow writebacks in here or not?
+
 	if(utilizationLimit == 0.0 || utilizationLimit == 1.0 || req->cmd == Activate || req->cmd == Close){
 		return 0;
 	}
@@ -622,11 +625,14 @@ Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
 	measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
 	measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
 	measurements.busRequests = modelBusRequests;
+
 	measurements.bandwidthAllocation = utilizationLimit;
+	measurements.busUseCycles = modelBusUseCycles;
 
 	modelBusQueueAccumulator = 0;
 	modelBusServiceAccumulator = 0;
 	modelBusRequests = 0;
+	modelBusUseCycles = 0;
 
 	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests, allocation %d\n",
 			measurements.avgMemoryBusQueueLat,
@@ -728,6 +734,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         modelBusServiceAccumulator += serviceLatency;
         modelBusQueueAccumulator += queueLatency;
         modelBusRequests++;
+        modelBusUseCycles += serviceLatency;
 
         if(req->interferenceMissAt == 0){
 			req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;

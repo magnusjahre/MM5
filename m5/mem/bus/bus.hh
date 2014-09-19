@@ -138,6 +138,7 @@ class Bus : public BaseHier
     Tick modelBusServiceAccumulator;
     Tick modelBusQueueAccumulator;
     int modelBusRequests;
+    Tick modelBusUseCycles;
 
   public:
     /** Width of the bus in bytes. */

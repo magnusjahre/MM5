@@ -17,6 +17,7 @@ PerformanceModelMeasurements::PerformanceModelMeasurements(){
 	busRequests = 0;
 
 	bandwidthAllocation = 0.0;
+	busUseCycles = 0.0;
 }
 
 double
@@ -49,4 +50,9 @@ PerformanceModelMeasurements::getModelBusQueueLatency(){
 
 	return res;
 
+}
+
+double
+PerformanceModelMeasurements::getActualBusUtilization(){
+	return (double) busUseCycles / (double) ticksInSample;
 }

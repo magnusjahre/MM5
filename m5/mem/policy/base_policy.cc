@@ -811,6 +811,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Actual Bus Service Latency");
 		headers.push_back("Actual Bus Latency");
 		headers.push_back("Model Bus Latency");
+		headers.push_back("Bandwidth allocation");
+		headers.push_back("Bandwidth use");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -967,6 +969,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(modelMeasurements.avgMemoryBusServiceLat);
 		data.push_back(modelMeasurements.avgMemoryBusQueueLat);
 		data.push_back(modelMeasurements.getModelBusQueueLatency());
+		data.push_back(modelMeasurements.bandwidthAllocation);
+		data.push_back(modelMeasurements.getActualBusUtilization());
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);
