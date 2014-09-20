@@ -622,8 +622,14 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 PerformanceModelMeasurements
 Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
-	measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
-	measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
+	if(modelBusRequests > 0.0){
+		measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
+		measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
+	}
+	else{
+		measurements.avgMemoryBusQueueLat = 0.0;
+		measurements.avgMemoryBusServiceLat = 0.0;
+	}
 	measurements.busRequests = modelBusRequests;
 
 	measurements.bandwidthAllocation = utilizationLimit;
