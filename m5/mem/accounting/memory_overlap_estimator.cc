@@ -681,11 +681,14 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			completedComputeNodes.size(),
 			completedRequestNodes.size());
 
-	//ols.cpl = findCriticalPathLengthDFS(root, 0);
-	ols.graphCPL = findCriticalPathLength(root, 0);
+	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(root);
+	ols.graphCPL = findCriticalPathLength(root, 0, topologicalOrder);
 	assert(checkReachability());
+	ols.avgMemBusPara = findAvgMemoryBusParallelism(topologicalOrder);
 
-	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.graphCPL);
+	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d, average memory bus parallelism %f\n",
+			ols.graphCPL,
+			ols.avgMemBusPara);
 
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
@@ -911,13 +914,67 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 	return topologicalOrder;
 }
 
+double
+MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder){
+	double commitPeriods = 0.0;
+	double inFlightSum = 0.0;
+	double inFlightCacheMisses = 0.0;
+
+	while(!topologicalOrder.empty()){
+		MemoryGraphNode* curNode = topologicalOrder.front();
+		curNode->visited = true; //for reachability analysis
+		topologicalOrder.pop_front();
+
+		DPRINTF(OverlapEstimatorGraph, "Processing node %s-%d (addr %d)\n",
+				curNode->name(),
+				curNode->id,
+				curNode->getAddr());
+
+		if(curNode->addToCPL()){
+			RequestNode* reqNode = (RequestNode*) curNode;
+			if(reqNode->isSharedCacheMiss){
+				inFlightCacheMisses += 1.0;
+				DPRINTF(OverlapEstimatorGraph, "Node %s-%d (addr %d), is a cache miss, in flight misses is now %f\n",
+								curNode->name(),
+								curNode->id,
+								curNode->getAddr(),
+								inFlightCacheMisses);
+			}
+		}
+		else{
+			inFlightSum += inFlightCacheMisses;
+			commitPeriods += 1.0;
+
+			DPRINTF(OverlapEstimatorGraph, "Reached commit period, incrementing inFlightSum by %f\n",
+					inFlightCacheMisses);
+
+			double parents = 0.0;
+			for(int i=0;i<curNode->parents->size();i++){
+				RequestNode* reqParent = (RequestNode*) curNode->parents->at(i);
+				if(reqParent->isSharedCacheMiss) parents += 1.0;
+			}
+
+			inFlightCacheMisses = inFlightCacheMisses - parents;
+			assert(inFlightCacheMisses >= 0.0);
+
+			DPRINTF(OverlapEstimatorGraph, "Reducing in flight misses by %d, new value %f\n",
+					parents,
+					inFlightCacheMisses);
+		}
+
+	}
+
+	if(commitPeriods == 0.0) return 0.0;
+	return inFlightSum / commitPeriods;
+}
+
 int
-MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, int depth){
+MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node,
+											   int depth,
+											   std::list<MemoryGraphNode* > topologicalOrder){
 
 	assert(!node->addToCPL());
 	node->depth = depth;
-
-	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(node);
 
 	int maxdepth = 0;
 	while(!topologicalOrder.empty()){

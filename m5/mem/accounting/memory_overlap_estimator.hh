@@ -254,6 +254,7 @@ public:
 	double avgInterBurstOverlap;
 	double avgTotalComWhilePend;
 	double avgComWhileBurst;
+	double avgMemBusPara;
 	CriticalPathTableMeasurements cptMeasurements;
 	Tick itcaAccountedCycles;
 
@@ -265,6 +266,7 @@ public:
 		avgInterBurstOverlap = 0.0;
 		avgTotalComWhilePend = 0.0;
 		avgComWhileBurst = 0.0;
+		avgMemBusPara = 0.0;
 		itcaAccountedCycles = 0;
 	}
 };
@@ -463,7 +465,8 @@ private:
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
 	std::list<MemoryGraphNode* > findTopologicalOrder(MemoryGraphNode* root);
-	int findCriticalPathLength(MemoryGraphNode* node, int depth);
+	double findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder);
+	int findCriticalPathLength(MemoryGraphNode* node, int depth, std::list<MemoryGraphNode* > topologicalOrder);
 	void clearData();
 
 //	RequestNode* findPendingNode(int id);
