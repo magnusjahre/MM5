@@ -824,7 +824,7 @@ InterferenceManager::getAvgNoBusLat(double avgRoundTripLatency, int cpuID){
 }
 
 PerformanceModelMeasurements
-InterferenceManager::buildModelMeasurements(int committedInstructions, Tick ticksInSample){
+InterferenceManager::buildModelMeasurements(int committedInstructions, Tick ticksInSample, OverlapStatistics ols){
 	PerformanceModelMeasurements modelMeasurements = PerformanceModelMeasurements();
 	modelMeasurements.committedInstructions = committedInstructions;
 	modelMeasurements.ticksInSample = ticksInSample;
@@ -835,6 +835,8 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 
 	if(memoryBuses.size() != 1) fatal("Multichannel memory bus not supported by performance model measurements");
 	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
+
+	modelMeasurements.avgMemBusParallelism = ols.avgMemBusPara;
 
 	return modelMeasurements;
 }
@@ -869,7 +871,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
 
-		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample);
+		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
 
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,

@@ -18,10 +18,12 @@ PerformanceModelMeasurements::PerformanceModelMeasurements(){
 
 	bandwidthAllocation = 0.0;
 	busUseCycles = 0.0;
+
+	avgMemBusParallelism = 0.0;
 }
 
 double
-PerformanceModelMeasurements::getModelBusQueueLatency(){
+PerformanceModelMeasurements::getLittlesLawBusQueueLatency(){
 
 	double latSq = avgMemoryBusServiceLat*avgMemoryBusServiceLat;
 	double numerator = (double) busRequests * latSq;
@@ -54,6 +56,25 @@ PerformanceModelMeasurements::getModelBusQueueLatency(){
 
 	return res;
 
+}
+
+double
+PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
+	double numerator = avgMemoryBusServiceLat * avgMemBusParallelism;
+	double res = numerator / bandwidthAllocation;
+
+	DPRINTF(PerformanceModelMeasurements, "Service latency %f, average bus parallelism %f and allocation %f gives queue estimate %f\n",
+			avgMemoryBusServiceLat,
+			avgMemBusParallelism,
+			bandwidthAllocation,
+			res);
+
+
+	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f)\n",
+			res,
+			avgMemoryBusQueueLat);
+
+	return res;
 }
 
 double

@@ -25,9 +25,13 @@ public:
 	double bandwidthAllocation;
 	double busUseCycles;
 
+	double avgMemBusParallelism;
+
 	PerformanceModelMeasurements();
 
-	double getModelBusQueueLatency();
+	double getLittlesLawBusQueueLatency();
+
+	double getGraphModelBusQueueLatency();
 
 	double getActualBusUtilization();
 
