@@ -187,6 +187,7 @@ public:
 	bool privateMemsysReq;
 	int commitCyclesWhileActive;
 	bool isLoad;
+	bool isSharedCacheMiss;
 	bool causedStall;
 
 	RequestNode(int _id, Addr _addr, Tick _start): MemoryGraphNode(_id, _start)
@@ -195,6 +196,8 @@ public:
 
 		privateMemsysReq = false;
 		commitCyclesWhileActive = 0;
+		isLoad = false;
+		isSharedCacheMiss = false;
 		causedStall = false;
 	}
 

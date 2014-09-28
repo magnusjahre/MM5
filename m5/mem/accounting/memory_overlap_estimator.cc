@@ -1424,17 +1424,19 @@ MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry, bool causedStal
 
 	rn->finishedAt = entry->completedAt;
 	rn->isLoad = true;
+	rn->isSharedCacheMiss = entry->isSharedCacheMiss;
 	rn->privateMemsysReq = false;
 	rn->causedStall = causedStall;
 	reqNodeID++;
 
-	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d (%p), address %d, issued at %d, completed at %d, %s\n",
+	DPRINTF(OverlapEstimatorGraph, "New request node created with id %d (%p), address %d, issued at %d, completed at %d, %s, %s\n",
 			rn->id,
 			rn,
 			rn->addr,
 			rn->startedAt,
 			rn->finishedAt,
-			(rn->causedStall ? "caused stall" : "did not cause stall"));
+			(rn->causedStall ? "caused stall" : "did not cause stall"),
+			rn->isSharedCacheMiss ? "shared cache miss" : "shared cache hit");
 
 	return rn;
 }
