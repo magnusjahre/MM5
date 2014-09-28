@@ -462,6 +462,7 @@ private:
 	//MemoryGraphNode* traverseTree(MemoryGraphNode* node, int id);
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
+	std::list<MemoryGraphNode* > findTopologicalOrder(MemoryGraphNode* root);
 	int findCriticalPathLength(MemoryGraphNode* node, int depth);
 	void clearData();
 

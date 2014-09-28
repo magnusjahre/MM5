@@ -867,16 +867,16 @@ MemoryGraphNode::removeParent(MemoryGraphNode* parent){
 			parent->name(), parent->id, name(), id, validParents);
 }
 
-int
-MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, int depth){
-
-	assert(!node->addToCPL());
-	node->depth = depth;
-	DPRINTF(OverlapEstimatorGraph, "Adding root node %s-%d (%p) to ready nodes list\n", node->name(), node->id, node);
-
+std::list<MemoryGraphNode* >
+MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 	list<MemoryGraphNode* > topologicalOrder;
 	list<MemoryGraphNode* > readyNodes;
-	readyNodes.push_back(node);
+
+	DPRINTF(OverlapEstimatorGraph, "Topological sort: Adding root node %s-%d (%p) to ready nodes list\n",
+			root->name(),
+			root->id,
+			root);
+	readyNodes.push_back(root);
 
 	while(!readyNodes.empty()){
 		MemoryGraphNode* n = readyNodes.front();
@@ -907,6 +907,17 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, int depth)
 			}
 		}
 	}
+
+	return topologicalOrder;
+}
+
+int
+MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node, int depth){
+
+	assert(!node->addToCPL());
+	node->depth = depth;
+
+	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(node);
 
 	int maxdepth = 0;
 	while(!topologicalOrder.empty()){
