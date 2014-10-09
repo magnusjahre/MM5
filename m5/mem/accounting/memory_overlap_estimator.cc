@@ -948,18 +948,7 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 			DPRINTF(OverlapEstimatorGraph, "Reached commit period, incrementing inFlightSum by %f\n",
 					inFlightCacheMisses);
 
-			double parents = 0.0;
-			for(int i=0;i<curNode->parents->size();i++){
-				RequestNode* reqParent = (RequestNode*) curNode->parents->at(i);
-				if(reqParent->isSharedCacheMiss) parents += 1.0;
-			}
-
-			inFlightCacheMisses = inFlightCacheMisses - parents;
-			assert(inFlightCacheMisses >= 0.0);
-
-			DPRINTF(OverlapEstimatorGraph, "Reducing in flight misses by %d, new value %f\n",
-					parents,
-					inFlightCacheMisses);
+			inFlightCacheMisses = 0.0;
 		}
 
 	}
