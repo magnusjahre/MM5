@@ -62,7 +62,7 @@ double
 PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
 
 	double numerator = avgMemoryBusServiceLat * (avgMemBusParallelism-1.0);
-	assert(numerator >= 0);
+	if(numerator < 0) numerator = 0.0;
 	double res = numerator / bandwidthAllocation;
 
 	DPRINTF(PerformanceModelMeasurements, "Service latency %f, average bus parallelism %f and allocation %f gives queue estimate %f\n",
