@@ -465,7 +465,7 @@ private:
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
 	std::list<MemoryGraphNode* > findTopologicalOrder(MemoryGraphNode* root);
-	double findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder);
+	double findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, double cpl);
 	int findCriticalPathLength(MemoryGraphNode* node, int depth, std::list<MemoryGraphNode* > topologicalOrder);
 	void clearData();
 

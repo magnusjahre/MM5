@@ -684,7 +684,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(root);
 	ols.graphCPL = findCriticalPathLength(root, 0, topologicalOrder);
 	assert(checkReachability());
-	ols.avgMemBusPara = findAvgMemoryBusParallelism(topologicalOrder);
+	ols.avgMemBusPara = findAvgMemoryBusParallelism(topologicalOrder, ols.graphCPL);
 
 	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d, average memory bus parallelism %f\n",
 			ols.graphCPL,
@@ -915,14 +915,17 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 }
 
 double
-MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder){
-	double commitPeriods = 0.0;
-	double inFlightSum = 0.0;
-	double inFlightCacheMisses = 0.0;
+MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, double cpl){
 
+	if(cpl == 0.0){
+		DPRINTF(OverlapEstimatorGraph, "CPL is 0, returning average bus parallelism 0\n");
+		return 0.0;
+	}
+
+	double busAccesses = 0.0;
 	while(!topologicalOrder.empty()){
 		MemoryGraphNode* curNode = topologicalOrder.front();
-		curNode->visited = true; //for reachability analysis
+		//curNode->visited = true; //for reachability analysis
 		topologicalOrder.pop_front();
 
 		DPRINTF(OverlapEstimatorGraph, "Processing node %s-%d (addr %d)\n",
@@ -933,28 +936,17 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		if(curNode->addToCPL()){
 			RequestNode* reqNode = (RequestNode*) curNode;
 			if(reqNode->isSharedCacheMiss){
-				inFlightCacheMisses += 1.0;
-				DPRINTF(OverlapEstimatorGraph, "Node %s-%d (addr %d), is a cache miss, in flight misses is now %f\n",
+				busAccesses += 1.0;
+				DPRINTF(OverlapEstimatorGraph, "Node %s-%d (addr %d), is a cache miss, miss counter is now %f\n",
 								curNode->name(),
 								curNode->id,
 								curNode->getAddr(),
-								inFlightCacheMisses);
+								busAccesses);
 			}
 		}
-		else{
-			inFlightSum += inFlightCacheMisses;
-			commitPeriods += 1.0;
-
-			DPRINTF(OverlapEstimatorGraph, "Reached commit period, incrementing inFlightSum by %f\n",
-					inFlightCacheMisses);
-
-			inFlightCacheMisses = 0.0;
-		}
-
 	}
 
-	if(commitPeriods == 0.0) return 0.0;
-	return inFlightSum / commitPeriods;
+	return busAccesses / cpl;
 }
 
 int
