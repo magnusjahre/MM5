@@ -661,11 +661,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     memoryControllerEvent->schedule(time + simulatedContention);
     nextfree = time + simulatedContention;
 
-    DPRINTF(Bus,
-            "latency calculated req %s, addr %d, latency %d\n",
+    DPRINTF(Bus, "latency calculated req %s, %s, addr %d, latency %d, queue %d\n",
             req->cmd.toString(),
+            req->isStore ? "store" : "load",
             req->paddr,
-            time - curTick);
+            time - curTick,
+            (req->cmd == Read || req->cmd == Writeback) ? curTick - req->inserted_into_memory_controller : 0);
 
     if(req->adaptiveMHASenderID == cpu_count){
     	DPRINTF(Bus, "Generated request for addr %d finished, informing generator\n", req->paddr);
