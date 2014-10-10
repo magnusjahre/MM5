@@ -79,6 +79,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	currentStallFullROB = 0;
 	boisAloneStallEstimate = 0;
 
+	sharedCacheMissLoads = 0;
+	sharedCacheMissStores = 0;
+
 	criticalPathTable = new CriticalPathTable(this, _cplTableBufferSize);
 	itca = _itca;
 }
@@ -606,6 +609,11 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 
 		computeWhilePendingAccumulator += pendingRequests[useIndex]->commitCyclesWhileActive;
 		computeWhilePendingReqs++;
+
+		if(pendingRequests[useIndex]->isSharedCacheMiss){
+			if(pendingRequests[useIndex]->isStore()) sharedCacheMissStores++;
+			else sharedCacheMissLoads++;
+		}
 	}
 
 	if(pendingRequests[useIndex]->isStore() && hiddenLoad){
@@ -684,7 +692,7 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(root);
 	ols.graphCPL = findCriticalPathLength(root, 0, topologicalOrder);
 	assert(checkReachability());
-	ols.avgMemBusPara = findAvgMemoryBusParallelism(topologicalOrder, ols.graphCPL);
+	ols.avgMemBusPara = findAvgMemoryBusParallelism(ols.graphCPL);
 
 	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d, average memory bus parallelism %f\n",
 			ols.graphCPL,
@@ -742,6 +750,8 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	}
 
 	computeWhilePendingTotalAccumulator = 0;
+	sharedCacheMissLoads = 0;
+	sharedCacheMissStores = 0;
 	clearData();
 
     if(isStalled){
@@ -915,38 +925,22 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 }
 
 double
-MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, double cpl){
+MemoryOverlapEstimator::findAvgMemoryBusParallelism(double cpl){
 
 	if(cpl == 0.0){
 		DPRINTF(OverlapEstimatorGraph, "CPL is 0, returning average bus parallelism 0\n");
 		return 0.0;
 	}
 
-	double busAccesses = 0.0;
-	while(!topologicalOrder.empty()){
-		MemoryGraphNode* curNode = topologicalOrder.front();
-		//curNode->visited = true; //for reachability analysis
-		topologicalOrder.pop_front();
+	double busPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / cpl;
 
-		DPRINTF(OverlapEstimatorGraph, "Processing node %s-%d (addr %d)\n",
-				curNode->name(),
-				curNode->id,
-				curNode->getAddr());
+	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, cpl %f, avg bus parallelism %f\n",
+			sharedCacheMissLoads,
+			sharedCacheMissStores,
+			cpl,
+			busPara);
 
-		if(curNode->addToCPL()){
-			RequestNode* reqNode = (RequestNode*) curNode;
-			if(reqNode->isSharedCacheMiss){
-				busAccesses += 1.0;
-				DPRINTF(OverlapEstimatorGraph, "Node %s-%d (addr %d), is a cache miss, miss counter is now %f\n",
-								curNode->name(),
-								curNode->id,
-								curNode->getAddr(),
-								busAccesses);
-			}
-		}
-	}
-
-	return busAccesses / cpl;
+	return busPara;
 }
 
 int
