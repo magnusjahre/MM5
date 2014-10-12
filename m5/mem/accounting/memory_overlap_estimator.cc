@@ -1212,6 +1212,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			}
 		}
 		else{
+			assert(completedRequests.front()->isStore());
 			if(completedRequests.front()->isSharedReq){
 				completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), false));
 				traceSharedRequest(completedRequests.front(), 0, 0);
