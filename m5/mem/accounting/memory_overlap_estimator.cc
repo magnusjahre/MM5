@@ -692,11 +692,9 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(root);
 	ols.graphCPL = findCriticalPathLength(root, 0, topologicalOrder);
 	assert(checkReachability());
-	ols.avgMemBusPara = findAvgMemoryBusParallelism(ols.graphCPL);
+	findAvgMemoryBusParallelism(topologicalOrder, &ols);
 
-	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d, average memory bus parallelism %f\n",
-			ols.graphCPL,
-			ols.avgMemBusPara);
+	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.graphCPL);
 
 	double burstLenSum = 0.0;
 	double burstSizeSum = 0.0;
@@ -924,23 +922,52 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 	return topologicalOrder;
 }
 
-double
-MemoryOverlapEstimator::findAvgMemoryBusParallelism(double cpl){
+void
+OverlapStatistics::addHistorgramEntry(int para){
+	assert(para <= 32);
+	memBusParaHistogram[para] += 1;
+}
 
-	if(cpl == 0.0){
+void
+MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, OverlapStatistics* ols){
+
+	if(ols->graphCPL == 0.0){
 		DPRINTF(OverlapEstimatorGraph, "CPL is 0, returning average bus parallelism 0\n");
-		return 0.0;
+		ols->globalAvgMemBusPara = 0.0;
+		return;
 	}
 
-	double busPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / cpl;
+	// Method 1: Global average burst
+	ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / (double) ols->graphCPL;
 
-	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, cpl %f, avg bus parallelism %f\n",
+	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, cpl %d, avg bus parallelism %f\n",
 			sharedCacheMissLoads,
 			sharedCacheMissStores,
-			cpl,
-			busPara);
+			ols->graphCPL,
+			ols->globalAvgMemBusPara);
 
-	return busPara;
+	// Method 2: Burst size histogram
+	int curDepth = 0;
+	int curBurstSize = 0;
+	while(!topologicalOrder.empty()){
+		MemoryGraphNode* curNode = topologicalOrder.front();
+		curNode->visited = true; //for reachability analysis
+		topologicalOrder.pop_front();
+
+		if(curNode->isRequest()){
+			if(curNode->depth > curDepth){
+				if(curDepth != 0){
+					ols->addHistorgramEntry(curBurstSize);
+				}
+				curDepth = curNode->depth;
+				curBurstSize = 1;
+			}
+			else{
+				curBurstSize++;
+			}
+		}
+	}
+	ols->addHistorgramEntry(curBurstSize);
 }
 
 int
@@ -972,7 +999,7 @@ MemoryOverlapEstimator::findCriticalPathLength(MemoryGraphNode* node,
 					curParent->depth);
 
 			int newDepth = curParent->depth;
-			if(curNode->addToCPL()) newDepth++;
+			if(curNode->isRequest()) newDepth++;
 
 			if(newDepth > curNode->depth){
 				DPRINTF(OverlapEstimatorGraph, "Depth of %s-%d (addr %d) updated to depth %d\n",

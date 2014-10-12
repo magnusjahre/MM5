@@ -836,7 +836,9 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 	if(memoryBuses.size() != 1) fatal("Multichannel memory bus not supported by performance model measurements");
 	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
 
-	modelMeasurements.avgMemBusParallelism = ols.avgMemBusPara;
+	modelMeasurements.avgMemBusParallelism = ols.globalAvgMemBusPara;
+
+	modelMeasurements.memBusParaHistorgram = ols.memBusParaHistogram;
 
 	return modelMeasurements;
 }

@@ -59,20 +59,55 @@ PerformanceModelMeasurements::getLittlesLawBusQueueLatency(){
 }
 
 double
-PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
+PerformanceModelMeasurements::computeQueueEstimate(double burstSize){
 
-	double numerator = avgMemoryBusServiceLat * (avgMemBusParallelism-1.0);
+	double numerator = avgMemoryBusServiceLat * (burstSize-1.0);
 	if(numerator < 0) numerator = 0.0;
 	double res = numerator / (2.0*bandwidthAllocation);
 
-	DPRINTF(PerformanceModelMeasurements, "Service latency %f, average bus parallelism %f and allocation %f gives queue estimate %f\n",
+	DPRINTF(PerformanceModelMeasurements, "Service latency %f, burst size %f and allocation %f gives queue estimate %f\n",
 			avgMemoryBusServiceLat,
-			avgMemBusParallelism,
+			burstSize,
 			bandwidthAllocation,
 			res);
+	return res;
+}
 
+double
+PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
+
+	double res = computeQueueEstimate(avgMemBusParallelism);
 
 	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f)\n",
+			res,
+			avgMemoryBusQueueLat);
+
+	return res;
+}
+
+double
+PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(){
+	double burstClasses = 0.0;
+	double queueLatSum = 0.0;
+
+	for(int i=0;i<memBusParaHistorgram.size();i++){
+		if(memBusParaHistorgram[i] != 0){
+			DPRINTF(PerformanceModelMeasurements, "Histogram model: %d bursts of %d requests\n",
+					memBusParaHistorgram[i],
+					i);
+			double burstQueueLat = computeQueueEstimate(i);
+			queueLatSum += burstQueueLat*i;
+			burstClasses += i;
+		}
+	}
+	if(burstClasses == 0.0){
+		DPRINTF(PerformanceModelMeasurements, "Histogram model: no classes, returning 0\n");
+		return 0.0;
+	}
+
+	double res = queueLatSum / burstClasses;
+
+	DPRINTF(PerformanceModelMeasurements, "Histogram model queue latency %f (measured %f)\n",
 			res,
 			avgMemoryBusQueueLat);
 

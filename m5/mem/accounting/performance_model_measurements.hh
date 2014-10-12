@@ -27,13 +27,20 @@ public:
 
 	double avgMemBusParallelism;
 
+	std::vector<int> memBusParaHistorgram;
+
 	PerformanceModelMeasurements();
 
 	double getLittlesLawBusQueueLatency();
 
 	double getGraphModelBusQueueLatency();
 
+	double getGraphHistorgramBusQueueLatency();
+
 	double getActualBusUtilization();
+
+private:
+	double computeQueueEstimate(double burstSize);
 
 };
 
