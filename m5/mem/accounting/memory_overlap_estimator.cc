@@ -1184,6 +1184,12 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				privateRequests++;
 			}
 		}
+		else{
+			if(completedRequests.front()->isSharedReq){
+				completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), false));
+				traceSharedRequest(completedRequests.front(), 0, 0);
+			}
+		}
 
 		delete completedRequests.front();
 		completedRequests.erase(completedRequests.begin());
@@ -1466,7 +1472,7 @@ MemoryOverlapEstimator::buildRequestNode(EstimationEntry* entry, bool causedStal
 	assert(rn != NULL);
 
 	rn->finishedAt = entry->completedAt;
-	rn->isLoad = true;
+	rn->isLoad = !entry->isStore();
 	rn->isSharedCacheMiss = entry->isSharedCacheMiss;
 	rn->privateMemsysReq = false;
 	rn->causedStall = causedStall;
