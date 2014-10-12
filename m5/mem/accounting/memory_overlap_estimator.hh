@@ -268,6 +268,8 @@ public:
 	CriticalPathTableMeasurements cptMeasurements;
 	Tick itcaAccountedCycles;
 
+	int BURST_MAX;
+
 	std::vector<int> memBusParaHistogram;
 
 	OverlapStatistics(){
@@ -280,7 +282,9 @@ public:
 		avgComWhileBurst = 0.0;
 		globalAvgMemBusPara = 0.0;
 		itcaAccountedCycles = 0;
-		memBusParaHistogram = std::vector<int>(32, 0);
+
+		BURST_MAX = 64;
+		memBusParaHistogram = std::vector<int>(BURST_MAX+1, 0);
 	}
 
 	void addHistorgramEntry(int para);

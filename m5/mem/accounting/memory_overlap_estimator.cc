@@ -924,7 +924,7 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 
 void
 OverlapStatistics::addHistorgramEntry(int para){
-	assert(para <= 32);
+	assert(para < BURST_MAX);
 	memBusParaHistogram[para] += 1;
 }
 
