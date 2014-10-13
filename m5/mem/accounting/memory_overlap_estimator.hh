@@ -152,6 +152,8 @@ public:
 
 	virtual bool isRequest() = 0;
 
+	virtual bool isLoadReq() = 0;
+
 	virtual Addr getAddr(){
 		return 0;
 	}
@@ -177,6 +179,10 @@ public:
 	}
 
 	bool isRequest(){
+		return false;
+	}
+
+	bool isLoadReq(){
 		return false;
 	}
 
@@ -217,6 +223,10 @@ public:
 		return true;
 	}
 
+	bool isLoadReq(){
+		return isLoad;
+	}
+
 	Addr getAddr(){
 		return addr;
 	}
@@ -254,6 +264,22 @@ public:
 	bool overlaps(MemoryGraphNode* node);
 };
 
+class OverlapStatisticsHistogramEntry{
+public:
+	int loads;
+	int stores;
+
+	OverlapStatisticsHistogramEntry(int _loads, int _stores){
+		loads = _loads;
+		stores = _stores;
+	}
+
+	int size(){
+		return loads+stores;
+	}
+
+};
+
 class OverlapStatistics{
 public:
 
@@ -268,26 +294,11 @@ public:
 	CriticalPathTableMeasurements cptMeasurements;
 	Tick itcaAccountedCycles;
 
-	int BURST_MAX;
-
 	std::vector<int> memBusParaHistogram;
 
-	OverlapStatistics(){
-		graphCPL = 0;
-		tableCPL = 0;
-		avgBurstSize = 0.0;
-		avgBurstLength = 0.0;
-		avgInterBurstOverlap = 0.0;
-		avgTotalComWhilePend = 0.0;
-		avgComWhileBurst = 0.0;
-		globalAvgMemBusPara = 0.0;
-		itcaAccountedCycles = 0;
+	OverlapStatistics();
 
-		BURST_MAX = 64;
-		memBusParaHistogram = std::vector<int>(BURST_MAX+1, 0);
-	}
-
-	void addHistorgramEntry(int para);
+	void addHistorgramEntry(OverlapStatisticsHistogramEntry entry);
 };
 
 class MemoryOverlapEstimator : public BaseHier{
@@ -487,6 +498,7 @@ private:
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
 	std::list<MemoryGraphNode* > findTopologicalOrder(MemoryGraphNode* root);
+	void incrementBusParaCounters(MemoryGraphNode* curNode, int* curLoads, int* curStores);
 	void findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, OverlapStatistics* ols);
 	int findCriticalPathLength(MemoryGraphNode* node, int depth, std::list<MemoryGraphNode* > topologicalOrder);
 	void clearData();

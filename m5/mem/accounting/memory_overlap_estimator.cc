@@ -923,9 +923,13 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 }
 
 void
-OverlapStatistics::addHistorgramEntry(int para){
-	assert(para < BURST_MAX);
-	memBusParaHistogram[para] += 1;
+MemoryOverlapEstimator::incrementBusParaCounters(MemoryGraphNode* curNode, int* curLoads, int* curStores){
+	if(curNode->isLoadReq()){
+		*curLoads += 1;
+	}
+	else{
+		*curStores += 1;
+	}
 }
 
 void
@@ -948,7 +952,8 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 
 	// Method 2: Burst size histogram
 	int curDepth = 0;
-	int curBurstSize = 0;
+	int curLoads = 0;
+	int curStores = 0;
 	while(!topologicalOrder.empty()){
 		MemoryGraphNode* curNode = topologicalOrder.front();
 		curNode->visited = true; //for reachability analysis
@@ -957,17 +962,28 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		if(curNode->isRequest()){
 			if(curNode->depth > curDepth){
 				if(curDepth != 0){
-					ols->addHistorgramEntry(curBurstSize);
+					DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
+							curDepth,
+							curLoads,
+							curStores);
+					ols->addHistorgramEntry(OverlapStatisticsHistogramEntry(curLoads, curStores));
 				}
 				curDepth = curNode->depth;
-				curBurstSize = 1;
+
+				curLoads = 0;
+				curStores = 0;
+				incrementBusParaCounters(curNode, &curLoads, &curStores);
 			}
 			else{
-				curBurstSize++;
+				incrementBusParaCounters(curNode, &curLoads, &curStores);
 			}
 		}
 	}
-	ols->addHistorgramEntry(curBurstSize);
+	DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
+			curDepth,
+			curLoads,
+			curStores);
+	ols->addHistorgramEntry(OverlapStatisticsHistogramEntry(curLoads, curStores));
 }
 
 int
@@ -1686,6 +1702,26 @@ BurstStats::overlaps(MemoryGraphNode* node){
 					node->startedAt,
 					node->finishedAt);
 	return true;
+}
+
+OverlapStatistics::OverlapStatistics(){
+	graphCPL = 0;
+	tableCPL = 0;
+	avgBurstSize = 0.0;
+	avgBurstLength = 0.0;
+	avgInterBurstOverlap = 0.0;
+	avgTotalComWhilePend = 0.0;
+	avgComWhileBurst = 0.0;
+	globalAvgMemBusPara = 0.0;
+	itcaAccountedCycles = 0;
+
+	memBusParaHistogram = std::vector<int>(32, 0);
+}
+
+void
+OverlapStatistics::addHistorgramEntry(OverlapStatisticsHistogramEntry entry){
+	assert(entry.size() < memBusParaHistogram.size());
+	memBusParaHistogram[entry.size()] += 1;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
