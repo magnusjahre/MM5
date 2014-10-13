@@ -35,6 +35,7 @@ class BaseCache;
 class Bus;
 class OverlapStatistics;
 class CriticalPathTableMeasurements;
+class PerformanceModelMeasurements;
 
 class BasePolicy : public SimObject{
 

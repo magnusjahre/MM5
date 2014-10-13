@@ -1714,14 +1714,28 @@ OverlapStatistics::OverlapStatistics(){
 	avgComWhileBurst = 0.0;
 	globalAvgMemBusPara = 0.0;
 	itcaAccountedCycles = 0;
-
-	memBusParaHistogram = std::vector<int>(32, 0);
 }
 
 void
 OverlapStatistics::addHistorgramEntry(OverlapStatisticsHistogramEntry entry){
-	assert(entry.size() < memBusParaHistogram.size());
-	memBusParaHistogram[entry.size()] += 1;
+	bool found = false;
+	for(int i=0;i<memBusParaHistogram.size();i++){
+		if(memBusParaHistogram[i].parallelism() == entry.parallelism()){
+			assert(!found);
+			memBusParaHistogram[i].numBursts += 1;
+			DPRINTF(OverlapEstimatorGraph, "Found existing entry with parallelism %d, number of bursts is now %d\n",
+					memBusParaHistogram[i].parallelism(),
+					memBusParaHistogram[i].numBursts);
+			found = true;
+		}
+	}
+	if(!found){
+		DPRINTF(OverlapEstimatorGraph, "New histogram entry with parallelism %d, number of bursts %d\n",
+				entry.parallelism(),
+				entry.numBursts);
+
+		memBusParaHistogram.push_back(entry);
+	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

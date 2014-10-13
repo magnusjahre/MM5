@@ -11,6 +11,9 @@
 #include "sim/sim_object.hh"
 #include "base/trace.hh"
 #include "base/misc.hh"
+#include "mem/accounting/memory_overlap_estimator.hh"
+
+class OverlapStatisticsHistogramEntry;
 
 class PerformanceModelMeasurements{
 public:
@@ -27,7 +30,7 @@ public:
 
 	double avgMemBusParallelism;
 
-	std::vector<int> memBusParaHistorgram;
+	std::vector<OverlapStatisticsHistogramEntry> memBusParaHistorgram;
 
 	PerformanceModelMeasurements();
 

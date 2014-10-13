@@ -268,13 +268,15 @@ class OverlapStatisticsHistogramEntry{
 public:
 	int loads;
 	int stores;
+	int numBursts;
 
 	OverlapStatisticsHistogramEntry(int _loads, int _stores){
 		loads = _loads;
 		stores = _stores;
+		numBursts = 1;
 	}
 
-	int size(){
+	int parallelism(){
 		return loads+stores;
 	}
 
@@ -294,7 +296,7 @@ public:
 	CriticalPathTableMeasurements cptMeasurements;
 	Tick itcaAccountedCycles;
 
-	std::vector<int> memBusParaHistogram;
+	std::vector<OverlapStatisticsHistogramEntry> memBusParaHistogram;
 
 	OverlapStatistics();
 
