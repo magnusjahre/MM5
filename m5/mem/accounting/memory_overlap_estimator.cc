@@ -924,6 +924,7 @@ MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 
 void
 MemoryOverlapEstimator::incrementBusParaCounters(MemoryGraphNode* curNode, int* curLoads, int* curStores){
+	assert(curNode->isLLCMiss());
 	if(curNode->isLoadReq()){
 		*curLoads += 1;
 	}
@@ -959,9 +960,9 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		curNode->visited = true; //for reachability analysis
 		topologicalOrder.pop_front();
 
-		if(curNode->isRequest()){
+		if(curNode->isRequest() && curNode->isLLCMiss()){
 			if(curNode->depth > curDepth){
-				if(curDepth != 0){
+				if(curLoads+curStores > 0){
 					DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
 							curDepth,
 							curLoads,
@@ -979,11 +980,14 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 			}
 		}
 	}
-	DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
-			curDepth,
-			curLoads,
-			curStores);
-	ols->addHistorgramEntry(OverlapStatisticsHistogramEntry(curLoads, curStores));
+
+	if(curLoads+curStores > 0){
+		DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
+				curDepth,
+				curLoads,
+				curStores);
+		ols->addHistorgramEntry(OverlapStatisticsHistogramEntry(curLoads, curStores));
+	}
 }
 
 int
@@ -1718,6 +1722,8 @@ OverlapStatistics::OverlapStatistics(){
 
 void
 OverlapStatistics::addHistorgramEntry(OverlapStatisticsHistogramEntry entry){
+	assert(entry.parallelism() > 0);
+
 	bool found = false;
 	for(int i=0;i<memBusParaHistogram.size();i++){
 		if(memBusParaHistogram[i].parallelism() == entry.parallelism()){

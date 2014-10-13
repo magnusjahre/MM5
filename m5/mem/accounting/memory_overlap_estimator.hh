@@ -154,6 +154,8 @@ public:
 
 	virtual bool isLoadReq() = 0;
 
+	virtual bool isLLCMiss() = 0;
+
 	virtual Addr getAddr(){
 		return 0;
 	}
@@ -183,6 +185,10 @@ public:
 	}
 
 	bool isLoadReq(){
+		return false;
+	}
+
+	bool isLLCMiss(){
 		return false;
 	}
 
@@ -229,6 +235,10 @@ public:
 
 	Addr getAddr(){
 		return addr;
+	}
+
+	bool isLLCMiss(){
+		return isSharedCacheMiss;
 	}
 
 	const char* name(){
