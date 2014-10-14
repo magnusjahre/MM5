@@ -943,7 +943,12 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 	}
 
 	// Method 1: Global average burst
-	ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / (double) ols->graphCPL;
+	if(sharedCacheMissLoads > 0){
+		ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / (double) ols->graphCPL;
+	}
+	else{
+		ols->globalAvgMemBusPara = 0;
+	}
 
 	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, cpl %d, avg bus parallelism %f\n",
 			sharedCacheMissLoads,
@@ -962,7 +967,7 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 
 		if(curNode->isRequest() && curNode->isLLCMiss()){
 			if(curNode->depth > curDepth){
-				if(curLoads+curStores > 0){
+				if(curLoads > 0){
 					DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
 							curDepth,
 							curLoads,
@@ -981,7 +986,7 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		}
 	}
 
-	if(curLoads+curStores > 0){
+	if(curLoads){
 		DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
 				curDepth,
 				curLoads,
