@@ -689,10 +689,12 @@ MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 			completedComputeNodes.size(),
 			completedRequestNodes.size());
 
+	std::list<MemoryGraphNode* > cycleNodes = findCycleNodes(root);
+	assert(checkReachability());
 	std::list<MemoryGraphNode* > topologicalOrder = findTopologicalOrder(root);
 	ols.graphCPL = findCriticalPathLength(root, 0, topologicalOrder);
 	assert(checkReachability());
-	findAvgMemoryBusParallelism(topologicalOrder, &ols);
+	findAvgMemoryBusParallelism(topologicalOrder, &cycleNodes, &ols);
 
 	DPRINTF(OverlapEstimatorGraph, "Critical path length is %d\n", ols.graphCPL);
 
@@ -879,6 +881,39 @@ MemoryGraphNode::removeParent(MemoryGraphNode* parent){
 }
 
 std::list<MemoryGraphNode* >
+MemoryOverlapEstimator::findCycleNodes(MemoryGraphNode* root){
+	list<MemoryGraphNode* > readyNodes;
+	list<MemoryGraphNode* > cycleNodes;
+
+	readyNodes.push_back(root);
+	while(!readyNodes.empty()){
+		MemoryGraphNode* n = readyNodes.front();
+		readyNodes.pop_front();
+
+		if(n->isRequest()){
+			assert(!n->visited);
+			assert(n->children->size() == 1);
+			assert(n->parents->size() == 1);
+			if(n->children[0] == n->parents[0]){
+				DPRINTF(OverlapEstimatorGraph, "Node %s-%d for address %d is a cycle\n",
+							n->name(), n->id, n->getAddr());
+				cycleNodes.push_back(n);
+			}
+		}
+		n->visited = true;
+
+		for(int i=0;i<n->children->size();i++){
+			MemoryGraphNode* child = n->children->at(i);
+			if(!child->visited && !nodeIsInList(child, &readyNodes)){
+				readyNodes.push_back(child);
+			}
+		}
+
+	}
+	return cycleNodes;
+}
+
+std::list<MemoryGraphNode* >
 MemoryOverlapEstimator::findTopologicalOrder(MemoryGraphNode* root){
 	list<MemoryGraphNode* > topologicalOrder;
 	list<MemoryGraphNode* > readyNodes;
@@ -933,8 +968,23 @@ MemoryOverlapEstimator::incrementBusParaCounters(MemoryGraphNode* curNode, int* 
 	}
 }
 
+bool
+MemoryOverlapEstimator::nodeIsInList(MemoryGraphNode* node, std::list<MemoryGraphNode* >* cycleNodes){
+	list<MemoryGraphNode* >::iterator it = cycleNodes->begin();
+	for( ; it != cycleNodes->end() ; it++){
+		if(*it == node){
+			DPRINTF(OverlapEstimatorGraph, "Node %s-%d (addr %d) is in the list\n",
+					node->name(), node->id, node->getAddr());
+			return true;
+		}
+	}
+	return false;
+}
+
 void
-MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, OverlapStatistics* ols){
+MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder,
+		                                            std::list<MemoryGraphNode* >* cycleNodes,
+													OverlapStatistics* ols){
 
 	if(ols->graphCPL == 0.0){
 		DPRINTF(OverlapEstimatorGraph, "CPL is 0, returning average bus parallelism 0\n");
@@ -943,16 +993,17 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 	}
 
 	// Method 1: Global average burst
-	if(sharedCacheMissLoads > 0){
-		ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores) / (double) ols->graphCPL;
-	}
-	else{
-		ols->globalAvgMemBusPara = 0;
+	int cycleLLCMisses = 0;
+	for(list<MemoryGraphNode* >::iterator it = cycleNodes->begin(); it != cycleNodes->end();it++){
+		if((*it)->isLLCMiss()) cycleLLCMisses++;
 	}
 
-	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, cpl %d, avg bus parallelism %f\n",
+	ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores - (double) cycleLLCMisses) / (double) ols->graphCPL;
+
+	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, %d cycle LLC misses, cpl %d, avg bus parallelism %f\n",
 			sharedCacheMissLoads,
 			sharedCacheMissStores,
+			cycleLLCMisses,
 			ols->graphCPL,
 			ols->globalAvgMemBusPara);
 
@@ -965,9 +1016,9 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		curNode->visited = true; //for reachability analysis
 		topologicalOrder.pop_front();
 
-		if(curNode->isRequest() && curNode->isLLCMiss()){
+		if(curNode->isRequest() && curNode->isLLCMiss() && !nodeIsInList(curNode, cycleNodes)){
 			if(curNode->depth > curDepth){
-				if(curLoads > 0){
+				if(curLoads+curStores > 0){
 					DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
 							curDepth,
 							curLoads,
@@ -986,7 +1037,7 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 		}
 	}
 
-	if(curLoads){
+	if(curLoads+curStores > 0){
 		DPRINTF(OverlapEstimatorGraph, "Detected burst size at depth %d, loads %d, stores %d\n",
 				curDepth,
 				curLoads,

@@ -510,9 +510,11 @@ private:
 
 	OverlapStatistics gatherParaMeasurements(int committedInsts);
 	std::list<MemoryGraphNode* > findTopologicalOrder(MemoryGraphNode* root);
+	std::list<MemoryGraphNode* > findCycleNodes(MemoryGraphNode* root);
 	void incrementBusParaCounters(MemoryGraphNode* curNode, int* curLoads, int* curStores);
-	void findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, OverlapStatistics* ols);
+	void findAvgMemoryBusParallelism(std::list<MemoryGraphNode* > topologicalOrder, std::list<MemoryGraphNode* >* cycleNodes, OverlapStatistics* ols);
 	int findCriticalPathLength(MemoryGraphNode* node, int depth, std::list<MemoryGraphNode* > topologicalOrder);
+	bool nodeIsInList(MemoryGraphNode* node, std::list<MemoryGraphNode* >* cycleNodes);
 	void clearData();
 
 //	RequestNode* findPendingNode(int id);
