@@ -598,8 +598,28 @@ MemoryOverlapEstimator::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 				ee->address,
 				ee->latency());
 
-	if(!completedRequests.empty()) assert(completedRequests.back()->completedAt <= ee->completedAt);
-	completedRequests.push_back(ee);
+	if(!completedRequests.empty()){
+		for(int i=completedRequests.size()-1;i>=0;i--){
+			if(completedRequests[i]->completedAt <= ee->completedAt){
+				DPRINTF(OverlapEstimator, "Inserting writeback at position %d, currently %d completed requests\n",
+								          i+1, completedRequests.size());
+				completedRequests.insert(completedRequests.begin()+(i+1), ee);
+				break;
+			}
+		}
+		if(ee->completedAt < completedRequests[0]->completedAt){
+			completedRequests.insert(completedRequests.begin(), ee);
+		}
+	}
+	else{
+		DPRINTF(OverlapEstimator, "Inserting writeback at front in empty list\n");
+		completedRequests.push_back(ee);
+	}
+
+	// Verify that the list is in fact sorted
+	for(int i=0;i<completedRequests.size()-1;i++){
+		assert(completedRequests[i]->completedAt <= completedRequests[i+1]->completedAt);
+	}
 }
 
 void
@@ -649,8 +669,9 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		}
 	}
 
-	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
+	DPRINTF(OverlapEstimator, "Memory request for addr %d complete at %d, command %s (original %s), latency %d, %s, adding to completed reqs\n",
 			req->paddr,
+			finishedAt,
 			req->cmd,
 			pendingRequests[useIndex]->origCmd,
 			pendingRequests[useIndex]->latency(),
