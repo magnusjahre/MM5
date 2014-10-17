@@ -24,11 +24,14 @@ public:
 	double avgMemoryBusServiceLat;
 	double avgMemoryBusQueueLat;
 	int busRequests;
+	int busWritebacks;
 
 	double bandwidthAllocation;
 	double busUseCycles;
 
 	double avgMemBusParallelism;
+
+	double cpl;
 
 	std::vector<OverlapStatisticsHistogramEntry> memBusParaHistorgram;
 

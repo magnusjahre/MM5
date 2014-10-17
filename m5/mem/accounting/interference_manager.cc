@@ -828,6 +828,7 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 	PerformanceModelMeasurements modelMeasurements = PerformanceModelMeasurements();
 	modelMeasurements.committedInstructions = committedInstructions;
 	modelMeasurements.ticksInSample = ticksInSample;
+	modelMeasurements.cpl = ols.graphCPL;
 
 	DPRINTF(PerformanceModelMeasurements, "Initializing performance model measurements with instructions %d total ticks %d\n",
 			modelMeasurements.committedInstructions,

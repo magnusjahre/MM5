@@ -15,10 +15,12 @@ PerformanceModelMeasurements::PerformanceModelMeasurements(){
 	avgMemoryBusServiceLat = 0.0;
 	avgMemoryBusQueueLat = 0.0;
 	busRequests = 0;
+	busWritebacks = 0;
 
 	bandwidthAllocation = 0.0;
 	busUseCycles = 0.0;
 
+	cpl = 0.0;
 	avgMemBusParallelism = 0.0;
 }
 
@@ -76,11 +78,15 @@ PerformanceModelMeasurements::computeQueueEstimate(double burstSize){
 double
 PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
 
-	double res = computeQueueEstimate(avgMemBusParallelism);
+	double wbPara = busWritebacks / cpl;
 
-	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f)\n",
+	double res = computeQueueEstimate(avgMemBusParallelism+wbPara);
+
+	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f) with bus para %f and wb para %f\n",
 			res,
-			avgMemoryBusQueueLat);
+			avgMemoryBusQueueLat,
+			avgMemBusParallelism,
+			wbPara);
 
 	return res;
 }

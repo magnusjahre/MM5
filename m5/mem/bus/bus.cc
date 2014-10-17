@@ -199,6 +199,7 @@ Bus::Bus(const string &_name,
     modelBusQueueAccumulator = 0;
     modelBusRequests = 0;
     modelBusUseCycles = 0;
+    modelBusWritebacks = 0;
 
 #ifdef DO_BUS_TRACE
     ofstream file("busAccessTrace.txt");
@@ -631,6 +632,7 @@ Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
 		measurements.avgMemoryBusServiceLat = 0.0;
 	}
 	measurements.busRequests = modelBusRequests;
+	measurements.busWritebacks = modelBusWritebacks;
 
 	measurements.bandwidthAllocation = utilizationLimit;
 	measurements.busUseCycles = modelBusUseCycles;
@@ -638,16 +640,17 @@ Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
 	modelBusQueueAccumulator = 0;
 	modelBusServiceAccumulator = 0;
 	modelBusRequests = 0;
+	modelBusWritebacks = 0;
 	modelBusUseCycles = 0;
 
-	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests, allocation %d\n",
+	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests, %d writebacks, allocation %d\n",
 			measurements.avgMemoryBusQueueLat,
 			measurements.avgMemoryBusServiceLat,
 			measurements.busRequests,
+			measurements.busWritebacks,
 			measurements.bandwidthAllocation);
 
 	return measurements;
-
 }
 
 /* This function is called when the DRAM has calculated the latency */
@@ -729,6 +732,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
     if((req->cmd == Read || req->cmd == Writeback) && cpu_count > 1){
         memoryController->computeInterference(req, time - curTick);
+    }
+
+    if(req->cmd == Writeback){
+    	modelBusWritebacks++;
     }
 
     if (req->cmd == Read) {
