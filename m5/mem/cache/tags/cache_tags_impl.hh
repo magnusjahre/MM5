@@ -867,7 +867,7 @@ CacheTags<Tags,Compression>::doReplacement(BlkType *blk, MemReqPtr &req,
 			}
 			else{
 
-				DPRINTF(Cache, "replacement %d replacing %x with %x: %s\n",
+				DPRINTF(Cache, "replacement %d replacing %d with %d: %s\n",
 						blk->asid,
 						(ct->regenerateBlkAddr(blk->tag,blk->set)
 								& (((ULL(1))<<48)-1)),req->paddr & (((ULL(1))<<48)-1),
