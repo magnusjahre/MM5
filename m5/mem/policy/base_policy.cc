@@ -811,8 +811,10 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Actual Bus Service Latency");
 		headers.push_back("Actual Bus Latency");
 		headers.push_back("Little's Law Bus Latency");
-		headers.push_back("Graph Model Bus Latency");
-		headers.push_back("Histogram Model Bus Latency");
+		headers.push_back("Graph Model Bus Latency (burst)");
+		headers.push_back("Graph Model Bus Latency (sat)");
+		headers.push_back("Histogram Model Bus Latency (burst)");
+		headers.push_back("Histogram Model Bus Latency (sat)");
 		headers.push_back("Bandwidth allocation");
 		headers.push_back("Bandwidth use");
 	}
@@ -971,8 +973,10 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(modelMeasurements.avgMemoryBusServiceLat);
 		data.push_back(modelMeasurements.avgMemoryBusQueueLat);
 		data.push_back(modelMeasurements.getLittlesLawBusQueueLatency());
-		data.push_back(modelMeasurements.getGraphModelBusQueueLatency());
-		data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency());
+		data.push_back(modelMeasurements.getGraphModelBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_BURST));
+		data.push_back(modelMeasurements.getGraphModelBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_SATURATED));
+		data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_BURST));
+		data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_SATURATED));
 		data.push_back(modelMeasurements.bandwidthAllocation);
 		data.push_back(modelMeasurements.getActualBusUtilization());
 	}

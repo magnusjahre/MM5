@@ -61,11 +61,18 @@ PerformanceModelMeasurements::getLittlesLawBusQueueLatency(){
 }
 
 double
-PerformanceModelMeasurements::computeQueueEstimate(double burstSize){
+PerformanceModelMeasurements::computeQueueEstimate(double burstSize, BusModelType type){
 
 	double numerator = avgMemoryBusServiceLat * (burstSize-1.0);
 	if(numerator < 0) numerator = 0.0;
-	double res = numerator / (2.0*bandwidthAllocation);
+	double res = 0;
+	if(type == BUS_MODEL_BURST){
+		res = numerator / (2.0*bandwidthAllocation);
+	}
+	else{
+		assert(type == BUS_MODEL_SATURATED);
+		res = numerator / bandwidthAllocation;
+	}
 
 	DPRINTF(PerformanceModelMeasurements, "Service latency %f, burst size %f and allocation %f gives queue estimate %f\n",
 			avgMemoryBusServiceLat,
@@ -76,11 +83,11 @@ PerformanceModelMeasurements::computeQueueEstimate(double burstSize){
 }
 
 double
-PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
+PerformanceModelMeasurements::getGraphModelBusQueueLatency(BusModelType type){
 
 	double wbPara = busWritebacks / cpl;
 
-	double res = computeQueueEstimate(avgMemBusParallelism+wbPara);
+	double res = computeQueueEstimate(avgMemBusParallelism+wbPara, type);
 
 	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f) with bus para %f and wb para %f\n",
 			res,
@@ -92,7 +99,7 @@ PerformanceModelMeasurements::getGraphModelBusQueueLatency(){
 }
 
 double
-PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(){
+PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(BusModelType type){
 	double burstClasses = 0.0;
 	double queueLatSum = 0.0;
 
@@ -100,7 +107,7 @@ PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(){
 		DPRINTF(PerformanceModelMeasurements, "Histogram model: %d bursts of %d requests\n",
 				memBusParaHistorgram[i].numBursts,
 				memBusParaHistorgram[i].parallelism());
-		double burstQueueLat = computeQueueEstimate(memBusParaHistorgram[i].parallelism());
+		double burstQueueLat = computeQueueEstimate(memBusParaHistorgram[i].parallelism(), type);
 		queueLatSum += burstQueueLat*memBusParaHistorgram[i].numBursts;
 		burstClasses += memBusParaHistorgram[i].numBursts;
 	}

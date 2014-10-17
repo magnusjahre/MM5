@@ -18,6 +18,11 @@ class OverlapStatisticsHistogramEntry;
 class PerformanceModelMeasurements{
 public:
 
+	typedef enum {
+		BUS_MODEL_BURST,
+		BUS_MODEL_SATURATED
+	} BusModelType;
+
 	int committedInstructions;
 	Tick ticksInSample;
 
@@ -39,14 +44,14 @@ public:
 
 	double getLittlesLawBusQueueLatency();
 
-	double getGraphModelBusQueueLatency();
+	double getGraphModelBusQueueLatency(BusModelType type);
 
-	double getGraphHistorgramBusQueueLatency();
+	double getGraphHistorgramBusQueueLatency(BusModelType type);
 
 	double getActualBusUtilization();
 
 private:
-	double computeQueueEstimate(double burstSize);
+	double computeQueueEstimate(double burstSize, BusModelType type);
 
 };
 
