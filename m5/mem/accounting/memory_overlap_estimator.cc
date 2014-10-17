@@ -579,6 +579,30 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 }
 
 void
+MemoryOverlapEstimator::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
+
+	EstimationEntry* ee = new EstimationEntry(nextReqID,
+			                                  req->paddr & ~(MOE_CACHE_BLK_SIZE-1),
+			                                  req->writebackGeneratedAt,
+			                                  req->cmd);
+	nextReqID++;
+
+	ee->completedAt = finishedAt;
+	ee->isSharedReq = true;
+	ee->isSharedCacheMiss = true;
+	ee->isPrivModeSharedCacheMiss = true;
+	ee->hidesLoad = false;
+	ee->interference = 0;
+
+	DPRINTF(OverlapEstimator, "Writeback for addr %d complete, latency %d, adding to completed reqs\n",
+				ee->address,
+				ee->latency());
+
+	if(!completedRequests.empty()) assert(completedRequests.back()->completedAt <= ee->completedAt);
+	completedRequests.push_back(ee);
+}
+
+void
 MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad){
 
 	int useIndex = -1;

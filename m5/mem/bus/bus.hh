@@ -624,6 +624,33 @@ class DeliverEvent : public Event
     virtual const char *description();
 };
 
+class WritebackCompleteEvent : public Event
+{
+    // event data fields
+    /** The response. */
+    MemReqPtr req;
+    InterferenceManager* im;
+
+  public:
+    // constructor
+    /** A simple constructor. */
+    WritebackCompleteEvent(MemReqPtr _req, InterferenceManager* _im)
+	: Event(&mainEventQueue), req(_req), im(_im)
+    {
+    }
+
+    // event execution function
+    /** Calls BusInterface::deliver() */
+    void process();
+    /**
+     * Returns the string description of this event.
+     * @return The description of this event.
+     */
+    virtual const char *description(){
+    	return "WritebackCompleteEvent";
+    }
+};
+
 /**
  * Memory controller event
  */

@@ -986,6 +986,12 @@ InterferenceManager::registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe,
 	overlapEstimators[cpuID] = moe;
 }
 
+void
+InterferenceManager::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
+	assert(cpuCount == 1);
+	overlapEstimators[0]->busWritebackCompleted(req, finishedAt);
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(InterferenceManager)

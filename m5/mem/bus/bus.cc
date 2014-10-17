@@ -736,6 +736,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
     if(req->cmd == Writeback){
     	modelBusWritebacks++;
+
+    	WritebackCompleteEvent* wbevent = new WritebackCompleteEvent(req, interferenceManager);
+    	wbevent->schedule(time);
     }
 
     if (req->cmd == Read) {
@@ -802,6 +805,12 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     else if(req->cmd == Writeback && adaptiveMHA != NULL && req->adaptiveMHASenderID != -1){
         adaptiveMHA->addTotalDelay(req->adaptiveMHASenderID, time - req->writebackGeneratedAt, req->paddr, false);
     }
+}
+
+void
+WritebackCompleteEvent::process(){
+	im->busWritebackCompleted(req, curTick);
+	delete this;
 }
 
 void

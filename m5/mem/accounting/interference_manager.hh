@@ -273,6 +273,8 @@ public:
 	void registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe, int cpuID);
 
 	PerformanceModelMeasurements buildModelMeasurements(int committedInstructions, Tick ticksInSample, OverlapStatistics ols);
+
+	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
 };
 
 #endif

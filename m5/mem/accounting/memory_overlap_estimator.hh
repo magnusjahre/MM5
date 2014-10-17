@@ -555,6 +555,8 @@ public:
 
 	void issuedMemoryRequest(MemReqPtr& req);
 
+	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
+
 	void completedMemoryRequest(MemReqPtr& req, Tick finishedAt, bool hiddenLoad);
 
 	void l1HitDetected(MemReqPtr& req, Tick finishedAt);
