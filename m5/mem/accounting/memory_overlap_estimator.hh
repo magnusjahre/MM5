@@ -105,7 +105,7 @@ public:
 	}
 
 	bool isStore(){
-		if(origCmd == Write || origCmd == Soft_Prefetch) return true;
+		if(origCmd == Write || origCmd == Soft_Prefetch || origCmd == Writeback) return true;
 		return false;
 	}
 };
