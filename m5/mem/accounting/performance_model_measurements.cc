@@ -64,7 +64,7 @@ double
 PerformanceModelMeasurements::computeQueueEstimate(double burstSize, BusModelType type){
 
 	double numerator = avgMemoryBusServiceLat * (burstSize-1.0);
-	if(numerator < 0) numerator = 0.0;
+	if(numerator <= 0) numerator = 0.0;
 	double res = 0;
 	if(type == BUS_MODEL_BURST){
 		res = numerator / (2.0*bandwidthAllocation);
@@ -85,7 +85,10 @@ PerformanceModelMeasurements::computeQueueEstimate(double burstSize, BusModelTyp
 double
 PerformanceModelMeasurements::getGraphModelBusQueueLatency(BusModelType type){
 
-	double wbPara = busWritebacks / cpl;
+	double wbPara = 0;
+	if(cpl != 0.0){
+		wbPara = busWritebacks / cpl;
+	}
 
 	double res = computeQueueEstimate(avgMemBusParallelism+wbPara, type);
 
