@@ -61,36 +61,33 @@ PerformanceModelMeasurements::getLittlesLawBusQueueLatency(){
 }
 
 double
-PerformanceModelMeasurements::computeQueueEstimate(double burstSize, BusModelType type){
+PerformanceModelMeasurements::computeQueueEstimate(double burstSize, double paraConst){
+
+	assert(paraConst > 0.99999999999 && paraConst < 2.00000000001);
 
 	double numerator = avgMemoryBusServiceLat * (burstSize-1.0);
 	if(numerator <= 0) numerator = 0.0;
 	double res = 0;
-	if(type == BUS_MODEL_BURST){
-		res = numerator / (2.0*bandwidthAllocation);
-	}
-	else{
-		assert(type == BUS_MODEL_SATURATED);
-		res = numerator / bandwidthAllocation;
-	}
+	res = numerator / (paraConst*bandwidthAllocation);
 
-	DPRINTF(PerformanceModelMeasurements, "Service latency %f, burst size %f and allocation %f gives queue estimate %f\n",
+	DPRINTF(PerformanceModelMeasurements, "Service latency %f, burst size %f, paraConst %f, allocation %f gives queue estimate %f\n",
 			avgMemoryBusServiceLat,
 			burstSize,
+			paraConst,
 			bandwidthAllocation,
 			res);
 	return res;
 }
 
 double
-PerformanceModelMeasurements::getGraphModelBusQueueLatency(BusModelType type){
+PerformanceModelMeasurements::getGraphModelBusQueueLatency(double paraConst){
 
 	double wbPara = 0;
 	if(cpl != 0.0){
 		wbPara = busWritebacks / cpl;
 	}
 
-	double res = computeQueueEstimate(avgMemBusParallelism+wbPara, type);
+	double res = computeQueueEstimate(avgMemBusParallelism+wbPara, paraConst);
 
 	DPRINTF(PerformanceModelMeasurements, "Graph model queue latency %f (measured %f) with bus para %f and wb para %f\n",
 			res,
@@ -102,7 +99,7 @@ PerformanceModelMeasurements::getGraphModelBusQueueLatency(BusModelType type){
 }
 
 double
-PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(BusModelType type){
+PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(double paraConst){
 	double burstClasses = 0.0;
 	double queueLatSum = 0.0;
 
@@ -110,7 +107,7 @@ PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(BusModelType typ
 		DPRINTF(PerformanceModelMeasurements, "Histogram model: %d bursts of %d requests\n",
 				memBusParaHistorgram[i].numBursts,
 				memBusParaHistorgram[i].parallelism());
-		double burstQueueLat = computeQueueEstimate(memBusParaHistorgram[i].parallelism(), type);
+		double burstQueueLat = computeQueueEstimate(memBusParaHistorgram[i].parallelism(), paraConst);
 		queueLatSum += burstQueueLat*memBusParaHistorgram[i].numBursts;
 		burstClasses += memBusParaHistorgram[i].numBursts;
 	}

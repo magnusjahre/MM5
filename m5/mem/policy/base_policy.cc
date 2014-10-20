@@ -754,15 +754,20 @@ BasePolicy::initPerfModelTrace(int cpuCount){
 	vector<string> headers;
 
 	headers.push_back("Cummulative Committed Instructions");
-	headers.push_back("Actual Bus Service Latency");
-	headers.push_back("Actual Bus Latency");
-	headers.push_back("Little's Law Bus Latency");
-	headers.push_back("Graph Model Bus Latency (burst)");
-	headers.push_back("Graph Model Bus Latency (sat)");
-	headers.push_back("Histogram Model Bus Latency (burst)");
-	headers.push_back("Histogram Model Bus Latency (sat)");
 	headers.push_back("Bandwidth allocation");
 	headers.push_back("Bandwidth use");
+	headers.push_back("Actual Bus Service Latency");
+	headers.push_back("Actual Bus Latency");
+	headers.push_back("Little");
+	for(double i=1.0; i<2.01; i+=0.1){
+		stringstream graphead;
+		graphead << "Graph Model " << i;
+		headers.push_back(graphead.str());
+
+		stringstream histhead;
+		histhead << "Histogram Model " << i;
+		headers.push_back(histhead.str());
+	}
 
 	perfModelTraces.resize(cpuCount, RequestTrace());
 	for(int i=0;i<cpuCount;i++){
@@ -776,16 +781,15 @@ BasePolicy::doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements mode
 	vector<RequestTraceEntry> data;
 
 	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
+	data.push_back(modelMeasurements.bandwidthAllocation);
+	data.push_back(modelMeasurements.getActualBusUtilization());
 	data.push_back(modelMeasurements.avgMemoryBusServiceLat);
 	data.push_back(modelMeasurements.avgMemoryBusQueueLat);
 	data.push_back(modelMeasurements.getLittlesLawBusQueueLatency());
-	data.push_back(modelMeasurements.getGraphModelBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_BURST));
-	data.push_back(modelMeasurements.getGraphModelBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_SATURATED));
-	data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_BURST));
-	data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(PerformanceModelMeasurements::BUS_MODEL_SATURATED));
-	data.push_back(modelMeasurements.bandwidthAllocation);
-	data.push_back(modelMeasurements.getActualBusUtilization());
-
+	for(double i=1.0; i<2.01; i+=0.1){
+		data.push_back(modelMeasurements.getGraphModelBusQueueLatency(i));
+		data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(i));
+	}
 	perfModelTraces[cpuID].addTrace(data);
 }
 
