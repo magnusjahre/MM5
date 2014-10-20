@@ -104,12 +104,17 @@ PerformanceModelMeasurements::getGraphHistorgramBusQueueLatency(double paraConst
 	double queueLatSum = 0.0;
 
 	for(int i=0;i<memBusParaHistorgram.size();i++){
-		DPRINTF(PerformanceModelMeasurements, "Histogram model: %d bursts of %d requests\n",
-				memBusParaHistorgram[i].numBursts,
-				memBusParaHistorgram[i].parallelism());
+
 		double burstQueueLat = computeQueueEstimate(memBusParaHistorgram[i].parallelism(), paraConst);
-		queueLatSum += burstQueueLat*memBusParaHistorgram[i].numBursts;
-		burstClasses += memBusParaHistorgram[i].numBursts;
+		double totalReqsForBurstClass = memBusParaHistorgram[i].numBursts*memBusParaHistorgram[i].parallelism();
+
+		DPRINTF(PerformanceModelMeasurements, "Histogram model: %d bursts of %d requests (%d reqs in total)\n",
+				memBusParaHistorgram[i].numBursts,
+				memBusParaHistorgram[i].parallelism(),
+				totalReqsForBurstClass);
+
+		queueLatSum += burstQueueLat*totalReqsForBurstClass;
+		burstClasses += totalReqsForBurstClass;
 	}
 	if(burstClasses == 0.0){
 		DPRINTF(PerformanceModelMeasurements, "Histogram model: no classes, returning 0\n");
