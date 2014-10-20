@@ -151,6 +151,7 @@ protected:
 	std::vector<double> reqsPerSampleStdDev;
 
 	std::vector<RequestTrace> comInstModelTraces;
+	std::vector<RequestTrace> perfModelTraces;
 	std::vector<Tick> comInstModelTraceCummulativeInst;
 
 	bool usePersistentAllocations;
@@ -188,6 +189,7 @@ protected:
 		               std::vector<std::vector<double> > missesWhileStalled);
 
 	void initComInstModelTrace(int cpuCount);
+	void initPerfModelTrace(int cpuCount);
 
 	Stats::Vector<> aloneEstimationFailed;
 
@@ -279,6 +281,8 @@ public:
 
 	virtual void runPolicy(PerformanceMeasurement measurements) = 0;
 
+	void doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements modelMeasurements);
+
 	void doCommittedInstructionTrace(int cpuID,
 				                     double avgSharedLat,
 				                     double avgPrivateLatEstimate,
@@ -301,8 +305,7 @@ public:
 				                     double numStores,
 				                     int numWriteStalls,
 				                     int emptyROBStallCycles,
-				                     Tick boisAloneStallEst,
-				                     PerformanceModelMeasurements modelMeasurements);
+				                     Tick boisAloneStallEst);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

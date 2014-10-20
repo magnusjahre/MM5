@@ -874,8 +874,6 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
 
-		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
-
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
 														 predictedAloneLat,
@@ -898,8 +896,11 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 instTraceStoreRequests[cpuID],
 														 numWriteStalls,
 														 commitTraceEmptyROBStall[cpuID],
-														 boisAloneStallEst,
-														 modelMeasurements);
+														 boisAloneStallEst);
+
+		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
+		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);
+
 	}
 
 	// Performance model
