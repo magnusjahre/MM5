@@ -37,9 +37,6 @@
 
 //  Any types you use this class for must be covered here...
 namespace {
-    void ClearEntry(int &i) { i = 0; };
-    void ClearEntry(unsigned &i) { i = 0; };
-    void ClearEntry(double &i) { i = 0; };
     template <class T> void ClearEntry(std::list<T> &l) { l.clear(); };
 };
 
