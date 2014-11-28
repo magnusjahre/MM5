@@ -814,8 +814,8 @@ class Tru64 {
     getdirentriesFunc(SyscallDesc *desc, int callnum, Process *process,
 		      ExecContext *xc)
     {
-#ifdef __CYGWIN__
-        panic("getdirent not implemented on cygwin!");
+#ifdef __APPLE__
+        panic("getdirent not implemented on apple!");
 #else
 
 	int fd = process->sim_fd(xc->getSyscallArg(0));
