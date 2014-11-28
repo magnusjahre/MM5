@@ -141,7 +141,7 @@ class Linux {
 	uint64_t	st_mtime_nsec;
 	uint64_t	tgt_st_ctime;
 	uint64_t	st_ctime_nsec;
-  	int64_t		__unused[3];
+  	int64_t		__m5_unused[3];
     };
 
     /// Length of strings in struct utsname (plus 1 for null char).
@@ -172,18 +172,18 @@ class Linux {
 
     /// Resource enumeration for getrlimit().
     enum rlimit_resources {
-	RLIMIT_CPU = 0,
-	RLIMIT_FSIZE = 1,
-	RLIMIT_DATA = 2,
-	RLIMIT_STACK = 3,
-	RLIMIT_CORE = 4,
-	RLIMIT_RSS = 5,
-	RLIMIT_NOFILE = 6,
-	RLIMIT_AS = 7,
-	RLIMIT_VMEM = 7,
-	RLIMIT_NPROC = 8,
-	RLIMIT_MEMLOCK = 9,
-	RLIMIT_LOCKS = 10
+	M5_RLIMIT_CPU = 0,
+	M5_RLIMIT_FSIZE = 1,
+	M5_RLIMIT_DATA = 2,
+	M5_RLIMIT_STACK = 3,
+	M5_RLIMIT_CORE = 4,
+	M5_RLIMIT_RSS = 5,
+	M5_RLIMIT_NOFILE = 6,
+	M5_RLIMIT_AS = 7,
+	M5_RLIMIT_VMEM = 7,
+	M5_RLIMIT_NPROC = 8,
+	M5_RLIMIT_MEMLOCK = 9,
+	M5_RLIMIT_LOCKS = 10
     };
 
     /// Limit struct for getrlimit/setrlimit.
@@ -210,8 +210,8 @@ class Linux {
 
     //@{
     /// For getrusage().
-    static const int RUSAGE_SELF = 0;
-    static const int RUSAGE_CHILDREN = -1;
+    static const int M5_RUSAGE_SELF = 0;
+    static const int M5_RUSAGE_CHILDREN = -1;
     static const int RUSAGE_BOTH = -2;
     //@}
 

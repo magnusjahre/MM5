@@ -31,7 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined(__OpenBSD__)
+#if defined(__APPLE__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
@@ -263,15 +263,15 @@ class Tru64 {
 
     /// Resource enumeration for getrlimit().
     enum rlimit_resources {
-	RLIMIT_CPU = 0,
-	RLIMIT_FSIZE = 1,
-	RLIMIT_DATA = 2,
-	RLIMIT_STACK = 3,
-	RLIMIT_CORE = 4,
-	RLIMIT_RSS = 5,
-	RLIMIT_NOFILE = 6,
-	RLIMIT_AS = 7,
-	RLIMIT_VMEM = 7
+	M5_RLIMIT_CPU = 0,
+	M5_RLIMIT_FSIZE = 1,
+	M5_RLIMIT_DATA = 2,
+	M5_RLIMIT_STACK = 3,
+	M5_RLIMIT_CORE = 4,
+	M5_RLIMIT_RSS = 5,
+	M5_RLIMIT_NOFILE = 6,
+	M5_RLIMIT_AS = 7,
+	M5_RLIMIT_VMEM = 7
     };
 
     /// Limit struct for getrlimit/setrlimit.
@@ -324,8 +324,8 @@ class Tru64 {
     //@{
     /// For getrusage().
     static const int RUSAGE_THREAD = 1;
-    static const int RUSAGE_SELF = 0;
-    static const int RUSAGE_CHILDREN = -1;
+    static const int M5_RUSAGE_SELF = 0;
+    static const int M5_RUSAGE_CHILDREN = -1;
     //@}
 
     /// For getrusage().
