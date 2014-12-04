@@ -84,12 +84,14 @@ namespace __hash_namespace {
 	}
     };
 
+#ifdef __APPLE__
     template<>
     struct hash<Addr> {
     	size_t operator()(Addr a) const {
     		return hash<Addr>()(a);
     	}
     };
+#endif
 }
 
 
