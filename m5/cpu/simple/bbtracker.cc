@@ -71,7 +71,6 @@
 
 #include "stdlib.h"
 #include "stdio.h"
-#include "malloc.h"
 #include "bbtracker.hh"
 
 /* Size of basic block hash table. Should be increased for very 

@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/uio.h>
+#include <libgen.h>
 
 // #ifdef __CYGWIN32__
 // #include <sys/fcntl.h>	// for O_BINARY
@@ -714,19 +715,19 @@ getrlimitFunc(SyscallDesc *desc, int callnum, Process *process,
     TypedBufferArg<typename OS::rlimit> rlp(xc->getSyscallArg(1));
 
     switch (resource) {
-      case OS::RLIMIT_DATA:
+      case OS::M5_RLIMIT_DATA:
 	// max data segment size RLIM_INFINITY == 0x7ffffffffffffffful
 	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
 	break;
-      case OS::RLIMIT_RSS:
+      case OS::M5_RLIMIT_RSS:
 	// max number of pages
 	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
 	break;
-      case OS::RLIMIT_AS:
+      case OS::M5_RLIMIT_AS:
 	// max address space in bytes
 	rlp->rlim_cur = rlp->rlim_max = 0x7fffffffffffffffll;
 	break;
-      case OS::RLIMIT_STACK:
+      case OS::M5_RLIMIT_STACK:
 	// max stack size in bytes: make up a number (2MB for now)
 	rlp->rlim_cur = rlp->rlim_max = 8 * 1024 * 1024;
 	break;
@@ -796,7 +797,7 @@ getrusageFunc(SyscallDesc *desc, int callnum, Process *process,
     int who = xc->getSyscallArg(0);	// THREAD, SELF, or CHILDREN
     TypedBufferArg<typename OS::rusage> rup(xc->getSyscallArg(1));
 
-    if (who != OS::RUSAGE_SELF) {
+    if (who != OS::M5_RUSAGE_SELF) {
 	// don't really handle THREAD or CHILDREN, but just warn and
 	// plow ahead
 	DCOUT(SyscallWarnings)

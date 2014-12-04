@@ -41,6 +41,7 @@
 #include <string>
 
 #include "sim/host.hh"
+#include "arch/alpha/isa_traits.hh"
 
 #if defined(__GNUC__) && __GNUC__ >= 3
     #define __hash_namespace __gnu_cxx
@@ -82,6 +83,15 @@ namespace __hash_namespace {
 	    return(__stl_hash_string(s.c_str()));
 	}
     };
+
+#ifdef __APPLE__
+    template<>
+    struct hash<Addr> {
+    	size_t operator()(Addr a) const {
+    		return hash<Addr>()(a);
+    	}
+    };
+#endif
 }
 
 
