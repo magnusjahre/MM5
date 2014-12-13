@@ -757,15 +757,19 @@ BasePolicy::initPerfModelTrace(int cpuCount){
 	headers.push_back("Bandwidth allocation");
 	headers.push_back("Bandwidth use");
 	headers.push_back("Actual Bus Service Latency");
-	headers.push_back("Actual Bus Latency");
+	headers.push_back("Actual Bus Queue Latency");
 	headers.push_back("Little");
-	for(double i=1.0; i<2.01; i+=0.1){
-		stringstream graphead;
-		graphead << "Graph Model " << i;
-		headers.push_back(graphead.str());
 
+	double resolution = 0.1;
+	for(double i=1.0; i<2.01; i+=resolution){
+		stringstream graphead;
+		graphead << "Graph-" << i;
+		headers.push_back(graphead.str());
+	}
+
+	for(double i=1.0; i<2.01; i+=resolution){
 		stringstream histhead;
-		histhead << "Histogram Model " << i;
+		histhead << "Histogram-" << i;
 		headers.push_back(histhead.str());
 	}
 
@@ -786,10 +790,11 @@ BasePolicy::doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements mode
 	data.push_back(modelMeasurements.avgMemoryBusServiceLat);
 	data.push_back(modelMeasurements.avgMemoryBusQueueLat);
 	data.push_back(modelMeasurements.getLittlesLawBusQueueLatency());
-	for(double i=1.0; i<2.01; i+=0.1){
-		data.push_back(modelMeasurements.getGraphModelBusQueueLatency(i));
-		data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(i));
-	}
+
+	double resolution = 0.1;
+	for(double i=1.0; i<2.01; i+=resolution) data.push_back(modelMeasurements.getGraphModelBusQueueLatency(i));
+	for(double i=1.0; i<2.01; i+=resolution) data.push_back(modelMeasurements.getGraphHistorgramBusQueueLatency(i));
+
 	perfModelTraces[cpuID].addTrace(data);
 }
 
