@@ -538,7 +538,14 @@ def getCheckpointDirectory(simpoint = -1):
         npName = env["NP"]
     else:
         npName = env["MEMORY-ADDRESS-PARTS"]
-    serializeBase = "cpt-"+npName+"-"+env["MEMORY-SYSTEM"]+"-"+env["BENCHMARK"]
+        
+     # This is a hack that works as long as the stateful simobjects of PrivateCache
+    # are a subset of the ones used in RingBased
+    memsys = env["MEMORY-SYSTEM"]
+    if env['MEMORY-SYSTEM'] == "PrivateCaches":
+        memsys = memsys.replace("PrivateCaches", "RingBased")
+    
+    serializeBase = "cpt-"+npName+"-"+memsys+"-"+env["BENCHMARK"]
     if simpoint != -1:
         return serializeBase+"-sp"+str(simpoint)
     return serializeBase+"-nosp"
@@ -884,7 +891,7 @@ if env['MEMORY-SYSTEM'] == "CrossbarBased":
         l1.interference_manager = root.interferenceManager
     
 else:
-    assert env['MEMORY-SYSTEM'] == "RingBased"
+    assert env['MEMORY-SYSTEM'] == "RingBased" or env['MEMORY-SYSTEM'] == "PrivateCaches"
     root.PointToPointLink = [PointToPointLink(interference_manager=root.interferenceManager) for i in range(int(env['NP']))]
     root.L1dcaches = [ DL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in range(int(env['NP'])) ]
     root.L1icaches = [ IL1(out_interconnect=root.PointToPointLink[i], overlapEstimator=root.overlapEstimators[i]) for i in xrange(int(env['NP'])) ]
@@ -1067,22 +1074,23 @@ elif env['MEMORY-SYSTEM'] == "CrossbarBased":
 
     setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
 
-elif env['MEMORY-SYSTEM'] == "RingBased":
+elif env['MEMORY-SYSTEM'] == "RingBased" or env['MEMORY-SYSTEM'] == "PrivateCaches":
 
     bankcnt = 4
     createMemBus(bankcnt, optPartData, useMissBWPolicy)
-    initSharedCache(bankcnt, optPartData)
-
     for link in root.PointToPointLink:
         link.detailed_sim_start_tick = cacheProfileStart
+
+    if env['MEMORY-SYSTEM'] == "RingBased":
+        initSharedCache(bankcnt, optPartData)
     
-    root.interconnect = RingInterconnect()
-    root.interconnect.adaptive_mha = root.adaptiveMHA
-    root.interconnect.detailed_sim_start_tick = cacheProfileStart
-    root.interconnect.interference_manager = root.interferenceManager
-    root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
+        root.interconnect = RingInterconnect()
+        root.interconnect.adaptive_mha = root.adaptiveMHA
+        root.interconnect.detailed_sim_start_tick = cacheProfileStart
+        root.interconnect.interference_manager = root.interferenceManager
+        root.interconnect.fixed_roundtrip_latency = fixedRoundtripLatency
     
-    setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
+        setUpSharedCache(bankcnt, cacheProfileStart, useMissBWPolicy)
     
     root.PrivateL2Cache = [PrivateCache1M() for i in range(env['NP'])]
     root.PrivateL2Throttles = [ThrottleControl(cpu_count=int(env['NP']), cache_cpu_id=i, cache_type="private") for i in range(env['NP'])]
@@ -1091,8 +1099,15 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         root.globalPolicy.privateCacheThrottles = root.PrivateL2Throttles
     
     for i in range(env['NP']):
+        
+        if env['MEMORY-SYSTEM'] == "RingBased":
+            root.PrivateL2Cache[i].out_interconnect = root.interconnect
+        else:
+            assert env['MEMORY-SYSTEM'] == "PrivateCaches"
+            assert len(root.membus) == 1
+            root.PrivateL2Cache[i].out_bus = root.membus[0]
+        
         root.PrivateL2Cache[i].in_interconnect = root.PointToPointLink[i]
-        root.PrivateL2Cache[i].out_interconnect = root.interconnect
         root.PrivateL2Cache[i].cpu_id = i
         root.PrivateL2Cache[i].adaptive_mha = root.adaptiveMHA
         root.PrivateL2Cache[i].interference_manager = root.interferenceManager
@@ -1122,7 +1137,7 @@ elif env['MEMORY-SYSTEM'] == "RingBased":
         if "CACHE-THROTLING-POLICY" in env:
             root.PrivateL2Throttles[i].throttling_policy = env["CACHE-THROTLING-POLICY"]
 else:
-    panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased or RingBased")
+    panic("MEMORY-SYSTEM parameter must be Legacy, CrossbarBased, RingBased or PrivateCaches")
 
 
 ###############################################################################

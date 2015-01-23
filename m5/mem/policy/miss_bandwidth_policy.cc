@@ -711,7 +711,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MissBandwidthPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
-	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
+	INIT_PARAM_DFLT(sharedCacheThrottle, "Shared cache throttle", NULL),
 	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM_DFLT(busUtilizationThreshold, "The actual bus utilzation to consider the bus as full", 0.9375),
 	INIT_PARAM_DFLT(requestCountThreshold, "The request intensity (requests / tick) to assume no request increase", 512),

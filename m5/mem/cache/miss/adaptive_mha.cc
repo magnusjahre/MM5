@@ -101,8 +101,8 @@ AdaptiveMHA::AdaptiveMHA(const std::string &name,
     dataCaches.resize(adaptiveMHAcpuCount, NULL);
     instructionCaches.resize(adaptiveMHAcpuCount, NULL);
 
-    sampleEvent = new AdaptiveMHASampleEvent(this);
-    sampleEvent->schedule(start);
+//    sampleEvent = new AdaptiveMHASampleEvent(this);
+//    sampleEvent->schedule(start);
 
 //    if(!onlyTraceBus){
 //        adaptiveMHATraceFileName = "adaptiveMHATrace.txt";

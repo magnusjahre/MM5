@@ -169,7 +169,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
-	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
+	INIT_PARAM_DFLT(sharedCacheThrottle, "Shared cache throttle", NULL),
 	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
