@@ -664,9 +664,10 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	}
 	currentMeasurement.sharedCacheMissRate = totalMisses / totalAccesses;
 
-	assert(cacheInterference != NULL);
-	vector<CacheMissMeasurements> currentCacheMeasurements = cacheInterference->getMissMeasurementSample();
-	for(int j=0;j<cpuCount;j++) currentMeasurement.perCoreCacheMeasurements[j] = currentCacheMeasurements[j];
+	if(cacheInterference != NULL){
+		vector<CacheMissMeasurements> currentCacheMeasurements = cacheInterference->getMissMeasurementSample();
+		for(int j=0;j<cpuCount;j++) currentMeasurement.perCoreCacheMeasurements[j] = currentCacheMeasurements[j];
+	}
 
 	for(int i=0;i<cpuCount;i++){
 
@@ -873,7 +874,6 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
-
 		missBandwidthPolicy->doCommittedInstructionTrace(cpuID,
 														 avgSharedLatency,
 														 predictedAloneLat,
@@ -888,7 +888,7 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 														 instTraceHiddenLoads[cpuID],
 														 commitTraceMemIndStall[cpuID],
 														 ols,
-														 cacheInterference->getPrivateCommitTraceMissRate(cpuID),
+														 cacheInterference != NULL ? cacheInterference->getPrivateCommitTraceMissRate(cpuID) : 0.0,
 														 cwp,
 														 commitTracePrivateBlockedStall[cpuID],
 														 avgSharedStoreLat,
@@ -900,7 +900,6 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 
 		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
 		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);
-
 	}
 
 	// Performance model
@@ -919,7 +918,9 @@ InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ti
 	performanceModels[cpuID]->traceModelParameters();
 
 	// compute interference probabilities for next sample (needed by the random IPP)
-	cacheInterference->computeInterferenceProbabilities(cpuID);
+	if(cacheInterference != NULL){
+		cacheInterference->computeInterferenceProbabilities(cpuID);
+	}
 
 	instTraceInterferenceSum[cpuID] = 0;
 	instTraceRequests[cpuID] = 0;
