@@ -488,6 +488,9 @@ Bus::sendAddr(MemReqPtr &req, Tick origReqTime)
     	else outstandingWrites[req->adaptiveMHASenderID]++;
     }
 
+    // In a system with only private caches this flag has not been set yet
+    req->beenInSharedMemSys = true;
+
     // assumption: no memory bus blocking in private memory system
     if(req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
     	assert(req->finishedInCacheAt <= origReqTime);
