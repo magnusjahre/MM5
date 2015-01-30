@@ -923,6 +923,7 @@ MemoryGraphNode::removeParent(MemoryGraphNode* parent){
 	validParents--;
 	DPRINTF(OverlapEstimatorGraph, "Removed parent %s-%d of node %s-%d, %d parents left\n",
 			parent->name(), parent->id, name(), id, validParents);
+	assert(validParents >= 0);
 }
 
 std::list<MemoryGraphNode* >
@@ -940,9 +941,10 @@ MemoryOverlapEstimator::findCycleNodes(MemoryGraphNode* root){
 			assert(n->children->size() == 1);
 			assert(n->parents->size() == 1);
 			if(n->children[0] == n->parents[0]){
-				DPRINTF(OverlapEstimatorGraph, "Node %s-%d for address %d is a cycle\n",
+				DPRINTF(OverlapEstimatorGraph, "Node %s-%d for address %d is a cycle, removing it\n",
 							n->name(), n->id, n->getAddr());
 				cycleNodes.push_back(n);
+				n->children->clear();
 			}
 		}
 		n->visited = true;
