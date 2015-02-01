@@ -594,6 +594,9 @@ MemoryOverlapEstimator::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 	ee->hidesLoad = false;
 	ee->interference = 0;
 
+	assert(req->isSharedCacheMiss);
+	sharedCacheMissStores++;
+
 	DPRINTF(OverlapEstimator, "Writeback for addr %d complete, latency %d, adding to completed reqs\n",
 				ee->address,
 				ee->latency());
@@ -1046,6 +1049,7 @@ MemoryOverlapEstimator::findAvgMemoryBusParallelism(std::list<MemoryGraphNode* >
 	}
 
 	ols->globalAvgMemBusPara = ((double) sharedCacheMissLoads + (double) sharedCacheMissStores - (double) cycleLLCMisses) / (double) ols->graphCPL;
+	assert(ols->globalAvgMemBusPara >= 0.0);
 
 	DPRINTF(OverlapEstimatorGraph, "%d shared cache miss loads, %d shared cache miss stores, %d cycle LLC misses, cpl %d, avg bus parallelism %f\n",
 			sharedCacheMissLoads,
