@@ -347,8 +347,11 @@ BasePolicy::computeCurrentMetricValue(){
 
 double
 BasePolicy::computeRawError(double estimate, double actual){
-	assert(actual != 0.0);
-	return (estimate - actual) / actual;
+	if(actual == 0.0){
+		return 0;
+	}
+	double error = (estimate - actual) / actual;
+	return error;
 }
 
 double
