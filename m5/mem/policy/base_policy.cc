@@ -347,8 +347,11 @@ BasePolicy::computeCurrentMetricValue(){
 
 double
 BasePolicy::computeRawError(double estimate, double actual){
-	assert(actual != 0.0);
-	return (estimate - actual) / actual;
+	if(actual == 0.0){
+		return 0;
+	}
+	double error = (estimate - actual) / actual;
+	return error;
 }
 
 double
@@ -450,6 +453,24 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		assert(newStallTime >= 0);
 
 		return newStallTime;
+	}
+	else if(perfEstMethod == LATENCY_ONLY){
+		DPRINTF(MissBWPolicyExtra, "Running latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime + newAvgSharedLat * sharedRequests;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f\n",
+							        newStallTime,
+							        newAvgSharedLat);
+
+		assert(newStallTime >= 0);
+
+		return newStallTime;
+
 	}
 	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP
 			|| perfEstMethod == CPL_DAMP || perfEstMethod == CPL_CWP_DAMP
@@ -1066,6 +1087,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 	if(methodName == "ITCA") return ITCA;
+	if(methodName == "latency-only") return LATENCY_ONLY;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

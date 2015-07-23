@@ -57,7 +57,8 @@ public:
         CPL_HYBRID_DAMP,
         CPL_CWP_SER,
         BOIS,
-        ITCA
+        ITCA,
+        LATENCY_ONLY
     } PerformanceEstimationMethod;
 
     typedef enum{
