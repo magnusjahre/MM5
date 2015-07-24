@@ -58,7 +58,9 @@ public:
         CPL_CWP_SER,
         BOIS,
         ITCA,
-        LATENCY_ONLY
+        PRIVATE_LATENCY_ONLY,
+        SHARED_STALL,
+        ZERO_STALL
     } PerformanceEstimationMethod;
 
     typedef enum{

@@ -1,6 +1,6 @@
 from m5 import *
 
-class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "latency-mlp-sreq", "no-mlp", "no-mlp-cache", "cpl", "cpl-cwp", "cpl-damp", "cpl-cwp-damp", "cpl-hybrid", "cpl-hybrid-damp", "cpl-cwp-ser", "bois", "ITCA", "latency-only"]
+class PerformanceEstimationMethod(Enum): vals = ['latency-mlp', 'ratio-mws', "latency-mlp-sreq", "no-mlp", "no-mlp-cache", "cpl", "cpl-cwp", "cpl-damp", "cpl-cwp-damp", "cpl-hybrid", "cpl-hybrid-damp", "cpl-cwp-ser", "bois", "ITCA", "private-latency-only", "shared-stall", "zero-stall"]
 class OptimizationMetric(Enum): vals = ['hmos', 'stp', "fairness", "aggregateIPC"]
 class WriteStallTechnique(Enum): vals = ['ws-none', 'ws-shared', 'ws-latency', 'ws-ratio']
 class PrivateBlockedStallTechnique(Enum): vals = ['pbs-none', 'pbs-shared']

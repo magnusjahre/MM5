@@ -454,8 +454,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 
 		return newStallTime;
 	}
-	else if(perfEstMethod == LATENCY_ONLY){
-		DPRINTF(MissBWPolicyExtra, "Running latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+	else if(perfEstMethod == PRIVATE_LATENCY_ONLY){
+		DPRINTF(MissBWPolicyExtra, "Running private-latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
 								currentAvgSharedLat,
 								sharedRequests,
 								privateStallTime,
@@ -468,6 +468,41 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 							        newAvgSharedLat);
 
 		assert(newStallTime >= 0);
+
+		return newStallTime;
+
+	}
+	else if(perfEstMethod == SHARED_STALL){
+		DPRINTF(MissBWPolicyExtra, "Running shared-latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime + currentAvgSharedLat * sharedRequests;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with current shared lat %f\n",
+							        newStallTime,
+							        currentAvgSharedLat);
+
+		assert(newStallTime >= 0);
+
+		return newStallTime;
+
+	}
+	else if(perfEstMethod == ZERO_STALL){
+		DPRINTF(MissBWPolicyExtra, "Running zero-stall method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime;
+		assert(newStallTime >= 0);
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time is %f\n",
+							        newStallTime);
+
 
 		return newStallTime;
 
@@ -1089,7 +1124,9 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 	if(methodName == "ITCA") return ITCA;
-	if(methodName == "latency-only") return LATENCY_ONLY;
+	if(methodName == "private-latency-only") return PRIVATE_LATENCY_ONLY;
+	if(methodName == "shared-stall") return SHARED_STALL;
+	if(methodName == "zero-stall") return ZERO_STALL;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;
