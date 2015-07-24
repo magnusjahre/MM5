@@ -362,29 +362,38 @@ void
 ITCA::ITCAAccountingState::updatePerfModStall(bool stopAccounting, bool isPerfModStall){
 	Tick length = curTick - perfModStateChangedAt;
 
-	if(perfModStall && stopAccounting){
+	if(perfModStall && !stopAccounting){
 		perfModStall = false;
 		perfModStallCycles += length;
-		perfModStateChangedAt = curTick;
 
 		DPRINTFR(ITCA, "CPU %d STALL: Accounted %d cycles, last change at %d\n",
 				cpuID,
 				length,
 				perfModStateChangedAt);
 
-		assert(perfModNotStalledCycles + perfModStallCycles == curTick);
+		perfModStateChangedAt = curTick;
 	}
-	else if(!perfModStall && !stopAccounting && isPerfModStall){
+	else if(perfModStall && stopAccounting && !isPerfModStall){
+		perfModStall = false;
+		perfModStallCycles += length;
+
+		DPRINTFR(ITCA, "CPU %d STALL: Accounted %d cycles, last change at %d (Port 2 off but stall continuing)\n",
+				cpuID,
+				length,
+				perfModStateChangedAt);
+
+		perfModStateChangedAt = curTick;
+	}
+	else if(!perfModStall && stopAccounting && isPerfModStall){
 		perfModStall = true;
 		perfModNotStalledCycles += length;
-		perfModStateChangedAt = curTick;
 
 		DPRINTFR(ITCA, "CPU %d STALL: Accounting was off for %d cycles, last change at %d\n",
 				cpuID,
 				length,
-				perfModNotStalledCycles);
+				perfModStateChangedAt);
 
-		assert(perfModNotStalledCycles + perfModStallCycles == curTick);
+		perfModStateChangedAt = curTick;
 	}
 }
 
