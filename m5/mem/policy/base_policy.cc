@@ -479,11 +479,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 								privateStallTime,
 								currentStallTime);
 
-		double newStallTime = privateStallTime + currentAvgSharedLat * sharedRequests;
+		double newStallTime = privateStallTime+currentStallTime;
 
-		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with current shared lat %f\n",
-							        newStallTime,
-							        currentAvgSharedLat);
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f\n",
+							        newStallTime);
 
 		assert(newStallTime >= 0);
 
