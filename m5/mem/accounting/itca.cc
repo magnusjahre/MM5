@@ -44,7 +44,8 @@ void
 ITCA::updateInterTopROB(){
 	bool found = false;
 	for(int i=0;i<dataMissTable.size();i++){
-		if(dataMissTable[i].intertaskMiss && dataMissTable[i].addr == headOfROBAddr){
+		if(dataMissTable[i].intertaskMiss) assert(dataMissTable[i].cpuAddr != 0);
+		if(dataMissTable[i].intertaskMiss && dataMissTable[i].cpuAddr == headOfROBAddr){
 			assert(!found);
 			found = true;
 		}
@@ -192,16 +193,18 @@ ITCA::handleL1MissResolvedEvent(Addr addr, bool isDataMiss){
 }
 
 void
-ITCA::intertaskMiss(Addr addr, bool isInstructionMiss){
+ITCA::intertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr){
 	vector<ITCATableEntry>* table = &dataMissTable;
 	if(isInstructionMiss) table = &instructionMissTable;
 
 	int entryID = findTableEntry(table, addr);
 	table->at(entryID).intertaskMiss = true;
+	table->at(entryID).cpuAddr = cpuAddr;
 
-	DPRINTF(ITCA, "Address %d is an %s intertask miss\n",
+	DPRINTF(ITCA, "Address %d is an %s intertask miss (CPU address %d)\n",
+			addr,
 			isInstructionMiss ? "instruction" : "data",
-			addr);
+			cpuAddr);
 
 	processSignalChange();
 }

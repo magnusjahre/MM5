@@ -381,7 +381,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	//shadow tag access
 	if(cacheInterference != NULL){
-		cacheInterference->access(req, !blk, hitLatency, detailedSimulationStartTick);
+		cacheInterference->access(req, !blk, hitLatency, detailedSimulationStartTick, this);
 	}
 
 	accessSample++;

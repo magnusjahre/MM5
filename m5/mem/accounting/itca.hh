@@ -90,9 +90,10 @@ private:
 	public:
 		Addr addr;
 		bool intertaskMiss;
+		Addr cpuAddr;
 
-		ITCATableEntry() : addr(0), intertaskMiss(false) {}
-		ITCATableEntry(Addr _addr) : addr(_addr), intertaskMiss(false) {}
+		ITCATableEntry() : addr(0), intertaskMiss(false), cpuAddr(0) {}
+		ITCATableEntry(Addr _addr) : addr(_addr), intertaskMiss(false), cpuAddr(0) {}
 	};
 
 	int cpuID;
@@ -134,7 +135,7 @@ public:
 	void l1MissResolved(Addr addr, Tick willFinishAt, bool isDataMiss);
 	void handleL1MissResolvedEvent(Addr addr, bool isDataMiss);
 
-	void intertaskMiss(Addr addr, bool isInstructionMiss);
+	void intertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr);
 
 	void itcaCPUStalled(ITCACPUStalls type);
 	void itcaCPUResumed(ITCACPUStalls type);

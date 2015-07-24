@@ -267,7 +267,7 @@ public:
 
 	void hiddenLoadDetected(int cpuID);
 
-	void itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss);
+	void itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss, Addr cpuAddr);
 
 	void registerMemoryOverlapEstimator(MemoryOverlapEstimator* moe, int cpuID);
 };

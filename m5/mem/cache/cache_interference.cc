@@ -186,7 +186,7 @@ CacheInterference::regStats(){
 }
 
 void
-CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart){
+CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart, BaseCache* cache){
 
 	assert(!shadowTags.empty());
 
@@ -265,7 +265,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 				if(req->cmd == Read){
 					assert(req->adaptiveMHASenderID != -1);
-					interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss);
+					Addr cacheAlignedCPUAddr = req->oldAddr & ~((Addr)cache->getBlockSize() - 1);
+					interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss, cacheAlignedCPUAddr);
 				}
 			}
 		}

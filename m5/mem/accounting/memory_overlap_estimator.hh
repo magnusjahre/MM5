@@ -538,8 +538,8 @@ public:
 		return traceSampleID;
 	}
 
-	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss){
-		itca->intertaskMiss(addr, isInstructionMiss);
+	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr){
+		itca->intertaskMiss(addr, isInstructionMiss, cpuAddr);
 	}
 
 	void itcaCPUStalled(ITCA::ITCACPUStalls type){

@@ -949,10 +949,10 @@ InterferenceManager::clearMSHROccupancyLists(){
 }
 
 void
-InterferenceManager::itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss){
+InterferenceManager::itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss, Addr cpuAddr){
 	assert(cpuID != -1);
 	assert(overlapEstimators[cpuID] != NULL);
-	overlapEstimators[cpuID]->itcaIntertaskMiss(addr, isInstructionMiss);
+	overlapEstimators[cpuID]->itcaIntertaskMiss(addr, isInstructionMiss, cpuAddr);
 }
 
 void
