@@ -39,6 +39,17 @@ public:
 		ITCA_ITPI_CNT
 	};
 
+	class ITCAAccountingInfo{
+	public:
+		Tick accountedCycles;
+		Tick perfModStallCycles;
+
+		ITCAAccountingInfo(){
+			accountedCycles = 0;
+			perfModStallCycles = 0;
+		}
+	};
+
 private:
 	class ITCAAccountingState{
 	public:
@@ -48,10 +59,17 @@ private:
 		Tick notAccountedCycles;
 		int cpuID;
 
+		bool perfModStall;
+		Tick perfModStateChangedAt;
+		Tick perfModStallCycles;
+		Tick perfModNotStalledCycles;
+
 		ITCAAccountingState();
 		void setCPUID(int _cpuID) { cpuID = _cpuID; }
 
 		void update(bool stopAccounting);
+		void updatePerfModStall(bool stopAccounting, bool isPerfModStall);
+		void handlePerfModSampleTransition(Tick sampleSize);
 		void reset();
 		void handleSampleTransition(Tick sampleSize);
 	};
@@ -108,7 +126,7 @@ private:
 public:
 	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip, bool _doVerification);
 
-	Tick getAccountedCycles();
+	ITCAAccountingInfo getAccountedCycles();
 
 	void l1DataMiss(Addr addr);
 	void l1InstructionMiss(Addr addr);

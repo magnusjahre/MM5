@@ -916,7 +916,9 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + aloneROBStallEstimate + newStallEstimate);
 		if(perfEstMethod == ITCA){
-			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles;
+			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles.accountedCycles;
+			assert(newStallEstimate == 0.0);
+			newStallEstimate = ols.itcaAccountedCycles.perfModStallCycles;
 		}
 
 
@@ -947,7 +949,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(lastModelErrorWithCutoff[cpuID]);
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
-		data.push_back(ols.itcaAccountedCycles);
+		data.push_back(ols.itcaAccountedCycles.accountedCycles);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;

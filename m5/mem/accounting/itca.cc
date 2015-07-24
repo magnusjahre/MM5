@@ -127,6 +127,7 @@ ITCA::runITCALogic(){
 			doNotAccount ? "on": "off");
 
 	accountingState.update(doNotAccount);
+	accountingState.updatePerfModStall(doNotAccount, portTwo);
 }
 
 void
@@ -205,21 +206,25 @@ ITCA::intertaskMiss(Addr addr, bool isInstructionMiss){
 	processSignalChange();
 }
 
-Tick
+ITCA::ITCAAccountingInfo
 ITCA::getAccountedCycles(){
 	Tick sampleSize = curTick - lastSampleAt;
 
+	ITCAAccountingInfo info;
 	accountingState.handleSampleTransition(sampleSize);
-	Tick accountedCycles = accountingState.accountedCycles;
+	accountingState.handlePerfModSampleTransition(sampleSize);
+	info.accountedCycles = accountingState.accountedCycles;
+	info.perfModStallCycles = accountingState.perfModStallCycles;
 
-	DPRINTF(ITCAProgress, "SAMPLING, accounted %d cycles, cycles in sample %d\n",
-			accountedCycles,
+	DPRINTF(ITCAProgress, "SAMPLING, accounted %d cycles, %d stall cycles, cycles in sample %d\n",
+			info.accountedCycles,
+			info.perfModStallCycles,
 			sampleSize);
 
 	accountingState.reset();
 	lastSampleAt = curTick;
 
-	return accountedCycles;
+	return info;
 }
 
 void
@@ -316,6 +321,11 @@ ITCA::ITCAAccountingState::ITCAAccountingState(){
 	stateChangedAt = 0;
 	accountedCycles = 0;
 	notAccountedCycles = 0;
+
+	perfModStall = false;
+	perfModStateChangedAt = 0;
+	perfModStallCycles = 0;
+	perfModNotStalledCycles = 0;
 }
 
 void
@@ -346,6 +356,36 @@ ITCA::ITCAAccountingState::update(bool doNotAccount){
 }
 
 void
+ITCA::ITCAAccountingState::updatePerfModStall(bool stopAccounting, bool isPerfModStall){
+	Tick length = curTick - perfModStateChangedAt;
+
+	if(perfModStall && stopAccounting){
+		perfModStall = false;
+		perfModStallCycles += length;
+		perfModStateChangedAt = curTick;
+
+		DPRINTFR(ITCA, "CPU %d STALL: Accounted %d cycles, last change at %d\n",
+				cpuID,
+				length,
+				perfModStateChangedAt);
+
+		assert(perfModNotStalledCycles + perfModStallCycles == curTick);
+	}
+	else if(!perfModStall && !stopAccounting && isPerfModStall){
+		perfModStall = true;
+		perfModNotStalledCycles += length;
+		perfModStateChangedAt = curTick;
+
+		DPRINTFR(ITCA, "CPU %d STALL: Accounting was off for %d cycles, last change at %d\n",
+				cpuID,
+				length,
+				perfModNotStalledCycles);
+
+		assert(perfModNotStalledCycles + perfModStallCycles == curTick);
+	}
+}
+
+void
 ITCA::ITCAAccountingState::handleSampleTransition(Tick sampleSize){
 	Tick length = curTick - stateChangedAt;
 
@@ -370,11 +410,34 @@ ITCA::ITCAAccountingState::handleSampleTransition(Tick sampleSize){
 }
 
 void
+ITCA::ITCAAccountingState::handlePerfModSampleTransition(Tick sampleSize){
+	Tick length = curTick - perfModStateChangedAt;
+	if(perfModStall){
+		perfModStallCycles += length;
+		DPRINTFR(ITCA, "CPU %d STALL: Accounting the final %d cycles of the sample\n",
+				cpuID,
+				length);
+	}
+	else{
+		perfModNotStalledCycles += length;
+		DPRINTFR(ITCA, "CPU %d STALL: Not accounting the final %d cycles of the sample\n",
+				cpuID,
+				length);
+	}
+	perfModStateChangedAt = curTick;
+
+	assert(perfModNotStalledCycles + perfModStallCycles == sampleSize);
+}
+
+void
 ITCA::ITCAAccountingState::reset(){
-	// Note: stateChangedAt is reset in handleSampleTransition()
+	// Note: stateChangedAt and perfModStateChanged at are reset in the handleSampleTransition methods
 	// Since no signals have changed, there is no accounting state change
 	accountedCycles = 0;
 	notAccountedCycles = 0;
+
+	perfModNotStalledCycles = 0;
+	perfModStallCycles = 0;
 }
 
 /// ***************************************************************************
