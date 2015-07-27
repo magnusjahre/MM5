@@ -617,11 +617,12 @@ MemoryOverlapEstimator::completedMemoryRequest(MemReqPtr& req, Tick finishedAt, 
 		}
 	}
 
-	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, %s, adding to completed reqs\n",
+	DPRINTF(OverlapEstimator, "Memory request for addr %d complete, command %s (original %s), latency %d, interference %d, %s, adding to completed reqs\n",
 			req->paddr,
 			req->cmd,
 			pendingRequests[useIndex]->origCmd,
 			pendingRequests[useIndex]->latency(),
+			pendingRequests[useIndex]->interference,
 			(hiddenLoad ? "hidden load" : "no hidden load"));
 
 	if(!completedRequests.empty()) assert(completedRequests.back()->completedAt <= pendingRequests[useIndex]->completedAt);
