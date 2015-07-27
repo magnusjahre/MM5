@@ -952,7 +952,8 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		if(perfEstMethod == ITCA){
 			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles.accountedCycles;
 			assert(newStallEstimate == 0.0);
-			newStallEstimate = ols.itcaAccountedCycles.perfModStallCycles;
+			assert(cyclesInSample == ols.itcaAccountedCycles.accountedCycles + ols.itcaAccountedCycles.notAccountedCycles);
+			newStallEstimate = cyclesInSample - ols.itcaAccountedCycles.accountedCycles;
 		}
 
 

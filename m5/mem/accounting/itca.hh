@@ -42,11 +42,13 @@ public:
 	class ITCAAccountingInfo{
 	public:
 		Tick accountedCycles;
-		Tick perfModStallCycles;
+		Tick notAccountedCycles;
+		Tick accountedStallCycles;
 
 		ITCAAccountingInfo(){
 			accountedCycles = 0;
-			perfModStallCycles = 0;
+			notAccountedCycles = 0;
+			accountedStallCycles = 0;
 		}
 	};
 
@@ -61,8 +63,8 @@ private:
 
 		bool perfModStall;
 		Tick perfModStateChangedAt;
-		Tick perfModStallCycles;
-		Tick perfModNotStalledCycles;
+		Tick perfModNotAccountedStallCycles;
+		Tick perfModAccountedStalledCycles;
 
 		ITCAAccountingState();
 		void setCPUID(int _cpuID) { cpuID = _cpuID; }
