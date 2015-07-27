@@ -154,7 +154,7 @@ MemoryOverlapEstimator::addROBFullCycle(){
 
 void
 MemoryOverlapEstimator::initOverlapTrace(){
-	overlapTrace = RequestTrace(name(), "OverlapTrace", true);
+	overlapTrace = RequestTrace(name(), "OverlapTrace");
 
 	vector<string> headers;
 	headers.push_back("Committed instructions");
