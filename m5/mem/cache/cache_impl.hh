@@ -579,8 +579,8 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 	if (req->mshr || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
 
 		MemDebug::cacheResponse(req);
-		DPRINTF(Cache, "Handling reponse to %x, blk addr: %x\n",req->paddr,
-				req->paddr & (((ULL(1))<<48)-1));
+		DPRINTF(Cache, "Handling reponse to %x, blk addr: %d\n",req->paddr,
+				req->paddr & ~((Addr)blkSize - 1));
 
 
 		if ((req->isCacheFill() && !req->isNoAllocate()) || req->cmd == DirOwnerTransfer || req->cmd == DirRedirectRead) {
@@ -589,6 +589,10 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 			MemReqList writebacks;
 
 			CacheBlk::State old_state = (blk) ? blk->status : 0;
+
+			if(cacheInterference != NULL){
+				cacheInterference->computeCacheCapacityInterference(req, this);
+			}
 
 			if(req->cmd != DirOwnerTransfer && req->mshr != NULL){
 				blk = tags->handleFill(blk, req->mshr,
