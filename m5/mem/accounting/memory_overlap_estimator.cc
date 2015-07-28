@@ -1099,6 +1099,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					innerCausedStall = true;
 
 					Tick totalInterference = completedRequests.front()->interference;
+					if(totalInterference < 0) totalInterference = 0; // handle constructive interference
 					// Du Bois defines interference as any additional latency when the request is
 					// at the head of a full ROB. We define any additional latency to be interference.
 					// Consequently, Du Bois have the ability to detect stalls that are removed by the
@@ -1108,10 +1109,11 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 						Tick estAloneStall = currentStallFullROB - totalInterference;
 						addBoisEstimateCycles(estAloneStall);
 
-						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, interference %d), addr %d\n",
+						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, use interference %d (original %d)), addr %d\n",
 								estAloneStall,
 								currentStallFullROB,
 								totalInterference,
+								completedRequests.front()->interference,
 								completedRequests.front()->address);
 					}
 					else{
