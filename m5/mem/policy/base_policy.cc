@@ -949,7 +949,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 													  ols.cptMeasurements);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
-		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
+		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall, avgPrivateLatEstimate + avgPrivateMemsysLat, avgSharedLat + avgPrivateMemsysLat);
 		double aloneROBStallEstimate = estimatePrivateROBStall(emptyROBStallCycles, avgPrivateLatEstimate + avgPrivateMemsysLat, avgSharedLat + avgPrivateMemsysLat);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
@@ -1047,12 +1047,19 @@ BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, i
 }
 
 double
-BasePolicy::estimatePrivateBlockedStall(double privBlocked){
+BasePolicy::estimatePrivateBlockedStall(double privBlocked, double avgPrivmodeLat, double avgSharedmodeLat){
 	if(privBlockedStallTech == PBS_NONE){
 		return 0.0;
 	}
 	if(privBlockedStallTech  == PBS_SHARED){
 		return privBlocked;
+	}
+	if(privBlockedStallTech == PBS_RATIO){
+		if(avgSharedmodeLat > 0){
+			double ratio = avgPrivmodeLat / avgSharedmodeLat;
+			return privBlocked * ratio;
+		}
+		return 0;
 	}
 	fatal("unknown pbs technique");
 	return 0.0;
@@ -1185,6 +1192,7 @@ BasePolicy::PrivBlockedStallTechnique
 BasePolicy::parsePrivBlockedStallTech(std::string techName){
 	if(techName == "pbs-none") return PBS_NONE;
 	if(techName == "pbs-shared") return PBS_SHARED;
+	if(techName == "pbs-ratio") return PBS_RATIO;
 
 	fatal("unknown pbs technique");
 	return PBS_NONE;

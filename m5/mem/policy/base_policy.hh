@@ -78,6 +78,7 @@ public:
 
     typedef enum{
     	PBS_NONE,
+    	PBS_RATIO,
     	PBS_SHARED
     } PrivBlockedStallTechnique;
 
@@ -235,7 +236,7 @@ protected:
 	void updateBestProjections();
 
 	double estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, int numWriteStalls, double avgSharedmodeLat);
-	double estimatePrivateBlockedStall(double privBlocked);
+	double estimatePrivateBlockedStall(double privBlocked, double avgPrivmodeLat, double avgSharedmodeLat);
 	double estimatePrivateROBStall(double writeStall, double avgPrivmodeLat, double avgSharedmodeLat);
 
 	double computeRawError(double estimate, double actual);
