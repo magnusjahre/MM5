@@ -467,6 +467,11 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 							        newStallTime,
 							        newAvgSharedLat);
 
+		if(newStallTime < 0){
+			warn("private-latency-only policy attempted to return %d stall cycles, changing to 0", newStallTime);
+			return 0;
+		}
+
 		assert(newStallTime >= 0);
 
 		return newStallTime;
