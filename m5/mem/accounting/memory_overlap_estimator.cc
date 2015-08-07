@@ -1162,7 +1162,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 
 						boisAccounted += estAloneStall;
 						boisNotAccounted += totalInterference;
-						boisInterference += totalInterference;
+						boisInterference = totalInterference;
 
 						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, use interference %d (original %d)), addr %d\n",
 								estAloneStall,
@@ -1174,6 +1174,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					else{
 						boisLostStallCycles += currentStallFullROB;
 						boisNotAccounted += currentStallFullROB;
+						boisInterference = totalInterference;
 					}
 				}
 				else{
