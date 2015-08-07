@@ -60,6 +60,16 @@ BaseHier::relocateAddrForCPU(int cpuId, Addr originalAddr, int cpu_count){
 	return newAddr;
 }
 
+Addr
+BaseHier::unrelocateAddrForCPU(int cpuId, Addr relocatedAddr, int cpu_count){
+	assert(cpuId != -1 && cpu_count != -1);
+
+	Addr cpuAddrBase = ((MAX_MEM_ADDR / cpu_count) * cpuId) + cpuId;
+	Addr newAddr = relocatedAddr - cpuAddrBase;
+
+	return newAddr;
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 DEFINE_SIM_OBJECT_CLASS_NAME("BaseHier", BaseHier);

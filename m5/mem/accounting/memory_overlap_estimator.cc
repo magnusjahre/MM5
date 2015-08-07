@@ -24,7 +24,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       MemoryOverlapTable* _overlapTable,
 		                                       int _traceSampleID,
 		                                       int _cplTableBufferSize,
-		                                       ITCA* _itca)
+		                                       ITCA* _itca,
+		                                       bool _boisTraceEnabled)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -60,6 +61,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	sharedReqTraceEnabled = _sharedReqTraceEnabled;
 	initSharedRequestTrace();
+
+	boisStallTraceEnabled = _boisTraceEnabled;
+	initBoisStallTrace();
 
 	sampleID = 0;
 	traceSampleID = _traceSampleID;
@@ -385,6 +389,48 @@ MemoryOverlapEstimator::traceSharedRequest(EstimationEntry* entry, Tick stalledA
 		sharedRequestTrace.addTrace(data);
 	}
 	sharedTraceReqNum++;
+}
+
+void
+MemoryOverlapEstimator::initBoisStallTrace(){
+	if(boisStallTraceEnabled){
+		boisStallTrace = RequestTrace(name(), "BoisStallTrace");
+
+		vector<string> headers;
+		headers.push_back("Address");
+		headers.push_back("Stall length");
+		headers.push_back("ROB Full Cycles");
+		headers.push_back("Accounted Cycles");
+		headers.push_back("Interference Cycles");
+		headers.push_back("Type");
+
+		boisStallTrace.initalizeTrace(headers);
+	}
+}
+
+void
+MemoryOverlapEstimator::traceBoisStall(Addr addr,
+									   Tick stallLength,
+									   Tick robFullCycles,
+									   Tick accounted,
+									   Tick interference,
+									   bool sharedStall){
+	if(boisStallTraceEnabled){
+		vector<RequestTraceEntry> data;
+
+		Addr traceAddr = addr;
+		if(cpuCount > 1) traceAddr = unrelocateAddrForCPU(cpuID, addr, cpuCount);
+
+		data.push_back(traceAddr);
+		data.push_back(stallLength);
+		data.push_back(robFullCycles);
+		data.push_back(accounted);
+		data.push_back(interference);
+		if(sharedStall) data.push_back("Shared");
+		else data.push_back("Private/Unknown");
+
+		boisStallTrace.addTrace(data);
+	}
 }
 
 OverlapStatistics
@@ -1064,10 +1110,15 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	//overlapTable->executionResumed();
 	criticalPathTable->commitPeriodStarted();
 
+	Tick boisAccounted = 0;
+	Tick boisNotAccounted = 0;
+	Tick boisInterference = 0;
+
 	assert(stallLength > currentStallFullROB);
-	addBoisEstimateCycles(stallLength - currentStallFullROB);
-	DPRINTF(OverlapEstimator, "Bois estimate: adding %d pre full-ROB stall cycles\n",
-	        stallLength - currentStallFullROB);
+	Tick boisPreFullROB = stallLength - currentStallFullROB;
+	addBoisEstimateCycles(boisPreFullROB);
+	boisAccounted += boisPreFullROB;
+	DPRINTF(OverlapEstimator, "Bois estimate: adding %d pre full-ROB stall cycles\n", boisPreFullROB);
 
 	while(!completedRequests.empty() && completedRequests.front()->completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
@@ -1109,6 +1160,10 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 						Tick estAloneStall = currentStallFullROB - totalInterference;
 						addBoisEstimateCycles(estAloneStall);
 
+						boisAccounted += estAloneStall;
+						boisNotAccounted += totalInterference;
+						boisInterference += totalInterference;
+
 						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, use interference %d (original %d)), addr %d\n",
 								estAloneStall,
 								currentStallFullROB,
@@ -1118,6 +1173,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 					}
 					else{
 						boisLostStallCycles += currentStallFullROB;
+						boisNotAccounted += currentStallFullROB;
 					}
 				}
 				else{
@@ -1158,6 +1214,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	if(!stalledOnShared){
 		boisAdded = true;
 		addBoisEstimateCycles(currentStallFullROB);
+		boisAccounted += currentStallFullROB;
 		DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
 	}
 
@@ -1168,6 +1225,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		if(!boisAdded){
 			boisAdded = true;
 			addBoisEstimateCycles(currentStallFullROB);
+			boisAccounted += currentStallFullROB;
 			DPRINTF(OverlapEstimator, "Bois estimate: end by squash, adding whole stall %d\n", currentStallFullROB);
 		}
 	}
@@ -1179,12 +1237,17 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	    if(!boisAdded){
 	    	boisAdded = true;
 	    	addBoisEstimateCycles(currentStallFullROB);
+	    	boisAccounted += currentStallFullROB;
 	    	DPRINTF(OverlapEstimator, "Bois estimate: L1 stall, adding whole stall %d\n", currentStallFullROB);
 	    }
 	}
 	assert(stalledOnShared || stalledOnPrivate);
 
 	assert(boisAloneStallEstimateTrace == stallCycleAccumulator - (boisMemsysInterferenceTrace + boisLostStallCycles));
+	DPRINTF(OverlapEstimator, "Bois accounted %d cycles, did not account %d cycles, stall length %d\n",
+			boisAccounted, boisNotAccounted, stallLength);
+	assert(stallLength == boisAccounted + boisNotAccounted);
+	traceBoisStall(stalledOnAddr, stallLength, currentStallFullROB, boisAccounted, boisInterference, stalledOnShared);
 
 	processCompletedRequests(stalledOnShared, completedSharedReqs);
 
@@ -1625,6 +1688,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	Param<int> trace_sample_id;
 	Param<int> cpl_table_size;
 	SimObjectParam<ITCA *> itca;
+	Param<bool> bois_stall_trace_enabled;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1637,7 +1701,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM_DFLT(overlapTable, "Overlap table", NULL),
 	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1),
 	INIT_PARAM_DFLT(cpl_table_size, "The size of the CPL table", 64),
-	INIT_PARAM(itca, "A pointer to the class implementing the ITCA accounting scheme")
+	INIT_PARAM(itca, "A pointer to the class implementing the ITCA accounting scheme"),
+	INIT_PARAM_DFLT(bois_stall_trace_enabled, "Trace all Du Bois stall data (warning: will create large files)", false)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1669,7 +1734,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          overlapTable,
     		                          trace_sample_id,
     		                          cpl_table_size,
-    		                          itca);
+    		                          itca,
+    		                          bois_stall_trace_enabled);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)
