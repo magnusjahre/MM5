@@ -738,8 +738,10 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     if(req->cmd == Writeback){
     	modelBusWritebacks++;
 
-    	WritebackCompleteEvent* wbevent = new WritebackCompleteEvent(req, interferenceManager);
-    	wbevent->schedule(time);
+    	// TODO: This feature is not needed in the default branch and should be reactivated when
+    	//       merging with the bus-model branch.
+    	// WritebackCompleteEvent* wbevent = new WritebackCompleteEvent(req, interferenceManager);
+    	// wbevent->schedule(time);
     }
 
     if (req->cmd == Read) {
