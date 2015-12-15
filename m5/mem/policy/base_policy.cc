@@ -348,8 +348,11 @@ BasePolicy::computeCurrentMetricValue(){
 
 double
 BasePolicy::computeRawError(double estimate, double actual){
-	assert(actual != 0.0);
-	return (estimate - actual) / actual;
+	if(actual == 0.0){
+		return 0;
+	}
+	double error = (estimate - actual) / actual;
+	return error;
 }
 
 double
@@ -451,6 +454,63 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 		assert(newStallTime >= 0);
 
 		return newStallTime;
+	}
+	else if(perfEstMethod == PRIVATE_LATENCY_ONLY){
+		DPRINTF(MissBWPolicyExtra, "Running private-latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime + newAvgSharedLat * sharedRequests;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f with new shared lat %f\n",
+							        newStallTime,
+							        newAvgSharedLat);
+
+		if(newStallTime < 0){
+			warn("private-latency-only policy attempted to return %d stall cycles, changing to 0", newStallTime);
+			return 0;
+		}
+
+		assert(newStallTime >= 0);
+
+		return newStallTime;
+
+	}
+	else if(perfEstMethod == SHARED_STALL){
+		DPRINTF(MissBWPolicyExtra, "Running shared-latency-only method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime+currentStallTime;
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time %f\n",
+							        newStallTime);
+
+		assert(newStallTime >= 0);
+
+		return newStallTime;
+
+	}
+	else if(perfEstMethod == ZERO_STALL){
+		DPRINTF(MissBWPolicyExtra, "Running zero-stall method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
+								currentAvgSharedLat,
+								sharedRequests,
+								privateStallTime,
+								currentStallTime);
+
+		double newStallTime = privateStallTime;
+		assert(newStallTime >= 0);
+
+		DPRINTF(MissBWPolicyExtra, "Estimated new stall time is %f\n",
+							        newStallTime);
+
+
+		return newStallTime;
+
 	}
 	else if(perfEstMethod == CPL || perfEstMethod == CPL_CWP
 			|| perfEstMethod == CPL_DAMP || perfEstMethod == CPL_CWP_DAMP
@@ -934,13 +994,16 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 													  ols.cptMeasurements);
 
 		double writeStallEstimate = estimateWriteStallCycles(writeStall, avgPrivmodeStoreLat, numWriteStalls, avgSharedStoreLat);
-		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall);
+		double alonePrivBlockedStallEstimate = estimatePrivateBlockedStall(privateBlockedStall, avgPrivateLatEstimate + avgPrivateMemsysLat, avgSharedLat + avgPrivateMemsysLat);
 		double aloneROBStallEstimate = estimatePrivateROBStall(emptyROBStallCycles, avgPrivateLatEstimate + avgPrivateMemsysLat, avgSharedLat + avgPrivateMemsysLat);
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + aloneROBStallEstimate + newStallEstimate);
 		if(perfEstMethod == ITCA){
-			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles;
+			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles.accountedCycles;
+			assert(newStallEstimate == 0.0);
+			assert(cyclesInSample == ols.itcaAccountedCycles.accountedCycles + ols.itcaAccountedCycles.notAccountedCycles);
+			newStallEstimate = cyclesInSample - ols.itcaAccountedCycles.accountedCycles;
 		}
 
 
@@ -971,7 +1034,7 @@ BasePolicy::doCommittedInstructionTrace(int cpuID,
 		data.push_back(lastModelErrorWithCutoff[cpuID]);
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
-		data.push_back(ols.itcaAccountedCycles);
+		data.push_back(ols.itcaAccountedCycles.accountedCycles);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
@@ -1029,12 +1092,19 @@ BasePolicy::estimateWriteStallCycles(double writeStall, double avgPrivmodeLat, i
 }
 
 double
-BasePolicy::estimatePrivateBlockedStall(double privBlocked){
+BasePolicy::estimatePrivateBlockedStall(double privBlocked, double avgPrivmodeLat, double avgSharedmodeLat){
 	if(privBlockedStallTech == PBS_NONE){
 		return 0.0;
 	}
 	if(privBlockedStallTech  == PBS_SHARED){
 		return privBlocked;
+	}
+	if(privBlockedStallTech == PBS_RATIO){
+		if(avgSharedmodeLat > 0){
+			double ratio = avgPrivmodeLat / avgSharedmodeLat;
+			return privBlocked * ratio;
+		}
+		return 0;
 	}
 	fatal("unknown pbs technique");
 	return 0.0;
@@ -1111,6 +1181,9 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "cpl-cwp-ser") return CPL_CWP_SER;
 	if(methodName == "bois") return BOIS;
 	if(methodName == "ITCA") return ITCA;
+	if(methodName == "private-latency-only") return PRIVATE_LATENCY_ONLY;
+	if(methodName == "shared-stall") return SHARED_STALL;
+	if(methodName == "zero-stall") return ZERO_STALL;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;
@@ -1164,6 +1237,7 @@ BasePolicy::PrivBlockedStallTechnique
 BasePolicy::parsePrivBlockedStallTech(std::string techName){
 	if(techName == "pbs-none") return PBS_NONE;
 	if(techName == "pbs-shared") return PBS_SHARED;
+	if(techName == "pbs-ratio") return PBS_RATIO;
 
 	fatal("unknown pbs technique");
 	return PBS_NONE;

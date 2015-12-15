@@ -239,7 +239,9 @@ public:
 		return numLeaderSets;
 	}
 
-	void access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart);
+	void access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart, BaseCache* cache);
+
+	void computeCacheCapacityInterference(MemReqPtr& req, BaseCache* cache);
 
 	void handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCache* cache);
 

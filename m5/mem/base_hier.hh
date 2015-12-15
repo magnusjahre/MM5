@@ -81,6 +81,7 @@ class BaseHier : public SimObject
     }
 
     Addr relocateAddrForCPU(int cpuID, Addr originalAddr, int cpuCount);
+    Addr unrelocateAddrForCPU(int cpuID, Addr relocatedAddr, int cpuCount);
 };
 
 #endif //__BASE_HIER_HH__

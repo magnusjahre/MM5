@@ -392,9 +392,10 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 
     if(checkForStore(req)) return;
 
-    DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d\n",
+    DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d of type %s\n",
             interferenceTicks,
-            req->paddr);
+            req->paddr,
+            latencyStrings[t]);
 
     req->boisInterferenceSum += interferenceTicks;
 
@@ -975,10 +976,10 @@ InterferenceManager::clearMSHROccupancyLists(){
 }
 
 void
-InterferenceManager::itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss){
+InterferenceManager::itcaIntertaskMiss(int cpuID, Addr addr, bool isInstructionMiss, Addr cpuAddr){
 	assert(cpuID != -1);
 	assert(overlapEstimators[cpuID] != NULL);
-	overlapEstimators[cpuID]->itcaIntertaskMiss(addr, isInstructionMiss);
+	overlapEstimators[cpuID]->itcaIntertaskMiss(addr, isInstructionMiss, cpuAddr);
 }
 
 void

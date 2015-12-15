@@ -39,6 +39,19 @@ public:
 		ITCA_ITPI_CNT
 	};
 
+	class ITCAAccountingInfo{
+	public:
+		Tick accountedCycles;
+		Tick notAccountedCycles;
+		Tick accountedStallCycles;
+
+		ITCAAccountingInfo(){
+			accountedCycles = 0;
+			notAccountedCycles = 0;
+			accountedStallCycles = 0;
+		}
+	};
+
 private:
 	class ITCAAccountingState{
 	public:
@@ -48,10 +61,17 @@ private:
 		Tick notAccountedCycles;
 		int cpuID;
 
+		bool perfModStall;
+		Tick perfModStateChangedAt;
+		Tick perfModNotAccountedStallCycles;
+		Tick perfModAccountedStalledCycles;
+
 		ITCAAccountingState();
 		void setCPUID(int _cpuID) { cpuID = _cpuID; }
 
 		void update(bool stopAccounting);
+		void updatePerfModStall(bool stopAccounting, bool isPerfModStall);
+		void handlePerfModSampleTransition(Tick sampleSize);
 		void reset();
 		void handleSampleTransition(Tick sampleSize);
 	};
@@ -72,9 +92,10 @@ private:
 	public:
 		Addr addr;
 		bool intertaskMiss;
+		Addr cpuAddr;
 
-		ITCATableEntry() : addr(0), intertaskMiss(false) {}
-		ITCATableEntry(Addr _addr) : addr(_addr), intertaskMiss(false) {}
+		ITCATableEntry() : addr(0), intertaskMiss(false), cpuAddr(0) {}
+		ITCATableEntry(Addr _addr) : addr(_addr), intertaskMiss(false), cpuAddr(0) {}
 	};
 
 	int cpuID;
@@ -108,7 +129,7 @@ private:
 public:
 	ITCA(std::string _name, int _cpuID, ITCACPUStalls _cpuStall, ITCAInterTaskInstructionPolicy _itip, bool _doVerification);
 
-	Tick getAccountedCycles();
+	ITCAAccountingInfo getAccountedCycles();
 
 	void l1DataMiss(Addr addr);
 	void l1InstructionMiss(Addr addr);
@@ -116,7 +137,7 @@ public:
 	void l1MissResolved(Addr addr, Tick willFinishAt, bool isDataMiss);
 	void handleL1MissResolvedEvent(Addr addr, bool isDataMiss);
 
-	void intertaskMiss(Addr addr, bool isInstructionMiss);
+	void intertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr);
 
 	void itcaCPUStalled(ITCACPUStalls type);
 	void itcaCPUResumed(ITCACPUStalls type);

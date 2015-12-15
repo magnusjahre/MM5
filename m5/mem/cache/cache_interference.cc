@@ -186,7 +186,7 @@ CacheInterference::regStats(){
 }
 
 void
-CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart){
+CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick detailedSimStart, BaseCache* cache){
 
 	assert(!shadowTags.empty());
 
@@ -265,7 +265,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 				if(req->cmd == Read){
 					assert(req->adaptiveMHASenderID != -1);
-					interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss);
+					Addr cacheAlignedCPUAddr = req->oldAddr & ~((Addr)cache->getBlockSize() - 1);
+					interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss, cacheAlignedCPUAddr);
 				}
 			}
 		}
@@ -424,6 +425,25 @@ CacheInterference::doShadowReplacement(MemReqPtr& req, BaseCache* cache){
 }
 
 void
+CacheInterference::computeCacheCapacityInterference(MemReqPtr& req, BaseCache* cache){
+	assert(!shadowTags.empty());
+	assert(req->adaptiveMHASenderID != -1);
+	assert(req->cmd == Read);
+
+	// Compute cache capacity interference penalty and inform the InterferenceManager
+	if(req->interferenceMissAt > 0 && cpuCount > 1){
+
+		int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
+		req->cacheCapacityInterference += extraDelay;
+		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
+		numExtraResponses[req->adaptiveMHASenderID]++;
+
+		assert(cache->interferenceManager != NULL);
+		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
+	}
+}
+
+void
 CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCache* cache){
 
 	assert(!shadowTags.empty());
@@ -444,18 +464,6 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCac
 		doShadowReplacement(req, cache);
 	}
 
-	// Compute cache capacity interference penalty and inform the InterferenceManager
-	if(req->interferenceMissAt > 0 && cpuCount > 1){
-
-		int extraDelay = (curTick + cache->getHitLatency()) - req->interferenceMissAt;
-		req->cacheCapacityInterference += extraDelay;
-		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
-		numExtraResponses[req->adaptiveMHASenderID]++;
-
-		assert(cache->interferenceManager != NULL);
-		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
-	}
-
 	if(cpuCount > 1
 	   && numLeaderSets < totalSetNumber
 	   && cache->writebackOwnerPolicy == BaseCache::WB_POLICY_SHADOW_TAGS
@@ -464,8 +472,6 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCac
 		int set = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 		issuePrivateWriteback(req->adaptiveMHASenderID, MemReq::inval_addr, cache, set);
 	}
-
-
 }
 
 void
