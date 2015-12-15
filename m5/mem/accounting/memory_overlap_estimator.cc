@@ -1884,7 +1884,7 @@ OverlapStatistics::OverlapStatistics(){
 	avgTotalComWhilePend = 0.0;
 	avgComWhileBurst = 0.0;
 	globalAvgMemBusPara = 0.0;
-	itcaAccountedCycles = 0;
+	itcaAccountedCycles = ITCA::ITCAAccountingInfo();
 }
 
 void

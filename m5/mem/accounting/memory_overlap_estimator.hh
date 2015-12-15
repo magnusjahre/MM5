@@ -105,7 +105,7 @@ public:
 	}
 
 	bool isStore(){
-		if(origCmd == Write || origCmd == Soft_Prefetch || origCmd == Writeback) return true;
+		if(origCmd == Write || origCmd == Soft_Prefetch) return true;
 		return false;
 	}
 };
@@ -304,7 +304,7 @@ public:
 	double avgComWhileBurst;
 	double globalAvgMemBusPara;
 	CriticalPathTableMeasurements cptMeasurements;
-	Tick itcaAccountedCycles;
+	ITCA::ITCAAccountingInfo itcaAccountedCycles;
 
 	std::vector<OverlapStatisticsHistogramEntry> memBusParaHistogram;
 
@@ -399,6 +399,9 @@ private:
 	RequestTrace sharedRequestTrace;
 	bool sharedReqTraceEnabled;
 	int sharedTraceReqNum;
+
+	RequestTrace boisStallTrace;
+	bool boisStallTraceEnabled;
 
 	int sampleID;
 	int traceSampleID;
@@ -499,6 +502,9 @@ private:
 	void initSharedRequestTrace();
 	void traceSharedRequest(EstimationEntry* entry, Tick stalledAt, Tick resumedAt);
 
+	void initBoisStallTrace();
+	void traceBoisStall(Addr addr, Tick stallLength, Tick robFullCycles, Tick accounted, Tick interference, bool sharedStall);
+
 	void updateRequestGroups(int sharedHits, int sharedMisses, int pa, Tick sl, double stallLength, double avgIssueToStall);
 	void initRequestGroupTrace();
 	void traceRequestGroups(int committedInstructions);
@@ -547,7 +553,8 @@ public:
 						   MemoryOverlapTable* _overlapTable,
 						   int _traceSampleID,
 						   int _cplTableBufferSize,
-						   ITCA* _itca);
+						   ITCA* _itca,
+						   bool _boisTraceEnabled);
 
 	~MemoryOverlapEstimator();
 
@@ -595,8 +602,8 @@ public:
 		return traceSampleID;
 	}
 
-	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss){
-		itca->intertaskMiss(addr, isInstructionMiss);
+	void itcaIntertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr){
+		itca->intertaskMiss(addr, isInstructionMiss, cpuAddr);
 	}
 
 	void itcaCPUStalled(ITCA::ITCACPUStalls type){
