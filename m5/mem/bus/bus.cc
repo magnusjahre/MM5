@@ -175,7 +175,8 @@ Bus::Bus(const string &_name,
 
     if(_utilizationLimit > 0 && cpu_count != 1) fatal("Utilization limit only makes sense for single core experiments");
     if(_utilizationLimit > 1.0) fatal("The utilization limit cannot be larger than 1.0");
-    utilizationLimit = _utilizationLimit;
+    if(_utilizationLimit == 0.0) utilizationLimit = 1.0;
+    else utilizationLimit = _utilizationLimit;
 
     trafficGenerator = NULL;
 
