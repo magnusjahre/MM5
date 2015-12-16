@@ -7,3 +7,5 @@ syntax: regexp
 ^m5/build/libelf$
 syntax: regexp
 ^m5/build$
+syntax: regexp
+^ext/lpsolve/lpsolve55/bin$
