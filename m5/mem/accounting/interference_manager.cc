@@ -846,7 +846,7 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 }
 
 void
-InterferenceManager::doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst){
+InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst){
 
 	tracePrivateLatency(cpuID, committedInstructions);
 

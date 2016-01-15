@@ -252,7 +252,7 @@ public:
 
 	double getAvgNoBusLat(double avgRoundTripLatency, int cpuID);
 
-	void doCommitTrace(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst);
+	void updatePrivPerfEst(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols, double cwp, int numWriteStalls, Tick boisAloneStallEst);
 
 	void enableMSHROccupancyTrace();
 
