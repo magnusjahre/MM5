@@ -27,6 +27,9 @@ private:
 
 	int renewMeasurementsCounter;
 
+	ThrottleControl* sharedCacheThrottle;
+	std::vector<ThrottleControl* > privateCacheThrottles;
+
 	std::vector<int> exhaustiveSearch();
 	void recursiveExhaustiveSearch(std::vector<int>* value, int k);
 	std::vector<int> busSearch(bool onlyPowerOfTwoMSHRs);

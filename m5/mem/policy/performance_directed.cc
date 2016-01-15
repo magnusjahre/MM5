@@ -16,15 +16,13 @@ PerformanceDirectedPolicy:: PerformanceDirectedPolicy(std::string _name,
 			                                          int _iterationLatency,
 			                                          Metric* _performanceMetric,
 			                                          bool _enforcePolicy,
-			                                          ThrottleControl* _sharedCacheThrottle,
-			                                          std::vector<ThrottleControl* > _privateCacheThrottles,
 			                                          WriteStallTechnique _wst,
 			                                          PrivBlockedStallTechnique _pbst,
 			                                          EmptyROBStallTechnique _rst,
 			 										  double _maximumDamping,
 			 										  double _hybridDecisionError,
 			 										  int _hybridBufferSize)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst, _maximumDamping, _hybridDecisionError, _hybridBufferSize)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _wst, _pbst, _rst, _maximumDamping, _hybridDecisionError, _hybridBufferSize)
 {
 	cacheResolution = 4; // FIXME: Parameterize
 	bandwidthResolution = 4.0; // FIXME: Parameterize
@@ -150,8 +148,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
-	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
-	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<string> writeStallTechnique;
 	Param<string> privateBlockedStallTechnique;
 	Param<string> emptyROBStallTechnique;
@@ -169,8 +165,6 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(PerformanceDirectedPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
-	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
-	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
 	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
@@ -200,8 +194,6 @@ CREATE_SIM_OBJECT(PerformanceDirectedPolicy)
 							       iterationLatency,
 							       performanceMetric,
 							       enforcePolicy,
-							       sharedCacheThrottle,
-							       privateCacheThrottles,
 							       wst,
 							       pbst,
 							       rst,

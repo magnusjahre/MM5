@@ -44,8 +44,6 @@ public:
 			                  int _iterationLatency,
 			                  Metric* _performanceMetric,
 			                  bool _enforcePolicy,
-			                  ThrottleControl* _sharedCacheThrottle,
-			                  std::vector<ThrottleControl* > _privateCacheThrottles,
 			                  WriteStallTechnique _wst,
 			                  PrivBlockedStallTechnique _pbst,
 			                  EmptyROBStallTechnique _rst,

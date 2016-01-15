@@ -18,8 +18,6 @@ class BasePolicy(SimObject):
     iterationLatency = Param.Int("The number of cycles it takes to evaluate one MHA")
     optimizationMetric = Param.OptimizationMetric("The metric to optimize for")
     enforcePolicy = Param.Bool("Should the policy be enforced?")
-    sharedCacheThrottle = Param.ThrottleControl("The shared cache throttle")
-    privateCacheThrottles = VectorParam.ThrottleControl("The private cache throttles")
     writeStallTechnique = Param.WriteStallTechnique("The technique to use to estimate private write stalls")
     privateBlockedStallTechnique = Param.PrivateBlockedStallTechnique("The technique to use to estimate private blocked stalls")
     emptyROBStallTechnique = Param.EmptyROBStallTechnique("The technique to use to estimate private mode empty ROB stalls")

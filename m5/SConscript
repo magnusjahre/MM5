@@ -220,6 +220,7 @@ base_sources = Split('''
 	mem/cache/miss/throttle_control.cc
 	
 	mem/policy/base_policy.cc
+	mem/policy/equalize_slowdown_policy.cc
 	mem/policy/miss_bandwidth_policy.cc
 	mem/policy/performance_measurement.cc
 	mem/policy/performance_model.cc

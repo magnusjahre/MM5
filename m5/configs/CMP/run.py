@@ -422,6 +422,46 @@ def setUpModThrotPolicy():
     
     return policy
 
+def setUpEqualizeSlowdownPolicy():
+    policy = EqualizeSlowdownPolicy()
+    optionName = 'EQUAL-SD-' 
+    if env["NP"] > 1:
+        if env[optionName+"POLICY"] == "off":
+            policy.enforcePolicy = False
+        else:
+            assert env[optionName+"POLICY"] ==  "on"
+            policy.enforcePolicy = True 
+    else:
+        policy.enforcePolicy = False
+
+    assert optionName+"PERIOD" in env
+    policy.period = int(env[optionName+"PERIOD"])        
+    policy.interferenceManager = root.interferenceManager
+    policy.cpuCount = int(env["NP"])
+    
+    assert optionName+"PERF-METHOD" in env
+    policy.performanceEstimationMethod = env[optionName+"PERF-METHOD"]
+    
+    if int(env["NP"]) > 1: 
+        assert "WRITE-STALL-TECH" in env
+        policy.writeStallTechnique = env["WRITE-STALL-TECH"]
+    else:
+        policy.writeStallTechnique = "ws-none"
+        
+    if int(env["NP"]) > 1: 
+        assert "EROB-STALL-TECH" in env
+        policy.emptyROBStallTechnique = env["EROB-STALL-TECH"]
+    else:
+        policy.emptyROBStallTechnique = "rst-none"
+        
+    if int(env["NP"]) > 1: 
+        assert "PB-STALL-TECH" in env
+        policy.privateBlockedStallTechnique = env["PB-STALL-TECH"]
+    else:
+        policy.privateBlockedStallTechnique = "pbs-none"
+    
+    return policy
+
 def setUpPerfDirPolicy():
     perfDirPolicy = PerformanceDirectedPolicy()
     optionName = 'PERFORMANCE-DIR-POLICY' 
@@ -850,6 +890,9 @@ if 'PERFORMANCE-DIR-POLICY' in env:
 if 'MODEL-THROTLING-POLICY' in env:
     root.globalPolicy = setUpModThrotPolicy()
     useMissBWPolicy = True
+
+if 'EQUAL-SD-POLICY' in env:
+    root.globalPolicy = setUpEqualizeSlowdownPolicy()
 
 ###############################################################################
 #  CPUs and L1 caches

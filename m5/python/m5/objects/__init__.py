@@ -25,6 +25,7 @@ file_bases = ['AdaptiveMHA',
               'Device',
               'DiskImage',
               'DuBoisInterference',
+              'EqualizeSlowdownPolicy', #Magnus
               'Ethernet',
               'ExeTrace',
               'FastCPU',

@@ -41,8 +41,6 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 		_iterationLatency,
 		_performanceMetric,
 		_enforcePolicy,
-		_sharedCacheThrottle,
-		_privateCacheThrottles,
 		_wst,
 		_pbst,
 		_rst,
@@ -70,6 +68,9 @@ MissBandwidthPolicy::MissBandwidthPolicy(std::string _name,
 	requestVariationThreshold = _reqVariationThreshold;
 	renewMeasurementsThreshold = _renewMeasurementsThreshold;
 	searchAlgorithm = _searchAlgorithm;
+
+	privateCacheThrottles = _privateCacheThrottles;
+	sharedCacheThrottle = _sharedCacheThrottle;
 
 	renewMeasurementsCounter = 0;
 }

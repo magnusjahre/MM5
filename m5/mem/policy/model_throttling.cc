@@ -22,8 +22,6 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 			   	    			 int _iterationLatency,
 			   	    			 Metric* _performanceMetric,
 			   	    			 bool _enforcePolicy,
-			   	    			 ThrottleControl* _sharedCacheThrottle,
-			   	    			 std::vector<ThrottleControl* > _privateCacheThrottles,
 			   	    			 bool _verify,
 			   	    			 std::vector<double> _staticArrivalRates,
 			   	    			 std::string _implStrategy,
@@ -33,7 +31,7 @@ ModelThrottlingPolicy::ModelThrottlingPolicy(std::string _name,
 								 double _maximumDamping,
 								 double _hybridDecisionError,
 								 int _hybridBufferSize)
-: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _sharedCacheThrottle, _privateCacheThrottles, _wst, _pbst, _rst, _maximumDamping, _hybridDecisionError, _hybridBufferSize)
+: BasePolicy(_name, _intManager, _period, _cpuCount, _perfEstMethod, _persistentAllocations, _iterationLatency, _performanceMetric, _enforcePolicy, _wst, _pbst, _rst, _maximumDamping, _hybridDecisionError, _hybridBufferSize)
 {
 	//enableOccupancyTrace = true;
 
@@ -435,7 +433,8 @@ ModelThrottlingPolicy::implementAllocation(std::vector<double> allocation, doubl
 		traceThrottling(allocation, cyclesPerReq, -1.0);
 
 		traceVector("Setting memory bus arrival rates to:", allocation);
-		sharedCacheThrottle->setTargetArrivalRate(allocation);
+		fatal("Shared cache throttle have been moved to MissBandwidthPolicy");
+		//sharedCacheThrottle->setTargetArrivalRate(allocation);
 	}
 	else if(implStrat == BW_IMPL_NFQ || implStrat == BW_IMPL_FIXED_BW){
 		for(int i=0;i<buses.size();i++){
@@ -598,8 +597,6 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	Param<int> iterationLatency;
 	Param<string> optimizationMetric;
 	Param<bool> enforcePolicy;
-	SimObjectParam<ThrottleControl* > sharedCacheThrottle;
-	SimObjectVectorParam<ThrottleControl* > privateCacheThrottles;
 	Param<bool> verify;
 	VectorParam<double> staticArrivalRates;
 	Param<string> implStrategy;
@@ -620,8 +617,6 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ModelThrottlingPolicy)
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
 	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
-	INIT_PARAM(sharedCacheThrottle, "Shared cache throttle"),
-	INIT_PARAM(privateCacheThrottles, "Private cache throttles"),
 	INIT_PARAM_DFLT(verify, "Verify policy", false),
 	INIT_PARAM_DFLT(staticArrivalRates, "Static arrival rates to enforce", vector<double>()),
 	INIT_PARAM_DFLT(implStrategy, "The way to enforce the bandwidth quotas", "throttle"),
@@ -654,8 +649,6 @@ CREATE_SIM_OBJECT(ModelThrottlingPolicy)
 							         iterationLatency,
 							         performanceMetric,
 							         enforcePolicy,
-							         sharedCacheThrottle,
-							         privateCacheThrottles,
 							         verify,
 							         staticArrivalRates,
 							         implStrategy,

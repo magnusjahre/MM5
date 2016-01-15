@@ -15,3 +15,5 @@ class MissBandwidthPolicy(BasePolicy):
     renewMeasurementsThreshold = Param.Int("Samples to keep MHA")
     searchAlgorithm = Param.SearchAlgorithm("The search algorithm to use")
     busRequestThreshold = Param.Float("The bus request intensity necessary to consider request increases")
+    sharedCacheThrottle = Param.ThrottleControl("The shared cache throttle")
+    privateCacheThrottles = VectorParam.ThrottleControl("The private cache throttles")
