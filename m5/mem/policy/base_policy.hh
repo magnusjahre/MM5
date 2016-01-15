@@ -287,7 +287,7 @@ public:
 
 	void doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements modelMeasurements);
 
-	void doCommittedInstructionTrace(int cpuID,
+	void updatePrivPerfEst(int cpuID,
 				                     double avgSharedLat,
 				                     double avgPrivateLatEstimate,
 				                     int reqs,

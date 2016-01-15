@@ -922,7 +922,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 }
 
 void
-BasePolicy::doCommittedInstructionTrace(int cpuID,
+BasePolicy::updatePrivPerfEst(int cpuID,
 		                                double avgSharedLat,
 		                                double avgPrivateLatEstimate,
 		                                int reqs,
