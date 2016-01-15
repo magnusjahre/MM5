@@ -52,7 +52,6 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 bool
 EqualizeSlowdownPolicy::doEvaluation(int cpuID){
-	fatal("doEvaluation not implemented");
 	return true;
 }
 
