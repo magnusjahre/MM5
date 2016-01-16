@@ -40,9 +40,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 			_hybridDecisionError,
 			_hybridBufferSize){
 
-
-	cout << "hello worle\n";
-
+	_intManager->disableCommitSampling();
 }
 
 void

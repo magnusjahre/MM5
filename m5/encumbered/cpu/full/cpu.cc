@@ -697,6 +697,7 @@ FullCPU::FullCPU(Params *p,
 	stallCycleTraceCounter = 0;
 	lastDumpTick = 0;
 	lastDumpCommit = 0;
+	commitTraceEnabled = true;
 
 	vector<string> headers;
 	headers.push_back("Committed Instructions");

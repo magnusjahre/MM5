@@ -594,6 +594,13 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 	regularMisses[fromCPU] = 0;
 }
 
+void
+InterferenceManager::disableCommitSampling(){
+	for(int i=0;i<fullCPUs.size();i++){
+		fullCPUs[i]->disableCommitTrace();
+	}
+}
+
 PerformanceMeasurement
 InterferenceManager::buildInterferenceMeasurement(int period){
 
@@ -602,14 +609,8 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs, period);
 
 	for(int i=0;i<fullCPUs.size();i++){
+		fullCPUs[i]->updatePrivPerfEst(false);
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
-
-//		if(cpuIsStalled[i]){
-//			// make sure no stalls crosses sample boundaries
-//			clearStalledForMemory(i, false);
-//			setStalledForMemory(i, 0);
-//		}
-
 		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
 		cpuStallAccumulator[i] = 0;
 	}

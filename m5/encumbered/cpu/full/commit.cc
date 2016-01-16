@@ -970,7 +970,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		committedSinceLast++;
 
 		committedTraceCounter++;
-		if(committedTraceCounter == commitTraceFrequency){
+		if(committedTraceCounter == commitTraceFrequency && commitTraceEnabled){
 			updatePrivPerfEst(true);
 			committedTraceCounter = 0;
 		}
@@ -1028,6 +1028,11 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 }
 
 void
+FullCPU::disableCommitTrace(){
+	commitTraceEnabled = false;
+}
+
+void
 FullCPU::updatePrivPerfEst(bool instSampling){
 	int thread = 0; //Multithreading is not supported (assertion in commit loop)
 
@@ -1035,6 +1040,11 @@ FullCPU::updatePrivPerfEst(bool instSampling){
 	Tick ticksInSample = curTick - lastDumpTick;
 	int instsInSample = curCommitCnt - lastDumpCommit;
 	double ipc = (double) instsInSample / (double) ticksInSample;
+
+	DPRINTF(MissBWPolicy, "Updating private performance estimates @ inst count %d, insts in sample %d, CCs in sample %d\n",
+			curCommitCnt,
+			instsInSample,
+			ticksInSample);
 
 	if(instSampling) assert(instsInSample == commitTraceFrequency);
 

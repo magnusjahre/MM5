@@ -98,6 +98,7 @@ private:
 	int stallCycleTraceCounter;
 	Tick lastDumpTick;
 	int lastDumpCommit;
+	bool commitTraceEnabled;
 	RequestTrace committedInstTrace;
 
 	int quitOnCPUID;
@@ -1043,6 +1044,7 @@ public:
 			int getCommittedInstructions();
 			void updateITCACommitStalled(bool stalled);
 			void updateITCAEmptyROB(bool stalled);
+			void disableCommitTrace();
 
 
 			//----------------------------------------------------------------------
