@@ -971,22 +971,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 
 		committedTraceCounter++;
 		if(committedTraceCounter == commitTraceFrequency){
-			Tick ticksInSample = curTick - lastDumpTick;
-			double ipc = (double) commitTraceFrequency / (double) ticksInSample;
-
-			vector<RequestTraceEntry> data;
-			assert(thread == 0);
-			data.push_back(stat_com_inst[0].value());
-			data.push_back(ipc);
-			committedInstTrace.addTrace(data);
-
-			int numWriteStalls = overlapEstimator->getNumWriteStalls();
-			OverlapStatistics ols = overlapEstimator->sampleCPU((int) stat_com_inst[thread].value());
-			double cwp = overlapEstimator->getAvgCWP();
-			Tick boisAloneStallEst = overlapEstimator->getBoisAloneStallEstimate();
-			interferenceManager->updatePrivPerfEst(CPUParamsCpuID, commitTraceFrequency, ticksInSample, ols, cwp, numWriteStalls, boisAloneStallEst);
-
-			lastDumpTick = curTick;
+			updatePrivPerfEst(true);
 			committedTraceCounter = 0;
 		}
 		assert(committedTraceCounter <= commitTraceFrequency);
@@ -1040,6 +1025,38 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && CPUParamsCpuID == quitOnCPUID){
 		new SimExitEvent("The indicated cpu has committed the required number of instructions");
 	}
+}
+
+void
+FullCPU::updatePrivPerfEst(bool instSampling){
+	int thread = 0; //Multithreading is not supported (assertion in commit loop)
+
+	int curCommitCnt = (int) stat_com_inst[thread].value();
+	Tick ticksInSample = curTick - lastDumpTick;
+	int instsInSample = curCommitCnt - lastDumpCommit;
+	double ipc = (double) instsInSample / (double) ticksInSample;
+
+	if(instSampling) assert(instsInSample == commitTraceFrequency);
+
+	vector<RequestTraceEntry> data;
+	data.push_back(curCommitCnt);
+	data.push_back(ipc);
+	committedInstTrace.addTrace(data);
+
+	int numWriteStalls = overlapEstimator->getNumWriteStalls();
+	OverlapStatistics ols = overlapEstimator->sampleCPU(curCommitCnt);
+	double cwp = overlapEstimator->getAvgCWP();
+	Tick boisAloneStallEst = overlapEstimator->getBoisAloneStallEstimate();
+	interferenceManager->updatePrivPerfEst(CPUParamsCpuID,
+										   instsInSample,
+										   ticksInSample,
+										   ols,
+										   cwp,
+										   numWriteStalls,
+										   boisAloneStallEst);
+
+	lastDumpTick = curTick;
+	lastDumpCommit = curCommitCnt;
 }
 
 // register commit-stage statistics

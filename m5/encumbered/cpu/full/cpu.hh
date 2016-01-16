@@ -97,6 +97,7 @@ private:
 	int committedTraceCounter;
 	int stallCycleTraceCounter;
 	Tick lastDumpTick;
+	int lastDumpCommit;
 	RequestTrace committedInstTrace;
 
 	int quitOnCPUID;
@@ -1037,6 +1038,7 @@ public:
 				return tmp;
 			}
 
+			void updatePrivPerfEst(bool instSampling);
 			bool requestInROB(MemReqPtr& req, int blockSize);
 			int getCommittedInstructions();
 			void updateITCACommitStalled(bool stalled);
