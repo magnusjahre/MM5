@@ -1233,6 +1233,25 @@ MemoryOverlapEstimator::populateBurstInfo(){
 }
 
 void
+MemoryOverlapEstimator::prepareClockCycleSample(){
+	DPRINTF(OverlapEstimator, "Preparing for collecting a clock cycle sample, we are %s\n",
+			                  isStalled ? "stalled" : "not stalled");
+
+	if(!isStalled) return;
+
+	//TODO: This will result in the a shared stall being designated as private since the request
+	//      is not complete yet, There might be a need for having a heuristic to manage this or
+	//      it might not matter (due to long samples).
+	Addr tmpStallAddr = unrelocateAddrForCPU(cpuID, stalledOnAddr, cpuCount);
+	DPRINTF(OverlapEstimator, "Artificially ending the stall on addr %d, cpu addr %d\n",
+							   stalledOnAddr,
+							   tmpStallAddr);
+
+	executionResumed(false);
+	stalledForMemory(tmpStallAddr);
+}
+
+void
 MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 	assert(!isStalled);
 	assert(currentStallFullROB == 0);

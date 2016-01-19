@@ -1047,6 +1047,7 @@ FullCPU::updatePrivPerfEst(bool instSampling){
 			ticksInSample);
 
 	if(instSampling) assert(instsInSample == commitTraceFrequency);
+	else overlapEstimator->prepareClockCycleSample();
 
 	vector<RequestTraceEntry> data;
 	data.push_back(curCommitCnt);

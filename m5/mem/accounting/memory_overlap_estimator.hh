@@ -620,6 +620,8 @@ public:
 
 	void itcaSetROBEmpty() { itca->setROBEmpty(); }
 	void itcaClearROBEmpty() { itca->clearROBEmpty(); }
+
+	void prepareClockCycleSample();
 };
 
 #endif /* MEMORY_OVERLAP_ESTIMATOR_HH_ */
