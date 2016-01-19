@@ -45,7 +45,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 
 void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
-	fatal("runPolicy not implemented");
+	// TODO: Just trace values for now
 }
 
 bool
