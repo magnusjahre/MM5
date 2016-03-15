@@ -1323,7 +1323,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick boisNotAccounted = 0;
 	Tick boisInterference = 0;
 
-	assert(stallLength > currentStallFullROB);
+	assert(stallLength >= currentStallFullROB);
 	Tick boisPreFullROB = stallLength - currentStallFullROB;
 	addBoisEstimateCycles(boisPreFullROB);
 	boisAccounted += boisPreFullROB;
