@@ -969,12 +969,14 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		amha->coreCommittedInstruction(CPUParamsCpuID);
 		committedSinceLast++;
 
-		committedTraceCounter++;
-		if(committedTraceCounter == commitTraceFrequency && commitTraceEnabled){
-			updatePrivPerfEst(true);
-			committedTraceCounter = 0;
+		if(commitTraceEnabled){
+			committedTraceCounter++;
+			if(committedTraceCounter == commitTraceFrequency){
+				updatePrivPerfEst(true);
+				committedTraceCounter = 0;
+			}
+			assert(committedTraceCounter <= commitTraceFrequency);
 		}
-		assert(committedTraceCounter <= commitTraceFrequency);
 	}
 #else
 	fatal("IPC profiling for non-alpha not implemented");
