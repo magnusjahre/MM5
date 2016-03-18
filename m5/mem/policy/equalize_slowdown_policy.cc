@@ -40,7 +40,9 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 			_hybridDecisionError,
 			_hybridBufferSize){
 
-	_intManager->disableCommitSampling();
+	if(_cpuCount != 1){
+		_intManager->disableCommitSampling();
+	}
 }
 
 void
