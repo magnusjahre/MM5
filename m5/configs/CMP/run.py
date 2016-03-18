@@ -911,7 +911,21 @@ root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adapti
 
 if 'COMMIT-TRACE-FREQUENCY' in env:
     for r in root.detailedCPU:
-        r.commit_trace_frequency = int(env['COMMIT-TRACE-FREQUENCY']) 
+        r.commit_trace_frequency = int(env['COMMIT-TRACE-FREQUENCY'])
+
+if 'COMMIT-TRACE-INSTRUCTION-FILE' in env:
+    assert int(env['NP']) == 1, "Tracing on irregular instruction samples only makes sense for private mode experiments"
+    f = open(env['COMMIT-TRACE-INSTRUCTION-FILE'])
+    ifdata = f.read()
+    try:
+        ifinsts = [int(ifdata.split(",")[i]) for i in range(len(ifdata.split(",")))]
+    except:
+        assert False, "Commit trace instruction file parse error in file "+env['COMMIT-TRACE-INSTRUCTION-FILE']
+    ifinsts.sort()
+    r.commit_trace_instructions = ifinsts
+else:
+    for r in root.detailedCPU:
+        r.commit_trace_instructions = []
 
 if env['MEMORY-SYSTEM'] == "CrossbarBased":
     root.L1dcaches = [ DL1(out_interconnect=Parent.interconnect) for i in xrange(int(env['NP'])) ]
