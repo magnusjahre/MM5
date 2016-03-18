@@ -971,11 +971,20 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 
 		if(commitTraceEnabled){
 			committedTraceCounter++;
-			if(committedTraceCounter == commitTraceFrequency){
-				updatePrivPerfEst(true);
-				committedTraceCounter = 0;
+			if(commitTraceInstructions.empty()){
+				if(committedTraceCounter == commitTraceFrequency){
+					updatePrivPerfEst(true);
+					committedTraceCounter = 0;
+				}
+				assert(committedTraceCounter <= commitTraceFrequency);
 			}
-			assert(committedTraceCounter <= commitTraceFrequency);
+			else{
+				assert(lastDumpCommit < commitTraceInstructions.front());
+				if(committedTraceCounter == commitTraceInstructions.front()){
+					updatePrivPerfEst(true);
+					commitTraceInstructions.erase(commitTraceInstructions.begin());
+				}
+			}
 		}
 	}
 #else
@@ -1048,8 +1057,12 @@ FullCPU::updatePrivPerfEst(bool instSampling){
 			instsInSample,
 			ticksInSample);
 
-	if(instSampling) assert(instsInSample == commitTraceFrequency);
-	else overlapEstimator->prepareClockCycleSample();
+	if(instSampling){
+		if(commitTraceInstructions.empty()) assert(instsInSample == commitTraceFrequency);
+	}
+	else{
+		overlapEstimator->prepareClockCycleSample();
+	}
 
 	vector<RequestTraceEntry> data;
 	data.push_back(curCommitCnt);
