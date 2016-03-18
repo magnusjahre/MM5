@@ -291,7 +291,8 @@ public:
 			InterferenceManager* _intMan,
 			int _quitOnCPUID,
 			MemoryOverlapEstimator* _overlapEst,
-			int _commitTraceFrequency
+			int _commitTraceFrequency,
+			std::vector<int> _commitTraceInstructions
 	);
 
 
@@ -389,6 +390,7 @@ public:
 	CommitModelEnum commit_model;
 	bool prioritized_commit;
 	int commitTraceFrequency;
+	std::vector<int> commitTraceInstructions;
 
 	//
 	//  Other

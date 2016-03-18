@@ -123,3 +123,4 @@ class FullCPU(BaseCPU):
     quit_on_cpu_id = Param.Int("Quit when this CPU reaches a certain number of instructions")
     overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")
     commit_trace_frequency = Param.Int("commit trace frequency in committed instructions")
+    commit_trace_instructions = VectorParam.Int("Array of instruction counts to sample at")

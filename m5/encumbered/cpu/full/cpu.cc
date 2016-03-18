@@ -376,7 +376,8 @@ FullCPU::FullCPU(Params *p,
 		 InterferenceManager* _intMan,
 		 int _quitOnCPUID,
 		 MemoryOverlapEstimator* _overlapEst,
-		 int _commitTraceFrequency)
+		 int _commitTraceFrequency,
+		 vector<int> _commitTraceInstructions)
     : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -715,6 +716,7 @@ FullCPU::FullCPU(Params *p,
 	stalledOnInstSeqNum = 0;
 
 	commitTraceFrequency = _commitTraceFrequency;
+	commitTraceInstructions = _commitTraceInstructions;
 }
 
 Addr
@@ -1251,6 +1253,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<int> quit_on_cpu_id;
     SimObjectParam<MemoryOverlapEstimator* > overlapEstimator;
     Param<int> commit_trace_frequency;
+    VectorParam<int> commit_trace_instructions;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1400,7 +1403,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
     INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL),
     INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1),
     INIT_PARAM_DFLT(overlapEstimator, "overlap estimator pointer", NULL),
-    INIT_PARAM_DFLT(commit_trace_frequency, "commit trace frequency in committed instructions", 500000)
+    INIT_PARAM_DFLT(commit_trace_frequency, "commit trace frequency in committed instructions", 500000),
+	INIT_PARAM(commit_trace_instructions, "Array of instruction counts to sample at")
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
 
@@ -1603,7 +1607,8 @@ CREATE_SIM_OBJECT(FullCPU)
 			  interferenceManager,
 			  quit_on_cpu_id,
 			  overlapEstimator,
-			  commit_trace_frequency);
+			  commit_trace_frequency,
+			  commit_trace_instructions);
 
     return cpu;
 }
