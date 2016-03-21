@@ -425,14 +425,11 @@ def setUpModThrotPolicy():
 def setUpEqualizeSlowdownPolicy():
     policy = EqualizeSlowdownPolicy()
     optionName = 'EQUAL-SD-' 
-    if env["NP"] > 1:
-        if env[optionName+"POLICY"] == "off":
-            policy.enforcePolicy = False
-        else:
-            assert env[optionName+"POLICY"] ==  "on"
-            policy.enforcePolicy = True 
-    else:
+    if env[optionName+"POLICY"] == "off":
         policy.enforcePolicy = False
+    else:
+        assert env[optionName+"POLICY"] ==  "on"
+        policy.enforcePolicy = True 
 
     assert optionName+"PERIOD" in env
     policy.period = int(env[optionName+"PERIOD"])        

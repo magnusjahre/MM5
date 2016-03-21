@@ -177,8 +177,10 @@ BasePolicy::registerSharedCache(BaseCache* _cache){
 void
 BasePolicy::handlePolicyEvent(){
 	DPRINTF(MissBWPolicy, "Handling policy event\n");
-	PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
-	runPolicy(curMeasurement);
+	if(cpuCount > 1){
+		PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
+		runPolicy(curMeasurement);
+	}
 }
 
 void
