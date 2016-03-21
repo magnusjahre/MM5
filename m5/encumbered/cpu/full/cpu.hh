@@ -391,6 +391,7 @@ public:
 	bool prioritized_commit;
 	int commitTraceFrequency;
 	std::vector<int> commitTraceInstructions;
+	bool useInstsForCommitTrace;
 
 	//
 	//  Other

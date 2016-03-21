@@ -971,19 +971,19 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 
 		if(commitTraceEnabled){
 			committedTraceCounter++;
-			if(commitTraceInstructions.empty()){
-				if(committedTraceCounter == commitTraceFrequency){
-					updatePrivPerfEst(true);
-					committedTraceCounter = 0;
-				}
-				assert(committedTraceCounter <= commitTraceFrequency);
-			}
-			else{
+			if(useInstsForCommitTrace){
 				assert(lastDumpCommit < commitTraceInstructions.front());
 				if(committedTraceCounter == commitTraceInstructions.front()){
 					updatePrivPerfEst(true);
 					commitTraceInstructions.erase(commitTraceInstructions.begin());
 				}
+			}
+			else{
+				if(committedTraceCounter == commitTraceFrequency){
+					updatePrivPerfEst(true);
+					committedTraceCounter = 0;
+				}
+				assert(committedTraceCounter <= commitTraceFrequency);
 			}
 		}
 	}
@@ -1058,7 +1058,7 @@ FullCPU::updatePrivPerfEst(bool instSampling){
 			ticksInSample);
 
 	if(instSampling){
-		if(commitTraceInstructions.empty()) assert(instsInSample == commitTraceFrequency);
+		if(!useInstsForCommitTrace) assert(instsInSample == commitTraceFrequency);
 	}
 	else{
 		overlapEstimator->prepareClockCycleSample();
