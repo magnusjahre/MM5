@@ -972,7 +972,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		if(commitTraceEnabled){
 			committedTraceCounter++;
 			if(useInstsForCommitTrace){
-				assert(lastDumpCommit < commitTraceInstructions.front());
+				if(!commitTraceInstructions.empty()) assert(lastDumpCommit < commitTraceInstructions.front());
 				if(committedTraceCounter == commitTraceInstructions.front()){
 					updatePrivPerfEst(true);
 					commitTraceInstructions.erase(commitTraceInstructions.begin());
