@@ -609,7 +609,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs, period);
 
 	for(int i=0;i<fullCPUs.size();i++){
-		fullCPUs[i]->updatePrivPerfEst(false);
+		if(!fullCPUs[i]->getCommitTraceEnabled()) fullCPUs[i]->updatePrivPerfEst(false);
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
 		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
 		cpuStallAccumulator[i] = 0;

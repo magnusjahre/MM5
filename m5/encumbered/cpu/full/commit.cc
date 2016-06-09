@@ -1043,6 +1043,11 @@ FullCPU::disableCommitTrace(){
 	commitTraceEnabled = false;
 }
 
+bool
+FullCPU::getCommitTraceEnabled(){
+	return commitTraceEnabled;
+}
+
 void
 FullCPU::updatePrivPerfEst(bool instSampling){
 	int thread = 0; //Multithreading is not supported (assertion in commit loop)

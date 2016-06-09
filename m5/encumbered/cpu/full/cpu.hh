@@ -1048,6 +1048,7 @@ public:
 			void updateITCACommitStalled(bool stalled);
 			void updateITCAEmptyROB(bool stalled);
 			void disableCommitTrace();
+			bool getCommitTraceEnabled();
 
 
 			//----------------------------------------------------------------------
