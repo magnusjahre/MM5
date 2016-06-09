@@ -48,6 +48,38 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	// TODO: Just trace values for now
+
+	DPRINTF(MissBWPolicy, "Running performance-based cache partitioning policy\n");
+	dumpMissCurves(measurements);
+
+	for(int i=0;i<aloneIPCEstimates.size();i++){
+		cout << "CPU" << i << ": " << aloneIPCEstimates[i] << "\n";
+	}
+
+	for(int i=0;i<sharedCPLMeasurements.size();i++){
+		cout << "CPU" << i << ": " << sharedCPLMeasurements[i] << "\n";
+	}
+
+	// sharedNonLoadCycles gives the non-shared-memory CPL component
+    // sharedLoadStallCycles can be used for verification of the shared-memory CPL component
+
+	vector<double> preLLCAvgLatencies = measurements.getPreLLCAvgLatencies();
+	for(int i=0;i<preLLCAvgLatencies.size();i++){
+		cout << "CPU" << i << ": " << preLLCAvgLatencies[i] << "\n";
+	}
+
+	fatal("stop here for now");
+}
+
+void
+EqualizeSlowdownPolicy::dumpMissCurves(PerformanceMeasurement measurements){
+	for(int i=0;i<measurements.perCoreCacheMeasurements.size();i++){
+		cout << "CPU " << i;
+		for(int j=0;j<measurements.perCoreCacheMeasurements[i].privateCumulativeCacheMisses.size();j++){
+			cout << ";" << measurements.perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j];
+		}
+		cout << "\n";
+	}
 }
 
 bool

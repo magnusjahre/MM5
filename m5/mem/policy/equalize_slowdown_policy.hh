@@ -15,6 +15,8 @@ class EqualizeSlowdownPolicy : public BasePolicy{
 
 private:
 
+	void dumpMissCurves(PerformanceMeasurement measurements);
+
 public:
 	EqualizeSlowdownPolicy(std::string _name,
 			               InterferenceManager* _intManager,

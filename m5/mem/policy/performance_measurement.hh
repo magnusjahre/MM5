@@ -142,6 +142,8 @@ public:
 		return uncontrollableMissRequestRate;
 	}
 
+	std::vector<double> getPreLLCAvgLatencies();
+
 private:
 	void updateAlpha(int cpuID);
 

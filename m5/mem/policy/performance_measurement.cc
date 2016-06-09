@@ -91,6 +91,28 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 	}
 }
 
+std::vector<double>
+PerformanceMeasurement::getPreLLCAvgLatencies(){
+	vector<double> latencies = vector<double>();
+
+	warn("Private memory system latencies are not accounted for in the latency breakdown");
+
+	for(int i=0;i<cpuCount;i++){
+
+		double tmplat = latencyBreakdown[i][InterferenceManager::InterconnectEntry] +
+						latencyBreakdown[i][InterferenceManager::InterconnectRequestQueue] +
+						latencyBreakdown[i][InterferenceManager::InterconnectRequestTransfer] +
+						latencyBreakdown[i][InterferenceManager::InterconnectResponseQueue] +
+						latencyBreakdown[i][InterferenceManager::InterconnectResponseTransfer] +
+						latencyBreakdown[i][InterferenceManager::InterconnectDelivery]+
+						latencyBreakdown[i][InterferenceManager::CacheCapacity];
+
+		latencies.push_back(tmplat);
+
+	}
+	return latencies;
+}
+
 vector<string>
 PerformanceMeasurement::getTraceHeader(){
 	vector<string> header;

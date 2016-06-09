@@ -74,6 +74,10 @@ BasePolicy::BasePolicy(string _name,
 	aloneCycles.resize(_cpuCount, 0.0);
 	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
 
+	sharedCPLMeasurements.resize(_cpuCount, 0.0);
+	sharedNonLoadCycles.resize(_cpuCount, 0.0);
+	sharedLoadStallCycles.resize(_cpuCount, 0.0);
+
 	currentMeasurements = NULL;
 
 	mostRecentMWSEstimate.resize(cpuCount, vector<double>());
@@ -1033,6 +1037,18 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
 		data.push_back(ols.itcaAccountedCycles.accountedCycles);
+
+		// Update values needed for cache partitioning policy
+		aloneIPCEstimates[cpuID] = aloneIPCEstimate;
+		sharedCPLMeasurements[cpuID] = ols.tableCPL;
+		sharedNonLoadCycles[cpuID] = cyclesInSample-stallCycles;
+		sharedLoadStallCycles[cpuID] = stallCycles;
+		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f\n",
+				cpuID,
+				aloneIPCEstimates[cpuID],
+				sharedCPLMeasurements[cpuID],
+				sharedNonLoadCycles[cpuID],
+				sharedLoadStallCycles[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;
