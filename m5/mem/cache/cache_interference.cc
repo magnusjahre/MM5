@@ -100,6 +100,8 @@ CacheInterference::CacheInterference(std::string _name,
 	overlapAccumulator.resize(cpuCount, 0.0);
 	overlapCycles.resize(cpuCount, 0);
 
+	cachePartitioningEnabled = false;
+
 	srand(240000);
 }
 
@@ -663,7 +665,7 @@ CacheInterference::getMissMeasurementSample(){
 		vector<int> hits = shadowTags[i]->getHitDistribution();
 		vector<int> cumulativeMisses = vector<int>(hits.size(), 0);
 		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
-		shadowTags[i]->resetHitCounters();
+		if(!cachePartitioningEnabled) shadowTags[i]->resetHitCounters();
 
 		CacheMissMeasurements tmp(readMissAccumulator[i],
 							      wbMissAccumulator[i],

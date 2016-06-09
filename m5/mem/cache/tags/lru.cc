@@ -563,6 +563,8 @@ LRU::perCoreOccupancy(){
 
 void
 LRU::resetHitCounters(){
+	DPRINTF(CachePartitioning, "Resetting shadow tag hit counters for ID %d\n", shadowID);
+	DPRINTF(MissBWPolicy, "Resetting shadow tag hit counters for ID %d\n", shadowID);
 	leaderSetAccesses = 0;
 	for(int j=0;j<assoc;j++){
 		leaderSetHitDistribution[j] = 0;

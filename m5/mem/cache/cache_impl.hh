@@ -115,6 +115,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     if(params.partitioning != NULL){
     	assert(isShared);
     	params.partitioning->registerCache(this, bankID);
+    	cacheInterference->setCachePartitioningEnabled();
     }
 
     if(params.isShared){
