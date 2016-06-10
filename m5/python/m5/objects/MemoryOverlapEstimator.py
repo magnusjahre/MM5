@@ -17,4 +17,5 @@ class MemoryOverlapEstimator(SimObject):
     cpl_table_size = Param.Int("The size of the CPL table")
     itca = Param.ITCA("A pointer to the class implementing the ITCA accounting scheme")
     bois_stall_trace_enabled = Param.Bool("Trace all Du Bois stall data (warning: will create large files)")
+    graph_cpl_enabled = Param.Bool("Analyse the complete dependency graph (warning: significant memory and performance overhead)")
     
