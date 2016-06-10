@@ -25,7 +25,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 		                                       int _traceSampleID,
 		                                       int _cplTableBufferSize,
 		                                       ITCA* _itca,
-		                                       bool _boisTraceEnabled)
+		                                       bool _boisTraceEnabled,
+											   bool _graphCPLEnabled)
 : BaseHier(name, params){
 	isStalled = false;
 	stalledAt = 0;
@@ -34,6 +35,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	cacheBlockedCycles = 0;
 
 	stallIdentifyAlg = _ident;
+
+	graphCPLEnabled = _graphCPLEnabled;
 
 	nextReqID = 0;
 	reqNodeID = 0;
@@ -72,10 +75,17 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	computeWhilePendingReqs = 0;
 	computeWhilePendingTotalAccumulator = 0;
 
-	pendingComputeNode = new ComputeNode(0, 0);
-	lastComputeNode = NULL;
-	nextComputeNodeID = 1;
-	root = pendingComputeNode;
+	if(_graphCPLEnabled){
+		pendingComputeNode = new ComputeNode(0, 0);
+		lastComputeNode = NULL;
+		nextComputeNodeID = 1;
+		root = pendingComputeNode;
+	}
+	else{
+		pendingComputeNode = NULL;
+		lastComputeNode = NULL;
+		root = NULL;
+	}
 
 	overlapTable = _overlapTable;
 	doGraphAnalysis = _graphAnalysisEnabled;
@@ -463,15 +473,17 @@ MemoryOverlapEstimator::sampleCPU(int committedInstructions){
 			ols.cptMeasurements.averageCPCWP(),
 			ols.cptMeasurements.criticalPathRequests);
 
-	int error = abs(ols.graphCPL - ols.tableCPL);
-	cpl_table_error.sample(error);
-	if(error > CPL_TABLE_OVERFLOW_VALUE){
-		warn("CPL overflow at %d, table %d, graph %d, sample number %d, committed instructions %d",
-				curTick,
-				ols.tableCPL,
-				ols.graphCPL,
-				sampleID,
-				committedInstructions);
+	if(graphCPLEnabled){
+		int error = abs(ols.graphCPL - ols.tableCPL);
+		cpl_table_error.sample(error);
+		if(error > CPL_TABLE_OVERFLOW_VALUE){
+			warn("CPL overflow at %d, table %d, graph %d, sample number %d, committed instructions %d",
+					curTick,
+					ols.tableCPL,
+					ols.graphCPL,
+					sampleID,
+					committedInstructions);
+		}
 	}
 
 	sampleID++;
@@ -775,6 +787,12 @@ MemoryOverlapEstimator::findComputeBurstOverlap(){
 OverlapStatistics
 MemoryOverlapEstimator::gatherParaMeasurements(int committedInsts){
 	OverlapStatistics ols = OverlapStatistics();
+	if(!graphCPLEnabled){
+		DPRINTF(OverlapEstimatorGraph, "Skipping graph analysis\n");
+		assert(completedComputeNodes.empty());
+		assert(completedRequestNodes.empty());
+		return ols;
+	}
 
 	DPRINTF(OverlapEstimatorGraph, "Processing parallelism measurements with %d computes and %d requests\n",
 			completedComputeNodes.size(),
@@ -1262,10 +1280,12 @@ MemoryOverlapEstimator::stalledForMemory(Addr stalledOnCoreAddr){
 
 	itca->setROBHeadAddr(stalledOnCoreAddr);
 
-	assert(pendingComputeNode != NULL);
-	pendingComputeNode->finishedAt = curTick;
-	lastComputeNode = pendingComputeNode;
-	pendingComputeNode = NULL;
+	if(graphCPLEnabled){
+		assert(pendingComputeNode != NULL);
+		pendingComputeNode->finishedAt = curTick;
+		lastComputeNode = pendingComputeNode;
+		pendingComputeNode = NULL;
+	}
 
 	stalledOnAddr = relocateAddrForCPU(cpuID, stalledOnCoreAddr, cpuCount);
 	//overlapTable->executionStalled();
@@ -1400,7 +1420,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 				else sharedCacheHits++;
 				sharedLatency += completedRequests.front()->latency();
 
-				completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), innerCausedStall));
+				if(graphCPLEnabled) completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), innerCausedStall));
 			}
 			else{
 				if(completedRequests.front()->address == stalledOnAddr){
@@ -1412,7 +1432,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		}
 		else{
 			assert(completedRequests.front()->isStore());
-			if(completedRequests.front()->isSharedReq){
+			if(completedRequests.front()->isSharedReq && graphCPLEnabled){
 				completedSharedReqs.push_back(buildRequestNode(completedRequests.front(), false));
 				traceSharedRequest(completedRequests.front(), 0, 0);
 			}
@@ -1466,7 +1486,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	assert(stallLength == boisAccounted + boisNotAccounted);
 	traceBoisStall(stalledOnAddr, stallLength, currentStallFullROB, boisAccounted, boisInterference, stalledOnShared);
 
-	processCompletedRequests(stalledOnShared, completedSharedReqs);
+	if(graphCPLEnabled) processCompletedRequests(stalledOnShared, completedSharedReqs);
 
 	Tick reportStall = stallLength;
 	Tick blockedStall = 0;
@@ -1944,6 +1964,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	Param<int> cpl_table_size;
 	SimObjectParam<ITCA *> itca;
 	Param<bool> bois_stall_trace_enabled;
+	Param<bool> graph_cpl_enabled;
 END_DECLARE_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
@@ -1957,7 +1978,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 	INIT_PARAM_DFLT(trace_sample_id, "The id of the sample to trace, traces all if -1 (default)", -1),
 	INIT_PARAM_DFLT(cpl_table_size, "The size of the CPL table", 64),
 	INIT_PARAM(itca, "A pointer to the class implementing the ITCA accounting scheme"),
-	INIT_PARAM_DFLT(bois_stall_trace_enabled, "Trace all Du Bois stall data (warning: will create large files)", false)
+	INIT_PARAM_DFLT(bois_stall_trace_enabled, "Trace all Du Bois stall data (warning: will create large files)", false),
+	INIT_PARAM_DFLT(graph_cpl_enabled, "Analyse the complete dependency graph (warning: significant memory and performance overhead)", false)
 END_INIT_SIM_OBJECT_PARAMS(MemoryOverlapEstimator)
 
 CREATE_SIM_OBJECT(MemoryOverlapEstimator)
@@ -1990,7 +2012,8 @@ CREATE_SIM_OBJECT(MemoryOverlapEstimator)
     		                          trace_sample_id,
     		                          cpl_table_size,
     		                          itca,
-    		                          bois_stall_trace_enabled);
+    		                          bois_stall_trace_enabled,
+									  graph_cpl_enabled);
 }
 
 REGISTER_SIM_OBJECT("MemoryOverlapEstimator", MemoryOverlapEstimator)

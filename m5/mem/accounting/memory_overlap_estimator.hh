@@ -445,6 +445,8 @@ private:
 	int sharedCacheMissLoads;
 	int sharedCacheMissStores;
 
+	bool graphCPLEnabled;
+
 protected:
 	Stats::Scalar<> privateStallCycles;
 	Stats::Scalar<> sharedStallCycles;
@@ -554,7 +556,8 @@ public:
 						   int _traceSampleID,
 						   int _cplTableBufferSize,
 						   ITCA* _itca,
-						   bool _boisTraceEnabled);
+						   bool _boisTraceEnabled,
+						   bool _graphCPLEnabled);
 
 	~MemoryOverlapEstimator();
 
