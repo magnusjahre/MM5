@@ -639,6 +639,8 @@ MemoryOverlapEstimator::l1HitDetected(MemReqPtr& req, Tick finishedAt){
 void
 MemoryOverlapEstimator::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 
+	fatal("busWritebackCompleted should not be called");
+
 	EstimationEntry* ee = new EstimationEntry(nextReqID,
 			                                  req->paddr & ~(MOE_CACHE_BLK_SIZE-1),
 			                                  req->writebackGeneratedAt,
