@@ -130,6 +130,7 @@ protected:
 	std::vector<double> sharedLoadStallCycles;
 
 	std::vector<double> privateMemsysAvgLatency;
+	std::vector<double> sharedMemsysAvgLatency;
 
 	std::vector<double> computedOverlap;
 	std::vector<double> lastModelError;

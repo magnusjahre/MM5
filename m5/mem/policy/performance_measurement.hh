@@ -144,6 +144,8 @@ public:
 
 	std::vector<double> getSharedModeIPCs();
 
+	std::vector<double> getSharedModeCPIs();
+
 private:
 	void updateAlpha(int cpuID);
 

@@ -19,7 +19,9 @@ private:
 
 	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
 
-	double getGradientForCPU(PerformanceMeasurement measurements, int cpuID);
+	//double getGradientForCPU(PerformanceMeasurement measurements, int cpuID);
+
+	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b);
 
 public:
 	EqualizeSlowdownPolicy(std::string _name,

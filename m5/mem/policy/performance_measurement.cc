@@ -122,6 +122,15 @@ PerformanceMeasurement::getSharedModeIPCs(){
 	return ipcs;
 }
 
+std::vector<double>
+PerformanceMeasurement::getSharedModeCPIs(){
+	vector<double> ipcs = getSharedModeIPCs();
+	for(int i=0;i<ipcs.size();i++){
+		ipcs[i] = 1.0 / ipcs[i];
+	}
+	return ipcs;
+}
+
 vector<string>
 PerformanceMeasurement::getTraceHeader(){
 	vector<string> header;

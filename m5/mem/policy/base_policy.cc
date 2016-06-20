@@ -78,6 +78,7 @@ BasePolicy::BasePolicy(string _name,
 	sharedNonSharedLoadCycles.resize(_cpuCount, 0.0);
 	sharedLoadStallCycles.resize(_cpuCount, 0.0);
 	privateMemsysAvgLatency.resize(_cpuCount, 0.0);
+	sharedMemsysAvgLatency.resize(_cpuCount, 0.0);
 
 	currentMeasurements = NULL;
 
@@ -1045,13 +1046,17 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		sharedNonSharedLoadCycles[cpuID] = cyclesInSample-stallCycles;
 		sharedLoadStallCycles[cpuID] = stallCycles;
 		privateMemsysAvgLatency[cpuID] = avgPrivateMemsysLat;
-		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f, avg private memsys latency %f\n",
+		sharedMemsysAvgLatency[cpuID] = avgSharedLat;
+
+
+		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f, avg private memsys latency %f, avg shared memsys latency %f\n",
 				cpuID,
 				aloneIPCEstimates[cpuID],
 				sharedCPLMeasurements[cpuID],
 				sharedNonSharedLoadCycles[cpuID],
 				sharedLoadStallCycles[cpuID],
-				privateMemsysAvgLatency[cpuID]);
+				privateMemsysAvgLatency[cpuID],
+				sharedMemsysAvgLatency[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;

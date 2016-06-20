@@ -77,9 +77,59 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 }
 
 double
-EqualizeSlowdownPolicy::getGradientForCPU(PerformanceMeasurement measurements, int cpuID){
-	return 0.0;
+EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b){
+	vector<double> measuredCPIs = measurement.getSharedModeCPIs();
+	double llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
+	double sharedMemsysCPIcomp = measuredCPIs[cpuID] - b;
+
+	if(llcMisses == 0){
+		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because there no LLC misses\n", cpuID);
+		return 0.0;
+	}
+
+	double gradient = sharedMemsysCPIcomp / llcMisses;
+
+	DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %f\n",
+			cpuID,
+			gradient,
+			measuredCPIs[cpuID],
+			b,
+			llcMisses);
+
+	return gradient;
 }
+
+//double
+//EqualizeSlowdownPolicy::getGradientForCPU(PerformanceMeasurement measurements, int cpuID){
+//	if(measurements.requestsInSample[cpuID] == 0){
+//		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because there are 0 shared requests\n", cpuID);
+//		return 0.0;
+//	}
+//
+//	//FIXME: This value implicitly contains the current miss rate, needs to be accounted for
+//	vector<double> sharedPreLLCAvgLatencies = measurements.getSharedPreLLCAvgLatencies();
+//	double avgPostLLCLatency = sharedMemsysAvgLatency[cpuID] - sharedPreLLCAvgLatencies[cpuID];
+//	assert(avgPostLLCLatency >= 0);
+//
+//	DPRINTF(MissBWPolicy, "Gradient for CPU %d: Post LLC avg latency %f from shared memsys avg latency %f and pre LLC avg latency %f for %d requests\n",
+//			cpuID,
+//			avgPostLLCLatency,
+//			sharedMemsysAvgLatency[cpuID],
+//			sharedPreLLCAvgLatencies[cpuID],
+//			measurements.requestsInSample[cpuID]);
+//
+//	assert(measurements.committedInstructions[cpuID] > 0);
+//	double gradient = (sharedCPLMeasurements[cpuID] * avgPostLLCLatency) / ((double)measurements.requestsInSample[cpuID] * (double) measurements.committedInstructions[cpuID]);
+//
+//	DPRINTF(MissBWPolicy, "Gradient for CPU %d is %f using cpl %f, requests %d and committed instructions %d\n",
+//			cpuID,
+//			gradient,
+//			sharedCPLMeasurements[cpuID],
+//			measurements.requestsInSample[cpuID],
+//			measurements.committedInstructions[cpuID]);
+//
+//	return gradient;
+//}
 
 void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
@@ -91,8 +141,13 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 		constBs[i] = getConstBForCPU(measurements, i);
 	}
 
+	vector<double> gradients(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++){
+		gradients[i] = computeGradientForCPU(measurements, i, constBs[i]);
+		DPRINTF(MissBWPolicy, "CPU %d: CPI(m) = %f * m + %f\n", i, gradients[i], constBs[i]);
+	}
 
-	//dumpMissCurves(measurements);
+	dumpMissCurves(measurements);
 
 	/*vector<double> sharedModeIPCs = measurements.getSharedModeIPCs();
 	for(int i=0;i<aloneIPCEstimates.size();i++){
