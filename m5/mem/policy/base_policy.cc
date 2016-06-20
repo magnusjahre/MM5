@@ -75,8 +75,9 @@ BasePolicy::BasePolicy(string _name,
 	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
 
 	sharedCPLMeasurements.resize(_cpuCount, 0.0);
-	sharedNonLoadCycles.resize(_cpuCount, 0.0);
+	sharedNonSharedLoadCycles.resize(_cpuCount, 0.0);
 	sharedLoadStallCycles.resize(_cpuCount, 0.0);
+	privateMemsysAvgLatency.resize(_cpuCount, 0.0);
 
 	currentMeasurements = NULL;
 
@@ -197,7 +198,7 @@ BasePolicy::handleTraceEvent(){
 	traceAloneIPC(curMeasurement.requestsInSample,
 			      measuredIPC,
 			      curMeasurement.committedInstructions,
-			      curMeasurement.cpuStallCycles,
+			      curMeasurement.cpuSharedStallCycles,
 			      curMeasurement.sharedLatencies,
 			      curMeasurement.avgMissesWhileStalled);
 }
@@ -925,28 +926,28 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 
 void
 BasePolicy::updatePrivPerfEst(int cpuID,
-		                                double avgSharedLat,
-		                                double avgPrivateLatEstimate,
-		                                int reqs,
-		                                int stallCycles,
-		                                int cyclesInSample,
-		                                int committedInsts,
-					                    int commitCycles,
-					                    Tick privateStallCycles,
-					                    double avgPrivateMemsysLat,
-					                    Tick writeStall,
-					                    int hiddenLoads,
-					                    Tick memoryIndependentStallCycles,
-					                    OverlapStatistics ols,
-					                    double privateMissRate,
-					                    double cwp,
-					                    double privateBlockedStall,
-					                    double avgSharedStoreLat,
-					                    double avgPrivmodeStoreLat,
-					                    double numStores,
-					                    int numWriteStalls,
-					                    int emptyROBStallCycles,
-					                    Tick boisAloneStallEst){
+		                      double avgSharedLat,
+							  double avgPrivateLatEstimate,
+							  int reqs,
+							  int stallCycles,
+							  int cyclesInSample,
+							  int committedInsts,
+							  int commitCycles,
+							  Tick privateStallCycles,
+							  double avgPrivateMemsysLat,
+							  Tick writeStall,
+							  int hiddenLoads,
+							  Tick memoryIndependentStallCycles,
+							  OverlapStatistics ols,
+							  double privateMissRate,
+							  double cwp,
+							  double privateBlockedStall,
+							  double avgSharedStoreLat,
+							  double avgPrivmodeStoreLat,
+							  double numStores,
+							  int numWriteStalls,
+							  int emptyROBStallCycles,
+							  Tick boisAloneStallEst){
 
 	vector<RequestTraceEntry> data;
 
@@ -1041,14 +1042,16 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		// Update values needed for cache partitioning policy
 		aloneIPCEstimates[cpuID] = aloneIPCEstimate;
 		sharedCPLMeasurements[cpuID] = ols.tableCPL;
-		sharedNonLoadCycles[cpuID] = cyclesInSample-stallCycles;
+		sharedNonSharedLoadCycles[cpuID] = cyclesInSample-stallCycles;
 		sharedLoadStallCycles[cpuID] = stallCycles;
-		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f\n",
+		privateMemsysAvgLatency[cpuID] = avgPrivateMemsysLat;
+		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f, avg private memsys latency %f\n",
 				cpuID,
 				aloneIPCEstimates[cpuID],
 				sharedCPLMeasurements[cpuID],
-				sharedNonLoadCycles[cpuID],
-				sharedLoadStallCycles[cpuID]);
+				sharedNonSharedLoadCycles[cpuID],
+				sharedLoadStallCycles[cpuID],
+				privateMemsysAvgLatency[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;

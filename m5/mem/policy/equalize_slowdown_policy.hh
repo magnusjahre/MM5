@@ -17,6 +17,10 @@ private:
 
 	void dumpMissCurves(PerformanceMeasurement measurements);
 
+	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
+
+	double getGradientForCPU(PerformanceMeasurement measurements, int cpuID);
+
 public:
 	EqualizeSlowdownPolicy(std::string _name,
 			               InterferenceManager* _intManager,

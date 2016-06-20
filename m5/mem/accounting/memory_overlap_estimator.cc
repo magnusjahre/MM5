@@ -1781,7 +1781,7 @@ void
 MemoryOverlapEstimator::addPrivateLatency(MemReqPtr& req, int latency){
 	if(interferenceManager->checkForStore(req)) return;
 	if(req->instructionMiss) return;
-	interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, latency);
+	interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityRequest, req, latency);
 }
 
 void
@@ -1792,7 +1792,7 @@ MemoryOverlapEstimator::addL1Access(MemReqPtr& req, int latency, bool hit){
 		interferenceManager->addL1Hit(req->adaptiveMHASenderID, latency);
 	}
 	else{
-		interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, latency);
+		interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityRequest, req, latency);
 	}
 }
 

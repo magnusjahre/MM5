@@ -126,8 +126,10 @@ protected:
 	std::vector<double> avgLatencyAloneIPCModel;
 
 	std::vector<double> sharedCPLMeasurements;
-	std::vector<double> sharedNonLoadCycles;
+	std::vector<double> sharedNonSharedLoadCycles;
 	std::vector<double> sharedLoadStallCycles;
+
+	std::vector<double> privateMemsysAvgLatency;
 
 	std::vector<double> computedOverlap;
 	std::vector<double> lastModelError;

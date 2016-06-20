@@ -127,7 +127,7 @@ private:
 
 	std::vector<RequestTrace> aloneMissTrace;
 
-	std::vector<Tick> cpuStallAccumulator;
+	std::vector<Tick> cpuSharedStallAccumulator;
 	std::vector<Tick> cpuComTraceStallCycles;
 
 	std::vector<Tick> cpuComTraceTotalRoundtrip;
@@ -146,7 +146,8 @@ public:
 			InterconnectResponseQueue,
 			InterconnectResponseTransfer,
 			InterconnectDelivery,
-			CacheCapacity,
+			CacheCapacityRequest,
+			CacheCapacityResponse,
 			MemoryBusEntry,
 			MemoryBusQueue,
 			MemoryBusService,

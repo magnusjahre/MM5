@@ -13,7 +13,8 @@ InterferenceManager::latencyStrings[NUM_LAT_TYPES] = {
 	(char*) "ic_response_queue",
 	(char*) "ic_response_transfer",
 	(char*) "ic_delivery",
-	(char*) "cache_capacity",
+	(char*) "cache_capacity_request",
+	(char*) "cache_capacity_response",
 	(char*) "bus_entry",
 	(char*) "bus_queue",
 	(char*) "bus_service"
@@ -145,7 +146,7 @@ InterferenceManager::InterferenceManager(std::string _name,
 		privateLatencyTraces[i].initalizeTrace(privateLatencyHeaders);
 	}
 
-	cpuStallAccumulator.resize(_cpu_count, 0);
+	cpuSharedStallAccumulator.resize(_cpu_count, 0);
 	cpuComTraceStallCycles.resize(_cpu_count, 0);
 //	cpuStalledAt.resize(_cpu_count, 0);
 //	cpuIsStalled.resize(_cpu_count, false);
@@ -168,13 +169,11 @@ InterferenceManager::InterferenceManager(std::string _name,
 
 void
 InterferenceManager::addCommitCycle(int cpuID){
-	//FIXME: use these estimates in policy decisions as well
 	commitTraceCommitCycles[cpuID]++;
 }
 
 void
 InterferenceManager::addMemIndependentStallCycle(int cpuID){
-	//FIXME: use these estimates in policy decisions as well
 	commitTraceMemIndStall[cpuID]++;
 }
 
@@ -262,7 +261,8 @@ InterferenceManager::regStats(){
 			       latencies[InterconnectResponseQueue] +
 			       latencies[InterconnectResponseTransfer] +
 			       latencies[InterconnectDelivery] +
-			       latencies[CacheCapacity];
+			       latencies[CacheCapacityRequest] +
+				   latencies[CacheCapacityResponse];
 
 	busLatency
 		.name(name() + ".bus_latency")
@@ -609,10 +609,11 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs, period);
 
 	for(int i=0;i<fullCPUs.size();i++){
+		cout << curTick << ": accessing cpu "<< i << "\n";
 		if(!fullCPUs[i]->getCommitTraceEnabled()) fullCPUs[i]->updatePrivPerfEst(false);
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
-		currentMeasurement.cpuStallCycles[i] = cpuStallAccumulator[i];
-		cpuStallAccumulator[i] = 0;
+		currentMeasurement.cpuSharedStallCycles[i] = cpuSharedStallAccumulator[i];
+		cpuSharedStallAccumulator[i] = 0;
 	}
 
 	for(int i=0;i<lastPrivateCaches.size();i++){
@@ -730,7 +731,7 @@ InterferenceManager::checkForStore(MemReqPtr& req){
 void
 InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared, bool incrementNumStalls, Tick writeStall, Tick blockedStall, Tick emptyROBStall){
 	if(isShared){
-		cpuStallAccumulator[cpuID] += cpuStalledFor;
+		cpuSharedStallAccumulator[cpuID] += cpuStalledFor;
 		cpuComTraceStallCycles[cpuID] += cpuStalledFor;
 		cpuStallCycles[cpuID] += cpuStalledFor;
 		if(incrementNumStalls) numCpuStalls[cpuID]++;
@@ -795,7 +796,7 @@ InterferenceManager::tracePrivateLatency(int fromCPU, int committedInstructions)
 	data.push_back((double) privateLatencyBreakdownAccumulator[fromCPU][InterconnectEntry] / (double)privateRequests[fromCPU]);
 	data.push_back((double) (privateLatencyBreakdownAccumulator[fromCPU][InterconnectRequestQueue] + privateLatencyBreakdownAccumulator[fromCPU][InterconnectResponseQueue]) / (double) privateRequests[fromCPU]);
 	data.push_back((double) (privateLatencyBreakdownAccumulator[fromCPU][InterconnectRequestTransfer] + privateLatencyBreakdownAccumulator[fromCPU][InterconnectResponseTransfer]) / privateRequests[fromCPU]);
-	data.push_back((double) privateLatencyBreakdownAccumulator[fromCPU][CacheCapacity] / (double) privateRequests[fromCPU]);
+	data.push_back((double) privateLatencyBreakdownAccumulator[fromCPU][CacheCapacityRequest] / (double) privateRequests[fromCPU]);
 
 	privateLatencyTraces[fromCPU].addTrace(data);
 

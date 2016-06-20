@@ -371,8 +371,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	if(req->cmd == Read){
 		if(interferenceManager != NULL){
-			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
-			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacityRequest, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityRequest, req, hitLatency);
 		}
 		if(overlapEstimator != NULL && !isReadOnly){
 			//TODO: may want to handle MSHR hits explicitly
@@ -566,8 +566,8 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 	if(req->cmd == Read){
 		if(interferenceManager != NULL){
-			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
-			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacityResponse, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityResponse, req, hitLatency);
 		}
 		if(overlapEstimator != NULL && !isReadOnly){
 			overlapEstimator->addPrivateLatency(req, hitLatency);

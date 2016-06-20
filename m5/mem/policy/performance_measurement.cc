@@ -41,8 +41,8 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 
 	busAccessesPerCore.resize(cpuCount, 0);
 	busReadsPerCore.resize(cpuCount, 0);
-
-	cpuStallCycles.resize(cpuCount, 0);
+	
+	cpuSharedStallCycles.resize(cpuCount, 0);
 
 	perCoreCacheMeasurements.resize(cpuCount, CacheMissMeasurements());
 
@@ -76,7 +76,7 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 				privateLatencyBreakdown[i][j] = tmpPrivateBreakdownEstimate / (double) localRequests[i];
 			}
 
-			cacheInterferenceLatency[i] = interferenceBreakdownAccumulator[i][InterferenceManager::CacheCapacity];
+			cacheInterferenceLatency[i] = interferenceBreakdownAccumulator[i][InterferenceManager::CacheCapacityRequest] + interferenceBreakdownAccumulator[i][InterferenceManager::CacheCapacityResponse];
 		}
 		else{
 			sharedLatencies[i] = 0;
@@ -92,10 +92,8 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 }
 
 std::vector<double>
-PerformanceMeasurement::getPreLLCAvgLatencies(){
+PerformanceMeasurement::getSharedPreLLCAvgLatencies(){
 	vector<double> latencies = vector<double>();
-
-	warn("Private memory system latencies are not accounted for in the latency breakdown");
 
 	for(int i=0;i<cpuCount;i++){
 
@@ -105,12 +103,23 @@ PerformanceMeasurement::getPreLLCAvgLatencies(){
 						latencyBreakdown[i][InterferenceManager::InterconnectResponseQueue] +
 						latencyBreakdown[i][InterferenceManager::InterconnectResponseTransfer] +
 						latencyBreakdown[i][InterferenceManager::InterconnectDelivery]+
-						latencyBreakdown[i][InterferenceManager::CacheCapacity];
+						latencyBreakdown[i][InterferenceManager::CacheCapacityRequest];
 
 		latencies.push_back(tmplat);
 
 	}
 	return latencies;
+}
+
+std::vector<double>
+PerformanceMeasurement::getSharedModeIPCs(){
+	vector<double> ipcs = vector<double>();
+
+	assert(period > 0);
+	for(int i=0;i<cpuCount;i++){
+		ipcs.push_back((double) ((double) committedInstructions[i] / (double) period));
+	}
+	return ipcs;
 }
 
 vector<string>
@@ -218,7 +227,7 @@ PerformanceMeasurement::createTraceLine(){
 	for(int i=0;i<cpuCount;i++) line.push_back(responsesWhileStalled[i]);
 
 	for(int i=0;i<cpuCount;i++){
-		line.push_back(cpuStallCycles[i]);
+		line.push_back(cpuSharedStallCycles[i]);
 	}
 
 	for(int i=0;i<cpuCount;i++){
@@ -259,8 +268,8 @@ PerformanceMeasurement::createTraceLine(){
 
 double
 PerformanceMeasurement::getNonStallCycles(int cpuID, int period){
-	assert(period >= cpuStallCycles[cpuID]);
-	return period - cpuStallCycles[cpuID];
+	assert(period >= cpuSharedStallCycles[cpuID]);
+	return period - cpuSharedStallCycles[cpuID];
 }
 
 void
@@ -377,7 +386,7 @@ PerformanceMeasurement::updateBeta(int cpuID){
 	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectResponseQueue];
 	ic += latencyBreakdown[cpuID][InterferenceManager::InterconnectResponseTransfer];
 
-	double cache = latencyBreakdown[cpuID][InterferenceManager::CacheCapacity];
+	double cache = latencyBreakdown[cpuID][InterferenceManager::CacheCapacityRequest] + latencyBreakdown[cpuID][InterferenceManager::CacheCapacityResponse];
 
 	double compute = getNonStallCycles(cpuID, period);
 

@@ -441,7 +441,7 @@ CacheInterference::computeCacheCapacityInterference(MemReqPtr& req, BaseCache* c
 		numExtraResponses[req->adaptiveMHASenderID]++;
 
 		assert(cache->interferenceManager != NULL);
-		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacity, req, extraDelay);
+		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacityResponse, req, extraDelay);
 	}
 }
 

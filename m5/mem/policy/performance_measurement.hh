@@ -79,7 +79,7 @@ public:
 	std::vector<int> requestsInSample;
 	std::vector<int> responsesWhileStalled;
 
-	std::vector<int> cpuStallCycles;
+	std::vector<int> cpuSharedStallCycles;
 
 	std::vector<std::vector<double> > mlpEstimate;
 	std::vector<std::vector<double> > avgMissesWhileStalled;
@@ -124,8 +124,6 @@ public:
 
 	double getNonStallCycles(int cpuID, int period);
 
-
-
 	int getPeriod(){
 		return period;
 	}
@@ -142,7 +140,9 @@ public:
 		return uncontrollableMissRequestRate;
 	}
 
-	std::vector<double> getPreLLCAvgLatencies();
+	std::vector<double> getSharedPreLLCAvgLatencies();
+
+	std::vector<double> getSharedModeIPCs();
 
 private:
 	void updateAlpha(int cpuID);

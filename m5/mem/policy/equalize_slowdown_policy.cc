@@ -43,17 +43,60 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	if(_cpuCount != 1){
 		_intManager->disableCommitSampling();
 	}
+
+}
+
+double
+EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int cpuID){
+	// cpuSharedStallCycles contain the shared stall cycles. Thus, subtracting this from the period
+	// gives the sum of compute cycles, memory independent stalls and other stalls (empty ROB, blocked
+	// private memory system and blocked store queue).
+	double nonSharedCycles = sharedNonSharedLoadCycles[cpuID];
+	vector<double> sharedPreLLCAvgLatencies = measurements.getSharedPreLLCAvgLatencies();
+	double preLLCAvgLat = sharedPreLLCAvgLatencies[cpuID] + privateMemsysAvgLatency[cpuID];
+	double cpl = sharedCPLMeasurements[cpuID];
+
+	DPRINTF(MissBWPolicy, "Constant b for CPU %d: non stall cycles %f, pre LLC avg latency %f and private memsys %f (total %f), cpl %f\n",
+			cpuID,
+			nonSharedCycles,
+			sharedPreLLCAvgLatencies[cpuID],
+			privateMemsysAvgLatency[cpuID],
+			preLLCAvgLat,
+			cpl);
+
+	double cyclesInfLLC = nonSharedCycles + (cpl*preLLCAvgLat);
+	double CPIInfLLC = cyclesInfLLC / measurements.committedInstructions[cpuID];
+
+	DPRINTF(MissBWPolicy, "Constant b for CPU %d: cycles inf LLC %f, committed instructions %d, CPI inf LLC %f\n",
+				cpuID,
+				cyclesInfLLC,
+				measurements.committedInstructions[cpuID],
+				CPIInfLLC);
+
+	return CPIInfLLC;
+}
+
+double
+EqualizeSlowdownPolicy::getGradientForCPU(PerformanceMeasurement measurements, int cpuID){
+	return 0.0;
 }
 
 void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
-	// TODO: Just trace values for now
 
 	DPRINTF(MissBWPolicy, "Running performance-based cache partitioning policy\n");
-	dumpMissCurves(measurements);
 
+	vector<double> constBs(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++){
+		constBs[i] = getConstBForCPU(measurements, i);
+	}
+
+
+	//dumpMissCurves(measurements);
+
+	/*vector<double> sharedModeIPCs = measurements.getSharedModeIPCs();
 	for(int i=0;i<aloneIPCEstimates.size();i++){
-		cout << "CPU" << i << ": " << aloneIPCEstimates[i] << "\n";
+		cout << "CPU" << i << ": " << aloneIPCEstimates[i] << " (pm) " << sharedModeIPCs[i] <<" (sm)\n";
 	}
 
 	for(int i=0;i<sharedCPLMeasurements.size();i++){
@@ -65,8 +108,8 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	vector<double> preLLCAvgLatencies = measurements.getPreLLCAvgLatencies();
 	for(int i=0;i<preLLCAvgLatencies.size();i++){
-		cout << "CPU" << i << ": " << preLLCAvgLatencies[i] << "\n";
-	}
+		cout << "CPU" << i << ": " << preLLCAvgLatencies[i] << ", demand reads " << measurements.requestsInSample[i] << "\n";
+	}*/
 
 	fatal("stop here for now");
 }
