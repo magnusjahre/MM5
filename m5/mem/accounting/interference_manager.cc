@@ -609,7 +609,6 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 	PerformanceMeasurement currentMeasurement(np, NUM_LAT_TYPES, maxMSHRs, period);
 
 	for(int i=0;i<fullCPUs.size();i++){
-		cout << curTick << ": accessing cpu "<< i << "\n";
 		if(!fullCPUs[i]->getCommitTraceEnabled()) fullCPUs[i]->updatePrivPerfEst(false);
 		currentMeasurement.committedInstructions[i] = fullCPUs[i]->getCommittedInstructions();
 		currentMeasurement.cpuSharedStallCycles[i] = cpuSharedStallAccumulator[i];
