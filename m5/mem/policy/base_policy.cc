@@ -66,6 +66,7 @@ BasePolicy::BasePolicy(string _name,
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, NULL);
+	maxMSHRs = 0;
 
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
 	cummulativeCommittedInsts.resize(_cpuCount, 0);
