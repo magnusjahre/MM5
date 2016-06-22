@@ -172,11 +172,11 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 void
 EqualizeSlowdownPolicy::dumpMissCurves(PerformanceMeasurement measurements){
 	for(int i=0;i<measurements.perCoreCacheMeasurements.size();i++){
-		cout << "CPU " << i;
+		DPRINTF(MissBWPolicy, "CPU %d Miss Curve", i);
 		for(int j=0;j<measurements.perCoreCacheMeasurements[i].privateCumulativeCacheMisses.size();j++){
-			cout << ";" << measurements.perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j];
+			DPRINTFR(MissBWPolicy, ";%d", measurements.perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j]);
 		}
-		cout << "\n";
+		DPRINTFR(MissBWPolicy, "\n");
 	}
 }
 
