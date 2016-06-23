@@ -276,8 +276,6 @@ public:
 	PerformanceModelMeasurements buildModelMeasurements(int committedInstructions, Tick ticksInSample, OverlapStatistics ols);
 
 	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
-
-	void disableCommitSampling();
 };
 
 #endif

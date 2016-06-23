@@ -594,13 +594,6 @@ InterferenceManager::resetInterferenceMeasurements(int fromCPU){
 	regularMisses[fromCPU] = 0;
 }
 
-void
-InterferenceManager::disableCommitSampling(){
-	for(int i=0;i<fullCPUs.size();i++){
-		fullCPUs[i]->disableCommitTrace();
-	}
-}
-
 PerformanceMeasurement
 InterferenceManager::buildInterferenceMeasurement(int period){
 

@@ -67,6 +67,7 @@ BasePolicy::BasePolicy(string _name,
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, NULL);
 	maxMSHRs = 0;
+	cpus.resize(cpuCount, NULL);
 
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
 	cummulativeCommittedInsts.resize(_cpuCount, 0);
@@ -179,6 +180,19 @@ BasePolicy::registerBus(Bus *_bus){
 void
 BasePolicy::registerSharedCache(BaseCache* _cache){
 	sharedCaches.push_back(_cache);
+}
+
+void
+BasePolicy::registerFullCPU(FullCPU* _cpu, int _cpuID){
+	fatal("not implemented");
+}
+
+void
+BasePolicy::disableCommitSampling(){
+	for(int i=0;i<cpus.size();i++){
+		if(cpus[i] == NULL) fatal("CPU %d has not registered", i);
+		(cpus[i])->disableCommitTrace();
+	}
 }
 
 void

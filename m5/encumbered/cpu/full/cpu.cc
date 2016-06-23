@@ -374,6 +374,7 @@ FullCPU::FullCPU(Params *p,
 		 PipeTrace *_ptrace,
 		 AdaptiveMHA* _amha,
 		 InterferenceManager* _intMan,
+		 BasePolicy* _policy,
 		 int _quitOnCPUID,
 		 MemoryOverlapEstimator* _overlapEst,
 		 int _commitTraceFrequency,
@@ -688,7 +689,10 @@ FullCPU::FullCPU(Params *p,
     committedSinceLast = 0;
 
     _intMan->registerCPU(this, CPUParamsCpuID);
+    cout << curTick << ": constructor of " << name() << "\n";
+    if(_policy != NULL) _policy->registerFullCPU(this, CPUParamsCpuID);
     interferenceManager = _intMan;
+    basePolicy = _policy;
 
 	issueStallMessageCounter = 0;
 	stallMessageIssued = false;
@@ -1251,6 +1255,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<Counter> min_insts_all_cpus;
 
     SimObjectParam<InterferenceManager* > interferenceManager;
+    SimObjectParam<BasePolicy*> basePolicy;
     Param<int> quit_on_cpu_id;
     SimObjectParam<MemoryOverlapEstimator* > overlapEstimator;
     Param<int> commit_trace_frequency;
@@ -1402,6 +1407,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
     INIT_PARAM_DFLT(min_insts_all_cpus, "Number of instructions to dump stats. If all CPUs have reached this inst count, simulation is terminated.", 0),
 
     INIT_PARAM_DFLT(interferenceManager, "interference manager pointer", NULL),
+	INIT_PARAM_DFLT(basePolicy, "base policy pointer", NULL),
     INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1),
     INIT_PARAM_DFLT(overlapEstimator, "overlap estimator pointer", NULL),
     INIT_PARAM_DFLT(commit_trace_frequency, "commit trace frequency in committed instructions", 500000),
@@ -1606,6 +1612,7 @@ CREATE_SIM_OBJECT(FullCPU)
 		      (PipeTrace *)ptrace,
 			  adaptiveMHA,
 			  interferenceManager,
+			  basePolicy,
 			  quit_on_cpu_id,
 			  overlapEstimator,
 			  commit_trace_frequency,

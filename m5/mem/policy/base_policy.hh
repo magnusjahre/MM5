@@ -118,6 +118,7 @@ protected:
 	std::vector<BaseCache* > caches;
 	std::vector<BaseCache* > sharedCaches;
 	std::vector<Bus* > buses;
+	std::vector<FullCPU*> cpus;
 
 	RequestTrace searchTrace;
 
@@ -255,6 +256,8 @@ protected:
 
 	double getHybridAverageError(int cpuID);
 
+	void disableCommitSampling();
+
 public:
 
 	BasePolicy(std::string _name,
@@ -282,6 +285,7 @@ public:
 	void registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs);
 	void registerSharedCache(BaseCache* _cache);
 	void registerBus(Bus* _bus);
+	void registerFullCPU(FullCPU* _cpu, int _cpuID);
 
 	void addTraceEntry(PerformanceMeasurement* measurement);
 
