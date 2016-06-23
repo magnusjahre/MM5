@@ -890,6 +890,7 @@ if 'MODEL-THROTLING-POLICY' in env:
 
 if 'EQUAL-SD-POLICY' in env:
     root.globalPolicy = setUpEqualizeSlowdownPolicy()
+    useMissBWPolicy = True
 
 ###############################################################################
 #  CPUs and L1 caches
