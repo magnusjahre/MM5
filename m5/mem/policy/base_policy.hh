@@ -328,6 +328,8 @@ public:
 	void implementMHA(std::vector<int> bestMHA);
 
 	virtual bool doEvaluation(int cpuID) = 0;
+
+	virtual void init();
 };
 
 class MissBandwidthPolicyEvent : public Event{
@@ -392,6 +394,28 @@ public:
 
 	virtual const char *description() {
 		return "Miss Bandwidth Implement MHA Event";
+	}
+};
+
+class BasePolicyInitEvent : public Event{
+
+private:
+	BasePolicy* policy;
+
+public:
+	BasePolicyInitEvent(BasePolicy* _policy):
+		Event(&mainEventQueue), policy(_policy){
+
+	}
+
+	void process(){
+		policy->init();
+		assert(!scheduled());
+		delete this;
+	}
+
+	virtual const char *description() {
+		return "Base Policy Initialization Event";
 	}
 };
 

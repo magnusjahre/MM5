@@ -40,6 +40,8 @@ public:
 						   double _hybridDecisionError,
 						   int _hybridBufferSize);
 
+	virtual void init();
+
 	virtual void runPolicy(PerformanceMeasurement measurements);
 
 	virtual bool doEvaluation(int cpuID);

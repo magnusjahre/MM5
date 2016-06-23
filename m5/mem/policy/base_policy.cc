@@ -113,6 +113,9 @@ BasePolicy::BasePolicy(string _name,
 	initPerfModelTrace(_cpuCount);
 
 	enableOccupancyTrace = false;
+
+	BasePolicyInitEvent* init = new BasePolicyInitEvent(this);
+	init->schedule(curTick);
 }
 
 BasePolicy::~BasePolicy(){
@@ -120,6 +123,11 @@ BasePolicy::~BasePolicy(){
 		assert(!policyEvent->scheduled());
 		delete policyEvent;
 	}
+}
+
+void
+BasePolicy::init(){
+	// Empty base class init method
 }
 
 void
@@ -184,7 +192,8 @@ BasePolicy::registerSharedCache(BaseCache* _cache){
 
 void
 BasePolicy::registerFullCPU(FullCPU* _cpu, int _cpuID){
-	fatal("not implemented");
+	assert(cpus[_cpuID] == NULL);
+	cpus[_cpuID] = _cpu;
 }
 
 void

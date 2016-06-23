@@ -40,11 +40,15 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 			_hybridDecisionError,
 			_hybridBufferSize){
 
-	cout << curTick << ": constructor of " << name() << "\n";
-	if(_cpuCount != 1){
+
+
+}
+
+void
+EqualizeSlowdownPolicy::init(){
+	if(cpuCount != 1){
 		disableCommitSampling();
 	}
-
 }
 
 double

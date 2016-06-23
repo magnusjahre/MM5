@@ -689,7 +689,6 @@ FullCPU::FullCPU(Params *p,
     committedSinceLast = 0;
 
     _intMan->registerCPU(this, CPUParamsCpuID);
-    cout << curTick << ": constructor of " << name() << "\n";
     if(_policy != NULL) _policy->registerFullCPU(this, CPUParamsCpuID);
     interferenceManager = _intMan;
     basePolicy = _policy;
