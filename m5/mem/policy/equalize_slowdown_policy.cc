@@ -40,6 +40,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 			_hybridDecisionError,
 			_hybridBufferSize){
 
+	bestMetricValue = 0.0;
+	bestAllocation = vector<int>(cpuCount, 0.0);
 
 	optimizationMetric = new STPPolicy(); //TODO: Parameterize
 }
@@ -197,9 +199,9 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	if(cpuCount != 4) fatal("Search method only supports 4 cores");
 
 	vector<int> allocation = vector<int>(cpuCount, 0.0);
-	vector<double> speedups = vector<double>(cpuCount, 0.0);
-	double bestMetricValue = 0.0;
-	vector<int> bestAllocation = vector<int>(cpuCount, 0.0);
+
+	bestMetricValue = 0.0;
+	bestAllocation = vector<int>(cpuCount, 0.0);
 	for(int a1=1;a1<maxWayIndex;a1++){
 		allocation[0] = a1;
 		for(int a2=1;a2<maxWayIndex;a2++){
@@ -209,30 +211,56 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 				for(int a4=1;a4<maxWayIndex;a4++){
 					allocation[3] = a4;
 					if(a1+a2+a3+a4 != 16) continue;
-
-					speedups = computeSpeedups(&measurements, allocation, gradients, constBs);
-					double metricValue = optimizationMetric->computeMetric(&speedups, NULL);
-
-					if(metricValue > bestMetricValue){
-						DPRINTF(MissBWPolicyExtra, "Found new best allocation %d,%d,%d,%d, new metric value %f, old %f\n",
-								a1,a2,a3,a4,
-								bestMetricValue,
-								metricValue);
-
-						bestMetricValue = metricValue;
-						bestAllocation = allocation;
-					}
+					evaluateAllocation(&measurements, allocation, gradients, constBs);
 				}
 			}
 		}
 	}
 
-	DPRINTF(MissBWPolicy, "Found best allocation %d,%d,%d,%d with metric value %f\n", bestAllocation[0], bestAllocation[1], bestAllocation[2], bestAllocation[3], bestMetricValue);
+	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f\n",
+			              getAllocString(bestAllocation).c_str(),
+						  bestMetricValue);
 
 	for(int i=0;i<sharedCaches.size();i++){
 		sharedCaches[i]->setCachePartition(bestAllocation);
 		sharedCaches[i]->enablePartitioning();
 	}
+}
+
+void
+EqualizeSlowdownPolicy::evaluateAllocation(PerformanceMeasurement* measurements,
+		                                   std::vector<int> allocation,
+										   std::vector<double> gradients,
+										   std::vector<double> bs){
+	vector<double> speedups = computeSpeedups(measurements, allocation, gradients, bs);
+	double metricValue = optimizationMetric->computeMetric(&speedups, NULL);
+
+	if(metricValue > bestMetricValue){
+		DPRINTF(MissBWPolicyExtra, "Found new best allocation %swith new metric value %f, old %f\n",
+				getAllocString(allocation).c_str(),
+				bestMetricValue,
+				metricValue);
+
+		bestMetricValue = metricValue;
+		bestAllocation = allocation;
+	}
+}
+
+void
+EqualizeSlowdownPolicy::exhaustiveSearch(PerformanceMeasurement* measurements,
+                                         std::vector<int> allocation,
+										 std::vector<double> gradients,
+										 std::vector<double> bs){
+	fatal("not implemented");
+}
+
+std::string
+EqualizeSlowdownPolicy::getAllocString(std::vector<int> allocation){
+	stringstream retstr;
+	for(int i=0;i<allocation.size();i++){
+		retstr << i << ":" << allocation[i] << " ";
+	}
+	return retstr.str();
 }
 
 void

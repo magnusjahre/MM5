@@ -15,6 +15,8 @@ class EqualizeSlowdownPolicy : public BasePolicy{
 
 private:
 
+	double bestMetricValue;
+	vector<int> bestAllocation;
 	Metric* optimizationMetric;
 
 	void dumpMissCurves(PerformanceMeasurement measurements);
@@ -31,6 +33,18 @@ private:
 			                            std::vector<int> allocation,
 										std::vector<double> gradients,
 										std::vector<double> bs);
+
+	void exhaustiveSearch(PerformanceMeasurement* measurements,
+                          std::vector<int> allocation,
+						  std::vector<double> gradients,
+						  std::vector<double> bs);
+
+	void evaluateAllocation(PerformanceMeasurement* measurements,
+                            std::vector<int> allocation,
+							std::vector<double> gradients,
+							std::vector<double> bs);
+
+	std::string getAllocString(std::vector<int> allocation);
 
 public:
 	EqualizeSlowdownPolicy(std::string _name,
