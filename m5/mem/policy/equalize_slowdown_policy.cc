@@ -41,7 +41,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 			_hybridBufferSize){
 
 
-
+	optimizationMetric = new STPPolicy(); //TODO: Parameterize
 }
 
 void
@@ -136,6 +136,35 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 //	return gradient;
 //}
 
+double
+EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
+	double estimatedCPI = misses * gradient + b;
+	DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f\n", cpuID, misses, gradient, b, estimatedCPI);
+	double estimatedIPC = 1/estimatedCPI;
+	double speedup = estimatedIPC / aloneIPCEstimates[cpuID];
+	DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
+	return speedup;
+}
+
+std::vector<double>
+EqualizeSlowdownPolicy::computeSpeedups(PerformanceMeasurement* measurements,
+		                                std::vector<int> allocation,
+										std::vector<double> gradients,
+										std::vector<double> bs){
+
+	vector<double> speedups = vector<double>(cpuCount, 0.0);
+	assert(allocation.size() == cpuCount);
+	assert(gradients.size() == cpuCount);
+	assert(bs.size() == cpuCount);
+
+	for(int i=0;i<speedups.size();i++){
+		int misses = measurements->perCoreCacheMeasurements[i].privateCumulativeCacheMisses[allocation[i]-1];
+		speedups[i] = computeSpeedup(i, misses, gradients[i], bs[i]);
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup %f with allocation %d (index %d)\n", i, speedups[i], allocation[i], allocation[i]-1);
+	}
+	return speedups;
+}
+
 void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
@@ -153,6 +182,44 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	dumpMissCurves(measurements);
+
+	assert(!measurements.perCoreCacheMeasurements.empty());
+	int maxWayIndex = measurements.perCoreCacheMeasurements[0].privateCumulativeCacheMisses.size();
+
+	if(cpuCount != 4) fatal("Search method only supports 4 cores");
+
+	vector<int> allocation = vector<int>(cpuCount, 0.0);
+	vector<double> speedups = vector<double>(cpuCount, 0.0);
+	double bestMetricValue = 0.0;
+	vector<int> bestAllocation = vector<int>(cpuCount, 0.0);
+	for(int a1=1;a1<maxWayIndex;a1++){
+		allocation[0] = a1;
+		for(int a2=1;a2<maxWayIndex;a2++){
+			allocation[1] = a2;
+			for(int a3=1;a3<maxWayIndex;a3++){
+				allocation[2] = a3;
+				for(int a4=1;a4<maxWayIndex;a4++){
+					allocation[3] = a4;
+					if(a1+a2+a3+a4 != 16) continue;
+
+					speedups = computeSpeedups(&measurements, allocation, gradients, constBs);
+					double metricValue = optimizationMetric->computeMetric(&speedups, NULL);
+
+					if(metricValue > bestMetricValue){
+						DPRINTF(MissBWPolicyExtra, "Found new best allocation %d,%d,%d,%d, new metric value %f, old %f\n",
+								a1,a2,a3,a4,
+								bestMetricValue,
+								metricValue);
+
+						bestMetricValue = metricValue;
+						bestAllocation = allocation;
+					}
+				}
+			}
+		}
+	}
+
+	DPRINTF(MissBWPolicy, "Found best allocation %d,%d,%d,%d with metric value %f\n", bestAllocation[0], bestAllocation[1], bestAllocation[2], bestAllocation[3], bestMetricValue);
 
 	/*vector<double> sharedModeIPCs = measurements.getSharedModeIPCs();
 	for(int i=0;i<aloneIPCEstimates.size();i++){

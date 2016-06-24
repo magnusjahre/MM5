@@ -15,6 +15,8 @@ class EqualizeSlowdownPolicy : public BasePolicy{
 
 private:
 
+	Metric* optimizationMetric;
+
 	void dumpMissCurves(PerformanceMeasurement measurements);
 
 	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
@@ -22,6 +24,13 @@ private:
 	//double getGradientForCPU(PerformanceMeasurement measurements, int cpuID);
 
 	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b);
+
+	double computeSpeedup(int cpuID, int misses, double gradient, double b);
+
+	std::vector<double> computeSpeedups(PerformanceMeasurement* measurements,
+			                            std::vector<int> allocation,
+										std::vector<double> gradients,
+										std::vector<double> bs);
 
 public:
 	EqualizeSlowdownPolicy(std::string _name,
