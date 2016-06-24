@@ -138,8 +138,16 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 
 double
 EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
-	double estimatedCPI = misses * gradient + b;
-	DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f\n", cpuID, misses, gradient, b, estimatedCPI);
+	double estimatedCPI = b;
+	if(misses > 0){
+		estimatedCPI = misses * gradient + b;
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f\n", cpuID, misses, gradient, b, estimatedCPI);
+	}
+	else{
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f\n", cpuID, misses, b);
+	}
+
+	assert(b >= 0);
 	double estimatedIPC = 1/estimatedCPI;
 	double speedup = estimatedIPC / aloneIPCEstimates[cpuID];
 	DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
@@ -221,24 +229,10 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	DPRINTF(MissBWPolicy, "Found best allocation %d,%d,%d,%d with metric value %f\n", bestAllocation[0], bestAllocation[1], bestAllocation[2], bestAllocation[3], bestMetricValue);
 
-	/*vector<double> sharedModeIPCs = measurements.getSharedModeIPCs();
-	for(int i=0;i<aloneIPCEstimates.size();i++){
-		cout << "CPU" << i << ": " << aloneIPCEstimates[i] << " (pm) " << sharedModeIPCs[i] <<" (sm)\n";
+	for(int i=0;i<sharedCaches.size();i++){
+		sharedCaches[i]->setCachePartition(bestAllocation);
+		sharedCaches[i]->enablePartitioning();
 	}
-
-	for(int i=0;i<sharedCPLMeasurements.size();i++){
-		cout << "CPU" << i << ": " << sharedCPLMeasurements[i] << "\n";
-	}
-
-	// sharedNonLoadCycles gives the non-shared-memory CPL component
-    // sharedLoadStallCycles can be used for verification of the shared-memory CPL component
-
-	vector<double> preLLCAvgLatencies = measurements.getPreLLCAvgLatencies();
-	for(int i=0;i<preLLCAvgLatencies.size();i++){
-		cout << "CPU" << i << ": " << preLLCAvgLatencies[i] << ", demand reads " << measurements.requestsInSample[i] << "\n";
-	}*/
-
-	fatal("stop here for now");
 }
 
 void
