@@ -45,6 +45,15 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	maxWays = 0;
 
 	optimizationMetric = new STPPolicy(); //TODO: Parameterize
+
+	allocationTrace = RequestTrace(_name, "AllocationTrace");
+	vector<string> header = vector<string>();
+	for(int i=0;i<_cpuCount;i++){
+		stringstream curstr;
+		curstr << "CPU" << i;
+		header.push_back(curstr.str());
+	}
+	allocationTrace.initalizeTrace(header);
 }
 
 void
@@ -206,6 +215,10 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 						  bestMetricValue);
 
 	assert(sum(bestAllocation) == maxWays);
+
+	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
+	for(int i=0;i<bestAllocation.size();i++) tracedata.push_back(bestAllocation[i]);
+	allocationTrace.addTrace(tracedata);
 
 	for(int i=0;i<sharedCaches.size();i++){
 		sharedCaches[i]->setCachePartition(bestAllocation);

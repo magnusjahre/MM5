@@ -20,6 +20,8 @@ private:
 	Metric* optimizationMetric;
 	int maxWays;
 
+	RequestTrace allocationTrace;
+
 	void dumpMissCurves(PerformanceMeasurement measurements);
 
 	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
