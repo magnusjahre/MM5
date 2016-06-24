@@ -18,6 +18,7 @@ private:
 	double bestMetricValue;
 	vector<int> bestAllocation;
 	Metric* optimizationMetric;
+	int maxWays;
 
 	void dumpMissCurves(PerformanceMeasurement measurements);
 
@@ -45,6 +46,8 @@ private:
 							std::vector<double> bs);
 
 	std::string getAllocString(std::vector<int> allocation);
+
+	int sum(std::vector<int> allocation);
 
 public:
 	EqualizeSlowdownPolicy(std::string _name,

@@ -42,6 +42,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
+	maxWays = 0;
 
 	optimizationMetric = new STPPolicy(); //TODO: Parameterize
 }
@@ -194,32 +195,17 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	dumpMissCurves(measurements);
 
 	assert(!measurements.perCoreCacheMeasurements.empty());
-	int maxWayIndex = measurements.perCoreCacheMeasurements[0].privateCumulativeCacheMisses.size();
-
-	if(cpuCount != 4) fatal("Search method only supports 4 cores");
-
-	vector<int> allocation = vector<int>(cpuCount, 0.0);
-
+	maxWays = measurements.perCoreCacheMeasurements[0].privateCumulativeCacheMisses.size();
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
-	for(int a1=1;a1<maxWayIndex;a1++){
-		allocation[0] = a1;
-		for(int a2=1;a2<maxWayIndex;a2++){
-			allocation[1] = a2;
-			for(int a3=1;a3<maxWayIndex;a3++){
-				allocation[2] = a3;
-				for(int a4=1;a4<maxWayIndex;a4++){
-					allocation[3] = a4;
-					if(a1+a2+a3+a4 != 16) continue;
-					evaluateAllocation(&measurements, allocation, gradients, constBs);
-				}
-			}
-		}
-	}
+
+	exhaustiveSearch(&measurements, vector<int>(), gradients, constBs);
 
 	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f\n",
 			              getAllocString(bestAllocation).c_str(),
 						  bestMetricValue);
+
+	assert(sum(bestAllocation) == maxWays);
 
 	for(int i=0;i<sharedCaches.size();i++){
 		sharedCaches[i]->setCachePartition(bestAllocation);
@@ -251,7 +237,29 @@ EqualizeSlowdownPolicy::exhaustiveSearch(PerformanceMeasurement* measurements,
                                          std::vector<int> allocation,
 										 std::vector<double> gradients,
 										 std::vector<double> bs){
-	fatal("not implemented");
+	if(allocation.size() < cpuCount){
+		if(sum(allocation) > maxWays) return;
+		for(int i=1;i<maxWays;i++){
+			vector<int> newalloc = vector<int>(allocation);
+			newalloc.push_back(i);
+			exhaustiveSearch(measurements, newalloc, gradients, bs);
+		}
+	}
+	else{
+		assert(allocation.size() == cpuCount);
+		if(sum(allocation) == maxWays){
+			evaluateAllocation(measurements, allocation, gradients, bs);
+		}
+	}
+}
+
+int
+EqualizeSlowdownPolicy::sum(std::vector<int> allocation){
+	int sum = 0;
+	for(int i=0;i<allocation.size();i++){
+		sum += allocation[i];
+	}
+	return sum;
 }
 
 std::string
