@@ -16,6 +16,15 @@ UtilityBasedPartitioning::UtilityBasedPartitioning(std::string _name,
 	first = true;
 
 	currentHitDistributions.resize(_np, vector<int>());
+
+	allocationTrace = RequestTrace(_name, "AllocationTrace");
+	vector<string> header = vector<string>();
+	for(int i=0;i<_np;i++){
+		stringstream curstr;
+		curstr << "CPU" << i;
+		header.push_back(curstr.str());
+	}
+	allocationTrace.initalizeTrace(header);
 }
 
 void
@@ -43,6 +52,10 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 		cacheBanks[i]->setCachePartition(bestAllocation);
 		cacheBanks[i]->enablePartitioning();
 	}
+
+	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
+	for(int i=0;i<bestAllocation.size();i++) tracedata.push_back(bestAllocation[i]);
+	allocationTrace.addTrace(tracedata);
 
 	schedulePartitionEvent();
 }

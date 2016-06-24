@@ -20,6 +20,7 @@ private:
 	int bestHits;
 	vector<int> bestAllocation;
 
+	RequestTrace allocationTrace;
 
 	void enumerateAllocations(vector<int> currentAllocation);
 
