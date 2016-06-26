@@ -17,7 +17,6 @@ private:
 
 	double bestMetricValue;
 	vector<int> bestAllocation;
-	Metric* optimizationMetric;
 	int maxWays;
 
 	RequestTrace allocationTrace;

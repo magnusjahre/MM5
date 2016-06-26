@@ -15,6 +15,10 @@ public:
 	FairnessPolicy();
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
+
+	virtual std::string metricName(){
+		return std::string("Fairness");
+	}
 };
 
 #endif /* FAIRNESS_POLICY_HH_ */

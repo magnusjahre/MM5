@@ -44,8 +44,6 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	bestAllocation = vector<int>(cpuCount, 0.0);
 	maxWays = 0;
 
-	optimizationMetric = new STPPolicy(); //TODO: Parameterize
-
 	allocationTrace = RequestTrace(_name, "AllocationTrace");
 	vector<string> header = vector<string>();
 	for(int i=0;i<_cpuCount;i++){
@@ -210,9 +208,10 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	exhaustiveSearch(&measurements, vector<int>(), gradients, constBs);
 
-	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f\n",
+	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f for metric %s\n",
 			              getAllocString(bestAllocation).c_str(),
-						  bestMetricValue);
+						  bestMetricValue,
+						  performanceMetric->metricName());
 
 	assert(sum(bestAllocation) == maxWays);
 
@@ -232,7 +231,7 @@ EqualizeSlowdownPolicy::evaluateAllocation(PerformanceMeasurement* measurements,
 										   std::vector<double> gradients,
 										   std::vector<double> bs){
 	vector<double> speedups = computeSpeedups(measurements, allocation, gradients, bs);
-	double metricValue = optimizationMetric->computeMetric(&speedups, NULL);
+	double metricValue = performanceMetric->computeMetric(&speedups, NULL);
 
 	if(metricValue > bestMetricValue){
 		DPRINTF(MissBWPolicyExtra, "Found new best allocation %swith new metric value %f, old %f\n",
@@ -326,7 +325,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM(performanceEstimationMethod, "The method to use for performance estimations"),
 	INIT_PARAM_DFLT(persistentAllocations, "The method to use for performance estimations", true),
 	INIT_PARAM_DFLT(iterationLatency, "The number of cycles it takes to evaluate one MHA", 0),
-	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "hmos"),
+	INIT_PARAM_DFLT(optimizationMetric, "The metric to optimize for", "stp"),
 	INIT_PARAM_DFLT(enforcePolicy, "Should the policy be enforced?", true),
 	INIT_PARAM(writeStallTechnique, "The technique to use to estimate private write stalls"),
 	INIT_PARAM(privateBlockedStallTechnique, "The technique to use to estimate private blocked stalls"),
