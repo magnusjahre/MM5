@@ -81,6 +81,7 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 
 	double cyclesInfLLC = nonSharedCycles + (cpl*preLLCAvgLat);
 	double CPIInfLLC = cyclesInfLLC / measurements.committedInstructions[cpuID];
+	assert(CPIInfLLC > 0.0);
 
 	DPRINTF(MissBWPolicy, "Constant b for CPU %d: cycles inf LLC %f, committed instructions %d, CPI inf LLC %f\n",
 				cpuID,
@@ -94,20 +95,22 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 double
 EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b){
 	vector<double> measuredCPIs = measurement.getSharedModeCPIs();
-	double llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
+	int llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
 	double sharedMemsysCPIcomp = measuredCPIs[cpuID] - b;
 
 	if(llcMisses == 0){
 		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because there no LLC misses\n", cpuID);
 		return 0.0;
 	}
+	assert(llcMisses > 0);
 
-	if(sharedMemsysCPIcomp <= 0){
+	if(sharedMemsysCPIcomp <= 0.0){
 		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because the estimated shared memsys CPI component is %f (<= 0)\n", cpuID, sharedMemsysCPIcomp);
 		return 0.0;
 	}
 
-	double gradient = sharedMemsysCPIcomp / llcMisses;
+	double gradient = sharedMemsysCPIcomp / (double) llcMisses;
+	assert(gradient >= 0.0);
 
 	DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %f\n",
 			cpuID,
