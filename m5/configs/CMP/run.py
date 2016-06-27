@@ -228,6 +228,9 @@ def setUpCachePartitioning():
         root.cachePartitioning = MultipleTimeSharingPartitions()
     elif env["CACHE-PARTITIONING"] == "UCP":
         root.cachePartitioning = UtilityBasedPartitioning()
+        
+        assert "CACHE-PARTITIONING-SEARCH-ALG" in env
+        root.cachePartitioning.searchAlgorithm = env["CACHE-PARTITIONING-SEARCH-ALG"]
     else:
         panic("Unknown cache partitioning scheme")         
   

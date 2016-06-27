@@ -11,9 +11,21 @@ UtilityBasedPartitioning::UtilityBasedPartitioning(std::string _name,
 												   int _associativity,
 												   Tick _epochSize,
 												   int _np,
-												   CacheInterference* ci)
+												   CacheInterference* ci,
+												   string _searchAlg)
 : CachePartitioning(_name, _associativity, _epochSize, _np, ci) {
 	first = true;
+	bestHits = 0;
+
+	if(_searchAlg == "exhaustive"){
+		searchAlgorithm = UCP_SEARCH_EXHAUSTIVE;
+	}
+	else if(_searchAlg == "lookahead"){
+		searchAlgorithm = UCP_SEARCH_LOOKAHEAD;
+	}
+	else{
+		fatal("Unknown search algorithm provided");
+	}
 
 	currentHitDistributions.resize(_np, vector<int>());
 
@@ -45,7 +57,26 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 
 	bestHits = 0;
 	bestAllocation = vector<int>(partitioningCpuCount, associativity / partitioningCpuCount);
-	enumerateAllocations(vector<int>());
+	if(searchAlgorithm == UCP_SEARCH_EXHAUSTIVE){
+		DPRINTF(CachePartitioning, "Doing exhaustive partitioning search\n");
+		enumerateAllocations(vector<int>());
+	}
+	else if(searchAlgorithm == UCP_SEARCH_LOOKAHEAD){
+		DPRINTF(CachePartitioning, "Doing lookahead partitioning search\n");
+		vector<vector<double> > doubleHitDist = vector<vector<double> >(currentHitDistributions.size(),
+				                                                        vector<double>(currentHitDistributions[0].size(), 0.0));
+		for(int i=0;i<currentHitDistributions.size();i++){
+			assert(currentHitDistributions[i].size() == doubleHitDist[i].size());
+			for(int j=0;j<currentHitDistributions[i].size();j++){
+				doubleHitDist[i][j] = (double) currentHitDistributions[i][j];
+			}
+		}
+		assert(!cacheBanks.empty());
+		bestAllocation = cacheBanks[0]->lookaheadCachePartitioning(doubleHitDist);
+	}
+	else{
+		fatal("Unknown search algorithm");
+	}
 
 	debugPrintPartition(bestAllocation, "Implementing best partition: ");
 	for(int i=0;i<cacheBanks.size();i++){
@@ -108,6 +139,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
     Param<int> epoch_size;
     Param<int> np;
     SimObjectParam<CacheInterference* > cache_interference;
+    Param<string> searchAlgorithm;
 END_DECLARE_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
 
 
@@ -115,7 +147,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
     INIT_PARAM(associativity, "Cache associativity"),
     INIT_PARAM_DFLT(epoch_size, "Size of an epoch", 5000000),
 	INIT_PARAM(np, "Number of cores"),
-	INIT_PARAM_DFLT(cache_interference, "Pointer to the cache interference object", NULL)
+	INIT_PARAM_DFLT(cache_interference, "Pointer to the cache interference object", NULL),
+	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive")
 END_INIT_SIM_OBJECT_PARAMS(UtilityBasedPartitioning)
 
 
@@ -125,7 +158,8 @@ CREATE_SIM_OBJECT(UtilityBasedPartitioning)
 											 associativity,
 											 epoch_size,
 											 np,
-											 cache_interference);
+											 cache_interference,
+											 searchAlgorithm);
 }
 
 REGISTER_SIM_OBJECT("UtilityBasedPartitioning", UtilityBasedPartitioning)
