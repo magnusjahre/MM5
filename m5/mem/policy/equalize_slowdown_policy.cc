@@ -112,7 +112,7 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 	double gradient = sharedMemsysCPIcomp / (double) llcMisses;
 	assert(gradient >= 0.0);
 
-	DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %f\n",
+	DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %d\n",
 			cpuID,
 			gradient,
 			measuredCPIs[cpuID],
