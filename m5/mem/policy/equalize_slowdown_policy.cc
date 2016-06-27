@@ -23,7 +23,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 											   EmptyROBStallTechnique _rst,
 											   double _maximumDamping,
 											   double _hybridDecisionError,
-											   int _hybridBufferSize)
+											   int _hybridBufferSize,
+											   string _searchAlgorithm)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -43,6 +44,16 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
 	maxWays = 0;
+
+	if(_searchAlgorithm == "exhaustive"){
+		searchAlgorithm = ESP_SEARCH_EXHAUSTIVE;
+	}
+	else if(_searchAlgorithm == "lookahead"){
+		searchAlgorithm = ESP_SEARCH_LOOKAHEAD;
+	}
+	else{
+		fatal("Unknown search algorithm provided");
+	}
 
 	allocationTrace = RequestTrace(_name, "AllocationTrace");
 	vector<string> header = vector<string>();
@@ -160,6 +171,30 @@ EqualizeSlowdownPolicy::computeSpeedups(PerformanceMeasurement* measurements,
 }
 
 void
+EqualizeSlowdownPolicy::lookaheadSearch(PerformanceMeasurement* measurements,
+		                                std::vector<double> gradients,
+										std::vector<double> bs){
+
+	vector<vector<double> > speedups(cpuCount, vector<double>(maxWays, 0.0));
+	for(int i=0;i<speedups.size();i++){
+		for(int j=0;j<maxWays;j++){
+			int misses = measurements->perCoreCacheMeasurements[i].privateCumulativeCacheMisses[j];
+			speedups[i][j] = computeSpeedup(i, misses, gradients[i], bs[i]);
+		}
+	}
+
+	assert(!sharedCaches.empty());
+	bestAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups);
+
+	vector<double> bestAllocSpeedups = vector<double>(cpuCount, 0.0);
+	for(int i=0;i<cpuCount;i++){
+		bestAllocSpeedups[i] = speedups[i][bestAllocation[i]-1];
+	}
+
+	bestMetricValue = performanceMetric->computeMetric(&bestAllocSpeedups, NULL);
+}
+
+void
 EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	DPRINTF(MissBWPolicy, "Running performance-based cache partitioning policy\n");
@@ -177,12 +212,17 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	dumpMissCurves(measurements);
 
-	assert(!measurements.perCoreCacheMeasurements.empty());
-	maxWays = measurements.perCoreCacheMeasurements[0].privateCumulativeCacheMisses.size();
+	assert(!sharedCaches.empty());
+	maxWays = sharedCaches[0]->getAssoc();
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
 
-	exhaustiveSearch(&measurements, vector<int>(), gradients, constBs);
+	if(searchAlgorithm == ESP_SEARCH_EXHAUSTIVE){
+		exhaustiveSearch(&measurements, vector<int>(), gradients, constBs);
+	}
+	else if(searchAlgorithm == ESP_SEARCH_LOOKAHEAD){
+		lookaheadSearch(&measurements, gradients, constBs);
+	}
 
 	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f for metric %s\n",
 			              getAllocString(bestAllocation).c_str(),
@@ -293,6 +333,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	Param<double> maximumDamping;
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
+	Param<string> searchAlgorithm;
 END_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
@@ -309,7 +350,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
 	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
-	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3)
+	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
+	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive")
 END_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
@@ -338,7 +380,8 @@ CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
 									  rst,
 									  maximumDamping,
 									  hybridDecisionError,
-									  hybridBufferSize);
+									  hybridBufferSize,
+									  searchAlgorithm);
 }
 
 REGISTER_SIM_OBJECT("EqualizeSlowdownPolicy", EqualizeSlowdownPolicy)

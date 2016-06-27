@@ -439,8 +439,11 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"PERF-METHOD" in env
     policy.performanceEstimationMethod = env[optionName+"PERF-METHOD"]
     
-    assert optionName+"OPTIM-METRIC"
+    assert optionName+"OPTIM-METRIC" in env
     policy.optimizationMetric = env[optionName+"OPTIM-METRIC"]
+    
+    assert optionName+"SEARCH-ALG" in env
+    policy.searchAlgorithm = env[optionName+"SEARCH-ALG"]
     
     if int(env["NP"]) > 1: 
         assert "WRITE-STALL-TECH" in env

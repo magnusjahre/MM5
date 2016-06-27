@@ -19,6 +19,13 @@ private:
 	vector<int> bestAllocation;
 	int maxWays;
 
+	typedef enum{
+		ESP_SEARCH_EXHAUSTIVE,
+		ESP_SEARCH_LOOKAHEAD
+	} ESPSearchAlgorithm;
+
+	ESPSearchAlgorithm searchAlgorithm;
+
 	RequestTrace allocationTrace;
 
 	void dumpMissCurves(PerformanceMeasurement measurements);
@@ -38,6 +45,10 @@ private:
                           std::vector<int> allocation,
 						  std::vector<double> gradients,
 						  std::vector<double> bs);
+
+	void lookaheadSearch(PerformanceMeasurement* measurements,
+			             std::vector<double> gradients,
+						 std::vector<double> bs);
 
 	void evaluateAllocation(PerformanceMeasurement* measurements,
                             std::vector<int> allocation,
@@ -63,7 +74,8 @@ public:
 						   EmptyROBStallTechnique _rst,
 						   double _maximumDamping,
 						   double _hybridDecisionError,
-						   int _hybridBufferSize);
+						   int _hybridBufferSize,
+						   std::string _searchAlgorithm);
 
 	virtual void init();
 
