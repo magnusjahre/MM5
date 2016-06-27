@@ -122,38 +122,6 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 	return gradient;
 }
 
-//double
-//EqualizeSlowdownPolicy::getGradientForCPU(PerformanceMeasurement measurements, int cpuID){
-//	if(measurements.requestsInSample[cpuID] == 0){
-//		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because there are 0 shared requests\n", cpuID);
-//		return 0.0;
-//	}
-//
-//	//FIXME: This value implicitly contains the current miss rate, needs to be accounted for
-//	vector<double> sharedPreLLCAvgLatencies = measurements.getSharedPreLLCAvgLatencies();
-//	double avgPostLLCLatency = sharedMemsysAvgLatency[cpuID] - sharedPreLLCAvgLatencies[cpuID];
-//	assert(avgPostLLCLatency >= 0);
-//
-//	DPRINTF(MissBWPolicy, "Gradient for CPU %d: Post LLC avg latency %f from shared memsys avg latency %f and pre LLC avg latency %f for %d requests\n",
-//			cpuID,
-//			avgPostLLCLatency,
-//			sharedMemsysAvgLatency[cpuID],
-//			sharedPreLLCAvgLatencies[cpuID],
-//			measurements.requestsInSample[cpuID]);
-//
-//	assert(measurements.committedInstructions[cpuID] > 0);
-//	double gradient = (sharedCPLMeasurements[cpuID] * avgPostLLCLatency) / ((double)measurements.requestsInSample[cpuID] * (double) measurements.committedInstructions[cpuID]);
-//
-//	DPRINTF(MissBWPolicy, "Gradient for CPU %d is %f using cpl %f, requests %d and committed instructions %d\n",
-//			cpuID,
-//			gradient,
-//			sharedCPLMeasurements[cpuID],
-//			measurements.requestsInSample[cpuID],
-//			measurements.committedInstructions[cpuID]);
-//
-//	return gradient;
-//}
-
 double
 EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
 	double estimatedCPI = b;
