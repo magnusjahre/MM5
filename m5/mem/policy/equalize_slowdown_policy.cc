@@ -240,6 +240,7 @@ EqualizeSlowdownPolicy::evaluateAllocation(PerformanceMeasurement* measurements,
 										   std::vector<double> bs){
 	vector<double> speedups = computeSpeedups(measurements, allocation, gradients, bs);
 	double metricValue = performanceMetric->computeMetric(&speedups, NULL);
+	assert(metricValue > 0.0);
 
 	if(metricValue > bestMetricValue){
 		DPRINTF(MissBWPolicyExtra, "Found new best allocation %swith new metric value %f, old %f\n",
