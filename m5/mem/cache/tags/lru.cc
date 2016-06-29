@@ -785,5 +785,16 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 		}
 	}
 
+	if(maxUseWays < readAssoc){
+		for(int i=0;i<numSets;i++){
+			for(int j=maxUseWays;j<readAssoc;j++){
+				sets[i].blks[j]->status = 0; //Invalidate block
+				sets[i].blks[j]->isTouched = false;
+				assert(!sets[i].blks[j]->isValid());
+			}
+		}
+	}
+
+
 	contentfile.close();
 }
