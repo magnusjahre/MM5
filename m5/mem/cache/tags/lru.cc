@@ -436,7 +436,16 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 		}
 	}
 	else{
-		blk = sets[set].blks[assoc-1];
+		if(maxUseWays == assoc){
+			blk = sets[set].blks[assoc-1];
+		}
+		else{
+			assert(cache->isShared);
+			assert(cache->cpuCount == 1);
+			assert(maxUseWays > 0);
+			blk = sets[set].blks[maxUseWays-1];
+		}
+
 	}
 	assert(blk != NULL);
 
