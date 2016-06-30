@@ -118,12 +118,20 @@ protected:
 	std::vector<BaseCache* > caches;
 	std::vector<BaseCache* > sharedCaches;
 	std::vector<Bus* > buses;
+	std::vector<FullCPU*> cpus;
 
 	RequestTrace searchTrace;
 
 	std::vector<double> aloneIPCEstimates;
 	std::vector<double> aloneCycles;
 	std::vector<double> avgLatencyAloneIPCModel;
+
+	std::vector<double> sharedCPLMeasurements;
+	std::vector<double> sharedNonSharedLoadCycles;
+	std::vector<double> sharedLoadStallCycles;
+
+	std::vector<double> privateMemsysAvgLatency;
+	std::vector<double> sharedMemsysAvgLatency;
 
 	std::vector<double> computedOverlap;
 	std::vector<double> lastModelError;
@@ -248,6 +256,8 @@ protected:
 
 	double getHybridAverageError(int cpuID);
 
+	void disableCommitSampling();
+
 public:
 
 	BasePolicy(std::string _name,
@@ -275,6 +285,7 @@ public:
 	void registerCache(BaseCache* _cache, int _cpuID, int _maxMSHRs);
 	void registerSharedCache(BaseCache* _cache);
 	void registerBus(Bus* _bus);
+	void registerFullCPU(FullCPU* _cpu, int _cpuID);
 
 	void addTraceEntry(PerformanceMeasurement* measurement);
 
@@ -317,6 +328,8 @@ public:
 	void implementMHA(std::vector<int> bestMHA);
 
 	virtual bool doEvaluation(int cpuID) = 0;
+
+	virtual void init();
 };
 
 class MissBandwidthPolicyEvent : public Event{
@@ -381,6 +394,28 @@ public:
 
 	virtual const char *description() {
 		return "Miss Bandwidth Implement MHA Event";
+	}
+};
+
+class BasePolicyInitEvent : public Event{
+
+private:
+	BasePolicy* policy;
+
+public:
+	BasePolicyInitEvent(BasePolicy* _policy):
+		Event(&mainEventQueue), policy(_policy){
+
+	}
+
+	void process(){
+		policy->init();
+		assert(!scheduled());
+		delete this;
+	}
+
+	virtual const char *description() {
+		return "Base Policy Initialization Event";
 	}
 };
 

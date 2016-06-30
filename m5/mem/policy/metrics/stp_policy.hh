@@ -19,6 +19,10 @@ public:
 
 	virtual double computeFunction(PerformanceMeasurement* measurements, std::vector<double> xvals, std::vector<double> aloneCycles);
 
+	virtual std::string metricName(){
+		return std::string("STP");
+	}
+
 };
 
 #endif /* STP_POLICY_HH_ */

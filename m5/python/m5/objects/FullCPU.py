@@ -120,6 +120,7 @@ class FullCPU(BaseCPU):
     width = Param.Int(4, "default machine width")
     adaptiveMHA = Param.AdaptiveMHA("Adaptive MHA object")
     interferenceManager = Param.InterferenceManager("The interference manager")
+    basePolicy = Param.BasePolicy("base policy pointer")
     quit_on_cpu_id = Param.Int("Quit when this CPU reaches a certain number of instructions")
     overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")
     commit_trace_frequency = Param.Int("commit trace frequency in committed instructions")

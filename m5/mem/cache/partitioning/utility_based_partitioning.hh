@@ -20,6 +20,14 @@ private:
 	int bestHits;
 	vector<int> bestAllocation;
 
+	typedef enum{
+		UCP_SEARCH_EXHAUSTIVE,
+		UCP_SEARCH_LOOKAHEAD
+	} UCPSearchAlgorithm;
+
+	UCPSearchAlgorithm searchAlgorithm;
+
+	RequestTrace allocationTrace;
 
 	void enumerateAllocations(vector<int> currentAllocation);
 
@@ -30,7 +38,8 @@ public:
 						     int _associativity,
 						     Tick _epochSize,
 						     int _np,
-						     CacheInterference* ci);
+						     CacheInterference* ci,
+							 std::string _searchAlg);
 
     void handleRepartitioningEvent();
 

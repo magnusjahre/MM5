@@ -465,6 +465,8 @@ class Cache : public BaseCache
 
     virtual RateMeasurement getMissRate();
 
+	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities);
+
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
     virtual void addPendingRequest(Addr address, MemReqPtr& req);

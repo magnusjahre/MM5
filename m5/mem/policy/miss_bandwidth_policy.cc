@@ -124,7 +124,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 	traceVector("Request Count Measurement: ", currentMeasurements->requestsInSample);
 	traceVector("Shared Latency Measurement: ", currentMeasurements->sharedLatencies);
 	traceVector("Committed Instructions: ", currentMeasurements->committedInstructions);
-	traceVector("CPU Stall Cycles: ", currentMeasurements->cpuStallCycles);
+	traceVector("CPU Stall Cycles: ", currentMeasurements->cpuSharedStallCycles);
 	vector<double> actualIPC(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++) actualIPC[i] = (double) currentMeasurements->committedInstructions[i] / (double) period;
 	traceVector("Measured IPC: ", actualIPC);
@@ -228,7 +228,7 @@ MissBandwidthPolicy::runPolicy(PerformanceMeasurement measurements){
 		traceAloneIPC(measurements.requestsInSample,
 				      aloneIPCEstimates,
 				      measurements.committedInstructions,
-				      measurements.cpuStallCycles,
+				      measurements.cpuSharedStallCycles,
 				      measurements.sharedLatencies,
 				      measurements.avgMissesWhileStalled);
 	}
@@ -418,11 +418,11 @@ MissBandwidthPolicy::evaluateMHA(std::vector<int> currentMHA){
 
 		DPRINTFR(MissBWPolicyExtra, "CPU %d, current stall %d, estimating new stall time %f, new mws %f, new mlp %f, current stalled %d\n",
 									i,
-									currentMeasurements->cpuStallCycles[i],
+									currentMeasurements->cpuSharedStallCycles[i],
 									newStallEstimate,
 									mostRecentMWSEstimate[i][currentMHA[i]],
 									mostRecentMLPEstimate[i][currentMHA[i]],
-									currentMeasurements->cpuStallCycles[i]);
+									currentMeasurements->cpuSharedStallCycles[i]);
 	}
 
 	currentIPCProjection = sharedIPCEstimates;

@@ -436,7 +436,16 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 		}
 	}
 	else{
-		blk = sets[set].blks[assoc-1];
+		if(maxUseWays == assoc){
+			blk = sets[set].blks[assoc-1];
+		}
+		else{
+			assert(cache->isShared);
+			assert(cache->cpuCount == 1);
+			assert(maxUseWays > 0);
+			blk = sets[set].blks[maxUseWays-1];
+		}
+
 	}
 	assert(blk != NULL);
 
@@ -563,6 +572,8 @@ LRU::perCoreOccupancy(){
 
 void
 LRU::resetHitCounters(){
+	DPRINTF(CachePartitioning, "Resetting shadow tag hit counters for ID %d\n", shadowID);
+	DPRINTF(MissBWPolicy, "Resetting shadow tag hit counters for ID %d\n", shadowID);
 	leaderSetAccesses = 0;
 	for(int j=0;j<assoc;j++){
 		leaderSetHitDistribution[j] = 0;
@@ -773,6 +784,17 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 			}
 		}
 	}
+
+	if(maxUseWays < readAssoc){
+		for(int i=0;i<numSets;i++){
+			for(int j=maxUseWays;j<readAssoc;j++){
+				sets[i].blks[j]->status = 0; //Invalidate block
+				sets[i].blks[j]->isTouched = false;
+				assert(!sets[i].blks[j]->isValid());
+			}
+		}
+	}
+
 
 	contentfile.close();
 }

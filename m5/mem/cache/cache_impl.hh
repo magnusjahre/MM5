@@ -115,6 +115,7 @@ Cache(const std::string &_name, HierParams *hier_params,
     if(params.partitioning != NULL){
     	assert(isShared);
     	params.partitioning->registerCache(this, bankID);
+    	cacheInterference->setCachePartitioningEnabled();
     }
 
     if(params.isShared){
@@ -370,8 +371,8 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 
 	if(req->cmd == Read){
 		if(interferenceManager != NULL){
-			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
-			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacityRequest, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityRequest, req, hitLatency);
 		}
 		if(overlapEstimator != NULL && !isReadOnly){
 			//TODO: may want to handle MSHR hits explicitly
@@ -565,8 +566,8 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 	if(req->cmd == Read){
 		if(interferenceManager != NULL){
-			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacity, req, hitLatency);
-			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacity, req, hitLatency);
+			if(isShared) interferenceManager->addLatency(InterferenceManager::CacheCapacityResponse, req, hitLatency);
+			else interferenceManager->addPrivateLatency(InterferenceManager::CacheCapacityResponse, req, hitLatency);
 		}
 		if(overlapEstimator != NULL && !isReadOnly){
 			overlapEstimator->addPrivateLatency(req, hitLatency);
@@ -1591,6 +1592,88 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
 //     fatal("assigning blocking blame but we are not blocked");
 
     return retmap;
+}
+
+#define WI(allocationIndex) (allocationIndex-1)
+
+template<class TagStore, class Buffering, class Coherence>
+std::vector<int>
+Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > utilities){
+	int balance = associativity-cpuCount;
+	vector<int> allocation = vector<int>(cpuCount, 1);
+	bool runSearch = true;
+	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm with an initial allocation of one way per CPU, starting balance %d\n", balance);
+
+	while(runSearch){
+		double maxMarginalUtility = 0.0;
+		int maxMarginalUtiliyCPU = -1;
+		int maxMarginalUtilityBlocks = -1;
+
+		for(int cpu=0;cpu<cpuCount;cpu++){
+			for(int i=allocation[cpu]+1;i<=balance;i++){
+				DPRINTF(MissBWPolicyExtra, "--- Checking increasing allocation to %d from %d for cpu %d with balance %d\n",
+						                   i, allocation[cpu], cpu, balance);
+
+				// NOTE: assumes that higher is better for the utility metric
+				double utilityIncrease = utilities[cpu][WI(i)]-utilities[cpu][WI(allocation[cpu])];
+				int additionalBlocks = WI(i) - WI(allocation[cpu]);
+				double marginalUtility = utilityIncrease / (double) additionalBlocks;
+				assert(additionalBlocks > 0);
+
+				DPRINTF(MissBWPolicyExtra, "--- Computed marginal utility %f for utility increase to %f from %f (by %f) with %d blocks\n",
+										   marginalUtility,
+										   utilities[cpu][WI(i)],
+										   utilities[cpu][WI(allocation[cpu])],
+										   utilityIncrease,
+										   additionalBlocks);
+
+				if(marginalUtility > maxMarginalUtility){
+					maxMarginalUtility = marginalUtility;
+					maxMarginalUtiliyCPU = cpu;
+					maxMarginalUtilityBlocks = additionalBlocks;
+					DPRINTF(MissBWPolicy, "--- New max marginal utility %f, cpu %d, blocks necessary %d\n",
+							              maxMarginalUtility,
+										  cpu,
+										  maxMarginalUtilityBlocks);
+				}
+			}
+
+		}
+
+		if(maxMarginalUtiliyCPU != -1){
+			assert(maxMarginalUtilityBlocks != -1);
+			allocation[maxMarginalUtiliyCPU] += maxMarginalUtilityBlocks;
+			balance = balance - maxMarginalUtilityBlocks;
+			DPRINTF(MissBWPolicy, "--- Increasing allocation of CPU %d to %d (by %d), balance is now %d\n",
+					maxMarginalUtiliyCPU,
+					allocation[maxMarginalUtiliyCPU],
+					maxMarginalUtilityBlocks,
+					balance);
+
+			if(balance == 0) runSearch = false;
+		}
+		else{
+			runSearch = false;
+			DPRINTF(MissBWPolicy, "--- Maximum marginal utility is zero, quitting search with remaining balance %d\n", balance);
+		}
+
+		assert(balance >= 0);
+	}
+
+	int curCPU = 0;
+	while(balance > 0){
+		allocation[curCPU] += 1;
+		balance -= 1;
+
+		DPRINTF(MissBWPolicy, "--- Allocating an additional way to CPU %d, allocation is now %d, remaining ways %d\n",
+				curCPU,
+				allocation[curCPU],
+				balance);
+
+		curCPU = (curCPU+1) % cpuCount;
+	}
+
+	return allocation;
 }
 
 template<class TagStore, class Buffering, class Coherence>

@@ -611,6 +611,8 @@ public:
 
 	void sampleMSHRUse(int allocated, Tick latency);
 
+	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities) = 0;
+
 	int getAssoc(){
 		return associativity;
 	}

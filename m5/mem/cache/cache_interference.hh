@@ -164,6 +164,8 @@ private:
 
 	double constituencyFactor;
 
+	bool cachePartitioningEnabled;
+
 	InterferenceManager* interferenceManager;
 
 	std::vector<int> requestCounters;
@@ -274,6 +276,10 @@ public:
     }
 
     double getOverlap(int cpuID);
+
+    void setCachePartitioningEnabled(){
+    	cachePartitioningEnabled = true;
+    }
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

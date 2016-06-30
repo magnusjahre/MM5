@@ -66,6 +66,8 @@ BasePolicy::BasePolicy(string _name,
 
 	cpuCount = _cpuCount;
 	caches.resize(cpuCount, NULL);
+	maxMSHRs = 0;
+	cpus.resize(cpuCount, NULL);
 
 	cummulativeMemoryRequests.resize(_cpuCount, 0);
 	cummulativeCommittedInsts.resize(_cpuCount, 0);
@@ -73,6 +75,12 @@ BasePolicy::BasePolicy(string _name,
 	aloneIPCEstimates.resize(_cpuCount, 0.0);
 	aloneCycles.resize(_cpuCount, 0.0);
 	avgLatencyAloneIPCModel.resize(_cpuCount, 0.0);
+
+	sharedCPLMeasurements.resize(_cpuCount, 0.0);
+	sharedNonSharedLoadCycles.resize(_cpuCount, 0.0);
+	sharedLoadStallCycles.resize(_cpuCount, 0.0);
+	privateMemsysAvgLatency.resize(_cpuCount, 0.0);
+	sharedMemsysAvgLatency.resize(_cpuCount, 0.0);
 
 	currentMeasurements = NULL;
 
@@ -105,6 +113,9 @@ BasePolicy::BasePolicy(string _name,
 	initPerfModelTrace(_cpuCount);
 
 	enableOccupancyTrace = false;
+
+	BasePolicyInitEvent* init = new BasePolicyInitEvent(this);
+	init->schedule(curTick);
 }
 
 BasePolicy::~BasePolicy(){
@@ -112,6 +123,11 @@ BasePolicy::~BasePolicy(){
 		assert(!policyEvent->scheduled());
 		delete policyEvent;
 	}
+}
+
+void
+BasePolicy::init(){
+	// Empty base class init method
 }
 
 void
@@ -175,6 +191,20 @@ BasePolicy::registerSharedCache(BaseCache* _cache){
 }
 
 void
+BasePolicy::registerFullCPU(FullCPU* _cpu, int _cpuID){
+	assert(cpus[_cpuID] == NULL);
+	cpus[_cpuID] = _cpu;
+}
+
+void
+BasePolicy::disableCommitSampling(){
+	for(int i=0;i<cpus.size();i++){
+		if(cpus[i] == NULL) fatal("CPU %d has not registered", i);
+		(cpus[i])->disableCommitTrace();
+	}
+}
+
+void
 BasePolicy::handlePolicyEvent(){
 	DPRINTF(MissBWPolicy, "Handling policy event\n");
 	if(cpuCount > 1){
@@ -193,7 +223,7 @@ BasePolicy::handleTraceEvent(){
 	traceAloneIPC(curMeasurement.requestsInSample,
 			      measuredIPC,
 			      curMeasurement.committedInstructions,
-			      curMeasurement.cpuStallCycles,
+			      curMeasurement.cpuSharedStallCycles,
 			      curMeasurement.sharedLatencies,
 			      curMeasurement.avgMissesWhileStalled);
 }
@@ -921,28 +951,28 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 
 void
 BasePolicy::updatePrivPerfEst(int cpuID,
-		                                double avgSharedLat,
-		                                double avgPrivateLatEstimate,
-		                                int reqs,
-		                                int stallCycles,
-		                                int cyclesInSample,
-		                                int committedInsts,
-					                    int commitCycles,
-					                    Tick privateStallCycles,
-					                    double avgPrivateMemsysLat,
-					                    Tick writeStall,
-					                    int hiddenLoads,
-					                    Tick memoryIndependentStallCycles,
-					                    OverlapStatistics ols,
-					                    double privateMissRate,
-					                    double cwp,
-					                    double privateBlockedStall,
-					                    double avgSharedStoreLat,
-					                    double avgPrivmodeStoreLat,
-					                    double numStores,
-					                    int numWriteStalls,
-					                    int emptyROBStallCycles,
-					                    Tick boisAloneStallEst){
+		                      double avgSharedLat,
+							  double avgPrivateLatEstimate,
+							  int reqs,
+							  int stallCycles,
+							  int cyclesInSample,
+							  int committedInsts,
+							  int commitCycles,
+							  Tick privateStallCycles,
+							  double avgPrivateMemsysLat,
+							  Tick writeStall,
+							  int hiddenLoads,
+							  Tick memoryIndependentStallCycles,
+							  OverlapStatistics ols,
+							  double privateMissRate,
+							  double cwp,
+							  double privateBlockedStall,
+							  double avgSharedStoreLat,
+							  double avgPrivmodeStoreLat,
+							  double numStores,
+							  int numWriteStalls,
+							  int emptyROBStallCycles,
+							  Tick boisAloneStallEst){
 
 	vector<RequestTraceEntry> data;
 
@@ -1033,6 +1063,24 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
 		data.push_back(ols.itcaAccountedCycles.accountedCycles);
+
+		// Update values needed for cache partitioning policy
+		aloneIPCEstimates[cpuID] = aloneIPCEstimate;
+		sharedCPLMeasurements[cpuID] = ols.tableCPL;
+		sharedNonSharedLoadCycles[cpuID] = cyclesInSample-stallCycles;
+		sharedLoadStallCycles[cpuID] = stallCycles;
+		privateMemsysAvgLatency[cpuID] = avgPrivateMemsysLat;
+		sharedMemsysAvgLatency[cpuID] = avgSharedLat;
+
+
+		DPRINTF(MissBWPolicy, "CPU %d - Setting alone IPC estimate to %f, CPL to %f, non memory cycles %f, memory stall cycles %f, avg private memsys latency %f, avg shared memsys latency %f\n",
+				cpuID,
+				aloneIPCEstimates[cpuID],
+				sharedCPLMeasurements[cpuID],
+				sharedNonSharedLoadCycles[cpuID],
+				sharedLoadStallCycles[cpuID],
+				privateMemsysAvgLatency[cpuID],
+				sharedMemsysAvgLatency[cpuID]);
 	}
 	else{
 		double aloneIPC = (double) committedInsts / (double) cyclesInSample;

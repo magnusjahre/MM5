@@ -228,6 +228,9 @@ def setUpCachePartitioning():
         root.cachePartitioning = MultipleTimeSharingPartitions()
     elif env["CACHE-PARTITIONING"] == "UCP":
         root.cachePartitioning = UtilityBasedPartitioning()
+        
+        assert "CACHE-PARTITIONING-SEARCH-ALG" in env
+        root.cachePartitioning.searchAlgorithm = env["CACHE-PARTITIONING-SEARCH-ALG"]
     else:
         panic("Unknown cache partitioning scheme")         
   
@@ -438,6 +441,12 @@ def setUpEqualizeSlowdownPolicy():
     
     assert optionName+"PERF-METHOD" in env
     policy.performanceEstimationMethod = env[optionName+"PERF-METHOD"]
+    
+    assert optionName+"OPTIM-METRIC" in env
+    policy.optimizationMetric = env[optionName+"OPTIM-METRIC"]
+    
+    assert optionName+"SEARCH-ALG" in env
+    policy.searchAlgorithm = env[optionName+"SEARCH-ALG"]
     
     if int(env["NP"]) > 1: 
         assert "WRITE-STALL-TECH" in env
@@ -890,6 +899,7 @@ if 'MODEL-THROTLING-POLICY' in env:
 
 if 'EQUAL-SD-POLICY' in env:
     root.globalPolicy = setUpEqualizeSlowdownPolicy()
+    useMissBWPolicy = True
 
 ###############################################################################
 #  CPUs and L1 caches
@@ -905,6 +915,10 @@ BaseCPU.workload = Parent.workload
 root.simpleCPU = [ CPU(defer_registration=True,simpoint_bbv_size=sss)
                    for i in xrange(int(env['NP'])) ]
 root.detailedCPU = [ DetailedCPU(defer_registration=True,adaptiveMHA=root.adaptiveMHA,interferenceManager=root.interferenceManager,overlapEstimator=root.overlapEstimators[i]) for i in xrange(int(env['NP'])) ]
+
+if useMissBWPolicy:
+    for cpu in root.detailedCPU:
+        cpu.basePolicy = root.globalPolicy
 
 if 'COMMIT-TRACE-FREQUENCY' in env:
     for r in root.detailedCPU:

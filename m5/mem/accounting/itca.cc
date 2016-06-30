@@ -187,8 +187,8 @@ ITCA::l1MissResolved(Addr addr, Tick willFinishAt, bool isDataMiss){
 
 void
 ITCA::handleL1MissResolvedEvent(Addr addr, bool isDataMiss){
-	if(isDataMiss) removeTableEntry(&dataMissTable, addr);
-	else removeTableEntry(&instructionMissTable, addr);
+	if(isDataMiss) removeTableEntry(&dataMissTable, addr, true);
+	else removeTableEntry(&instructionMissTable, addr, true);
 	processSignalChange();
 }
 

@@ -15,6 +15,50 @@ class EqualizeSlowdownPolicy : public BasePolicy{
 
 private:
 
+	double bestMetricValue;
+	vector<int> bestAllocation;
+	int maxWays;
+
+	typedef enum{
+		ESP_SEARCH_EXHAUSTIVE,
+		ESP_SEARCH_LOOKAHEAD
+	} ESPSearchAlgorithm;
+
+	ESPSearchAlgorithm searchAlgorithm;
+
+	RequestTrace allocationTrace;
+
+	void dumpMissCurves(PerformanceMeasurement measurements);
+
+	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
+
+	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b);
+
+	double computeSpeedup(int cpuID, int misses, double gradient, double b);
+
+	std::vector<double> computeSpeedups(PerformanceMeasurement* measurements,
+			                            std::vector<int> allocation,
+										std::vector<double> gradients,
+										std::vector<double> bs);
+
+	void exhaustiveSearch(PerformanceMeasurement* measurements,
+                          std::vector<int> allocation,
+						  std::vector<double> gradients,
+						  std::vector<double> bs);
+
+	void lookaheadSearch(PerformanceMeasurement* measurements,
+			             std::vector<double> gradients,
+						 std::vector<double> bs);
+
+	void evaluateAllocation(PerformanceMeasurement* measurements,
+                            std::vector<int> allocation,
+							std::vector<double> gradients,
+							std::vector<double> bs);
+
+	std::string getAllocString(std::vector<int> allocation);
+
+	int sum(std::vector<int> allocation);
+
 public:
 	EqualizeSlowdownPolicy(std::string _name,
 			               InterferenceManager* _intManager,
@@ -30,7 +74,10 @@ public:
 						   EmptyROBStallTechnique _rst,
 						   double _maximumDamping,
 						   double _hybridDecisionError,
-						   int _hybridBufferSize);
+						   int _hybridBufferSize,
+						   std::string _searchAlgorithm);
+
+	virtual void init();
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

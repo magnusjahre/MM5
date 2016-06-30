@@ -58,7 +58,7 @@
 #include "mem/accounting/interference_manager.hh"
 #include "mem/requesttrace.hh"
 #include "mem/accounting/memory_overlap_estimator.hh"
-
+#include "mem/policy/base_policy.hh"
 
 class BaseIQ;
 class Process;
@@ -85,6 +85,7 @@ private:
 	std::string statsOrderFileName;
 
 	InterferenceManager* interferenceManager;
+	BasePolicy* basePolicy;
 	int issueStallMessageCounter;
 	bool stallMessageIssued;
 
@@ -289,6 +290,7 @@ public:
 
 			AdaptiveMHA* _amha,
 			InterferenceManager* _intMan,
+			BasePolicy* _policy,
 			int _quitOnCPUID,
 			MemoryOverlapEstimator* _overlapEst,
 			int _commitTraceFrequency,

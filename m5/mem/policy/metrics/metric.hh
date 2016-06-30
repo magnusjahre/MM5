@@ -31,6 +31,10 @@ public:
 		fatal("Metric has not implemented computeFunction");
 		return 0.0;
 	}
+
+	virtual std::string metricName(){
+		return std::string("Base class metric");
+	}
 };
 
 #endif /* METRIC_HH_ */

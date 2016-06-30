@@ -16,6 +16,10 @@ public:
 	HmosPolicy();
 
 	virtual double computeMetric(std::vector<double>* speedups, std::vector<double>* sharedIPCs);
+
+	virtual std::string metricName(){
+		return std::string("HMoS");
+	}
 };
 
 #endif /* HMOS_POLICY_HH_ */
