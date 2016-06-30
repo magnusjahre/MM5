@@ -29,4 +29,8 @@
  * DAMAGES.
  */
 
+#include "build/hg_version.hh"
+
 const char *compileDate = __DATE__ " " __TIME__;
+const char *hgVersion = HG_VERSION;
+const char *hgBranch = HG_BRANCH;

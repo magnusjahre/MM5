@@ -146,11 +146,14 @@ void
 sayHello(ostream &out)
 {
     extern const char *compileDate;	// from date.cc
+    extern const char *hgBranch;
+    extern const char *hgVersion;
 
     ccprintf(out, "M5 Simulator System\n");
     // display copyright
     ccprintf(out, "%s\n", briefCopyright);
     ccprintf(out, "M5 compiled on %d\n", compileDate);
+    ccprintf(out, "M5 built with hg branch %s and version %s\n", hgBranch, hgVersion);
 
     char *host = getenv("HOSTNAME");
     if (!host)

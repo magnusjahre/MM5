@@ -47,6 +47,7 @@
 # Python library imports
 import sys
 import os
+import subprocess
 
 # Check for recent-enough Python and SCons versions
 EnsurePythonVersion(2,3)
@@ -71,6 +72,26 @@ if not os.path.isdir('ext'):
 
 # tell python where to find m5 python code
 sys.path.append(os.path.join(SRCDIR, 'python'))
+
+# Update hg version header
+hgVersionFileHead = """
+#ifndef __HG_VERSION_HH__
+#define __HG_VERSION_HH__
+
+"""
+hgVersion = subprocess.check_output(["hg", "id", "-i"])
+hgBranch = subprocess.check_output(["hg", "branch"])
+
+hgVersionFile = open("hg_version.hh", "w")
+hgVersionFile.write(hgVersionFileHead)
+hgVersionFile.write("#define HG_VERSION \""+hgVersion.strip()+"\"\n")
+hgVersionFile.write("#define HG_BRANCH \""+hgBranch.strip()+"\"\n\n")
+hgVersionFile.write("#endif /* __HG_VERSION_HH__ */ \n")
+hgVersionFile.flush()
+hgVersionFile.close()
+
+print "Updated hg_version.hh at path "+os.getcwd()
+
 
 ###################################################
 #
