@@ -47,7 +47,7 @@
 # Python library imports
 import sys
 import os
-import subprocess
+from subprocess import Popen, PIPE 
 
 # Check for recent-enough Python and SCons versions
 EnsurePythonVersion(2,3)
@@ -73,14 +73,20 @@ if not os.path.isdir('ext'):
 # tell python where to find m5 python code
 sys.path.append(os.path.join(SRCDIR, 'python'))
 
+def callProg(args):
+    p = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    output, err = p.communicate()
+    return output
+
+
 # Update hg version header
 hgVersionFileHead = """
 #ifndef __HG_VERSION_HH__
 #define __HG_VERSION_HH__
 
 """
-hgVersion = subprocess.check_output(["hg", "id", "-i"])
-hgBranch = subprocess.check_output(["hg", "branch"])
+hgVersion = callProg(["hg", "id", "-i"])
+hgBranch = callProg(["hg", "branch"])
 
 hgVersionFile = open("hg_version.hh", "w")
 hgVersionFile.write(hgVersionFileHead)
