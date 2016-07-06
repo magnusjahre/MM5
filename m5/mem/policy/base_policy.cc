@@ -625,6 +625,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 				cpl,
 				cwp);
 
+		if(privateStallTime+newStallTime < 0.0){
+			DPRINTF(MissBWPolicyExtra, "Returning stall time 0 since the estimate was negaive\n");
+			return 0;
+		}
 		return privateStallTime+newStallTime;
 	}
 	else if(perfEstMethod == BOIS){
