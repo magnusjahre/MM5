@@ -448,6 +448,9 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"SEARCH-ALG" in env
     policy.searchAlgorithm = env[optionName+"SEARCH-ALG"]
     
+    if optionName+"ALLOW-NEG-MISSES":
+        policy.allowNegativeMisses = env[optionName+"ALLOW-NEG-MISSES"]
+    
     if int(env["NP"]) > 1: 
         assert "WRITE-STALL-TECH" in env
         policy.writeStallTechnique = env["WRITE-STALL-TECH"]

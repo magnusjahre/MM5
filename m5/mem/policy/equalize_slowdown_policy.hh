@@ -18,6 +18,7 @@ private:
 	double bestMetricValue;
 	vector<int> bestAllocation;
 	int maxWays;
+	bool allowNegMisses;
 
 	typedef enum{
 		ESP_SEARCH_EXHAUSTIVE,
@@ -75,7 +76,8 @@ public:
 						   double _maximumDamping,
 						   double _hybridDecisionError,
 						   int _hybridBufferSize,
-						   std::string _searchAlgorithm);
+						   std::string _searchAlgorithm,
+						   bool _allowNegMisses);
 
 	virtual void init();
 

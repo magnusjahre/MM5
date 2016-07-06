@@ -24,7 +24,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 											   double _maximumDamping,
 											   double _hybridDecisionError,
 											   int _hybridBufferSize,
-											   string _searchAlgorithm)
+											   string _searchAlgorithm,
+											   bool _allowNegMisses)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -44,6 +45,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
 	maxWays = 0;
+	allowNegMisses = _allowNegMisses;
 
 	if(_searchAlgorithm == "exhaustive"){
 		searchAlgorithm = ESP_SEARCH_EXHAUSTIVE;
@@ -136,7 +138,7 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 double
 EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
 	double estimatedCPI = b;
-	if(misses > 0){
+	if(misses > 0 || allowNegMisses){
 		estimatedCPI = misses * gradient + b;
 		DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f\n", cpuID, misses, gradient, b, estimatedCPI);
 	}
@@ -145,7 +147,9 @@ EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, d
 	}
 
 	assert(b >= 0);
-	double estimatedIPC = 1/estimatedCPI;
+	double estimatedIPC = 0.0;
+	if(estimatedCPI <= 0.0) estimatedIPC = 1/b;
+	else estimatedIPC = 1/estimatedCPI;
 	double speedup = estimatedIPC / aloneIPCEstimates[cpuID];
 	DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
 	return speedup;
@@ -334,6 +338,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
 	Param<string> searchAlgorithm;
+	Param<bool> allowNegativeMisses;
 END_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
@@ -351,7 +356,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
-	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive")
+	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive"),
+	INIT_PARAM_DFLT(allowNegativeMisses, "Allow negative misses in the performance model", true)
 END_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
@@ -381,7 +387,8 @@ CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
 									  maximumDamping,
 									  hybridDecisionError,
 									  hybridBufferSize,
-									  searchAlgorithm);
+									  searchAlgorithm,
+									  allowNegativeMisses);
 }
 
 REGISTER_SIM_OBJECT("EqualizeSlowdownPolicy", EqualizeSlowdownPolicy)
