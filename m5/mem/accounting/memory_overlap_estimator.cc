@@ -36,7 +36,9 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	stallIdentifyAlg = _ident;
 
-	graphCPLEnabled = _graphCPLEnabled;
+	// Graph CPL is needed in the private mode to verify the CPL shared mode estimates
+	if(cpu_count > 1) graphCPLEnabled = _graphCPLEnabled;
+	else graphCPLEnabled = true;
 
 	nextReqID = 0;
 	reqNodeID = 0;
@@ -75,7 +77,7 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 	computeWhilePendingReqs = 0;
 	computeWhilePendingTotalAccumulator = 0;
 
-	if(_graphCPLEnabled){
+	if(graphCPLEnabled){
 		pendingComputeNode = new ComputeNode(0, 0);
 		lastComputeNode = NULL;
 		nextComputeNodeID = 1;
