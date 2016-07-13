@@ -82,17 +82,26 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 	double nonSharedCycles = sharedNonSharedLoadCycles[cpuID];
 	vector<double> sharedPreLLCAvgLatencies = measurements.getSharedPreLLCAvgLatencies();
 	double preLLCAvgLat = sharedPreLLCAvgLatencies[cpuID] + privateMemsysAvgLatency[cpuID];
-	double cpl = sharedCPLMeasurements[cpuID];
 
-	DPRINTF(MissBWPolicy, "Constant b for CPU %d: non stall cycles %f, pre LLC avg latency %f and private memsys %f (total %f), cpl %f\n",
+	double overlap = 0.0;
+	double requests = measurements.requestsInSample[cpuID];
+	assert(requests >= 0);
+	assert(measurements.sharedLatencies[cpuID] >= 0);
+	if(requests > 0){
+		assert(sharedLoadStallCycles[cpuID] >= 0);
+		overlap = sharedLoadStallCycles[cpuID] / (requests * measurements.sharedLatencies[cpuID]);
+	}
+
+	DPRINTF(MissBWPolicy, "Constant b for CPU %d: non stall cycles %f, pre LLC avg latency %f and private memsys %f (total %f), overlap %f, requests %d\n",
 			cpuID,
 			nonSharedCycles,
 			sharedPreLLCAvgLatencies[cpuID],
 			privateMemsysAvgLatency[cpuID],
 			preLLCAvgLat,
-			cpl);
+			overlap,
+			requests);
 
-	double cyclesInfLLC = nonSharedCycles + (cpl*preLLCAvgLat);
+	double cyclesInfLLC = nonSharedCycles + (overlap*requests*preLLCAvgLat);
 	double CPIInfLLC = cyclesInfLLC / measurements.committedInstructions[cpuID];
 	assert(CPIInfLLC > 0.0);
 

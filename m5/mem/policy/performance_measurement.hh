@@ -84,6 +84,7 @@ public:
 	std::vector<std::vector<double> > mlpEstimate;
 	std::vector<std::vector<double> > avgMissesWhileStalled;
 
+	std::vector<double> totalSharedLatencies;
 	std::vector<double> sharedLatencies;
 	std::vector<double> estimatedPrivateLatencies;
 	std::vector<std::vector<double> > latencyBreakdown;

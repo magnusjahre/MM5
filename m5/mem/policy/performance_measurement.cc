@@ -23,6 +23,7 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	mlpEstimate.resize(cpuCount, vector<double>());
 	avgMissesWhileStalled.resize(cpuCount, vector<double>());
 
+	totalSharedLatencies.resize(cpuCount, 0.0);
 	sharedLatencies.resize(cpuCount, 0.0);
 	estimatedPrivateLatencies.resize(cpuCount, 0.0);
 
@@ -64,6 +65,16 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 	                                        std::vector<int> localRequests){
 
 	for(int i=0;i<cpuCount;i++){
+
+		if(sharedLatencyAccumulator[i] >= 0){
+			totalSharedLatencies[i] = sharedLatencyAccumulator[i];
+		}
+		else{
+			totalSharedLatencies[i] = 0;
+		}
+
+		assert(requestsInSample[i] == localRequests[i]);
+
 		if(localRequests[i] != 0){
 			sharedLatencies[i] = sharedLatencyAccumulator[i] / (double) localRequests[i];
 
