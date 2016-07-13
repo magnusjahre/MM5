@@ -450,6 +450,10 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	if(perfEstMethod == RATIO_MWS || perfEstMethod == LATENCY_MLP || perfEstMethod == LATENCY_MLP_SREQ || perfEstMethod == NO_MLP_CACHE || perfEstMethod == CPL_CWP_SER){
 		fatal("deprecated performance estimation mode");
 	}
+	else if(perfEstMethod == CONST_1){
+		DPRINTF(MissBWPolicyExtra, "Returning 0 for const-1 policy on CPU %d\n", cpuID);
+		return 0;
+	}
 	else if(perfEstMethod == NO_MLP ){
 
 		DPRINTF(MissBWPolicyExtra, "Running no-MLP method with shared lat %f, requests %f, private stall cycles %f, %f stall cycles\n",
@@ -1037,7 +1041,9 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 			assert(cyclesInSample == ols.itcaAccountedCycles.accountedCycles + ols.itcaAccountedCycles.notAccountedCycles);
 			newStallEstimate = cyclesInSample - ols.itcaAccountedCycles.accountedCycles;
 		}
-
+		else if(perfEstMethod == CONST_1){
+			aloneIPCEstimate = 1.0;
+		}
 
 		data.push_back(avgSharedLat);
 		data.push_back(avgPrivateMemsysLat);
@@ -1234,6 +1240,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "private-latency-only") return PRIVATE_LATENCY_ONLY;
 	if(methodName == "shared-stall") return SHARED_STALL;
 	if(methodName == "zero-stall") return ZERO_STALL;
+	if(methodName == "const-1") return CONST_1;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

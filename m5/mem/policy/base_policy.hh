@@ -62,7 +62,8 @@ public:
         ITCA,
         PRIVATE_LATENCY_ONLY,
         SHARED_STALL,
-        ZERO_STALL
+        ZERO_STALL,
+		CONST_1
     } PerformanceEstimationMethod;
 
     typedef enum{
