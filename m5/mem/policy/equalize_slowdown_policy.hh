@@ -20,6 +20,10 @@ private:
 	int maxWays;
 	bool allowNegMisses;
 
+	std::vector<RequestTrace> missCurveTraces;
+	std::vector<RequestTrace> performanceCurveTraces;
+	std::vector<RequestTrace> speedupCurveTraces;
+
 	typedef enum{
 		ESP_SEARCH_EXHAUSTIVE,
 		ESP_SEARCH_LOOKAHEAD
@@ -35,6 +39,7 @@ private:
 
 	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b);
 
+	double computeIPC(int cpuID, int misses, double gradient, double b);
 	double computeSpeedup(int cpuID, int misses, double gradient, double b);
 
 	std::vector<double> computeSpeedups(PerformanceMeasurement* measurements,
@@ -59,6 +64,15 @@ private:
 	std::string getAllocString(std::vector<int> allocation);
 
 	int sum(std::vector<int> allocation);
+
+	void initCurveTracefiles();
+
+	void traceCurves(PerformanceMeasurement* measurements,
+				     std::vector<double> gradients,
+			         std::vector<double> bs);
+
+	template<typename T>
+	std::vector<RequestTraceEntry> getTraceCurve(std::vector<T> data);
 
 public:
 	EqualizeSlowdownPolicy(std::string _name,

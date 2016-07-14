@@ -72,6 +72,81 @@ EqualizeSlowdownPolicy::init(){
 	if(cpuCount != 1){
 		disableCommitSampling();
 	}
+
+	assert(!sharedCaches.empty());
+	maxWays = sharedCaches[0]->getAssoc();
+
+	initCurveTracefiles();
+}
+
+void
+EqualizeSlowdownPolicy::initCurveTracefiles(){
+	vector<string> header;
+	for(int i=0;i<maxWays;i++){
+		stringstream head;
+		head << (i+1);
+		if(i == 0) head << " way";
+		else head << " ways";
+		header.push_back(head.str());
+	}
+
+	missCurveTraces.resize(cpuCount, RequestTrace());
+	performanceCurveTraces.resize(cpuCount, RequestTrace());
+	speedupCurveTraces.resize(cpuCount, RequestTrace());
+
+	for(int i=0;i<cpuCount;i++){
+		stringstream filename;
+		filename << "MissCurveTrace" << i;
+		missCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
+		missCurveTraces[i].initalizeTrace(header);
+
+		filename.str("");
+		filename << "PerformanceCurveTrace" << i;
+		performanceCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
+		performanceCurveTraces[i].initalizeTrace(header);
+
+		filename.str("");
+		filename << "SpeedupCurveTrace" << i;
+		speedupCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
+		speedupCurveTraces[i].initalizeTrace(header);
+	}
+}
+
+template<typename T>
+std::vector<RequestTraceEntry>
+EqualizeSlowdownPolicy::getTraceCurve(std::vector<T> data){
+	vector<RequestTraceEntry> reqData;
+	for(int i=0;i<data.size();i++){
+		reqData.push_back(RequestTraceEntry(data[i]));
+	}
+	return reqData;
+}
+
+
+void
+EqualizeSlowdownPolicy::traceCurves(PerformanceMeasurement* measurements,
+        							std::vector<double> gradients,
+									std::vector<double> bs){
+
+	for(int i=0;i<cpuCount;i++){
+		vector<int> misses = measurements->perCoreCacheMeasurements[i].privateCumulativeCacheMisses;
+		vector<RequestTraceEntry> line = getTraceCurve(misses);
+		missCurveTraces[i].addTrace(line);
+
+		vector<double> perfEstimates = vector<double>(maxWays, 0.0);
+		vector<double> speedups = vector<double>(maxWays, 0.0);
+		for(int j=0;j<maxWays;j++){
+			perfEstimates[j] = computeIPC(i, misses[j], gradients[i], bs[i]);
+			speedups[j] = computeSpeedup(i, misses[j], gradients[i], bs[i]);
+		}
+
+		vector<RequestTraceEntry> perfLine = getTraceCurve(perfEstimates);
+		performanceCurveTraces[i].addTrace(perfLine);
+
+		vector<RequestTraceEntry> speedupLine = getTraceCurve(speedups);
+		speedupCurveTraces[i].addTrace(speedupLine);
+	}
+
 }
 
 double
@@ -145,7 +220,7 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 }
 
 double
-EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
+EqualizeSlowdownPolicy::computeIPC(int cpuID, int misses, double gradient, double b){
 	double estimatedCPI = b;
 	if(misses > 0 || allowNegMisses){
 		estimatedCPI = misses * gradient + b;
@@ -159,6 +234,13 @@ EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, d
 	double estimatedIPC = 0.0;
 	if(estimatedCPI <= 0.0) estimatedIPC = 1/b;
 	else estimatedIPC = 1/estimatedCPI;
+
+	return estimatedIPC;
+}
+
+double
+EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
+	double estimatedIPC = computeIPC(cpuID, misses, gradient, b);
 	double speedup = estimatedIPC / aloneIPCEstimates[cpuID];
 	DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
 	return speedup;
@@ -224,9 +306,9 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	dumpMissCurves(measurements);
+	traceCurves(&measurements, gradients, constBs);
 
-	assert(!sharedCaches.empty());
-	maxWays = sharedCaches[0]->getAssoc();
+	assert(maxWays != 0);
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
 
