@@ -28,10 +28,13 @@ private:
 	UCPSearchAlgorithm searchAlgorithm;
 
 	RequestTrace allocationTrace;
+	std::vector<RequestTrace> hitCurveTraces;
 
 	void enumerateAllocations(vector<int> currentAllocation);
 
 	void evaluateAllocation(vector<int> allocation);
+
+	void traceMissCurves();
 
 public:
     UtilityBasedPartitioning(std::string _name,

@@ -37,6 +37,34 @@ UtilityBasedPartitioning::UtilityBasedPartitioning(std::string _name,
 		header.push_back(curstr.str());
 	}
 	allocationTrace.initalizeTrace(header);
+
+	header = vector<string>();
+	for(int i=0;i<_associativity;i++){
+		stringstream element;
+		element << (i+1);
+		if(i==0) element << " way";
+		else element << " ways";
+		header.push_back(element.str());
+	}
+
+	hitCurveTraces.resize(_np, RequestTrace());
+	for(int i=0;i<_np;i++){
+		stringstream filename;
+		filename << "HitCurve" << i;
+		hitCurveTraces[i] = RequestTrace(_name, filename.str().c_str());
+		hitCurveTraces[i].initalizeTrace(header);
+	}
+}
+
+void
+UtilityBasedPartitioning::traceMissCurves(){
+	for(int i=0;i<currentHitDistributions.size();i++){
+		vector<RequestTraceEntry> data;
+		for(int j=0;j<currentHitDistributions[i].size();j++){
+			data.push_back(currentHitDistributions[i][j]);
+		}
+		hitCurveTraces[i].addTrace(data);
+	}
 }
 
 void
@@ -54,6 +82,8 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 		currentHitDistributions[i] = shadowTags[i]->getHitDistribution();
 		debugPrintPartition(currentHitDistributions[i], "Hit distribution: ");
 	}
+
+	traceMissCurves();
 
 	bestHits = 0;
 	bestAllocation = vector<int>(partitioningCpuCount, associativity / partitioningCpuCount);
