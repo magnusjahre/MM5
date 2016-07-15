@@ -195,11 +195,14 @@ private:
 	std::vector<int> writebackAccumulator;
 	std::vector<int> interferenceMissAccumulator;
 	std::vector<int> accessAccumulator;
+	std::vector<int> shadowAccessAccumulator;
 
 	std::vector<Tick> lastPendingLoadChangeAt;
 	std::vector<int> pendingLoads;
 	std::vector<double> overlapAccumulator;
 	std::vector<Tick> overlapCycles;
+
+	std::vector<int> itcaInterTaskCutoffs;
 
     bool isLeaderSet(int set);
 
@@ -220,6 +223,8 @@ private:
     void measureOverlap(MemReqPtr &req, bool possibleIncrease);
 
     int estimateConstituencyAccesses(bool writeback);
+
+    void checkSampledITCAInterTaskMiss(MemReqPtr &req, bool shadowLeaderSet, bool shadowHit, bool isCacheMiss, Addr cacheAlignedCPUAddr);
 
 public:
 

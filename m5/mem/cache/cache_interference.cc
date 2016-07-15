@@ -11,6 +11,8 @@
 
 using namespace std;
 
+#define ITCA_RAND_GEN_RESOLUTION 1024
+
 CacheInterference::CacheInterference(std::string _name,
 		                             int _cpuCount,
 		                             int _numLeaderSets,
@@ -94,11 +96,14 @@ CacheInterference::CacheInterference(std::string _name,
 	writebackAccumulator.resize(cpuCount, 0);
 	interferenceMissAccumulator.resize(cpuCount, 0);
 	accessAccumulator.resize(cpuCount, 0);
+	shadowAccessAccumulator.resize(cpuCount, 0);
 
 	lastPendingLoadChangeAt.resize(cpuCount, 0);
 	pendingLoads.resize(cpuCount, 0);
 	overlapAccumulator.resize(cpuCount, 0.0);
 	overlapCycles.resize(cpuCount, 0);
+
+	itcaInterTaskCutoffs.resize(cpuCount, 0);
 
 	cachePartitioningEnabled = false;
 
@@ -245,6 +250,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		}
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 		estimatedShadowAccesses[req->adaptiveMHASenderID] += estConstAccesses;
+		shadowAccessAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 	}
 	if(curTick >= detailedSimStart){
 		if(isCacheMiss){
@@ -277,7 +283,46 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				assert(isCacheMiss);
 				tagAsInterferenceMiss(req, hitLat);
 			}
+
+			if(req->cmd == Read){
+				Addr cacheAlignedCPUAddr = req->oldAddr & ~((Addr)cache->getBlockSize() - 1);
+				checkSampledITCAInterTaskMiss(req, shadowLeaderSet, shadowHit, isCacheMiss, cacheAlignedCPUAddr);
+			}
 		}
+	}
+}
+
+void
+CacheInterference::checkSampledITCAInterTaskMiss(MemReqPtr& req,
+		                                         bool shadowLeaderSet,
+												 bool shadowHit,
+												 bool isCacheMiss,
+												 Addr cacheAlignedCPUAddr){
+	assert(req->adaptiveMHASenderID != -1);
+	bool itcaInterTaskMiss = false;
+	int randNum = (rand() / (double) RAND_MAX) * ITCA_RAND_GEN_RESOLUTION;
+
+	DPRINTF(ITCACache, "Checking for inter-task miss for cpu %d with cutoff %d, random number %d\n",
+			req->adaptiveMHASenderID,
+			itcaInterTaskCutoffs[req->adaptiveMHASenderID],
+			randNum);
+
+	if(shadowLeaderSet && shadowHit && isCacheMiss){
+		DPRINTF(ITCACache, "Inter-task miss to leader set\n");
+		itcaInterTaskMiss = true;
+	}
+	else if(randNum < itcaInterTaskCutoffs[req->adaptiveMHASenderID]){
+		DPRINTF(ITCACache, "Predicting inter-task miss based on miss probability\n");
+		itcaInterTaskMiss = true;
+	}
+
+	if(itcaInterTaskMiss){
+
+		DPRINTF(ITCACache, "CPU %d access for address %d is and inter-task miss\n",
+				req->adaptiveMHASenderID,
+				cacheAlignedCPUAddr);
+
+		interferenceManager->itcaIntertaskMiss(req->adaptiveMHASenderID, req->paddr, req->instructionMiss, cacheAlignedCPUAddr);
 	}
 }
 
@@ -667,6 +712,17 @@ CacheInterference::getMissMeasurementSample(){
 		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
 		if(!cachePartitioningEnabled) shadowTags[i]->resetHitCounters();
 
+		itcaInterTaskCutoffs[i] = ((double) interferenceMissAccumulator[i] / (double) shadowAccessAccumulator[i]) * ITCA_RAND_GEN_RESOLUTION;
+		if(itcaInterTaskCutoffs[i] > ITCA_RAND_GEN_RESOLUTION) itcaInterTaskCutoffs[i] = ITCA_RAND_GEN_RESOLUTION;
+		assert(itcaInterTaskCutoffs[i] >= 0);
+
+		DPRINTF(ITCAProgress, "Setting intertask cutoff for cpu %d to %d based on interference misses %d, accesses %d\n",
+				i,
+				itcaInterTaskCutoffs[i],
+				interferenceMissAccumulator[i],
+				shadowAccessAccumulator[i]);
+
+
 		CacheMissMeasurements tmp(readMissAccumulator[i],
 							      wbMissAccumulator[i],
 								  interferenceMissAccumulator[i],
@@ -679,8 +735,11 @@ CacheInterference::getMissMeasurementSample(){
 		interferenceMissAccumulator[i] = 0;
 		accessAccumulator[i] = 0;
 		writebackAccumulator[i] = 0;
+		shadowAccessAccumulator[i] = 0;
 
 		missMeasurements.push_back(tmp);
+
+
 	}
 
 	return missMeasurements;

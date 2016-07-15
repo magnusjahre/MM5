@@ -164,6 +164,7 @@ baseFlags = [
     'CPLTableProgress',
     'ITCA',
     'ITCAProgress',
+    'ITCACache',
     'PerformanceModelMeasurements'
     ]
 
