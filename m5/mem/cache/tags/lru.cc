@@ -719,6 +719,13 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 		else readAssoc = assoc / cacheInterference->cpuCount;
 	}
 
+	DPRINTF(Serialize, "Unserializing cache from file %s, file blocks %d, read associativity %d, cache associativity %d, total sets %d\n",
+			filename.c_str(),
+			*fileBlocks,
+			readAssoc,
+			assoc,
+			numSets);
+
 	if(*fileBlocks < numSets*readAssoc){
 		fatal("File %s contains too few blocks for cache, got blocks %d, in cache %d", filename, *fileBlocks, numSets*readAssoc);
 	}
@@ -727,7 +734,9 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 	int origTagShift = setShift + FloorLog2(checkpointSets);
 
 	for(int i=0;i<numSets;i++){
+		DPRINTF(Serialize, "Unserializing cache set %d of %d\n",i,numSets);
 		for(int j=0;j<readAssoc;j++){
+			DPRINTF(Serialize, "Unserializing cache block %d of set %d\n", j, i);
 			assert(contentfile.good());
 			sets[i].blks[j]->unserialize(contentfile);
 
@@ -739,6 +748,9 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 				assert(extractSet(origAddr) == i);
 				sets[i].blks[j]->set = i;
 				sets[i].blks[j]->tag = extractTag(origAddr);
+				DPRINTF(Serialize, "Generating new tag %d for address %d\n",
+						sets[i].blks[j]->tag,
+						origAddr);
 			}
 
 			if(sets[i].blks[j]->isValid()){
@@ -780,6 +792,12 @@ LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 
 					sets[i].blks[j]->tag = extractTag(relocatedAddr);
 					sets[i].blks[j]->set = extractSet(relocatedAddr);
+
+					DPRINTF(Serialize, "Relocating address %d to address %d new set %d and new tag %d\n",
+							paddr,
+							relocatedAddr,
+							sets[i].blks[j]->set,
+							sets[i].blks[j]->tag);
 				}
 			}
 		}
