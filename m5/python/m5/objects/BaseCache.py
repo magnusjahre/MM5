@@ -121,3 +121,5 @@ class BaseCache(BaseMem):
     
     cache_interference = Param.CacheInterference("Cache interference object")
     overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")
+    
+    disableLLCCheckpointLoad = Param.Bool("Disable loading LLC state from the checkpoint")

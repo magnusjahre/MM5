@@ -183,6 +183,7 @@ class Cache : public BaseCache
 		  CachePartitioning* partitioning;
 		  CacheInterference* cacheInterference;
 		  MemoryOverlapEstimator* overlapEstimator;
+		  bool disableLLCCheckpointLoad;
 
 		  Params(TagStore *_tags, Buffering *mq, Coherence *coh, DirectoryProtocol<TagStore> *_directoryCoherence,
 				  bool do_copy, BaseCache::Params params,
@@ -196,7 +197,7 @@ class Cache : public BaseCache
 				  int _memoryAddressOffset, int _memoryAddressParts, InterferenceManager* intman,
 				  BasePolicy* mbp, WritebackOwnerPolicy _wbPolicy, int _shadowLeaderSets,
 				  bool _useAggMLPEstimator,
-				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning, CacheInterference* _cacheInterference, MemoryOverlapEstimator* _oe)
+				  std::vector<int> _staticQuotas, CachePartitioning* _partitioning, CacheInterference* _cacheInterference, MemoryOverlapEstimator* _oe, bool _disableLLCCheckpointLoad)
 		  : tags(_tags), missQueue(mq), coherence(coh), directoryCoherence(_directoryCoherence)
 		  ,doCopy(do_copy), blockOnCopy(false), baseParams(params), in(in_bus), out(out_bus),
 		  inInterconnect(_inInterconnect), outInterconnect(_outInterconnect),
@@ -208,7 +209,7 @@ class Cache : public BaseCache
 		  memoryAddressOffset(_memoryAddressOffset), memoryAddressParts(_memoryAddressParts),
 		  interferenceManager(intman), missBandwidthPolicy(mbp), wbPolicy(_wbPolicy),
 		  shadowTagLeaderSets(_shadowLeaderSets),
-		  useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas), partitioning(_partitioning), cacheInterference(_cacheInterference), overlapEstimator(_oe)
+		  useAggMLPEstimator(_useAggMLPEstimator), staticQuotas(_staticQuotas), partitioning(_partitioning), cacheInterference(_cacheInterference), overlapEstimator(_oe), disableLLCCheckpointLoad(_disableLLCCheckpointLoad)
 		  {
 		  }
 	  };

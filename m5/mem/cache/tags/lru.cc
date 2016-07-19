@@ -700,6 +700,20 @@ LRU::regenerateChkBlkAddr(Addr set, Addr tag, int origTagShift){
 void
 LRU::unserialize(Checkpoint *cp, const std::string &section, string _filename){
 
+	if(cache != NULL){
+		if(cache->getLLCCheckpointLoadDisabled()){
+			DPRINTF(Serialize, "Checkpoint load disabled for %s, returning\n", cache->name());
+			return;
+		}
+	}
+	else{
+		assert(cacheInterference != NULL);
+		if(cacheInterference->getLLCCheckpointLoadDisabled()){
+			DPRINTF(Serialize, "Checkpoint load disabled for %s, returning\n", cacheInterference->name());
+			return;
+		}
+	}
+
 	string filename = _filename;
 	if(filename == "") UNSERIALIZE_SCALAR(filename);
 

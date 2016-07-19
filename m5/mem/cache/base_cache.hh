@@ -129,6 +129,7 @@ private:
 protected:
 
 	CacheInterference* cacheInterference;
+	bool disableLLCCheckpointLoad;
 
 	int associativity;
 
@@ -615,6 +616,10 @@ public:
 
 	int getAssoc(){
 		return associativity;
+	}
+
+	bool getLLCCheckpointLoadDisabled(){
+		return disableLLCCheckpointLoad;
 	}
 
 #ifdef CACHE_DEBUG

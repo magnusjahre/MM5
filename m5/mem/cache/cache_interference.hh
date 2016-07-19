@@ -204,6 +204,8 @@ private:
 
 	std::vector<int> itcaInterTaskCutoffs;
 
+	bool LLCCheckpointLoadDisabled;
+
     bool isLeaderSet(int set);
 
     void issuePrivateWriteback(int cpuID, Addr addr, BaseCache* cache, int cacheSet = -1);
@@ -240,7 +242,8 @@ public:
 			          int _hitLat,
 			          int _divFac,
 			          double _constituencyFactor,
-			          HierParams* _hp);
+			          HierParams* _hp,
+					  bool _disableLLCCheckpointLoad);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;
@@ -284,6 +287,10 @@ public:
 
     void setCachePartitioningEnabled(){
     	cachePartitioningEnabled = true;
+    }
+
+    bool getLLCCheckpointLoadDisabled(){
+    	return LLCCheckpointLoadDisabled;
     }
 };
 

@@ -208,6 +208,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
     SimObjectParam<CacheInterference *> cache_interference;
     SimObjectParam<MemoryOverlapEstimator *> overlapEstimator;
 
+    Param<bool> disableLLCCheckpointLoad;
+
 END_DECLARE_SIM_OBJECT_PARAMS(BaseCache)
 
 
@@ -315,7 +317,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseCache)
     INIT_PARAM_DFLT(do_mshr_trace, "Trace the occupancy of all MSHRs (caution!)", false),
     INIT_PARAM_DFLT(throttle_control, "A pointer to the throttle control object", NULL),
     INIT_PARAM_DFLT(cache_interference, "A pointer to the cache interference object", NULL),
-    INIT_PARAM_DFLT(overlapEstimator, "A pointer to the overlap estimator object", NULL)
+    INIT_PARAM_DFLT(overlapEstimator, "A pointer to the overlap estimator object", NULL),
+	INIT_PARAM_DFLT(disableLLCCheckpointLoad, "Disable loading LLC state from the checkpoint", false)
 END_INIT_SIM_OBJECT_PARAMS(BaseCache)
 
 #define BUILD_CACHE(t, comp, b, c) do {					\
@@ -372,7 +375,7 @@ END_INIT_SIM_OBJECT_PARAMS(BaseCache)
                                                        bank_count, adaptive_mha,\
             detailed_sim_start_tick, simulate_contention, memory_address_offset, memory_address_parts,\
             interference_manager, miss_bandwidth_policy, wbpolicy,shadow_tag_leader_sets, \
-            use_aggregate_mlp_estimator, static_cache_quotas, partitioning, cache_interference, overlapEstimator); \
+            use_aggregate_mlp_estimator, static_cache_quotas, partitioning, cache_interference, overlapEstimator, disableLLCCheckpointLoad); \
         Cache<CacheTags<t, comp>, b, c> *retval =			\
 	       new Cache<CacheTags<t, comp>, b, c>(getInstanceName(), hier, \
 	       					   params);		\

@@ -25,7 +25,8 @@ CacheInterference::CacheInterference(std::string _name,
 		                             int _hitLat,
 		                             int _divFac,
 		                             double _constituencyFactor,
-		                             HierParams* hp)
+		                             HierParams* hp,
+									 bool _disableLLCCheckpointLoad)
 : BaseHier(_name, hp){
 
 	size = _size;
@@ -34,6 +35,8 @@ CacheInterference::CacheInterference(std::string _name,
 	cpuCount = _cpuCount;
 	loadProbabilityPolicy = _loadIPP;
 	writebackProbabilityPolicy = _writebackIPP;
+
+	LLCCheckpointLoadDisabled = _disableLLCCheckpointLoad;
 
 	shadowTags = vector<LRU*>(cpuCount, NULL);
 
@@ -783,6 +786,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
     Param<int> hitLatency;
     Param<int> divisionFactor;
     Param<double> constituencyFactor;
+    Param<bool> disableLLCCheckpointLoad;
 END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
@@ -796,7 +800,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM(assoc, "Associativity"),
     INIT_PARAM(hitLatency, "The cache hit latency"),
     INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode"),
-    INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0)
+    INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0),
+	INIT_PARAM_DFLT(disableLLCCheckpointLoad, "Disable loading LLC state from the checkpoint", false)
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
 
@@ -843,7 +848,8 @@ CREATE_SIM_OBJECT(CacheInterference)
 								  hitLatency,
 								  divisionFactor,
 								  constituencyFactor,
-								  hp);
+								  hp,
+								  disableLLCCheckpointLoad);
 }
 
 REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)

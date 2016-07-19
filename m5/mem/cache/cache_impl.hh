@@ -141,6 +141,8 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     detailedSimulationStartTick = params.detailedSimStartTick;
 
+    disableLLCCheckpointLoad = params.disableLLCCheckpointLoad;
+
     useAdaptiveMHA = false;
     if (params.in == NULL) {
     	topLevelCache = true;
