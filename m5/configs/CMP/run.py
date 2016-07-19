@@ -68,6 +68,7 @@ def initTypedWorkload(name):
     
 def createWorkload(workload):
     simwl = []
+    wlstr = "Running workload: "
     
     idcnt = 0
     for b in workload:
@@ -79,11 +80,12 @@ def createWorkload(workload):
             bm = Spec2000.parseBenchmarkString(b)
         if bm == None:
             panic("Unknown benchmark "+b+" in workload")
-            
+        wlstr += str(idcnt)+": "+b+" "
         bm.cpuID = idcnt
         simwl.append(bm)
         idcnt += 1
     
+    print >> sys.stderr, wlstr
     return simwl
 
 def setNFQParams(useTrafficGenerator, controllerID, optPart):
