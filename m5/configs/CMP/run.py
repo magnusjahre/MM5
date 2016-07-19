@@ -314,6 +314,10 @@ def initSharedCache(bankcnt, optPart):
     else:
         panic("No cache defined for selected CPU count")
         
+    if "SHARED-CACHE-ASSOC" in env:
+        for bank in root.SharedCache:
+            bank.assoc = int(env["SHARED-CACHE-ASSOC"])
+    
     root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
     
     if optPart != None:
