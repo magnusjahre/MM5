@@ -715,7 +715,12 @@ CacheInterference::getMissMeasurementSample(){
 		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
 		if(!cachePartitioningEnabled) shadowTags[i]->resetHitCounters();
 
-		itcaInterTaskCutoffs[i] = ((double) interferenceMissAccumulator[i] / (double) shadowAccessAccumulator[i]) * ITCA_RAND_GEN_RESOLUTION;
+		if(shadowAccessAccumulator[i] > 0){
+			itcaInterTaskCutoffs[i] = ((double) interferenceMissAccumulator[i] / (double) shadowAccessAccumulator[i]) * ITCA_RAND_GEN_RESOLUTION;
+		}
+		else{
+			itcaInterTaskCutoffs[i] = 0;
+		}
 		if(itcaInterTaskCutoffs[i] > ITCA_RAND_GEN_RESOLUTION) itcaInterTaskCutoffs[i] = ITCA_RAND_GEN_RESOLUTION;
 		assert(itcaInterTaskCutoffs[i] >= 0);
 
