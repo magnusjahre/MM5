@@ -392,7 +392,7 @@ InterferenceManager::addInterference(LatencyType t, MemReqPtr& req, int interfer
 
     if(checkForStore(req)) return;
 
-    DPRINTF(OverlapEstimator, "Bois estimate: Adding %d interference ticks for address %d of type %s\n",
+    DPRINTF(OverlapEstimatorBois, "Bois estimate: Adding %d interference ticks for address %d of type %s\n",
             interferenceTicks,
             req->paddr,
             latencyStrings[t]);

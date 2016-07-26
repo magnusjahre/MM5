@@ -488,6 +488,11 @@ CacheInterference::computeCacheCapacityInterference(MemReqPtr& req, BaseCache* c
 		extraMissLatency[req->adaptiveMHASenderID] += extraDelay;
 		numExtraResponses[req->adaptiveMHASenderID]++;
 
+		DPRINTF(OverlapEstimatorBois, "Bois estimate: Address %d was tagged as an inter-thread miss and experienced %d cycles extra delay\n",
+				req->paddr,
+				extraDelay);
+
+
 		assert(cache->interferenceManager != NULL);
 		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacityResponse, req, extraDelay);
 	}
