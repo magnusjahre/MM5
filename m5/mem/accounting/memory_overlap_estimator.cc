@@ -1302,6 +1302,9 @@ Tick
 MemoryOverlapEstimator::getBoisAloneStallEstimate(){
     Tick tmp = boisAloneStallEstimate;
     boisAloneStallEstimate = 0;
+
+    DPRINTF(OverlapEstimatorBois, "Returning Bois alone stall estimate %d\n", tmp);
+
     return tmp;
 }
 
@@ -1351,7 +1354,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	Tick boisPreFullROB = stallLength - currentStallFullROB;
 	addBoisEstimateCycles(boisPreFullROB);
 	boisAccounted += boisPreFullROB;
-	DPRINTF(OverlapEstimator, "Bois estimate: adding %d pre full-ROB stall cycles\n", boisPreFullROB);
+	DPRINTF(OverlapEstimatorBois, "Bois estimate: adding %d pre full-ROB stall cycles\n", boisPreFullROB);
 
 	while(!completedRequests.empty() && completedRequests.front()->completedAt < curTick){
 		DPRINTF(OverlapEstimator, "Request %d, cmd %s, is part of burst, latency %d, %s, %s, %s%s\n",
@@ -1397,7 +1400,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 						boisNotAccounted += totalInterference;
 						boisInterference = totalInterference;
 
-						DPRINTF(OverlapEstimator, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, use interference %d (original %d)), addr %d\n",
+						DPRINTF(OverlapEstimatorBois, "Bois estimate: adding %d alone stall cycles (full ROB stall %d, use interference %d (original %d)), addr %d\n",
 								estAloneStall,
 								currentStallFullROB,
 								totalInterference,
@@ -1456,7 +1459,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 		boisAdded = true;
 		addBoisEstimateCycles(currentStallFullROB);
 		boisAccounted += currentStallFullROB;
-		DPRINTF(OverlapEstimator, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
+		DPRINTF(OverlapEstimatorBois, "Bois estimate: adding %d private stall cycles\n", currentStallFullROB);
 	}
 
 	if(endedBySquash && !(stalledOnShared || stalledOnPrivate)){
@@ -1467,7 +1470,7 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 			boisAdded = true;
 			addBoisEstimateCycles(currentStallFullROB);
 			boisAccounted += currentStallFullROB;
-			DPRINTF(OverlapEstimator, "Bois estimate: end by squash, adding whole stall %d\n", currentStallFullROB);
+			DPRINTF(OverlapEstimatorBois, "Bois estimate: end by squash, adding whole stall %d\n", currentStallFullROB);
 		}
 	}
 
@@ -1479,13 +1482,13 @@ MemoryOverlapEstimator::executionResumed(bool endedBySquash){
 	    	boisAdded = true;
 	    	addBoisEstimateCycles(currentStallFullROB);
 	    	boisAccounted += currentStallFullROB;
-	    	DPRINTF(OverlapEstimator, "Bois estimate: L1 stall, adding whole stall %d\n", currentStallFullROB);
+	    	DPRINTF(OverlapEstimatorBois, "Bois estimate: L1 stall, adding whole stall %d\n", currentStallFullROB);
 	    }
 	}
 	assert(stalledOnShared || stalledOnPrivate);
 
 	assert(boisAloneStallEstimateTrace == stallCycleAccumulator - (boisMemsysInterferenceTrace + boisLostStallCycles));
-	DPRINTF(OverlapEstimator, "Bois accounted %d cycles, did not account %d cycles, stall length %d\n",
+	DPRINTF(OverlapEstimatorBois, "Bois accounted %d cycles, did not account %d cycles, stall length %d\n",
 			boisAccounted, boisNotAccounted, stallLength);
 	assert(stallLength == boisAccounted + boisNotAccounted);
 	traceBoisStall(stalledOnAddr, stallLength, currentStallFullROB, boisAccounted, boisInterference, stalledOnShared);
