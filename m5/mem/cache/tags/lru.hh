@@ -150,6 +150,9 @@ protected:
 
 	CacheInterference* cacheInterference;
 
+private:
+	bool partitioningDebugPrintEnabled();
+
 public:
 	/**
 	 * Construct and initialize this tag store.

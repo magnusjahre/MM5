@@ -266,6 +266,11 @@ LRU::findBlock(Addr addr, int asid, int &lat)
 	return blk;
 }
 
+bool
+LRU::partitioningDebugPrintEnabled(){
+	return (doPartitioning && cache->isShared) || isShadow;
+}
+
 LRUBlk*
 LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet, int setsInConst)
 {
@@ -295,6 +300,16 @@ LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet, int setsInConst)
 
 	lat = hitLatency;
 	if (blk != NULL) {
+		if(partitioningDebugPrintEnabled()){
+			DPRINTF(CachePartitioning, "%sAddress %d (set %d) is a cache hit in way %d for CPU %d (block owner %d), moving to MRU position\n",
+					(isShadow ? "SHADOW: " : ""),
+					addr,
+					set,
+					hitIndex,
+					req->adaptiveMHASenderID,
+					blk->origRequestingCpuID);
+		}
+
 		// move this block to head of the MRU list
 		sets[set].moveToHead(blk);
 
@@ -303,6 +318,15 @@ LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet, int setsInConst)
 			lat = blk->whenReady - curTick;
 		}
 		blk->refCount += 1;
+	}
+	else{
+		if(partitioningDebugPrintEnabled()){
+			DPRINTF(CachePartitioning, "%sAddress %d (set %d) is a cache miss for CPU %d\n",
+					(isShadow ? "SHADOW: " : ""),
+					addr,
+					set,
+					req->adaptiveMHASenderID);
+		}
 	}
 
 	return blk;
@@ -387,6 +411,13 @@ LRU::findLRUBlkForCPU(int cpuID, unsigned int set){
 	for(int i = assoc-1;i>=0;i--){
 		LRUBlk* blk = sets[set].blks[i];
 		if(blk->origRequestingCpuID == cpuID){
+
+			DPRINTF(CachePartitioning, "%sFound LRU block for CPU %d in way %d (set %d)\n",
+					(isShadow ? "SHADOW: " : ""),
+					blk->origRequestingCpuID,
+					i,
+					set);
+
 			return blk;
 		}
 	}
@@ -399,6 +430,11 @@ LRU::findLRUOverQuotaBlk(vector<int> blocksInUse, unsigned int set){
 		LRUBlk* blk = sets[set].blks[i];
 		assert(blk->origRequestingCpuID != -1);
 		if(blocksInUse[blk->origRequestingCpuID] > currentPartition[blk->origRequestingCpuID]){
+			DPRINTF(CachePartitioning, "%sover-allocated LRU block belongs to CPU %d (quota %d, blocks %d)\n",
+					(isShadow ? "SHADOW: " : ""),
+					blk->origRequestingCpuID,
+					currentPartition[blk->origRequestingCpuID],
+					blocksInUse[blk->origRequestingCpuID]);
 			return blk;
 		}
 	}
@@ -423,12 +459,33 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 		int maxBlks = currentPartition[fromProc];
 		vector<int> blocksInUse = getUsedBlocksPerCore(set);
 
+		DPRINTF(CachePartitioning, "%sCPU %d is using %d blocks out of max %d in set %d (address %d)\n",
+				(isShadow ? "SHADOW: " : ""),
+				fromProc,
+				blocksInUse[fromProc],
+				maxBlks,
+				set,
+				req->paddr);
+
 		if(blocksInUse[fromProc] < maxBlks){
 			if(!sets[set].blks[assoc-1]->isTouched){
+				DPRINTF(CachePartitioning, "%sReplacing the LRU block in set %d (address %d)\n",
+						(isShadow ? "SHADOW: " : ""),
+						set,
+						req->paddr);
 				blk = sets[set].blks[assoc-1];
 			}
 			else{
 				blk = findLRUOverQuotaBlk(blocksInUse, set);
+
+				DPRINTF(CachePartitioning, "%sCPU %d is over quota %d (using %d) in set %d, replacing with address %d from CPU %d\n",
+						(isShadow ? "SHADOW: " : ""),
+						blk->origRequestingCpuID,
+						currentPartition[blk->origRequestingCpuID],
+						blocksInUse[blk->origRequestingCpuID],
+						set,
+						req->paddr,
+						req->adaptiveMHASenderID);
 			}
 		}
 		else{
@@ -437,6 +494,14 @@ LRU::findReplacement(MemReqPtr &req, MemReqList &writebacks,
 	}
 	else{
 		if(maxUseWays == assoc){
+			if(partitioningDebugPrintEnabled()){
+				DPRINTF(CachePartitioning, "%sInstalling address %d in set %d for CPU %d\n",
+						(isShadow ? "SHADOW: " : ""),
+						req->paddr,
+						set,
+						req->adaptiveMHASenderID);
+			}
+
 			blk = sets[set].blks[assoc-1];
 		}
 		else{

@@ -492,6 +492,10 @@ CacheInterference::computeCacheCapacityInterference(MemReqPtr& req, BaseCache* c
 				req->paddr,
 				extraDelay);
 
+		DPRINTF(CachePartitioning, "CPU %d: Request for address %d was an interference miss (additional delay %d cycles)\n",
+				req->adaptiveMHASenderID,
+				req->paddr,
+				extraDelay);
 
 		assert(cache->interferenceManager != NULL);
 		cache->interferenceManager->addInterference(InterferenceManager::CacheCapacityResponse, req, extraDelay);
