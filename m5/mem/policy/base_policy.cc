@@ -935,6 +935,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Policy type");
 		headers.push_back("Average Shared Model Error");
 		headers.push_back("ITCA Accounted Cycles");
+		headers.push_back("Private LLC Hit Estimate");
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -980,7 +981,8 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 							  double numStores,
 							  int numWriteStalls,
 							  int emptyROBStallCycles,
-							  Tick boisAloneStallEst){
+							  Tick boisAloneStallEst,
+							  int privateLLCHitEstimate){
 
 	vector<RequestTraceEntry> data;
 
@@ -1073,6 +1075,7 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		data.push_back(lastCPLPolicyDesicion[cpuID]);
 		data.push_back(getHybridAverageError(cpuID));
 		data.push_back(ols.itcaAccountedCycles.accountedCycles);
+		data.push_back(privateLLCHitEstimate);
 
 		// Update values needed for cache partitioning policy
 		aloneIPCEstimates[cpuID] = aloneIPCEstimate;

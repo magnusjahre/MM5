@@ -196,6 +196,7 @@ private:
 	std::vector<int> interferenceMissAccumulator;
 	std::vector<int> accessAccumulator;
 	std::vector<int> shadowAccessAccumulator;
+	std::vector<int> privateHitEstimateAccumulator;
 
 	std::vector<Tick> lastPendingLoadChangeAt;
 	std::vector<int> pendingLoads;
@@ -292,6 +293,8 @@ public:
     bool getLLCCheckpointLoadDisabled(){
     	return LLCCheckpointLoadDisabled;
     }
+
+    int getPrivateHitEstimate(int cpuID);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

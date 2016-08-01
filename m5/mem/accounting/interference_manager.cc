@@ -866,6 +866,8 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 		avgTotalLat = (double) cpuComTraceTotalRoundtrip[cpuID] / (double) cpuComTraceTotalRoundtripRequests[cpuID];
 	}
 
+	int privateLLCHitEstimate = cacheInterference->getPrivateHitEstimate(cpuID);
+
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
 
@@ -891,7 +893,8 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 											   instTraceStoreRequests[cpuID],
 											   numWriteStalls,
 											   commitTraceEmptyROBStall[cpuID],
-											   boisAloneStallEst);
+											   boisAloneStallEst,
+											   privateLLCHitEstimate);
 
 		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
 		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);

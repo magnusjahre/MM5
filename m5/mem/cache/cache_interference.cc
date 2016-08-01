@@ -101,6 +101,8 @@ CacheInterference::CacheInterference(std::string _name,
 	accessAccumulator.resize(cpuCount, 0);
 	shadowAccessAccumulator.resize(cpuCount, 0);
 
+	privateHitEstimateAccumulator.resize(cpuCount, 0);
+
 	lastPendingLoadChangeAt.resize(cpuCount, 0);
 	pendingLoads.resize(cpuCount, 0);
 	overlapAccumulator.resize(cpuCount, 0.0);
@@ -250,6 +252,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				sampleInterferenceMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 				interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
+			privateHitEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 		}
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 		estimatedShadowAccesses[req->adaptiveMHASenderID] += estConstAccesses;
@@ -293,6 +296,14 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			}
 		}
 	}
+}
+
+int
+CacheInterference::getPrivateHitEstimate(int cpuID){
+	assert(cpuID < privateHitEstimateAccumulator.size());
+	int tmp = privateHitEstimateAccumulator[cpuID];
+	privateHitEstimateAccumulator[cpuID];
+	return tmp;
 }
 
 void
