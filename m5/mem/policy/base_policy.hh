@@ -31,6 +31,7 @@
 class MissBandwidthPolicyEvent;
 class MissBandwidthTraceEvent;
 class InterferenceManager;
+class CacheAccessMeasurement;
 class BaseCache;
 class Bus;
 class OverlapStatistics;
@@ -317,7 +318,7 @@ public:
 						   int numWriteStalls,
 						   int emptyROBStallCycles,
 						   Tick boisAloneStallEst,
-						   int privateLLCHitEstimate);
+						   CacheAccessMeasurement privateLLCEstimates);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

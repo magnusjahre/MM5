@@ -102,6 +102,8 @@ CacheInterference::CacheInterference(std::string _name,
 	shadowAccessAccumulator.resize(cpuCount, 0);
 
 	privateHitEstimateAccumulator.resize(cpuCount, 0);
+	privateAccessEstimateAccumulator.resize(cpuCount, 0);
+	privateInterferenceEstimateAccumulator.resize(cpuCount, 0);
 
 	lastPendingLoadChangeAt.resize(cpuCount, 0);
 	pendingLoads.resize(cpuCount, 0);
@@ -251,12 +253,14 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				sequentialReadCount[req->adaptiveMHASenderID] += estConstAccesses;
 				sampleInterferenceMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 				interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+				privateInterferenceEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 			privateHitEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 		}
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 		estimatedShadowAccesses[req->adaptiveMHASenderID] += estConstAccesses;
 		shadowAccessAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+		privateAccessEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 	}
 	if(curTick >= detailedSimStart){
 		if(isCacheMiss){
@@ -298,12 +302,19 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	}
 }
 
-int
+CacheAccessMeasurement
 CacheInterference::getPrivateHitEstimate(int cpuID){
 	assert(cpuID < privateHitEstimateAccumulator.size());
-	int tmp = privateHitEstimateAccumulator[cpuID];
-	privateHitEstimateAccumulator[cpuID];
-	return tmp;
+	CacheAccessMeasurement measurement;
+	measurement.add(privateHitEstimateAccumulator[cpuID],
+					privateAccessEstimateAccumulator[cpuID],
+					privateInterferenceEstimateAccumulator[cpuID]);
+
+
+	privateHitEstimateAccumulator[cpuID] = 0;
+	privateAccessEstimateAccumulator[cpuID] = 0;
+	privateInterferenceEstimateAccumulator[cpuID] = 0;
+	return measurement;
 }
 
 void

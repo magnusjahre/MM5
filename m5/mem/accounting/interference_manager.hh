@@ -42,6 +42,25 @@ public:
 	}
 };
 
+class CacheAccessMeasurement{
+public:
+	int hits;
+	int accesses;
+	int interferenceMisses;
+
+	CacheAccessMeasurement(){
+		hits = 0;
+		accesses = 0;
+		interferenceMisses = 0;
+	}
+
+	void add(int _hits, int _accesses, int _interferenceMisses){
+		hits += _hits;
+		accesses += _accesses;
+		interferenceMisses += _interferenceMisses;
+	}
+};
+
 class InterferenceManager : public SimObject{
 
 private:

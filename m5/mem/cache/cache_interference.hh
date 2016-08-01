@@ -19,6 +19,7 @@
 
 class BaseCache;
 class InterferenceManager;
+class CacheAccessMeasurement;
 class LRU;
 class LRUBlk;
 
@@ -196,7 +197,10 @@ private:
 	std::vector<int> interferenceMissAccumulator;
 	std::vector<int> accessAccumulator;
 	std::vector<int> shadowAccessAccumulator;
+
 	std::vector<int> privateHitEstimateAccumulator;
+	std::vector<int> privateAccessEstimateAccumulator;
+	std::vector<int> privateInterferenceEstimateAccumulator;
 
 	std::vector<Tick> lastPendingLoadChangeAt;
 	std::vector<int> pendingLoads;
@@ -294,7 +298,7 @@ public:
     	return LLCCheckpointLoadDisabled;
     }
 
-    int getPrivateHitEstimate(int cpuID);
+    CacheAccessMeasurement getPrivateHitEstimate(int cpuID);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */
