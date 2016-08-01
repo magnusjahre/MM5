@@ -610,6 +610,8 @@ public:
 
     virtual void enableOccupancyList() = 0;
 
+    virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements) = 0;
+
 	void sampleMSHRUse(int allocated, Tick latency);
 
 	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities) = 0;

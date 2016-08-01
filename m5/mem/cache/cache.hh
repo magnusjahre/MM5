@@ -74,6 +74,9 @@ class Cache : public BaseCache
     int accessSample;
     int missSample;
 
+    int llcAccessAccumulator;
+    int llcHitAccumulator;
+
   public:
     /** Define the type of cache block to use. */
     typedef typename TagStore::BlkType BlkType;
@@ -467,6 +470,8 @@ class Cache : public BaseCache
     virtual RateMeasurement getMissRate();
 
 	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities);
+
+	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements);
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);

@@ -229,6 +229,9 @@ Cache(const std::string &_name, HierParams *hier_params,
     	tags->setCachePartition(params.staticQuotas);
     	tags->enablePartitioning();
     }
+
+    llcAccessAccumulator = 0;
+    llcHitAccumulator = 0;
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -387,6 +390,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		cacheInterference->access(req, !blk, hitLatency, detailedSimulationStartTick, this);
 	}
 
+	if(isShared) llcAccessAccumulator++;
 	accessSample++;
 	if (blk) {
 
@@ -416,6 +420,7 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		}
 		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
 
+		if(isShared) llcHitAccumulator++;
 		return MA_HIT;
 	}
 
@@ -471,6 +476,17 @@ Cache<TagStore,Buffering,Coherence>::getMissRate(){
 	missSample = 0;
 	accessSample = 0;
 	return rateMeasurement;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+CacheAccessMeasurement
+Cache<TagStore,Buffering,Coherence>::updateCacheMissMeasurements(CacheAccessMeasurement measurements){
+
+	measurements.add(llcHitAccumulator, llcAccessAccumulator, 0);
+	llcHitAccumulator = 0;
+	llcAccessAccumulator = 0;
+
+	return measurements;
 }
 
 template<class TagStore, class Buffering, class Coherence>

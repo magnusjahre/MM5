@@ -938,6 +938,9 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("Private LLC Hit Estimate");
 		headers.push_back("Private LLC Access Estimate");
 		headers.push_back("LLC Interference Estimate");
+		headers.push_back("Shared LLC Hits");
+		headers.push_back("Shared LLC Accesses");
+
 	}
 	else{
 		headers.push_back("Alone Memory Latency");
@@ -951,6 +954,8 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("CPL-CWP Stall Estimate");
 		headers.push_back("CPL-table Stall Estimate");
 		headers.push_back("CPL-CWP-table Stall Estimate");
+		headers.push_back("Shared LLC Hits");
+		headers.push_back("Shared LLC Accesses");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -984,7 +989,8 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 							  int numWriteStalls,
 							  int emptyROBStallCycles,
 							  Tick boisAloneStallEst,
-							  CacheAccessMeasurement privateLLCEstimates){
+							  CacheAccessMeasurement privateLLCEstimates,
+							  CacheAccessMeasurement sharedLLCMeasurements){
 
 	vector<RequestTraceEntry> data;
 
@@ -1080,6 +1086,8 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		data.push_back(privateLLCEstimates.hits);
 		data.push_back(privateLLCEstimates.accesses);
 		data.push_back(privateLLCEstimates.interferenceMisses);
+		data.push_back(sharedLLCMeasurements.hits);
+		data.push_back(sharedLLCMeasurements.accesses);
 
 		// Update values needed for cache partitioning policy
 		aloneIPCEstimates[cpuID] = aloneIPCEstimate;
@@ -1127,6 +1135,9 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		// CPL models with critical path data (latency is round trip and thus includes both the private and shared memsys)
 		data.push_back(((ols.cptMeasurements.averageCPLatency())*ols.tableCPL)+privateStallCycles);
 		data.push_back(((ols.cptMeasurements.averageCPLatency()-ols.cptMeasurements.averageCPCWP())*ols.tableCPL)+privateStallCycles);
+
+		data.push_back(sharedLLCMeasurements.hits);
+		data.push_back(sharedLLCMeasurements.accesses);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);

@@ -867,6 +867,10 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 	}
 
 	CacheAccessMeasurement privateLLCEstimates = cacheInterference->getPrivateHitEstimate(cpuID);
+	CacheAccessMeasurement llcMeasurements;
+	for(int i=0;i<sharedCaches.size();i++){
+		llcMeasurements = sharedCaches[i]->updateCacheMissMeasurements(llcMeasurements);
+	}
 
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
@@ -894,7 +898,8 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 											   numWriteStalls,
 											   commitTraceEmptyROBStall[cpuID],
 											   boisAloneStallEst,
-											   privateLLCEstimates);
+											   privateLLCEstimates,
+											   llcMeasurements);
 
 		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
 		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);
