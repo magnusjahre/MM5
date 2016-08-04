@@ -74,8 +74,8 @@ class Cache : public BaseCache
     int accessSample;
     int missSample;
 
-    int llcAccessAccumulator;
-    int llcHitAccumulator;
+    std::vector<int> llcAccessAccumulator;
+    std::vector<int> llcHitAccumulator;
 
   public:
     /** Define the type of cache block to use. */
@@ -471,7 +471,7 @@ class Cache : public BaseCache
 
 	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities);
 
-	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements);
+	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID);
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);

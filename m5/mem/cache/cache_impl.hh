@@ -76,7 +76,7 @@ Cache(const std::string &_name, HierParams *hier_params,
       doCopy(params.doCopy), blockOnCopy(params.blockOnCopy)
 {
 
-    // needs these for the memory addresing bug workaround
+    // needs these for the memory addressing bug workaround
     cpuCount = params.cpu_count;
     assert(cpuCount > 0);
     isMultiprogWorkload = params.multiprog_workload;
@@ -230,8 +230,8 @@ Cache(const std::string &_name, HierParams *hier_params,
     	tags->enablePartitioning();
     }
 
-    llcAccessAccumulator = 0;
-    llcHitAccumulator = 0;
+    llcAccessAccumulator.resize(cpuCount, 0);
+    llcHitAccumulator.resize(cpuCount, 0);
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -390,7 +390,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		cacheInterference->access(req, !blk, hitLatency, detailedSimulationStartTick, this);
 	}
 
-	if(isShared) llcAccessAccumulator++;
+	if(isShared){
+		assert(req->adaptiveMHASenderID != -1);
+		llcAccessAccumulator[req->adaptiveMHASenderID]++;
+	}
 	accessSample++;
 	if (blk) {
 
@@ -420,7 +423,10 @@ Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 		}
 		else if(simulateContention && curTick >= detailedSimulationStartTick) updateInterference(req);
 
-		if(isShared) llcHitAccumulator++;
+		if(isShared){
+			assert(req->adaptiveMHASenderID != -1);
+			llcHitAccumulator[req->adaptiveMHASenderID]++;
+		}
 		return MA_HIT;
 	}
 
@@ -480,11 +486,13 @@ Cache<TagStore,Buffering,Coherence>::getMissRate(){
 
 template<class TagStore, class Buffering, class Coherence>
 CacheAccessMeasurement
-Cache<TagStore,Buffering,Coherence>::updateCacheMissMeasurements(CacheAccessMeasurement measurements){
+Cache<TagStore,Buffering,Coherence>::updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID){
 
-	measurements.add(llcHitAccumulator, llcAccessAccumulator, 0);
-	llcHitAccumulator = 0;
-	llcAccessAccumulator = 0;
+	assert(cpuID >= 0 && cpuID < llcHitAccumulator.size());
+	assert(llcHitAccumulator.size() == llcAccessAccumulator.size());
+	measurements.add(llcHitAccumulator[cpuID], llcAccessAccumulator[cpuID], 0);
+	llcHitAccumulator[cpuID] = 0;
+	llcAccessAccumulator[cpuID] = 0;
 
 	return measurements;
 }

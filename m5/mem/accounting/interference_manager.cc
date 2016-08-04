@@ -869,7 +869,7 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 	CacheAccessMeasurement privateLLCEstimates = cacheInterference->getPrivateHitEstimate(cpuID);
 	CacheAccessMeasurement llcMeasurements;
 	for(int i=0;i<sharedCaches.size();i++){
-		llcMeasurements = sharedCaches[i]->updateCacheMissMeasurements(llcMeasurements);
+		llcMeasurements = sharedCaches[i]->updateCacheMissMeasurements(llcMeasurements, cpuID);
 	}
 
 	// Base policy trace

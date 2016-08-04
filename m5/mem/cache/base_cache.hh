@@ -610,7 +610,7 @@ public:
 
     virtual void enableOccupancyList() = 0;
 
-    virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements) = 0;
+    virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID) = 0;
 
 	void sampleMSHRUse(int allocated, Tick latency);
 
