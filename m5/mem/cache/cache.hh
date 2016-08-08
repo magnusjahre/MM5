@@ -76,6 +76,7 @@ class Cache : public BaseCache
 
     std::vector<int> llcAccessAccumulator;
     std::vector<int> llcHitAccumulator;
+    std::vector<int> llcWritebackAccumulator;
 
   public:
     /** Define the type of cache block to use. */

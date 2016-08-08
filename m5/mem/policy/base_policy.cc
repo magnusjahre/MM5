@@ -937,9 +937,11 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("ITCA Accounted Cycles");
 		headers.push_back("Private LLC Hit Estimate");
 		headers.push_back("Private LLC Access Estimate");
+		headers.push_back("Private LLC Writeback Estimate");
 		headers.push_back("LLC Interference Estimate");
 		headers.push_back("Shared LLC Hits");
 		headers.push_back("Shared LLC Accesses");
+		headers.push_back("Shared LLC Writebacks");
 
 	}
 	else{
@@ -956,6 +958,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 		headers.push_back("CPL-CWP-table Stall Estimate");
 		headers.push_back("Shared LLC Hits");
 		headers.push_back("Shared LLC Accesses");
+		headers.push_back("Shared LLC Writebacks");
 	}
 
 	comInstModelTraces.resize(cpuCount, RequestTrace());
@@ -1085,9 +1088,11 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 		data.push_back(ols.itcaAccountedCycles.accountedCycles);
 		data.push_back(privateLLCEstimates.hits);
 		data.push_back(privateLLCEstimates.accesses);
+		data.push_back(privateLLCEstimates.writebacks);
 		data.push_back(privateLLCEstimates.interferenceMisses);
 		data.push_back(sharedLLCMeasurements.hits);
 		data.push_back(sharedLLCMeasurements.accesses);
+		data.push_back(sharedLLCMeasurements.writebacks);
 
 		// Update values needed for cache partitioning policy
 		aloneIPCEstimates[cpuID] = aloneIPCEstimate;
@@ -1138,6 +1143,7 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 
 		data.push_back(sharedLLCMeasurements.hits);
 		data.push_back(sharedLLCMeasurements.accesses);
+		data.push_back(sharedLLCMeasurements.writebacks);
 	}
 
 	comInstModelTraces[cpuID].addTrace(data);

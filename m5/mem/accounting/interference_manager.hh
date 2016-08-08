@@ -47,17 +47,20 @@ public:
 	int hits;
 	int accesses;
 	int interferenceMisses;
+	int writebacks;
 
 	CacheAccessMeasurement(){
 		hits = 0;
 		accesses = 0;
 		interferenceMisses = 0;
+		writebacks = 0;
 	}
 
-	void add(int _hits, int _accesses, int _interferenceMisses){
+	void add(int _hits, int _accesses, int _interferenceMisses, int _writebacks){
 		hits += _hits;
 		accesses += _accesses;
 		interferenceMisses += _interferenceMisses;
+		writebacks += _writebacks;
 	}
 };
 

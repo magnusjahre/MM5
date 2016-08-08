@@ -104,6 +104,7 @@ CacheInterference::CacheInterference(std::string _name,
 	privateHitEstimateAccumulator.resize(cpuCount, 0);
 	privateAccessEstimateAccumulator.resize(cpuCount, 0);
 	privateInterferenceEstimateAccumulator.resize(cpuCount, 0);
+	privateWritebackEstimateAccumulator.resize(cpuCount, 0);
 
 	lastPendingLoadChangeAt.resize(cpuCount, 0);
 	pendingLoads.resize(cpuCount, 0);
@@ -308,12 +309,14 @@ CacheInterference::getPrivateHitEstimate(int cpuID){
 	CacheAccessMeasurement measurement;
 	measurement.add(privateHitEstimateAccumulator[cpuID],
 					privateAccessEstimateAccumulator[cpuID],
-					privateInterferenceEstimateAccumulator[cpuID]);
+					privateInterferenceEstimateAccumulator[cpuID],
+					privateWritebackEstimateAccumulator[cpuID]);
 
 
 	privateHitEstimateAccumulator[cpuID] = 0;
 	privateAccessEstimateAccumulator[cpuID] = 0;
 	privateInterferenceEstimateAccumulator[cpuID] = 0;
+	privateWritebackEstimateAccumulator[cpuID] = 0;
 	return measurement;
 }
 
@@ -565,6 +568,8 @@ CacheInterference::issuePrivateWriteback(int cpuID, Addr addr, BaseCache* cache,
 	if(cacheSet != -1){
 		virtualWriteback->sharedCacheSet = cacheSet;
 	}
+
+	privateWritebackEstimateAccumulator[cpuID]++;
 
 	cache->issueVirtualPrivateWriteback(virtualWriteback);
 }

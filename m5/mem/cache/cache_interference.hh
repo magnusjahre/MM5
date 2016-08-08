@@ -201,6 +201,7 @@ private:
 	std::vector<int> privateHitEstimateAccumulator;
 	std::vector<int> privateAccessEstimateAccumulator;
 	std::vector<int> privateInterferenceEstimateAccumulator;
+	std::vector<int> privateWritebackEstimateAccumulator;
 
 	std::vector<Tick> lastPendingLoadChangeAt;
 	std::vector<int> pendingLoads;

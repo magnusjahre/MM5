@@ -232,6 +232,7 @@ Cache(const std::string &_name, HierParams *hier_params,
 
     llcAccessAccumulator.resize(cpuCount, 0);
     llcHitAccumulator.resize(cpuCount, 0);
+    llcWritebackAccumulator.resize(cpuCount, 0);
 }
 
 template<class TagStore, class Buffering, class Coherence>
@@ -490,9 +491,10 @@ Cache<TagStore,Buffering,Coherence>::updateCacheMissMeasurements(CacheAccessMeas
 
 	assert(cpuID >= 0 && cpuID < llcHitAccumulator.size());
 	assert(llcHitAccumulator.size() == llcAccessAccumulator.size());
-	measurements.add(llcHitAccumulator[cpuID], llcAccessAccumulator[cpuID], 0);
+	measurements.add(llcHitAccumulator[cpuID], llcAccessAccumulator[cpuID], 0, llcWritebackAccumulator[cpuID]);
 	llcHitAccumulator[cpuID] = 0;
 	llcAccessAccumulator[cpuID] = 0;
+	llcWritebackAccumulator[cpuID] = 0;
 
 	return measurements;
 }
@@ -672,26 +674,35 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 					else{
 
 
-							switch(writebackOwnerPolicy){
-							case BaseCache::WB_POLICY_OWNER:
-								assert(blk->prevOrigRequestingCpuID != -1);
-								writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
-								writebacks.front()->nfqWBID = blk->prevOrigRequestingCpuID;
-								break;
-							case BaseCache::WB_POLICY_REPLACER:
-								writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
-								writebacks.front()->nfqWBID = req->adaptiveMHASenderID;
-								break;
-							default:
-								writebacks.front()->adaptiveMHASenderID = -1;
-								writebacks.front()->nfqWBID = -1;
-								break;
-							}
+						switch(writebackOwnerPolicy){
+						case BaseCache::WB_POLICY_OWNER:
+							assert(blk->prevOrigRequestingCpuID != -1);
+							writebacks.front()->adaptiveMHASenderID = blk->prevOrigRequestingCpuID;
+							writebacks.front()->nfqWBID = blk->prevOrigRequestingCpuID;
+							break;
+						case BaseCache::WB_POLICY_REPLACER:
+							writebacks.front()->adaptiveMHASenderID = req->adaptiveMHASenderID;
+							writebacks.front()->nfqWBID = req->adaptiveMHASenderID;
+							break;
+						default:
+							writebacks.front()->adaptiveMHASenderID = -1;
+							writebacks.front()->nfqWBID = -1;
+							break;
+						}
 
-							writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
-							writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
-							writebacks.front()->memCtrlWbGenBy = req->paddr;
+						writebacks.front()->memCtrlGeneratingReadSeqNum = req->memCtrlPrivateSeqNum;
+						writebacks.front()->memCtrlGenReadInterference = req->interferenceBreakdown[MEM_BUS_QUEUE_LAT] + req->interferenceBreakdown[MEM_BUS_SERVICE_LAT] + req->interferenceBreakdown[MEM_BUS_ENTRY_LAT];
+						writebacks.front()->memCtrlWbGenBy = req->paddr;
 
+					}
+
+					if(isShared){
+						if(cpuCount == 1){
+							llcWritebackAccumulator[0]++;
+						}
+						else if(blk->prevOrigRequestingCpuID != -1){
+							llcWritebackAccumulator[blk->prevOrigRequestingCpuID]++;
+						}
 					}
 
 
