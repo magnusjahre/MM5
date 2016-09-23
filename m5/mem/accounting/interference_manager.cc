@@ -819,7 +819,7 @@ InterferenceManager::getAvgNoBusLat(double avgRoundTripLatency, int cpuID){
 }
 
 PerformanceModelMeasurements
-InterferenceManager::buildModelMeasurements(int committedInstructions, Tick ticksInSample, OverlapStatistics ols){
+InterferenceManager::buildModelMeasurements(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols){
 	PerformanceModelMeasurements modelMeasurements = PerformanceModelMeasurements();
 	modelMeasurements.committedInstructions = committedInstructions;
 	modelMeasurements.ticksInSample = ticksInSample;
@@ -829,7 +829,7 @@ InterferenceManager::buildModelMeasurements(int committedInstructions, Tick tick
 			modelMeasurements.committedInstructions,
 			modelMeasurements.ticksInSample);
 
-	if(memoryBuses.size() != 1) fatal("Multichannel memory bus not supported by performance model measurements");
+	if(memoryBuses.size() != 1) warn("CPU %d: Multichannel memory bus not supported by performance model measurements @ %d", cpuID, curTick);
 	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
 
 	modelMeasurements.avgMemBusParallelism = ols.globalAvgMemBusPara;
@@ -901,7 +901,7 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 											   privateLLCEstimates,
 											   llcMeasurements);
 
-		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(committedInstructions, ticksInSample, ols);
+		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(cpuID, committedInstructions, ticksInSample, ols);
 		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);
 
 	}
