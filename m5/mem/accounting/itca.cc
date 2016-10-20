@@ -197,7 +197,11 @@ ITCA::intertaskMiss(Addr addr, bool isInstructionMiss, Addr cpuAddr){
 	vector<ITCATableEntry>* table = &dataMissTable;
 	if(isInstructionMiss) table = &instructionMissTable;
 
-	int entryID = findTableEntry(table, addr);
+	int entryID = findTableEntry(table, addr, true);
+	if(entryID == -1){
+		warn("ITCA: Entry was not found on intertask miss");
+		return;
+	}
 	table->at(entryID).intertaskMiss = true;
 	table->at(entryID).cpuAddr = cpuAddr;
 
