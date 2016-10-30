@@ -1052,7 +1052,15 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles.accountedCycles;
 			assert(newStallEstimate == 0.0);
 			assert(cyclesInSample == ols.itcaAccountedCycles.accountedCycles + ols.itcaAccountedCycles.notAccountedCycles);
-			newStallEstimate = cyclesInSample - ols.itcaAccountedCycles.accountedCycles;
+
+			Tick curStallCycles = stallCycles + privateStallCycles;
+			if(curStallCycles > ols.itcaAccountedCycles.notAccountedCycles){
+				newStallEstimate = curStallCycles - ols.itcaAccountedCycles.notAccountedCycles;
+			}
+			else{
+				newStallEstimate = 0.0;
+			}
+			assert(newStallEstimate >= 0.0);
 		}
 		else if(perfEstMethod == CONST_1){
 			aloneIPCEstimate = 1.0;
