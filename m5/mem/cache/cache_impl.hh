@@ -1631,6 +1631,116 @@ Cache<TagStore,Buffering,Coherence>::assignBlockingBlame(){
     return retmap;
 }
 
+template<class TagStore, class Buffering, class Coherence>
+int
+Cache<TagStore,Buffering,Coherence>::sum(std::vector<int> data){
+	int sum = 0;
+	for(int i=0;i<data.size();i++){
+		sum += data[i];
+	}
+	return sum;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+int
+Cache<TagStore,Buffering,Coherence>::maxIndex(std::vector<int> data){
+	int maxind = 0;
+	int maxval = data[maxind];
+	for(int i=1;i<data.size();i++){
+		if(data[i] > maxval){
+			maxval = data[i];
+			maxind = i;
+		}
+	}
+	return maxind;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+int
+Cache<TagStore,Buffering,Coherence>::minIndex(std::vector<int> data){
+	int minind = 0;
+	int minval = data[minind];
+	for(int i=1;i<data.size();i++){
+		if(data[i] < minval){
+			minval = data[i];
+			minind = i;
+		}
+	}
+	return minind;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+bool
+Cache<TagStore,Buffering,Coherence>::areEqual(std::vector<int> d1, std::vector<int> d2){
+	if(d1.size() != d2.size()) return false;
+	for(int i=0;i<d1.size();i++){
+		if(d1[i] != d2[i]){
+			return false;
+		}
+	}
+	return true;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+std::vector<int>
+Cache<TagStore,Buffering,Coherence>::difference(std::vector<int> d1, std::vector<int> d2){
+	assert(d1.size() == d2.size());
+	vector<int> difference = vector<int>(d1.size(), 0);
+	for(int i=0;i<d1.size();i++){
+		difference[i] = d1[i] - d2[i];
+	}
+	return difference;
+}
+
+template<class TagStore, class Buffering, class Coherence>
+std::string
+Cache<TagStore,Buffering,Coherence>::getDataString(std::vector<int> allocation){
+	stringstream retstr;
+	for(int i=0;i<allocation.size();i++){
+		retstr << i << ":" << allocation[i] << " ";
+	}
+	return retstr.str();
+}
+
+template<class TagStore, class Buffering, class Coherence>
+std::vector<int>
+Cache<TagStore,Buffering,Coherence>::findAllocation(std::vector<int> currentAllocation, std::vector<int> bestAllocation, int numChanges){
+
+	if(numChanges == 0 || sum(currentAllocation) == 0){
+		DPRINTF(MissBWPolicy, "Returning best allocation due to number of changes %d or allocation sum %d\n",
+				numChanges,
+				sum(currentAllocation));
+		return bestAllocation;
+	}
+
+	assert(numChanges > 0);
+	int maxChanges = numChanges;
+	while(numChanges > 0 && !areEqual(currentAllocation, bestAllocation)){
+		vector<int> diff = difference(currentAllocation, bestAllocation);
+		int maxind = maxIndex(diff);
+		int minind = minIndex(diff);
+
+		currentAllocation[maxind]--;
+		currentAllocation[minind]++;
+
+		DPRINTF(MissBWPolicy, "Step %d of %d: allocation is %sand target is %sand difference %s\n",
+				              maxChanges - numChanges + 1,
+							  maxChanges,
+							  getDataString(currentAllocation).c_str(),
+							  getDataString(bestAllocation).c_str(),
+							  getDataString(difference(currentAllocation, bestAllocation)).c_str());
+
+		numChanges--;
+	}
+
+	DPRINTF(MissBWPolicy, "Returning allocation %sand target %swith difference %s\n",
+						  getDataString(currentAllocation).c_str(),
+						  getDataString(bestAllocation).c_str(),
+						  getDataString(difference(currentAllocation, bestAllocation)).c_str());
+
+	return currentAllocation;
+}
+
 #define WI(allocationIndex) (allocationIndex-1)
 
 template<class TagStore, class Buffering, class Coherence>

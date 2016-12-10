@@ -140,6 +140,13 @@ class Cache : public BaseCache
 
     bool calculatePartitions();
 
+    int sum(std::vector<int> data);
+    int maxIndex(std::vector<int> data);
+    int minIndex(std::vector<int> data);
+    bool areEqual(std::vector<int> d1, std::vector<int> d2);
+    std::vector<int> difference(std::vector<int> d1, std::vector<int> d2);
+    std::string getDataString(std::vector<int> data);
+
   public:
 
 	  class Params
@@ -471,6 +478,8 @@ class Cache : public BaseCache
     virtual RateMeasurement getMissRate();
 
 	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities);
+
+	virtual std::vector<int> findAllocation(std::vector<int> currentAllocation, std::vector<int> bestAllocation, int numChanges);
 
 	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID);
 

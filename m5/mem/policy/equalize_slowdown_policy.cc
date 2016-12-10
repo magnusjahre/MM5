@@ -310,6 +310,7 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	assert(maxWays != 0);
 	bestMetricValue = 0.0;
+	vector<int> currentAllocation = bestAllocation;
 	bestAllocation = vector<int>(cpuCount, 0.0);
 
 	if(searchAlgorithm == ESP_SEARCH_EXHAUSTIVE){
@@ -319,11 +320,20 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 		lookaheadSearch(&measurements, gradients, constBs);
 	}
 
-	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f for metric %s\n",
+	DPRINTF(MissBWPolicy, "Found best allocation %swith metric value %f for metric %s, current allocation %s\n",
 			              getAllocString(bestAllocation).c_str(),
 						  bestMetricValue,
-						  performanceMetric->metricName());
+						  performanceMetric->metricName(),
+						  getAllocString(currentAllocation).c_str());
+	assert(sum(bestAllocation) == maxWays);
 
+	assert(!sharedCaches.empty());
+	int maxSteps = 2; //TODO: parameterize
+	bestAllocation = sharedCaches[0]->findAllocation(currentAllocation, bestAllocation, maxSteps);
+
+	DPRINTF(MissBWPolicy, "Implemented allocation %swith max steps %d\n",
+				          getAllocString(bestAllocation).c_str(),
+						  maxSteps);
 	assert(sum(bestAllocation) == maxWays);
 
 	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
