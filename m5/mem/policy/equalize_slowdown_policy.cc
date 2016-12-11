@@ -25,7 +25,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 											   double _hybridDecisionError,
 											   int _hybridBufferSize,
 											   string _searchAlgorithm,
-											   bool _allowNegMisses)
+											   bool _allowNegMisses,
+											   int _maxSteps)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -46,6 +47,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	bestAllocation = vector<int>(cpuCount, 0.0);
 	maxWays = 0;
 	allowNegMisses = _allowNegMisses;
+	maxSteps = _maxSteps;
 
 	if(_searchAlgorithm == "exhaustive"){
 		searchAlgorithm = ESP_SEARCH_EXHAUSTIVE;
@@ -328,7 +330,6 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(sum(bestAllocation) == maxWays);
 
 	assert(!sharedCaches.empty());
-	int maxSteps = 2; //TODO: parameterize
 	bestAllocation = sharedCaches[0]->findAllocation(currentAllocation, bestAllocation, maxSteps);
 
 	DPRINTF(MissBWPolicy, "Implemented allocation %swith max steps %d\n",
@@ -440,6 +441,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	Param<int> hybridBufferSize;
 	Param<string> searchAlgorithm;
 	Param<bool> allowNegativeMisses;
+	Param<int> maxSteps;
 END_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
@@ -458,7 +460,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive"),
-	INIT_PARAM_DFLT(allowNegativeMisses, "Allow negative misses in the performance model", true)
+	INIT_PARAM_DFLT(allowNegativeMisses, "Allow negative misses in the performance model", true),
+	INIT_PARAM_DFLT(maxSteps, "Maximum number of changes from current allocation", 0)
 END_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
@@ -489,7 +492,8 @@ CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
 									  hybridDecisionError,
 									  hybridBufferSize,
 									  searchAlgorithm,
-									  allowNegativeMisses);
+									  allowNegativeMisses,
+									  maxSteps);
 }
 
 REGISTER_SIM_OBJECT("EqualizeSlowdownPolicy", EqualizeSlowdownPolicy)

@@ -457,6 +457,9 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"SEARCH-ALG" in env
     policy.searchAlgorithm = env[optionName+"SEARCH-ALG"]
     
+    assert optionName+"MAX-STEPS" in env
+    policy.maxSteps = env[optionName+"MAX-STEPS"]
+    
     if optionName+"ALLOW-NEG-MISSES":
         policy.allowNegativeMisses = env[optionName+"ALLOW-NEG-MISSES"]
     

@@ -19,6 +19,7 @@ private:
 	vector<int> bestAllocation;
 	int maxWays;
 	bool allowNegMisses;
+	int maxSteps;
 
 	std::vector<RequestTrace> missCurveTraces;
 	std::vector<RequestTrace> performanceCurveTraces;
@@ -91,7 +92,8 @@ public:
 						   double _hybridDecisionError,
 						   int _hybridBufferSize,
 						   std::string _searchAlgorithm,
-						   bool _allowNegMisses);
+						   bool _allowNegMisses,
+						   int _maxSteps);
 
 	virtual void init();
 
