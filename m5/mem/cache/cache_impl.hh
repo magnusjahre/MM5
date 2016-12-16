@@ -256,6 +256,10 @@ MemAccessResult
 Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 {
 
+#ifdef VERIFY_LOOKAHEAD_ALG
+	if(isShared) verifyLookaheadAlg();
+#endif
+
 	MemDebug::cacheAccess(req);
 	BlkType *blk = NULL;
 	MemReqList writebacks;
@@ -1740,6 +1744,45 @@ Cache<TagStore,Buffering,Coherence>::findAllocation(std::vector<int> currentAllo
 
 	return currentAllocation;
 }
+
+#ifdef VERIFY_LOOKAHEAD_ALG
+template<class TagStore, class Buffering, class Coherence>
+void
+Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
+	// ****** START GENERATED CODE ****** //
+	double arr0[] = { 0.04366908368 ,0.04987739068 ,0.05509962679 ,0.05814348074 ,0.06536540826 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 };
+	double arr1[] = { 0.1323005234 ,0.1371078117 ,0.150807183 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1570853688 ,0.1753334369 ,0.1884697685 ,0.3423809685 ,0.3963228928 };
+	double arr2[] = { 0.0484042649 ,0.0484042649 ,0.0484042649 ,0.05412600991 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 };
+	double arr3[] = { 0.1109354686 ,0.1109354686 ,0.1109354686 ,0.1231718706 ,0.1567302674 ,0.1580350227 ,0.1580350227 ,0.1620829699 ,0.1620829699 ,0.1620829699 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 };
+
+	vector<vector<double> > utilities = vector<vector<double> >(cpuCount, vector<double>());
+	utilities[0] = vector<double>(arr0, arr0 + sizeof(arr0) / sizeof(arr0[0]));
+	utilities[1] = vector<double>(arr1, arr1 + sizeof(arr1) / sizeof(arr1[0]));
+	utilities[2] = vector<double>(arr2, arr2 + sizeof(arr2) / sizeof(arr2[0]));
+	utilities[3] = vector<double>(arr3, arr3 + sizeof(arr3) / sizeof(arr3[0]));
+	// ****** END GENERATED CODE ****** //
+
+	cout << "Running verification with curves:\n";
+	for(int i=0;i<utilities.size();i++){
+		cout << i << ":";
+		for(int j=0;j<utilities[i].size();j++){
+			cout << utilities[i][j] << " ";
+		}
+		cout << "\n";
+	}
+	cout << "\n";
+
+	vector<int> allocation = lookaheadCachePartitioning(utilities);
+
+	cout << "Resulting allocation is: ";
+	for(int i=0;i<allocation.size();i++){
+		cout << i << ":" << allocation[i] << " ";
+	}
+	cout << "\n";
+
+	fatal("Verification complete");
+}
+#endif
 
 #define WI(allocationIndex) (allocationIndex-1)
 

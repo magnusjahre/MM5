@@ -55,6 +55,8 @@
 class Bus;
 class ExecContext;
 
+#define VERIFY_LOOKAHEAD_ALG //Enables verification of the lookahead partitioning algorithm
+
 /**
  * A template-policy based cache. The behavior of the cache can be altered by
  * supplying different template policies. TagStore handles all tag and data
@@ -482,6 +484,10 @@ class Cache : public BaseCache
 	virtual std::vector<int> findAllocation(std::vector<int> currentAllocation, std::vector<int> bestAllocation, int numChanges);
 
 	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID);
+
+#ifdef VERIFY_LOOKAHEAD_ALG
+	void verifyLookaheadAlg();
+#endif
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
