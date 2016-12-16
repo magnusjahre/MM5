@@ -256,7 +256,7 @@ MemAccessResult
 Cache<TagStore,Buffering,Coherence>::access(MemReqPtr &req)
 {
 
-#ifdef VERIFY_LOOKAHEAD_ALG
+#if VERIFY_LOOKAHEAD_ALG
 	if(isShared) verifyLookaheadAlg();
 #endif
 
@@ -1745,7 +1745,7 @@ Cache<TagStore,Buffering,Coherence>::findAllocation(std::vector<int> currentAllo
 	return currentAllocation;
 }
 
-#ifdef VERIFY_LOOKAHEAD_ALG
+#if VERIFY_LOOKAHEAD_ALG
 template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){

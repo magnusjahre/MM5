@@ -55,7 +55,7 @@
 class Bus;
 class ExecContext;
 
-#define VERIFY_LOOKAHEAD_ALG //Enables verification of the lookahead partitioning algorithm
+#define VERIFY_LOOKAHEAD_ALG false //Enables verification of the lookahead partitioning algorithm
 
 /**
  * A template-policy based cache. The behavior of the cache can be altered by
@@ -485,7 +485,7 @@ class Cache : public BaseCache
 
 	virtual CacheAccessMeasurement updateCacheMissMeasurements(CacheAccessMeasurement measurements, int cpuID);
 
-#ifdef VERIFY_LOOKAHEAD_ALG
+#if VERIFY_LOOKAHEAD_ALG
 	void verifyLookaheadAlg();
 #endif
 
@@ -501,6 +501,8 @@ class Cache : public BaseCache
 
 	LookaheadMaximumUtility getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance);
 	double getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc);
+
+
 
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
