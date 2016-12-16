@@ -1822,26 +1822,38 @@ Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std:
 	vector<int> allocation = vector<int>(cpuCount, 1);
 	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm with an initial allocation of one way per CPU, starting balance %d\n", balance);
 
+	int round = 1;
 	while(balance > 0){
 		double maxMarginalUtility = -1.0;
 		int maxMarginalUtilityCPU = -1;
 		int maxMarginalUtilityAddWays = -1;
 
+		DPRINTF(MissBWPolicyExtra, "--- Round %d with balance %d\n", round, balance);
+
 		for(int i=0;i<cpuCount;i++){
 			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance);
+			DPRINTF(MissBWPolicyExtra, "--- Maximum marginal utility of CPU %d is %f with %d additional ways\n", i, cpuMaxUtility.maximumUtility, cpuMaxUtility.additionalWays);
 			if(cpuMaxUtility.maximumUtility > maxMarginalUtility){
 				maxMarginalUtility = cpuMaxUtility.maximumUtility;
 				maxMarginalUtilityCPU = i;
 				maxMarginalUtilityAddWays = cpuMaxUtility.additionalWays;
 			}
 		}
+
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d is wins with marginal utility %f with %d additional ways\n", maxMarginalUtilityCPU, maxMarginalUtility, maxMarginalUtilityAddWays);
+
 		assert(maxMarginalUtilityAddWays > 0);
 		allocation[maxMarginalUtilityCPU] += maxMarginalUtilityAddWays;
 		balance -= maxMarginalUtilityAddWays;
+		round++;
 
-		//TODO: Add assertion on loop invariant (balance + sum-allocation = maxways)
+		DPRINTF(MissBWPolicyExtra, "--- New allocation is %s\n", getDataString(allocation));
+
+		assert(sum(allocation) + balance == associativity);
 	}
 
+	DPRINTF(MissBWPolicyExtra, "--- Returning allocation %s\n", getDataString(allocation));
+	assert(sum(allocation) == associativity);
 	return allocation;
 }
 
