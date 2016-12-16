@@ -489,6 +489,19 @@ class Cache : public BaseCache
 	void verifyLookaheadAlg();
 #endif
 
+	struct LookaheadMaximumUtility{
+		double maximumUtility;
+		int additionalWays;
+
+		LookaheadMaximumUtility(double mu, int aw){
+			maximumUtility = mu;
+			additionalWays = aw;
+		}
+	};
+
+	LookaheadMaximumUtility getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance);
+	double getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc);
+
 #ifdef CACHE_DEBUG
     virtual void removePendingRequest(Addr address, MemReqPtr& req);
     virtual void addPendingRequest(Addr address, MemReqPtr& req);

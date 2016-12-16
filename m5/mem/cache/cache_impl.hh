@@ -1784,83 +1784,62 @@ Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 }
 #endif
 
+template<class TagStore, class Buffering, class Coherence>
+typename Cache<TagStore,Buffering,Coherence>::LookaheadMaximumUtility
+Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance){
+	double maxMU = -1.0;
+	int maxAdditionalWays = 0;
+	int additionalWays = 1;
+	while(additionalWays <= balance){
+		int newAlloc = currentAlloc + additionalWays;
+		double curMarginalUtility = getMarginalUtility(curve, currentAlloc, newAlloc);
+		if(curMarginalUtility > maxMU){
+			maxMU = curMarginalUtility;
+			maxAdditionalWays = additionalWays;
+		}
+		additionalWays++;
+	}
+
+	return LookaheadMaximumUtility(maxMU, maxAdditionalWays);
+}
+
 #define WI(allocationIndex) (allocationIndex-1)
 
 template<class TagStore, class Buffering, class Coherence>
+double
+Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc){
+	double denominator = curve[WI(newAlloc)] - curve[WI(currentAlloc)];
+	double numerator = (double) (newAlloc-currentAlloc);
+	assert(numerator > 0.0);
+	double marginalUtility = denominator / numerator;
+	return marginalUtility;
+}
+
+template<class TagStore, class Buffering, class Coherence>
 std::vector<int>
-Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > utilities){
+Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves){
 	int balance = associativity-cpuCount;
 	vector<int> allocation = vector<int>(cpuCount, 1);
-	bool runSearch = true;
 	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm with an initial allocation of one way per CPU, starting balance %d\n", balance);
 
-	while(runSearch){
-		double maxMarginalUtility = 0.0;
-		int maxMarginalUtiliyCPU = -1;
-		int maxMarginalUtilityBlocks = -1;
-
-		for(int cpu=0;cpu<cpuCount;cpu++){
-			for(int i=allocation[cpu]+1;i<=balance;i++){
-				DPRINTF(MissBWPolicyExtra, "--- Checking increasing allocation to %d from %d for cpu %d with balance %d\n",
-						                   i, allocation[cpu], cpu, balance);
-
-				// NOTE: assumes that higher is better for the utility metric
-				double utilityIncrease = utilities[cpu][WI(i)]-utilities[cpu][WI(allocation[cpu])];
-				int additionalBlocks = WI(i) - WI(allocation[cpu]);
-				double marginalUtility = utilityIncrease / (double) additionalBlocks;
-				assert(additionalBlocks > 0);
-
-				DPRINTF(MissBWPolicyExtra, "--- Computed marginal utility %f for utility increase to %f from %f (by %f) with %d blocks\n",
-										   marginalUtility,
-										   utilities[cpu][WI(i)],
-										   utilities[cpu][WI(allocation[cpu])],
-										   utilityIncrease,
-										   additionalBlocks);
-
-				if(marginalUtility > maxMarginalUtility){
-					maxMarginalUtility = marginalUtility;
-					maxMarginalUtiliyCPU = cpu;
-					maxMarginalUtilityBlocks = additionalBlocks;
-					DPRINTF(MissBWPolicy, "--- New max marginal utility %f, cpu %d, blocks necessary %d\n",
-							              maxMarginalUtility,
-										  cpu,
-										  maxMarginalUtilityBlocks);
-				}
-			}
-
-		}
-
-		if(maxMarginalUtiliyCPU != -1){
-			assert(maxMarginalUtilityBlocks != -1);
-			allocation[maxMarginalUtiliyCPU] += maxMarginalUtilityBlocks;
-			balance = balance - maxMarginalUtilityBlocks;
-			DPRINTF(MissBWPolicy, "--- Increasing allocation of CPU %d to %d (by %d), balance is now %d\n",
-					maxMarginalUtiliyCPU,
-					allocation[maxMarginalUtiliyCPU],
-					maxMarginalUtilityBlocks,
-					balance);
-
-			if(balance == 0) runSearch = false;
-		}
-		else{
-			runSearch = false;
-			DPRINTF(MissBWPolicy, "--- Maximum marginal utility is zero, quitting search with remaining balance %d\n", balance);
-		}
-
-		assert(balance >= 0);
-	}
-
-	int curCPU = 0;
 	while(balance > 0){
-		allocation[curCPU] += 1;
-		balance -= 1;
+		double maxMarginalUtility = -1.0;
+		int maxMarginalUtilityCPU = -1;
+		int maxMarginalUtilityAddWays = -1;
 
-		DPRINTF(MissBWPolicy, "--- Allocating an additional way to CPU %d, allocation is now %d, remaining ways %d\n",
-				curCPU,
-				allocation[curCPU],
-				balance);
+		for(int i=0;i<cpuCount;i++){
+			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance);
+			if(cpuMaxUtility.maximumUtility > maxMarginalUtility){
+				maxMarginalUtility = cpuMaxUtility.maximumUtility;
+				maxMarginalUtilityCPU = i;
+				maxMarginalUtilityAddWays = cpuMaxUtility.additionalWays;
+			}
+		}
+		assert(maxMarginalUtilityAddWays > 0);
+		allocation[maxMarginalUtilityCPU] += maxMarginalUtilityAddWays;
+		balance -= maxMarginalUtilityAddWays;
 
-		curCPU = (curCPU+1) % cpuCount;
+		//TODO: Add assertion on loop invariant (balance + sum-allocation = maxways)
 	}
 
 	return allocation;
