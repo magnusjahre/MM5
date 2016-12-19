@@ -46,6 +46,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 
 	bestMetricValue = 0.0;
 	bestAllocation = vector<int>(cpuCount, 0.0);
+	espLocalOverlap = vector<double>(cpuCount, 0.0);
 	maxWays = 0;
 	allowNegMisses = _allowNegMisses;
 	maxSteps = _maxSteps;
@@ -171,13 +172,13 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 	vector<double> sharedPreLLCAvgLatencies = measurements.getSharedPreLLCAvgLatencies();
 	double preLLCAvgLat = sharedPreLLCAvgLatencies[cpuID] + privateMemsysAvgLatency[cpuID];
 
-	double overlap = 0.0;
+	espLocalOverlap[cpuID] = 0.0;
 	double requests = measurements.requestsInSample[cpuID];
 	assert(requests >= 0);
 	assert(measurements.sharedLatencies[cpuID] >= 0);
 	if(requests > 0){
 		assert(sharedLoadStallCycles[cpuID] >= 0);
-		overlap = sharedLoadStallCycles[cpuID] / (requests * measurements.sharedLatencies[cpuID]);
+		espLocalOverlap[cpuID]  = sharedLoadStallCycles[cpuID] / (requests * measurements.sharedLatencies[cpuID]);
 	}
 
 	DPRINTF(MissBWPolicy, "Constant b for CPU %d: non stall cycles %f, pre LLC avg latency %f and private memsys %f (total %f), overlap %f, requests %d\n",
@@ -186,10 +187,10 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 			sharedPreLLCAvgLatencies[cpuID],
 			privateMemsysAvgLatency[cpuID],
 			preLLCAvgLat,
-			overlap,
+			espLocalOverlap[cpuID],
 			requests);
 
-	double cyclesInfLLC = nonSharedCycles + (overlap*requests*preLLCAvgLat);
+	double cyclesInfLLC = nonSharedCycles + (espLocalOverlap[cpuID] *requests*preLLCAvgLat);
 	double CPIInfLLC = cyclesInfLLC / measurements.committedInstructions[cpuID];
 	assert(CPIInfLLC > 0.0);
 
@@ -204,12 +205,14 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 
 double
 EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b){
-	vector<double> measuredCPIs = measurement.getSharedModeCPIs();
-	int llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
-	double sharedMemsysCPIcomp = measuredCPIs[cpuID] - b;
+
 
 	double gradient = 0.0;
 	if(gradientModel == ESP_GRADIENT_COMPUTED){
+
+		vector<double> measuredCPIs = measurement.getSharedModeCPIs();
+		int llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
+		double sharedMemsysCPIcomp = measuredCPIs[cpuID] - b;
 
 		if(llcMisses > 0 && sharedMemsysCPIcomp > 0.0){
 			assert(llcMisses > 0);
@@ -233,6 +236,19 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 		}
 	}
 	else if(gradientModel == ESP_GRADIENT_GLOBAL){
+		assert(espLocalOverlap[cpuID] >= 0.0);
+		double avgMemBusLat = 0.0; //TODO: get the average latency
+		double instructions = (double) measurement.committedInstructions[cpuID];
+
+		gradient = (espLocalOverlap[cpuID] * avgMemBusLat) / instructions;
+
+		DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with instructions %f, average memory bus latency %f and overlap %f\n",
+						      cpuID,
+							  gradient,
+							  instructions,
+							  avgMemBusLat,
+							  espLocalOverlap[cpuID]);
+
 		fatal("global gradient not implemented");
 	}
 	else{

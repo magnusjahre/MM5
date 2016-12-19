@@ -20,6 +20,7 @@ private:
 	int maxWays;
 	bool allowNegMisses;
 	int maxSteps;
+	vector<double> espLocalOverlap;
 
 	std::vector<RequestTrace> missCurveTraces;
 	std::vector<RequestTrace> performanceCurveTraces;
