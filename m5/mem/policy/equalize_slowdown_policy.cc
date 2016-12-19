@@ -208,27 +208,38 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 	int llcMisses = measurement.perCoreCacheMeasurements[cpuID].readMisses;
 	double sharedMemsysCPIcomp = measuredCPIs[cpuID] - b;
 
-	if(llcMisses == 0){
-		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because there no LLC misses\n", cpuID);
-		return 0.0;
-	}
-	assert(llcMisses > 0);
+	double gradient = 0.0;
+	if(gradientModel == ESP_GRADIENT_COMPUTED){
 
-	if(sharedMemsysCPIcomp <= 0.0){
-		DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because the estimated shared memsys CPI component is %f (<= 0)\n", cpuID, sharedMemsysCPIcomp);
-		return 0.0;
+		if(llcMisses > 0 && sharedMemsysCPIcomp > 0.0){
+			assert(llcMisses > 0);
+			assert(sharedMemsysCPIcomp > 0.0);
+			gradient = sharedMemsysCPIcomp / (double) llcMisses;
+
+			DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %d\n",
+				   				  cpuID,
+								  gradient,
+								  measuredCPIs[cpuID],
+								  b,
+								  llcMisses);
+		}
+		else{
+			gradient = 0.0;
+			DPRINTF(MissBWPolicy, "Gradient for CPU %d is 0 because either post LLC CPI component is %f (<= 0) or misses %d (== 0)\n",
+					              cpuID,
+								  sharedMemsysCPIcomp,
+								  llcMisses);
+
+		}
+	}
+	else if(gradientModel == ESP_GRADIENT_GLOBAL){
+		fatal("global gradient not implemented");
+	}
+	else{
+		fatal("Unknown gradient model");
 	}
 
-	double gradient = sharedMemsysCPIcomp / (double) llcMisses;
 	assert(gradient >= 0.0);
-
-	DPRINTF(MissBWPolicy, "Gradient for CPU %d: computed gradient %f with CPI %f, b %f and misses %d\n",
-			cpuID,
-			gradient,
-			measuredCPIs[cpuID],
-			b,
-			llcMisses);
-
 	return gradient;
 }
 
