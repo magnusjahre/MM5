@@ -457,6 +457,9 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"SEARCH-ALG" in env
     policy.searchAlgorithm = env[optionName+"SEARCH-ALG"]
     
+    assert optionName+"GRADIENT-MODEL" in env
+    policy.gradientModel = env[optionName+"GRADIENT-MODEL"]
+    
     assert optionName+"MAX-STEPS" in env
     policy.maxSteps = env[optionName+"MAX-STEPS"]
     

@@ -26,7 +26,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 											   int _hybridBufferSize,
 											   string _searchAlgorithm,
 											   bool _allowNegMisses,
-											   int _maxSteps)
+											   int _maxSteps,
+											   std::string _gradientModel)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -57,6 +58,16 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	}
 	else{
 		fatal("Unknown search algorithm provided");
+	}
+
+	if(_gradientModel == "computed"){
+		gradientModel = ESP_GRADIENT_COMPUTED;
+	}
+	else if(_gradientModel == "global"){
+		gradientModel = ESP_GRADIENT_GLOBAL;
+	}
+	else{
+		fatal("Unknown gradient model");
 	}
 
 	allocationTrace = RequestTrace(_name, "AllocationTrace");
@@ -442,6 +453,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	Param<string> searchAlgorithm;
 	Param<bool> allowNegativeMisses;
 	Param<int> maxSteps;
+	Param<string> gradientModel;
 END_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
@@ -461,7 +473,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive"),
 	INIT_PARAM_DFLT(allowNegativeMisses, "Allow negative misses in the performance model", true),
-	INIT_PARAM_DFLT(maxSteps, "Maximum number of changes from current allocation", 0)
+	INIT_PARAM_DFLT(maxSteps, "Maximum number of changes from current allocation", 0),
+	INIT_PARAM(gradientModel, "The model to use to estimate the LLC miss gradient")
 END_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
@@ -493,7 +506,8 @@ CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
 									  hybridBufferSize,
 									  searchAlgorithm,
 									  allowNegativeMisses,
-									  maxSteps);
+									  maxSteps,
+									  gradientModel);
 }
 
 REGISTER_SIM_OBJECT("EqualizeSlowdownPolicy", EqualizeSlowdownPolicy)

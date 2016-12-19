@@ -32,6 +32,13 @@ private:
 
 	ESPSearchAlgorithm searchAlgorithm;
 
+	typedef enum{
+		ESP_GRADIENT_COMPUTED,
+		ESP_GRADIENT_GLOBAL
+	} ESPGradientModel;
+
+	ESPGradientModel gradientModel;
+
 	RequestTrace allocationTrace;
 
 	void dumpMissCurves(PerformanceMeasurement measurements);
@@ -93,7 +100,8 @@ public:
 						   int _hybridBufferSize,
 						   std::string _searchAlgorithm,
 						   bool _allowNegMisses,
-						   int _maxSteps);
+						   int _maxSteps,
+						   std::string _gradientModel);
 
 	virtual void init();
 
