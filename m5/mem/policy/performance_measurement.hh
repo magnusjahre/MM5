@@ -103,6 +103,9 @@ public:
 	std::vector<int> busAccessesPerCore;
 	std::vector<int> busReadsPerCore;
 
+	std::vector<int> latencySyncedLLCMisses;
+	std::vector<double> sumMembusLatency;
+
 	double avgBusServiceCycles;
 	int otherBusRequests;
 	double sumBusQueueCycles;
@@ -118,7 +121,8 @@ public:
 						     std::vector<double> interferenceEstimateAccumulator,
 							 std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator,
 							 std::vector<std::vector<double> > interferenceBreakdownAccumulator,
-							 std::vector<int> localRequests);
+							 std::vector<int> localRequests,
+							 std::vector<int> llcMissesSyncToLatencyAccumulator);
 
 	std::vector<std::string> getTraceHeader();
 	std::vector<RequestTraceEntry> createTraceLine();
@@ -146,6 +150,8 @@ public:
 	std::vector<double> getSharedModeIPCs();
 
 	std::vector<double> getSharedModeCPIs();
+
+	double getGlobalAvgMemBusLatency();
 
 private:
 	void updateAlpha(int cpuID);

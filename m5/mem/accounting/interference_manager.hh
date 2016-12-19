@@ -155,6 +155,8 @@ private:
 	std::vector<Tick> cpuComTraceTotalRoundtrip;
 	std::vector<int> cpuComTraceTotalRoundtripRequests;
 
+	std::vector<int> llcMissesForLatencyTraceAccumulator;
+
 	std::vector<PerformanceModel* > performanceModels;
 
 public:

@@ -204,7 +204,7 @@ EqualizeSlowdownPolicy::getConstBForCPU(PerformanceMeasurement measurements, int
 }
 
 double
-EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b){
+EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b, double avgMemBusLat){
 
 
 	double gradient = 0.0;
@@ -237,7 +237,6 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 	}
 	else if(gradientModel == ESP_GRADIENT_GLOBAL){
 		assert(espLocalOverlap[cpuID] >= 0.0);
-		double avgMemBusLat = 0.0; //TODO: get the average latency
 		double instructions = (double) measurement.committedInstructions[cpuID];
 
 		gradient = (espLocalOverlap[cpuID] * avgMemBusLat) / instructions;
@@ -248,8 +247,6 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 							  instructions,
 							  avgMemBusLat,
 							  espLocalOverlap[cpuID]);
-
-		fatal("global gradient not implemented");
 	}
 	else{
 		fatal("Unknown gradient model");
@@ -340,8 +337,9 @@ EqualizeSlowdownPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	vector<double> gradients(cpuCount, 0.0);
+	double avgMemBusLat = measurements.getGlobalAvgMemBusLatency();
 	for(int i=0;i<cpuCount;i++){
-		gradients[i] = computeGradientForCPU(measurements, i, constBs[i]);
+		gradients[i] = computeGradientForCPU(measurements, i, constBs[i], avgMemBusLat);
 		DPRINTF(MissBWPolicy, "CPU %d: CPI(m) = %f * m + %f\n", i, gradients[i], constBs[i]);
 	}
 

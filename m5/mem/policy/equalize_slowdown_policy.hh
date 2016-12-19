@@ -46,7 +46,7 @@ private:
 
 	double getConstBForCPU(PerformanceMeasurement measurements, int cpuID);
 
-	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b);
+	double computeGradientForCPU(PerformanceMeasurement measurement, int cpuID, double b, double avgMemBusLat);
 
 	double computeIPC(int cpuID, int misses, double gradient, double b);
 	double computeSpeedup(int cpuID, int misses, double gradient, double b);

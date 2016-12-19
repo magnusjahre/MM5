@@ -151,6 +151,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 //	cpuStalledAt.resize(_cpu_count, 0);
 //	cpuIsStalled.resize(_cpu_count, false);
 
+	llcMissesForLatencyTraceAccumulator.resize(_cpu_count, 0);
+
 	commitTraceCommitCycles.resize(_cpu_count, 0);
 	commitTraceMemIndStall.resize(_cpu_count, 0);
 	commitTracePrivateStall.resize(_cpu_count, 0);
@@ -436,6 +438,12 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 
 	totalLatency[req->adaptiveMHASenderID] += latency;
 
+	//HACK: Assumes that addLatency is only called once with MemoryBusService for each request
+	//      This assumption currently holds, but it is too expensive to verify with an explicit assertion
+	if(t == MemoryBusService){
+		llcMissesForLatencyTraceAccumulator[req->adaptiveMHASenderID] += 1;
+	}
+
 	sharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
 	commitTraceSharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
 }
@@ -619,7 +627,8 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 										   interferenceAccumulator,
 										   sharedLatencyBreakdownAccumulator,
 										   interferenceBreakdownAccumulator,
-										   currentRequests);
+										   currentRequests,
+										   llcMissesForLatencyTraceAccumulator);
 
 	double utilSum = 0.0;
 	double totalBusReqs = 0.0;
@@ -668,6 +677,7 @@ InterferenceManager::buildInterferenceMeasurement(int period){
 		currentRequests[i] = 0;
 		sharedLatencyAccumulator[i] = 0;
 		interferenceAccumulator[i] = 0;
+		llcMissesForLatencyTraceAccumulator[i] = 0;
 
 		for(int j=0;j<NUM_LAT_TYPES;j++){
 			sharedLatencyBreakdownAccumulator[i][j] = 0;

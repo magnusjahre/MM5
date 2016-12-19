@@ -55,6 +55,9 @@ PerformanceMeasurement::PerformanceMeasurement(int _cpuCount, int _numIntTypes, 
 	uncontrollableMissRequestRate = 0.0;
 
 	cacheMissModels.resize(cpuCount, CacheMissModel());
+
+	latencySyncedLLCMisses.resize(cpuCount, 0);
+	sumMembusLatency.resize(cpuCount, 0);
 }
 
 void
@@ -62,7 +65,8 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 	                                        std::vector<double> interferenceEstimateAccumulator,
 	                                        std::vector<std::vector<double> > sharedLatencyBreakdownAccumulator,
 	                                        std::vector<std::vector<double> > interferenceBreakdownAccumulator,
-	                                        std::vector<int> localRequests){
+	                                        std::vector<int> localRequests,
+											std::vector<int> llcMissesSyncToLatencyAccumulator){
 
 	for(int i=0;i<cpuCount;i++){
 
@@ -98,6 +102,12 @@ PerformanceMeasurement::addInterferenceData(std::vector<double> sharedLatencyAcc
 			}
 			cacheInterferenceLatency[i] = 0.0;
 		}
+
+		latencySyncedLLCMisses[i] = llcMissesSyncToLatencyAccumulator[i];
+		sumMembusLatency[i] = sharedLatencyBreakdownAccumulator[i][InterferenceManager::MemoryBusQueue]
+					          + sharedLatencyBreakdownAccumulator[i][InterferenceManager::MemoryBusEntry]
+							  + sharedLatencyBreakdownAccumulator[i][InterferenceManager::MemoryBusService];
+
 
 	}
 }
@@ -140,6 +150,36 @@ PerformanceMeasurement::getSharedModeCPIs(){
 		ipcs[i] = 1.0 / ipcs[i];
 	}
 	return ipcs;
+}
+
+double
+PerformanceMeasurement::getGlobalAvgMemBusLatency(){
+	double latencySum = 0.0;
+	double llcMissSum = 0.0;
+
+	for(int i=0;i<cpuCount;i++){
+		latencySum += sumMembusLatency[i];
+		llcMissSum += latencySyncedLLCMisses[i];
+
+		DPRINTF(MissBWPolicy, "LLC miss latency CPU %d: average latency %f from latency %f and misses %d\n",
+				i,
+				(latencySyncedLLCMisses[i] == 0.0 ? 0.0 : sumMembusLatency[i] / (double) latencySyncedLLCMisses[i]),
+				sumMembusLatency[i],
+				latencySyncedLLCMisses[i]);
+	}
+
+	if(llcMissSum == 0.0){
+		DPRINTF(MissBWPolicy, "Global average LLC miss latency is 0, no LLC misses\n");
+		return 0.0;
+	}
+
+	double globalAvgLat = latencySum / llcMissSum;
+
+	DPRINTF(MissBWPolicy, "Global average LLC miss latency is %f from latency %f and misses %d\n",
+					      globalAvgLat,
+						  latencySum,
+						  llcMissSum);
+	return globalAvgLat;
 }
 
 vector<string>
