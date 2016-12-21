@@ -1750,10 +1750,10 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 	// ****** START GENERATED CODE ****** //
-	double arr0[] = { 0.04366908368 ,0.04987739068 ,0.05509962679 ,0.05814348074 ,0.06536540826 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 ,0.06969369043 };
-	double arr1[] = { 0.1323005234 ,0.1371078117 ,0.150807183 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1538822672 ,0.1570853688 ,0.1753334369 ,0.1884697685 ,0.3423809685 ,0.3963228928 };
-	double arr2[] = { 0.0484042649 ,0.0484042649 ,0.0484042649 ,0.05412600991 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 ,0.06138179584 };
-	double arr3[] = { 0.1109354686 ,0.1109354686 ,0.1109354686 ,0.1231718706 ,0.1567302674 ,0.1580350227 ,0.1580350227 ,0.1620829699 ,0.1620829699 ,0.1620829699 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 ,0.1648988085 };
+	double arr0[] = { 0.03085539644 ,0.03085539644 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.04487628314 ,0.05806996146 ,0.4921325579 ,0.8189194762 ,0.8189194762 ,0.8189194762 ,0.8189194762 };
+	double arr1[] = { 0.01653197593 ,0.01693386554 ,0.02102224375 ,0.02390836702 ,0.0364025396 ,0.04602290608 ,0.05303025333 ,0.09762087966 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 };
+	double arr2[] = { 0.04267312209 ,0.04618712971 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.05269619792 ,0.05970835633 ,0.06306512725 ,0.2343146702 ,0.5835837412 };
+	double arr3[] = { 0.02830960998 ,0.02830960998 ,0.02830960998 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.08794598839 ,0.08794598839 ,0.08794598839 ,0.08794598839 ,0.08794598839 };
 
 	vector<vector<double> > utilities = vector<vector<double> >(cpuCount, vector<double>());
 	utilities[0] = vector<double>(arr0, arr0 + sizeof(arr0) / sizeof(arr0[0]));
@@ -1772,7 +1772,7 @@ Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 	}
 	cout << "\n";
 
-	vector<int> allocation = lookaheadCachePartitioning(utilities);
+	vector<int> allocation = lookaheadCachePartitioning(utilities, 8);
 
 	cout << "Resulting allocation is: ";
 	for(int i=0;i<allocation.size();i++){
@@ -1786,11 +1786,11 @@ Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 
 template<class TagStore, class Buffering, class Coherence>
 typename Cache<TagStore,Buffering,Coherence>::LookaheadMaximumUtility
-Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance){
+Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance, int cap){
 	double maxMU = -1.0;
 	int maxAdditionalWays = 0;
 	int additionalWays = 1;
-	while(additionalWays <= balance){
+	while(additionalWays <= balance && additionalWays < cap){
 		int newAlloc = currentAlloc + additionalWays;
 		double curMarginalUtility = getMarginalUtility(curve, currentAlloc, newAlloc);
 		if(curMarginalUtility > maxMU){
@@ -1817,10 +1817,11 @@ Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curv
 
 template<class TagStore, class Buffering, class Coherence>
 std::vector<int>
-Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves){
+Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap){
 	int balance = associativity-cpuCount;
+	if(cap == 0) cap = associativity;
 	vector<int> allocation = vector<int>(cpuCount, 1);
-	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm with an initial allocation of one way per CPU, starting balance %d\n", balance);
+	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm cap %d and an initial allocation of one way per CPU, starting balance %d\n", cap, balance);
 
 	int round = 1;
 	while(balance > 0){
@@ -1828,10 +1829,10 @@ Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std:
 		int maxMarginalUtilityCPU = -1;
 		int maxMarginalUtilityAddWays = -1;
 
-		DPRINTF(MissBWPolicyExtra, "--- Round %d with balance %d\n", round, balance);
+		DPRINTF(MissBWPolicyExtra, "--- Round %d with balance %d and cap %d\n", round, balance, cap);
 
 		for(int i=0;i<cpuCount;i++){
-			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance);
+			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance, cap);
 			DPRINTF(MissBWPolicyExtra, "--- Maximum marginal utility of CPU %d is %f with %d additional ways\n", i, cpuMaxUtility.maximumUtility, cpuMaxUtility.additionalWays);
 			if(cpuMaxUtility.maximumUtility > maxMarginalUtility){
 				maxMarginalUtility = cpuMaxUtility.maximumUtility;

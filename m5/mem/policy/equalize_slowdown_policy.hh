@@ -21,6 +21,7 @@ private:
 	bool allowNegMisses;
 	int maxSteps;
 	vector<double> espLocalOverlap;
+	int lookaheadCap;
 
 	std::vector<RequestTrace> missCurveTraces;
 	std::vector<RequestTrace> performanceCurveTraces;
@@ -102,7 +103,8 @@ public:
 						   std::string _searchAlgorithm,
 						   bool _allowNegMisses,
 						   int _maxSteps,
-						   std::string _gradientModel);
+						   std::string _gradientModel,
+						   int _lookaheadCap);
 
 	virtual void init();
 

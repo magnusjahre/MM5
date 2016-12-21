@@ -614,7 +614,7 @@ public:
 
 	void sampleMSHRUse(int allocated, Tick latency);
 
-	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities) = 0;
+	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities, int cap) = 0;
 
 	virtual std::vector<int> findAllocation(std::vector<int> currentAllocation, std::vector<int> bestAllocation, int numChanges) = 0;
 

@@ -460,6 +460,9 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"GRADIENT-MODEL" in env
     policy.gradientModel = env[optionName+"GRADIENT-MODEL"]
     
+    assert optionName+"LOOKAHEAD-CAP" in env
+    policy.lookaheadCap = env[optionName+"LOOKAHEAD-CAP"]
+    
     assert optionName+"MAX-STEPS" in env
     policy.maxSteps = env[optionName+"MAX-STEPS"]
     

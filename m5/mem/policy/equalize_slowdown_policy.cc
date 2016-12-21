@@ -27,7 +27,8 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 											   string _searchAlgorithm,
 											   bool _allowNegMisses,
 											   int _maxSteps,
-											   std::string _gradientModel)
+											   std::string _gradientModel,
+											   int _lookaheadCap)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -50,6 +51,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 	maxWays = 0;
 	allowNegMisses = _allowNegMisses;
 	maxSteps = _maxSteps;
+	lookaheadCap = _lookaheadCap;
 
 	if(_searchAlgorithm == "exhaustive"){
 		searchAlgorithm = ESP_SEARCH_EXHAUSTIVE;
@@ -316,7 +318,7 @@ EqualizeSlowdownPolicy::lookaheadSearch(PerformanceMeasurement* measurements,
 	}
 
 	assert(!sharedCaches.empty());
-	bestAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups);
+	bestAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, lookaheadCap);
 
 	vector<double> bestAllocSpeedups = vector<double>(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){
@@ -479,6 +481,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	Param<bool> allowNegativeMisses;
 	Param<int> maxSteps;
 	Param<string> gradientModel;
+	Param<int> lookaheadCap;
 END_DECLARE_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
@@ -499,7 +502,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 	INIT_PARAM_DFLT(searchAlgorithm, "The algorithm to use to find the cache partition", "exhaustive"),
 	INIT_PARAM_DFLT(allowNegativeMisses, "Allow negative misses in the performance model", true),
 	INIT_PARAM_DFLT(maxSteps, "Maximum number of changes from current allocation", 0),
-	INIT_PARAM(gradientModel, "The model to use to estimate the LLC miss gradient")
+	INIT_PARAM(gradientModel, "The model to use to estimate the LLC miss gradient"),
+	INIT_PARAM_DFLT(lookaheadCap, "The maximum allocation in each round for the lookahead algorithm (0 == associativtiy == no cap)", 0)
 END_INIT_SIM_OBJECT_PARAMS(EqualizeSlowdownPolicy)
 
 CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
@@ -532,7 +536,8 @@ CREATE_SIM_OBJECT(EqualizeSlowdownPolicy)
 									  searchAlgorithm,
 									  allowNegativeMisses,
 									  maxSteps,
-									  gradientModel);
+									  gradientModel,
+									  lookaheadCap);
 }
 
 REGISTER_SIM_OBJECT("EqualizeSlowdownPolicy", EqualizeSlowdownPolicy)

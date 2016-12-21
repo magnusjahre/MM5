@@ -479,7 +479,7 @@ class Cache : public BaseCache
 
     virtual RateMeasurement getMissRate();
 
-	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities);
+	virtual std::vector<int> lookaheadCachePartitioning(std::vector<std::vector<double> > utilities, int cap);
 
 	virtual std::vector<int> findAllocation(std::vector<int> currentAllocation, std::vector<int> bestAllocation, int numChanges);
 
@@ -499,7 +499,7 @@ class Cache : public BaseCache
 		}
 	};
 
-	LookaheadMaximumUtility getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance);
+	LookaheadMaximumUtility getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance, int cap);
 	double getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc);
 
 

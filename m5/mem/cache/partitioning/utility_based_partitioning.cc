@@ -102,7 +102,7 @@ UtilityBasedPartitioning::handleRepartitioningEvent(){
 			}
 		}
 		assert(!cacheBanks.empty());
-		bestAllocation = cacheBanks[0]->lookaheadCachePartitioning(doubleHitDist);
+		bestAllocation = cacheBanks[0]->lookaheadCachePartitioning(doubleHitDist, 0);
 	}
 	else{
 		fatal("Unknown search algorithm");
