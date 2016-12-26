@@ -166,6 +166,7 @@ private:
 	double constituencyFactor;
 
 	bool cachePartitioningEnabled;
+	bool onlyPerfImpactReqsInHitCounters;
 
 	InterferenceManager* interferenceManager;
 
@@ -249,7 +250,8 @@ public:
 			          int _divFac,
 			          double _constituencyFactor,
 			          HierParams* _hp,
-					  bool _disableLLCCheckpointLoad);
+					  bool _disableLLCCheckpointLoad,
+					  bool _onlyPerfImpactReqsInHitCounters);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;
@@ -300,6 +302,8 @@ public:
     }
 
     CacheAccessMeasurement getPrivateHitEstimate(int cpuID);
+
+    bool addRequestToHitCounters(MemReqPtr &req);
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

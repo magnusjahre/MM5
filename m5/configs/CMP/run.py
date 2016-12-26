@@ -275,7 +275,10 @@ def createCacheInterference(bank):
     
     if "WRITEBACK-IPP" in env:
         cacheInt.writeback_ipp = env["WRITEBACK-IPP"]
-            
+    
+    assert "HIT-CURVE-PERF-IMPACT-ONLY" in env
+    cacheInt.onlyPerfImpactReqsInHitCurves = env["HIT-CURVE-PERF-IMPACT-ONLY"]
+        
     return cacheInt
 
 def initSharedCache(bankcnt, optPart):

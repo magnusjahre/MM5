@@ -17,3 +17,4 @@ class CacheInterference(SimObject):
     divisionFactor = Param.Int("The number of cores in shared mode when run in private mode")
     constituencyFactor = Param.Float("The average percentage of blocks accessed in a constituency")
     disableLLCCheckpointLoad = Param.Bool("Disable loading LLC state from the checkpoint")
+    onlyPerfImpactReqsInHitCurves = Param.Bool("Only count hits that are due to requests with a direct performance impact")

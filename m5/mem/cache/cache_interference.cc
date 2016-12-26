@@ -26,7 +26,8 @@ CacheInterference::CacheInterference(std::string _name,
 		                             int _divFac,
 		                             double _constituencyFactor,
 		                             HierParams* hp,
-									 bool _disableLLCCheckpointLoad)
+									 bool _disableLLCCheckpointLoad,
+									 bool _onlyPerfImpactReqsInHitCounters)
 : BaseHier(_name, hp){
 
 	size = _size;
@@ -114,6 +115,7 @@ CacheInterference::CacheInterference(std::string _name,
 	itcaInterTaskCutoffs.resize(cpuCount, 0);
 
 	cachePartitioningEnabled = false;
+	onlyPerfImpactReqsInHitCounters = _onlyPerfImpactReqsInHitCounters;
 
 	srand(240000);
 }
@@ -212,10 +214,14 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	assert(req->adaptiveMHASenderID != -1);
 	assert(req->cmd == Writeback || req->cmd == Read);
 
-	accessAccumulator[req->adaptiveMHASenderID]++;
-	if(isCacheMiss){
-		if(req->cmd == Read) readMissAccumulator[req->adaptiveMHASenderID]++;
-		else wbMissAccumulator[req->adaptiveMHASenderID]++;
+	DPRINTF(CachePartitioning, "Access for request address %d from CPU %d, command %s\n", req->paddr, req->adaptiveMHASenderID, req->cmd.toString());
+
+	if(addRequestToHitCounters(req)){
+		accessAccumulator[req->adaptiveMHASenderID]++;
+		if(isCacheMiss){
+			if(req->cmd == Read) readMissAccumulator[req->adaptiveMHASenderID]++;
+			else wbMissAccumulator[req->adaptiveMHASenderID]++;
+		}
 	}
 
 	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
@@ -224,7 +230,6 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	shadowLeaderSet = isLeaderSet(shadowSet);
 
 	LRUBlk* shadowBlk = findShadowTagBlock(req, req->adaptiveMHASenderID, shadowLeaderSet, hitLat);
-
 
 	if(shadowBlk != NULL){
 		shadowHit = true;
@@ -242,6 +247,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 	if(shadowLeaderSet){
 		int estConstAccesses = estimateConstituencyAccesses(false);
 
+		DPRINTF(CachePartitioning, "Address %d (CPU %d) is a leader set access, estimating %d accesses\n", req->paddr, req->adaptiveMHASenderID, estConstAccesses);
+
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
 				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
@@ -251,16 +258,19 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		else{ // shadow hit
 			if(isCacheMiss && curTick >= detailedSimStart){
 				// shared cache miss and shadow hit -> need to tag reqs as interference requests
+				DPRINTF(CachePartitioning, "Address %d (CPU %d) is an interference miss\n", req->paddr, req->adaptiveMHASenderID);
+
 				sequentialReadCount[req->adaptiveMHASenderID] += estConstAccesses;
 				sampleInterferenceMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
-				interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+				if(addRequestToHitCounters(req)) interferenceMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 				privateInterferenceEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 			privateHitEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 		}
+
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 		estimatedShadowAccesses[req->adaptiveMHASenderID] += estConstAccesses;
-		shadowAccessAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+		if(addRequestToHitCounters(req)) shadowAccessAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 		privateAccessEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 	}
 	if(curTick >= detailedSimStart){
@@ -741,6 +751,28 @@ CacheInterference::FixedWidthCounter::inc(){
 	}
 }
 
+bool
+CacheInterference::addRequestToHitCounters(MemReqPtr &req){
+	if(onlyPerfImpactReqsInHitCounters){
+		if(req->cmd != Read){
+			DPRINTF(CachePartitioning, "HitCount: Hit for address %d is %s, CPU %d, not adding to hit counters\n", req->paddr, req->cmd.toString(), req->adaptiveMHASenderID);
+			return false;
+		}
+		if(req->instructionMiss){
+			DPRINTF(CachePartitioning, "HitCount: Hit for address %d, command %s, CPU %d, is instruction miss, not adding to hit counters\n", req->paddr, req->cmd.toString(), req->adaptiveMHASenderID);
+			return false;
+		}
+		if(interferenceManager->checkForStore(req)){
+			DPRINTF(CachePartitioning, "HitCount: Hit for address %d, command %s, CPU %d, failed the store test, not adding to hit counters\n", req->paddr, req->cmd.toString(), req->adaptiveMHASenderID);
+			return false;
+		}
+		DPRINTF(CachePartitioning, "HitCount: Hit for address %d, command %s, CPU %d, passed all tests, adding to hit counters\n", req->paddr, req->cmd.toString(), req->adaptiveMHASenderID);
+		return true;
+	}
+	DPRINTF(CachePartitioning, "HitCount: Adding hit for address %d to hit counters since configured to add all hits\n", req->paddr);
+	return true;
+}
+
 std::vector<CacheMissMeasurements>
 CacheInterference::getMissMeasurementSample(){
 	std::vector<CacheMissMeasurements> missMeasurements;
@@ -748,6 +780,7 @@ CacheInterference::getMissMeasurementSample(){
 	for(int i=0;i<cpuCount;i++){
 		vector<int> hits = shadowTags[i]->getHitDistribution();
 		vector<int> cumulativeMisses = vector<int>(hits.size(), 0);
+
 		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
 		if(!cachePartitioningEnabled) shadowTags[i]->resetHitCounters();
 
@@ -828,6 +861,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
     Param<int> divisionFactor;
     Param<double> constituencyFactor;
     Param<bool> disableLLCCheckpointLoad;
+    Param<bool> onlyPerfImpactReqsInHitCurves;
 END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
@@ -842,7 +876,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM(hitLatency, "The cache hit latency"),
     INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode"),
     INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0),
-	INIT_PARAM_DFLT(disableLLCCheckpointLoad, "Disable loading LLC state from the checkpoint", false)
+	INIT_PARAM_DFLT(disableLLCCheckpointLoad, "Disable loading LLC state from the checkpoint", false),
+	INIT_PARAM_DFLT(onlyPerfImpactReqsInHitCurves, "Only count hits that are due to requests with a direct performance impact", false)
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
 
@@ -890,7 +925,8 @@ CREATE_SIM_OBJECT(CacheInterference)
 								  divisionFactor,
 								  constituencyFactor,
 								  hp,
-								  disableLLCCheckpointLoad);
+								  disableLLCCheckpointLoad,
+								  onlyPerfImpactReqsInHitCurves);
 }
 
 REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)

@@ -284,11 +284,14 @@ LRU::findBlock(MemReqPtr &req, int &lat, bool isLeaderSet, int setsInConst)
 	LRUBlk *blk = sets[set].findBlk(asid, tag, &hitIndex, maxUseWays);
 
 	if(isShadow){
+		assert(cacheInterference != NULL);
 		if(isLeaderSet) leaderSetAccesses++;
 
 		if(blk != NULL){
 			assert(hitIndex >= 0 && hitIndex < assoc);
-			if(isLeaderSet) leaderSetHitDistribution[hitIndex] += setsInConst;
+			if(isLeaderSet && cacheInterference->addRequestToHitCounters(req)){
+				leaderSetHitDistribution[hitIndex] += setsInConst;
+			}
 		}
 		else{
 			assert(hitIndex == -1);
@@ -661,7 +664,7 @@ LRU::getHitDistribution(){
 
 std::vector<double>
 LRU::getMissRates(){
-
+	fatal("LRU::getMissRates() has not been tested with the current setup and may not work");
 	assert(isShadow);
 
 	vector<int> hits = getHitDistribution();
