@@ -499,6 +499,13 @@ class Cache : public BaseCache
 		}
 	};
 
+	struct LookaheadWinnerListEntry{
+		int id;
+		int ways;
+
+		LookaheadWinnerListEntry(int _id, int _ways) : id(_id), ways(_ways) {}
+	};
+
 	LookaheadMaximumUtility getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance, int cap);
 	double getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc);
 

@@ -1750,10 +1750,10 @@ template<class TagStore, class Buffering, class Coherence>
 void
 Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 	// ****** START GENERATED CODE ****** //
-	double arr0[] = { 0.03085539644 ,0.03085539644 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.03656793339 ,0.04487628314 ,0.05806996146 ,0.4921325579 ,0.8189194762 ,0.8189194762 ,0.8189194762 ,0.8189194762 };
-	double arr1[] = { 0.01653197593 ,0.01693386554 ,0.02102224375 ,0.02390836702 ,0.0364025396 ,0.04602290608 ,0.05303025333 ,0.09762087966 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 ,0.1356380944 };
-	double arr2[] = { 0.04267312209 ,0.04618712971 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.0514868727 ,0.05269619792 ,0.05970835633 ,0.06306512725 ,0.2343146702 ,0.5835837412 };
-	double arr3[] = { 0.02830960998 ,0.02830960998 ,0.02830960998 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.04683607173 ,0.08794598839 ,0.08794598839 ,0.08794598839 ,0.08794598839 ,0.08794598839 };
+	double arr0[] = { 0.387872641 ,0.5549105156 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 ,0.8756757938 };
+	double arr1[] = { 0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 ,0.8235248194 };
+	double arr2[] = { 0.6901066009 ,0.7351154823 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 ,0.7598957538 };
+	double arr3[] = { 0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 ,0.5875996244 };
 
 	vector<vector<double> > utilities = vector<vector<double> >(cpuCount, vector<double>());
 	utilities[0] = vector<double>(arr0, arr0 + sizeof(arr0) / sizeof(arr0[0]));
@@ -1772,7 +1772,7 @@ Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 	}
 	cout << "\n";
 
-	vector<int> allocation = lookaheadCachePartitioning(utilities, 8);
+	vector<int> allocation = lookaheadCachePartitioning(utilities, associativity);
 
 	cout << "Resulting allocation is: ";
 	for(int i=0;i<allocation.size();i++){
@@ -1818,16 +1818,18 @@ Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curv
 template<class TagStore, class Buffering, class Coherence>
 std::vector<int>
 Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap){
+
 	int balance = associativity-cpuCount;
 	if(cap == 0) cap = associativity;
 	vector<int> allocation = vector<int>(cpuCount, 1);
 	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm cap %d and an initial allocation of one way per CPU, starting balance %d\n", cap, balance);
 
-	int round = 1;
+	int round = 0;
 	while(balance > 0){
 		double maxMarginalUtility = -1.0;
 		int maxMarginalUtilityCPU = -1;
 		int maxMarginalUtilityAddWays = -1;
+		vector<LookaheadWinnerListEntry> winnerList;
 
 		DPRINTF(MissBWPolicyExtra, "--- Round %d with balance %d and cap %d\n", round, balance, cap);
 
@@ -1838,7 +1840,21 @@ Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std:
 				maxMarginalUtility = cpuMaxUtility.maximumUtility;
 				maxMarginalUtilityCPU = i;
 				maxMarginalUtilityAddWays = cpuMaxUtility.additionalWays;
+
+				winnerList = vector<LookaheadWinnerListEntry>();
+				winnerList.push_back(LookaheadWinnerListEntry(i, cpuMaxUtility.additionalWays));
 			}
+			else if(cpuMaxUtility.maximumUtility == maxMarginalUtility){
+				winnerList.push_back(LookaheadWinnerListEntry(i, cpuMaxUtility.additionalWays));
+			}
+		}
+
+		if(winnerList.size() > 1){
+			int winnerListID = round % winnerList.size();
+			maxMarginalUtilityCPU = winnerList[winnerListID].id;
+			maxMarginalUtilityAddWays = winnerList[winnerListID].ways;
+			DPRINTF(MissBWPolicyExtra, "--- Draw between %d CPUs, selecting winner %d (list ID %d) with %d ways in round %d\n",
+					winnerList.size(), maxMarginalUtilityCPU, winnerListID, maxMarginalUtilityAddWays, round);
 		}
 
 		DPRINTF(MissBWPolicyExtra, "--- CPU %d is wins with marginal utility %f with %d additional ways\n", maxMarginalUtilityCPU, maxMarginalUtility, maxMarginalUtilityAddWays);
