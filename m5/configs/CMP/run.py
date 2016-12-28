@@ -469,8 +469,8 @@ def setUpEqualizeSlowdownPolicy():
     assert optionName+"MAX-STEPS" in env
     policy.maxSteps = env[optionName+"MAX-STEPS"]
     
-    if optionName+"ALLOW-NEG-MISSES":
-        policy.allowNegativeMisses = env[optionName+"ALLOW-NEG-MISSES"]
+    if optionName+"ALLOW-NEG-MISSES" in env:
+        assert False, "Option "+optionName+"ALLOW-NEG-MISSES is no longer supported"
     
     if int(env["NP"]) > 1: 
         assert "WRITE-STALL-TECH" in env

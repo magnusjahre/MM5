@@ -18,7 +18,6 @@ private:
 	double bestMetricValue;
 	vector<int> bestAllocation;
 	int maxWays;
-	bool allowNegMisses;
 	int maxSteps;
 	vector<double> espLocalOverlap;
 	int lookaheadCap;
@@ -101,7 +100,6 @@ public:
 						   double _hybridDecisionError,
 						   int _hybridBufferSize,
 						   std::string _searchAlgorithm,
-						   bool _allowNegMisses,
 						   int _maxSteps,
 						   std::string _gradientModel,
 						   int _lookaheadCap);
