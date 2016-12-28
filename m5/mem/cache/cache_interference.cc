@@ -216,14 +216,6 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	DPRINTF(CachePartitioning, "Access for request address %d from CPU %d, command %s\n", req->paddr, req->adaptiveMHASenderID, req->cmd.toString());
 
-	if(addRequestToHitCounters(req)){
-		accessAccumulator[req->adaptiveMHASenderID]++;
-		if(isCacheMiss){
-			if(req->cmd == Read) readMissAccumulator[req->adaptiveMHASenderID]++;
-			else wbMissAccumulator[req->adaptiveMHASenderID]++;
-		}
-	}
-
 	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 
 	int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
@@ -248,6 +240,14 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 		int estConstAccesses = estimateConstituencyAccesses(false);
 
 		DPRINTF(CachePartitioning, "Address %d (CPU %d) is a leader set access, estimating %d accesses\n", req->paddr, req->adaptiveMHASenderID, estConstAccesses);
+
+		if(addRequestToHitCounters(req)){
+			accessAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+			if(isCacheMiss){
+				if(req->cmd == Read) readMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+				else wbMissAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+			}
+		}
 
 		if(shadowBlk == NULL){ // shadow miss
 			if(curTick >= detailedSimStart){
