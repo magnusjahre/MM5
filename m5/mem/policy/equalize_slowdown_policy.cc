@@ -260,19 +260,22 @@ EqualizeSlowdownPolicy::computeGradientForCPU(PerformanceMeasurement measurement
 
 double
 EqualizeSlowdownPolicy::computeIPC(int cpuID, int misses, double gradient, double b){
-	double estimatedCPI = b;
-	if(misses > 0 || allowNegMisses){
-		estimatedCPI = misses * gradient + b;
-		DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f\n", cpuID, misses, gradient, b, estimatedCPI);
-	}
-	else{
-		DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f\n", cpuID, misses, b);
+
+	int localMisses = misses;
+	if(misses < 0 && !allowNegMisses){
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: Misses is %d, setting to 0\n", cpuID, misses);
+		localMisses = 0;
 	}
 
-	assert(b >= 0);
-	double estimatedIPC = 0.0;
-	if(estimatedCPI <= 0.0) estimatedIPC = 1/b;
-	else estimatedIPC = 1/estimatedCPI;
+	assert(b >= 0.0);
+	double estimatedCPI = (localMisses * gradient) + b;
+	DPRINTF(MissBWPolicyExtra, "--- CPU %d: CPI(%d) = %f * m + %f = %f (curve misses %d)\n", cpuID, localMisses, gradient, b, estimatedCPI, misses);
+
+	// Estimated CPI less than b does not make sense. Negative miss rates occur because of set sampling.
+	// This means that the allowNegMisses option is unnecessary since they should never be allowed.
+	assert(estimatedCPI >= b);
+	double estimatedIPC = 1/estimatedCPI;
+	DPRINTF(MissBWPolicyExtra, "--- CPU %d: IPC = %f\n", cpuID, estimatedIPC);
 
 	return estimatedIPC;
 }
