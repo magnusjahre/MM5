@@ -318,7 +318,7 @@ def initSharedCache(bankcnt, optPart):
             panic("Shared Cache: No single cache configuration present")
     else:
         panic("No cache defined for selected CPU count")
-        
+            
     if "SHARED-CACHE-ASSOC" in env:
         for bank in root.SharedCache:
             bank.assoc = int(env["SHARED-CACHE-ASSOC"])
@@ -327,6 +327,11 @@ def initSharedCache(bankcnt, optPart):
     root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
     if "SHARED-CACHE-ASSOC" in env:
         root.cacheInterference.disableLLCCheckpointLoad = True
+    
+    if "SHARED-CACHE-BANK-SIZE" in env:
+        root.cacheInterference.disableLLCCheckpointLoad = True
+        for bank in root.SharedCache:
+            bank.disableLLCCheckpointLoad = True
     
     if optPart != None:
         for bank in root.SharedCache:
