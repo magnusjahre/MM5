@@ -344,11 +344,22 @@ Process::cleanFileState(Checkpoint *cp, const std::string &section){
 	for( ; it != tgtFDFileParams.end(); it++){
 		FileParameters params = it->second;
 
+		bool cleanFileExists = false;
 		stringstream cleanName;
 		cleanName << params.path << ".clean";
+		if (FILE *file = fopen(cleanName.str().c_str(), "r")){
+			fclose(file);
+			cleanFileExists = true;
+		}
 
-		cout << "RESTART: Restoring possibly touched file " << params.path << " with clean file " << cleanName.str() << "\n";
-		copyFile(cleanName.str(), params.path);
+		if(cleanFileExists){
+			cout << "RESTART: Restoring possibly touched file " << params.path << " with clean file " << cleanName.str() << "\n";
+			copyFile(cleanName.str(), params.path);
+		}
+		else{
+			cout << "RESTART: Skipping file " << params.path << ", assuming that it is an input file since no .clean file is present\n";
+		}
+
 	}
 }
 
