@@ -1160,6 +1160,16 @@ void
 FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
+
+	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
+	for(ROBStation* el = ROB.head(); el != NULL; el = ROB.next(el)) {
+		IQ[0]->squash(el->iq_entry);
+		LSQ->squash(el->lsq_entry);
+		el->squash();
+		remove_ROB_element(el);
+	}
+	ROB.check();
+
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 
 	cout << curTick << " " << name() << ": restart procedure finished\n";
