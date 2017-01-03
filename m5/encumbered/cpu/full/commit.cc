@@ -1025,6 +1025,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 
 		canExit = true;
 		if(issueExitEvent()){
+			cout << curTick << " " << name() << ": simulation point is finished and simulation is complete\n";
 			new SimExitEvent("all CPUs have reached their instruction limit");
 		}
 		else{
