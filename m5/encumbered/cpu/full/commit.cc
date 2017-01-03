@@ -1016,21 +1016,33 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 	}
 
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && !hasDumpedStats){
+		if(!hasDumpedStats){
+			ofstream statDumpFile(statsOrderFileName.c_str(), ios::app);
+			statDumpFile << curTick << ";" << name() << ";" << CPUParamsCpuID << ";" << stat_com_inst[thread].value() << "\n";
+			statDumpFile.flush();
+			statDumpFile.close();
+		}
+
 		canExit = true;
-		hasDumpedStats = true;
-
-		ofstream statDumpFile(statsOrderFileName.c_str(), ios::app);
-		statDumpFile << curTick << ";" << name() << ";" << CPUParamsCpuID << ";" << stat_com_inst[thread].value() << "\n";
-		statDumpFile.flush();
-		statDumpFile.close();
-
-
 		if(issueExitEvent()){
 			new SimExitEvent("all CPUs have reached their instruction limit");
 		}
 		else{
-			Stats::SetupEvent(Stats::Dump, curTick);
+			if(!hasDumpedStats){
+				Stats::SetupEvent(Stats::Dump, curTick);
+			}
+
+			bool restartSimulationPoint = true; //TODO: parameterize
+
+			if(restartSimulationPoint){
+				assert(restartEvent == NULL);
+				cout << curTick << " " << name() << ": simulation point is finished, scheduling restart\n";
+				restartEvent = new ProcessRestartEvent(this);
+				restartEvent->schedule(curTick);
+			}
 		}
+
+		hasDumpedStats = true;
 	}
 
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && CPUParamsCpuID == quitOnCPUID){
