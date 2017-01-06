@@ -1171,6 +1171,8 @@ FullCPU::restartProcess(){
 	}
 	ROB.check();
 
+	decodeQueue->squash();
+
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 
 	cout << curTick << " " << name() << ": restart procedure finished\n";
