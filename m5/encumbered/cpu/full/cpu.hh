@@ -103,6 +103,7 @@ private:
 	RequestTrace committedInstTrace;
 
 	int quitOnCPUID;
+	Tick quitInstCounter;
 
 	bool isStalled;
 	Addr stalledOnAddr;

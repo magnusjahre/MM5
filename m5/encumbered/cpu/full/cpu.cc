@@ -712,6 +712,7 @@ FullCPU::FullCPU(Params *p,
 	restartHaltedProcesses = true; // TODO: parameterize
 
 	quitOnCPUID = _quitOnCPUID;
+	quitInstCounter = 0;
 
 	overlapEstimator = _overlapEst;
 	isStalled = false;

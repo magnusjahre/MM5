@@ -966,6 +966,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		assert(thread == 0);
 		commitedInstructionSample++;
 		stat_com_inst[thread]++;
+		quitInstCounter++;
 		amha->coreCommittedInstruction(CPUParamsCpuID);
 		committedSinceLast++;
 
@@ -1015,7 +1016,8 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		stat_com_membars[thread]++;
 	}
 
-	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && !hasDumpedStats){
+	assert(quitInstCounter <= minInstructionsAllCPUs);
+	if(quitInstCounter == minInstructionsAllCPUs){
 		if(!hasDumpedStats){
 			ofstream statDumpFile(statsOrderFileName.c_str(), ios::app);
 			statDumpFile << curTick << ";" << name() << ";" << CPUParamsCpuID << ";" << stat_com_inst[thread].value() << "\n";
@@ -1032,18 +1034,17 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			if(!hasDumpedStats){
 				Stats::SetupEvent(Stats::Dump, curTick);
 			}
+			hasDumpedStats = true;
 
 			bool restartSimulationPoint = true; //TODO: parameterize
-
 			if(restartSimulationPoint){
 				assert(restartEvent == NULL);
-				cout << curTick << " " << name() << ": simulation point is finished, scheduling restart\n";
+				cout << curTick << " " << name() << ": simulation point is finished @ " << stat_com_inst[thread].value() << " committed instructions, scheduling restart\n";
 				restartEvent = new ProcessRestartEvent(this);
 				restartEvent->schedule(curTick);
 			}
 		}
-
-		hasDumpedStats = true;
+		quitInstCounter = 0;
 	}
 
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && CPUParamsCpuID == quitOnCPUID){
