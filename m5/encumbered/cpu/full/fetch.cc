@@ -629,66 +629,70 @@ ClearFetchStallEvent::description()
 void
 FetchCompleteEvent::process()
 {
-    IcacheOutputBuffer *bufferp;
-    IcacheOutputBufferEntry *entryp;
-    int index = first_index;
+	IcacheOutputBuffer *bufferp;
+	IcacheOutputBufferEntry *entryp;
+	int index = first_index;
 
-    bufferp = cpu->icache_output_buffer[thread_number];
+	bufferp = cpu->icache_output_buffer[thread_number];
 
-    // checkmshrp->targets[target_idx]. to see if first instruction is
-    // still valid
-    entryp = &(bufferp->insts[first_index]);
-    if (!entryp->inst || entryp->inst->fetch_seq != first_seq_num) {
-	// squashed! no point in continuing, as any squash will
-	// eliminate the whole group of instrs
-	goto done;
-    }
+	DPRINTF(Fetch, "Processing FetchCompleteEvent for CPU %d, thread %d\n", cpu->CPUParamsCpuID, thread_number);
 
-    // are the instrs we fetched at the head of the buffer?  if so,
-    // we'll want to copy them to the ifq as we go.  if we allow
-    // multiple fetches on the same thread and they complete out of
-    // order, this may not be the case.
-    if (first_index == bufferp->head) {
-	for (int i = 0; i < num_insts; ++i) {
-	    entryp = &bufferp->insts[index];
-            if (cpu->mt_frontend) {
-                cpu->ifq[entryp->inst->thread_number].append(entryp->inst);
-            } else {
-                cpu->ifq[0].append(entryp->inst);
-            }
-	    entryp->inst = NULL;
-	    index = bufferp->incr(index);
+	// checkmshrp->targets[target_idx]. to see if first instruction is
+	// still valid
+	entryp = &(bufferp->insts[first_index]);
+	if (!entryp->inst || entryp->inst->fetch_seq != first_seq_num) {
+		// squashed! no point in continuing, as any squash will
+		// eliminate the whole group of instrs
+		DPRINTF(Fetch, "Eliminating fetch group due to squash for CPU %d, thread %d (seq num %d, first seq num %d)\n",
+				cpu->CPUParamsCpuID, thread_number, entryp->inst->fetch_seq, first_seq_num);
+		goto done;
 	}
 
-	// now copy any succeeding ready instrs (that were the result
-	// of an out-of-order fetch completion) to the ifq
-	while (entryp = &bufferp->insts[index], entryp->ready) {
-            if (cpu->mt_frontend) {
-                cpu->ifq[entryp->inst->thread_number].append(entryp->inst);
-            } else {
-                cpu->ifq[0].append(entryp->inst);
-            }
-	    entryp->ready = false;
-	    entryp->inst = NULL;
-	    ++num_insts;
-	    index = bufferp->incr(index);
+	// are the instrs we fetched at the head of the buffer?  if so,
+	// we'll want to copy them to the ifq as we go.  if we allow
+	// multiple fetches on the same thread and they complete out of
+	// order, this may not be the case.
+	if (first_index == bufferp->head) {
+		for (int i = 0; i < num_insts; ++i) {
+			entryp = &bufferp->insts[index];
+			if (cpu->mt_frontend) {
+				cpu->ifq[entryp->inst->thread_number].append(entryp->inst);
+			} else {
+				cpu->ifq[0].append(entryp->inst);
+			}
+			entryp->inst = NULL;
+			index = bufferp->incr(index);
+		}
+
+		// now copy any succeeding ready instrs (that were the result
+		// of an out-of-order fetch completion) to the ifq
+		while (entryp = &bufferp->insts[index], entryp->ready) {
+			if (cpu->mt_frontend) {
+				cpu->ifq[entryp->inst->thread_number].append(entryp->inst);
+			} else {
+				cpu->ifq[0].append(entryp->inst);
+			}
+			entryp->ready = false;
+			entryp->inst = NULL;
+			++num_insts;
+			index = bufferp->incr(index);
+		}
+
+		// update head & num_insts to reflect instrs copied to ifq
+		bufferp->head = index;
+		bufferp->num_insts -= num_insts;
+		assert(bufferp->num_insts >= 0);
+	} else {
+		// just mak instrs as ready until preceding instrs complete fetch
+		for (int i = 0; i < num_insts; ++i) {
+			entryp = &(bufferp->insts[index]);
+			entryp->ready = true;
+			index = bufferp->incr(index);
+		}
 	}
 
-	// update head & num_insts to reflect instrs copied to ifq
-	bufferp->head = index;
-	bufferp->num_insts -= num_insts;
-	assert(bufferp->num_insts >= 0);
-    } else {
-	// just mak instrs as ready until preceding instrs complete fetch
-	for (int i = 0; i < num_insts; ++i) {
-	    entryp = &(bufferp->insts[index]);
-	    entryp->ready = true;
-	    index = bufferp->incr(index);
-	}
-    }
-
-  done:
-    delete this;
+	done:
+	delete this;
 }
 
 
@@ -1259,304 +1263,312 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 void
 FullCPU::fetch()
 {
-    int fetched_this_cycle = 0;
-    int fetched_this_thread;
-    int ports_used = 0;
+	int fetched_this_cycle = 0;
+	int fetched_this_thread;
+	int ports_used = 0;
 
-    int thread_fetched[number_of_threads];
+	int thread_fetched[number_of_threads];
 
-    /*
-     *  Reset the number of instrs fetched for each thread
-     */
-    icache_ports_used_last_fetch = 0;
-    for (int i = 0; i < number_of_threads; i++) {
-	thread_fetched[i] = 0;
+	/*
+	 *  Reset the number of instrs fetched for each thread
+	 */
+	icache_ports_used_last_fetch = 0;
+	for (int i = 0; i < number_of_threads; i++) {
+		thread_fetched[i] = 0;
 
 #if 0
-	if (curTick > 10000 && thread_info[i].last_fetch < curTick - 2000) {
-	    stringstream s;
-	    s << "Thread " << i << " hasn't fetched since cycle " <<
-		thread_info[i].last_fetch << ends;
-	    exitNow(s.str(), 1);
-	}
+		if (curTick > 10000 && thread_info[i].last_fetch < curTick - 2000) {
+			stringstream s;
+			s << "Thread " << i << " hasn't fetched since cycle " <<
+					thread_info[i].last_fetch << ends;
+			exitNow(s.str(), 1);
+		}
 #endif
-    }
+	}
 
 
-    /* always update icounts... we use them for bias adjustment even
-     * if we don't need them for scheduling this cycle */
+	/* always update icounts... we use them for bias adjustment even
+	 * if we don't need them for scheduling this cycle */
 
-    update_icounts();
+	update_icounts();
 
-    bool blockedDueToCache = false;
+	bool blockedDueToCache = false;
 
-    /*
-     * For each thread, set/clear the thread_info[].blocked flag.
-     * If set, also set floss_state.fetch_end_cause[] to indicate why.
-     */
-    for (int thread_number = 0; thread_number < number_of_threads;
-	 thread_number++) {
+	/*
+	 * For each thread, set/clear the thread_info[].blocked flag.
+	 * If set, also set floss_state.fetch_end_cause[] to indicate why.
+	 */
+	for (int thread_number = 0; thread_number < number_of_threads;
+			thread_number++) {
 
-	ExecContext *xc = thread[thread_number];
+		ExecContext *xc = thread[thread_number];
 
-	/* assume the worst until proven otherwise */
-	thread_info[thread_number].blocked = true;
+		/* assume the worst until proven otherwise */
+		thread_info[thread_number].blocked = true;
 
-	/* Unless we fetch a full fetch_width of instructions, this
-	 * should get set to indicate why we didn't */
-	floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_NONE;
+		/* Unless we fetch a full fetch_width of instructions, this
+		 * should get set to indicate why we didn't */
+		floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_NONE;
+
+		//
+		//  Now: check all the reasons we could be blocked... if none of
+		//       them are true, then mark as not blocked
+		//
+		//
+		if (!thread_info[thread_number].active)
+			continue;
+
+		if (xc->status() != ExecContext::Active) {
+#if FULL_SYSTEM
+			if (xc->status() == ExecContext::Suspended && check_interrupts()) {
+				xc->activate();
+			} else
+#endif // FULL_SYSTEM
+			{
+				continue;
+				DPRINTF(Fetch, "Skipping thread %d since it is not active\n", thread_number);
+			}
+		}
+
+		//
+		//  The case where the IFQ is full, but all slots are reserved
+		//  (ie. no real instructions present) indicates a cache miss.
+		//  This will be detected and handled later.
+		//
+		int flag = 0;
+		if (mt_frontend) {
+			FetchQueue &q = ifq[thread_number];
+			if (q.num_total() == q.size && q.num_reserved < q.num_total()) {
+				floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_QFULL;
+				flag = 1;
+			}
+		} else {
+			//
+			//  For the non-MT case...
+			//
+			FetchQueue &q = ifq[0];
+			if (q.num_total() == ifq_size && q.num_reserved < q.num_total()) {
+
+				floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_QFULL;
+
+				if (thread_number == 0)
+					flag = 1;   // First time through, we collect stats...
+				else
+					continue;   // After that, we just keep going...
+			}
+		}
+
+		if (flag) {
+			//
+			//  We can't fetch for this thread...
+			//
+			for (int i = 0; i < number_of_threads; ++i) {
+				unsigned c = IQNumInstructions(i);
+				qfull_iq_occupancy[i] += c;
+				qfull_rob_occupancy[i] += ROB.num_thread(i);
+
+				qfull_iq_occ_dist_[i].sample(c);
+				qfull_rob_occ_dist_[i].sample(ROB.num_thread(i));
+			}
+			DPRINTF(Fetch, "Skipping thread %d because the fetch queue is full\n", thread_number);
+			continue;
+		}
+
+		if (fetch_stall[thread_number] != 0) {
+			/* fetch loss cause for this thread is fid_cause value */
+			floss_state.fetch_end_cause[thread_number] =
+					fid_cause[thread_number];
+			DPRINTF(Fetch, "Skipping thread %d because of a FID cause\n", thread_number);
+			continue;
+		}
+
+		if (fetch_fault_count[thread_number] != 0) {
+			// pending faults...
+			floss_state.fetch_end_cause[thread_number] =
+					FLOSS_FETCH_FAULT_FLUSH;
+			DPRINTF(Fetch, "Skipping thread %d because of pending faults\n", thread_number);
+			continue;
+		}
+
+		/* if icache_output_buffer is still full (due to icache miss,
+           or multi-cycle hit) then stall */
+		if (icache_output_buffer[thread_number]->free_slots() < fetch_width) {
+			floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_IMISS;
+			floss_state.fetch_mem_result[thread_number] = MA_CACHE_MISS;
+			blockedDueToCache = true;
+			DPRINTF(Fetch, "Skipping thread %d because of instruction cache being blocked\n", thread_number);
+			continue;
+		}
+
+		thread_info[thread_number].blocked = false;
+		DPRINTF(Fetch, "Thread %d is not blocked\n", thread_number);
+	}
+
+
+	/*
+	 *  We need to block threads that have been assigned zero priority
+	 *  Check for all blocked while we're at it...
+	 */
+	bool all_threads_blocked = true;
+	for (int i = 0; i < number_of_threads; i++) {
+		if (thread_info[i].priority == 0)
+			thread_info[i].blocked = true;
+
+		if (!thread_info[i].blocked)
+			all_threads_blocked = false;
+	}
+
+	if (all_threads_blocked) {
+		flossRecord(&floss_state, thread_fetched);
+		fetch_idle_cycles++;
+		if(blockedDueToCache) fetch_idle_cycles_cache_miss++;
+		//	check_counters();
+		return;
+	}
+
+	/*  Add our static biases into the current icounts                     */
+	/*  ==> these will be removed after the choose_next_thread() function  */
+	for (int i = 0; i < number_of_threads; i++)
+		thread_info[i].current_icount += static_icount_bias[i];
+
+	/*
+	 *  This function takes the contents of thread_info[] into account
+	 *  and may change fetch_list[].blocked
+	 */
+	choose_next_thread(fetch_list);
+
+	/*  Remove our static biases from the current icounts  */
+	for (int i = 0; i < number_of_threads; i++)
+		thread_info[i].current_icount -= static_icount_bias[i];
 
 	//
-        //  Now: check all the reasons we could be blocked... if none of
-	//       them are true, then mark as not blocked
-        //
-        //
-	if (!thread_info[thread_number].active)
-	    continue;
+	//  Assert blocked flag for threads with active ROB or IQ caps
+	//
+	for (int i = 0; i < number_of_threads; i++) {
+		int thread_number = fetch_list[i].thread_number;
 
-	if (xc->status() != ExecContext::Active) {
-#if FULL_SYSTEM
-	    if (xc->status() == ExecContext::Suspended && check_interrupts()) {
-		xc->activate();
-	    } else
-#endif // FULL_SYSTEM
-	    {
-		continue;
-	    }
+		/*  Handle IQ and ROB caps  */
+		if (iq_cap_active[thread_number] || rob_cap_active[thread_number])
+			fetch_list[i].blocked = true;
 	}
 
-        //
-        //  The case where the IFQ is full, but all slots are reserved
-        //  (ie. no real instructions present) indicates a cache miss.
-        //  This will be detected and handled later.
-        //
-        int flag = 0;
-        if (mt_frontend) {
-	    FetchQueue &q = ifq[thread_number];
-            if (q.num_total() == q.size && q.num_reserved < q.num_total()) {
-                floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_QFULL;
-                flag = 1;
-            }
-        } else {
-            //
-            //  For the non-MT case...
-            //
-	    FetchQueue &q = ifq[0];
-            if (q.num_total() == ifq_size && q.num_reserved < q.num_total()) {
+	/*
+	 *  Are all threads blocked?
+	 *  => Need to check again, because the fetch policy may block a thread
+	 *
+	 *  scan by fetch_list[] index to find threads not blocked by cache miss
+	 *  or by fetch policy
+	 */
+	all_threads_blocked = true;
 
-                floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_QFULL;
+	for (int i = 0; i < number_of_threads; i++) {
+		int thread_number = fetch_list[i].thread_number;
 
-                if (thread_number == 0)
-                    flag = 1;   // First time through, we collect stats...
-                else
-                    continue;   // After that, we just keep going...
-            }
-        }
-
-        if (flag) {
-            //
-            //  We can't fetch for this thread...
-            //
-	    for (int i = 0; i < number_of_threads; ++i) {
-		unsigned c = IQNumInstructions(i);
-		qfull_iq_occupancy[i] += c;
-		qfull_rob_occupancy[i] += ROB.num_thread(i);
-
-		qfull_iq_occ_dist_[i].sample(c);
-		qfull_rob_occ_dist_[i].sample(ROB.num_thread(i));
-	    }
-
-            continue;
-        }
-
-	if (fetch_stall[thread_number] != 0) {
-	    /* fetch loss cause for this thread is fid_cause value */
-	    floss_state.fetch_end_cause[thread_number] =
-		fid_cause[thread_number];
-	    continue;
+		if (fetch_list[i].blocked)
+			floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_POLICY;
+		else if (!thread_info[thread_number].blocked)
+			all_threads_blocked = false;
 	}
 
-	if (fetch_fault_count[thread_number] != 0) {
-	    // pending faults...
-	    floss_state.fetch_end_cause[thread_number] =
-		FLOSS_FETCH_FAULT_FLUSH;
-	    continue;
+
+	/* if all threads are in icache misses, we're done */
+	if (all_threads_blocked) {
+		flossRecord(&floss_state, thread_fetched);
+		fetch_idle_cycles++;
+		//	check_counters();
+		DPRINTF(Fetch, "Returning, all threads are blocked on a cache miss\n");
+		return;
 	}
 
-	/* if icache_output_buffer is still full (due to icache miss,
-           or multi-cycle hit) then stall */
-        if (icache_output_buffer[thread_number]->free_slots() < fetch_width) {
-            floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_IMISS;
-	    floss_state.fetch_mem_result[thread_number] = MA_CACHE_MISS;
-            blockedDueToCache = true;
-            continue;
-        }
-
-	thread_info[thread_number].blocked = false;
-    }
-
-
-    /*
-     *  We need to block threads that have been assigned zero priority
-     *  Check for all blocked while we're at it...
-     */
-    bool all_threads_blocked = true;
-    for (int i = 0; i < number_of_threads; i++) {
-	if (thread_info[i].priority == 0)
-	    thread_info[i].blocked = true;
-
-	if (!thread_info[i].blocked)
-	    all_threads_blocked = false;
-    }
-
-    if (all_threads_blocked) {
-	flossRecord(&floss_state, thread_fetched);
-	fetch_idle_cycles++;
-        if(blockedDueToCache) fetch_idle_cycles_cache_miss++;
-	//	check_counters();
-	return;
-    }
-
-    /*  Add our static biases into the current icounts                     */
-    /*  ==> these will be removed after the choose_next_thread() function  */
-    for (int i = 0; i < number_of_threads; i++)
-	thread_info[i].current_icount += static_icount_bias[i];
-
-    /*
-     *  This function takes the contents of thread_info[] into account
-     *  and may change fetch_list[].blocked
-     */
-    choose_next_thread(fetch_list);
-
-    /*  Remove our static biases from the current icounts  */
-    for (int i = 0; i < number_of_threads; i++)
-	thread_info[i].current_icount -= static_icount_bias[i];
-
-    //
-    //  Assert blocked flag for threads with active ROB or IQ caps
-    //
-    for (int i = 0; i < number_of_threads; i++) {
-	int thread_number = fetch_list[i].thread_number;
-
-	/*  Handle IQ and ROB caps  */
-	if (iq_cap_active[thread_number] || rob_cap_active[thread_number])
-	    fetch_list[i].blocked = true;
-    }
-
-    /*
-     *  Are all threads blocked?
-     *  => Need to check again, because the fetch policy may block a thread
-     *
-     *  scan by fetch_list[] index to find threads not blocked by cache miss
-     *  or by fetch policy
-     */
-    all_threads_blocked = true;
-
-    for (int i = 0; i < number_of_threads; i++) {
-	int thread_number = fetch_list[i].thread_number;
-
-	if (fetch_list[i].blocked)
-	    floss_state.fetch_end_cause[thread_number] = FLOSS_FETCH_POLICY;
-	else if (!thread_info[thread_number].blocked)
-	    all_threads_blocked = false;
-    }
+	/*
+	 * If the icache is totally blocked, we won't be able to fetch for
+	 * any thread, even if some are ready.  This should be very
+	 * unlikely now that we squash outstanding I-cache requests on a
+	 * misspeculation, as long as there are as many MSHRs as threads
+	 * (and we're not doing i-cache prefetching).
+	 *
+	 * If this does occur, we'd like to spread the blame among all
+	 * threads that currently have outstanding icache misses.  Howver,
+	 * this doesn't fit into our floss_reasons interface, so for now
+	 * we'll just consider it an idel fetch cycle.
+	 */
+	if (icacheInterface->isBlocked()) {
+		flossRecord(&floss_state, thread_fetched);
+		fetch_idle_cycles++;
+		fetch_idle_icache_blocked_cycles++;
+		//	check_counters();
+		DPRINTF(Fetch, "Returning, all threads are blocked because the instruction cache is blocked\n");
+		return;
+	}
 
 
-    /* if all threads are in icache misses, we're done */
-    if (all_threads_blocked) {
-	flossRecord(&floss_state, thread_fetched);
-	fetch_idle_cycles++;
-	//	check_counters();
-	return;
-    }
+	/*====================================================================*/
 
-    /*
-     * If the icache is totally blocked, we won't be able to fetch for
-     * any thread, even if some are ready.  This should be very
-     * unlikely now that we squash outstanding I-cache requests on a
-     * misspeculation, as long as there are as many MSHRs as threads
-     * (and we're not doing i-cache prefetching).
-     *
-     * If this does occur, we'd like to spread the blame among all
-     * threads that currently have outstanding icache misses.  Howver,
-     * this doesn't fit into our floss_reasons interface, so for now
-     * we'll just consider it an idel fetch cycle.
-     */
-    if (icacheInterface->isBlocked()) {
-	flossRecord(&floss_state, thread_fetched);
-	fetch_idle_cycles++;
-	fetch_idle_icache_blocked_cycles++;
-	//	check_counters();
-	return;
-    }
+	/*  Fetch from _some_ thread as long as:
+	 * (1) We have fetch bandwidth left
+	 * (2) We haven't used all the icache ports
+	 * (3) We haven't tried all the threads
+	 */
 
+	for (int list_index = 0; list_index < number_of_threads; ++list_index) {
 
-    /*====================================================================*/
+		if (fetched_this_cycle >= fetch_width
+				|| ports_used >= num_icache_ports
+				|| icacheInterface->isBlocked()) {
 
-    /*  Fetch from _some_ thread as long as:
-     * (1) We have fetch bandwidth left
-     * (2) We haven't used all the icache ports
-     * (3) We haven't tried all the threads
-     */
+			//  We didn't look at all the threads...
+			for (int j = 0; j < number_of_threads; ++j) {
+				if (floss_state.fetch_end_cause[j] == FLOSS_FETCH_NONE) {
+					// Call the cause BANDWIDTH
+					// (actual cause is either _real_ BW or cache ports)
+					floss_state.fetch_end_cause[j] = FLOSS_FETCH_BANDWIDTH;
+				}
+			}
 
-    for (int list_index = 0; list_index < number_of_threads; ++list_index) {
-
-	if (fetched_this_cycle >= fetch_width
-	    || ports_used >= num_icache_ports
-	    || icacheInterface->isBlocked()) {
-
-	    //  We didn't look at all the threads...
-	    for (int j = 0; j < number_of_threads; ++j) {
-		if (floss_state.fetch_end_cause[j] == FLOSS_FETCH_NONE) {
-		    // Call the cause BANDWIDTH
-		    // (actual cause is either _real_ BW or cache ports)
-		    floss_state.fetch_end_cause[j] = FLOSS_FETCH_BANDWIDTH;
+			break;
 		}
-	    }
 
-	    break;
-	}
+		int thread_number = fetch_list[list_index].thread_number;
 
-	int thread_number = fetch_list[list_index].thread_number;
+		if (thread_info[thread_number].blocked
+				|| fetch_list[list_index].blocked) {
+			continue;
+		}
 
-	if (thread_info[thread_number].blocked
-	    || fetch_list[list_index].blocked) {
-	    continue;
-	}
+		fetch_decisions++;
 
-	fetch_decisions++;
+		fetch_chances[thread_number]++;
 
-	fetch_chances[thread_number]++;
+		ports_used++;
 
-	ports_used++;
+		/*  Indicate that we've tried to fetch from a thread  */
+		fetch_choice_dist[list_index]++;
 
-	/*  Indicate that we've tried to fetch from a thread  */
-	fetch_choice_dist[list_index]++;
+		fetched_this_thread =
+				fetchOneThread(thread_number,
+						fetch_width - fetched_this_cycle);
 
-	fetched_this_thread =
-	    fetchOneThread(thread_number,
-			   fetch_width - fetched_this_cycle);
+		if (fetched_this_thread > 0)
+			++icache_ports_used_last_fetch;
 
-	if (fetched_this_thread > 0)
-	  ++icache_ports_used_last_fetch;
+		fetched_this_cycle += fetched_this_thread;
+		DPRINTF(Fetch, "Fetched %d instructions for thread %d\n", fetched_this_thread, list_index);
 
-	fetched_this_cycle += fetched_this_thread;
+		//	thread_fetched[thread_number] = fetched_this_thread;
+		thread_fetched[0] += fetched_this_thread;
+	}				/*  fetch for 'n' threads...  */
 
-	//	thread_fetched[thread_number] = fetched_this_thread;
-	thread_fetched[0] += fetched_this_thread;
-    }				/*  fetch for 'n' threads...  */
+	fetch_nisn_dist.sample(fetched_this_cycle);
 
-    fetch_nisn_dist.sample(fetched_this_cycle);
+	flossRecord(&floss_state, thread_fetched);
 
-    flossRecord(&floss_state, thread_fetched);
-
-    /*  RR Policy:
-     *     cycle around the list by the number of "extra" threads
-     *     checked this cycle (we cycle for one thread automagically)
-     */
-    if (fetch_policy == RR)
-	for (int i = 1; i < ports_used; i++)
-	    choose_next_thread(fetch_list);
+	/*  RR Policy:
+	 *     cycle around the list by the number of "extra" threads
+	 *     checked this cycle (we cycle for one thread automagically)
+	 */
+	if (fetch_policy == RR)
+		for (int i = 1; i < ports_used; i++)
+			choose_next_thread(fetch_list);
 }
 
 
