@@ -205,6 +205,12 @@ BaseIQ::link_idep(BaseIQ::iterator &i, TheISA::RegIndex reg)
 
     i->idep_reg[number] = reg;
 
+    DPRINTF(IQ, "Setting dependency number %d for inst # %d (PC %d) on register %d\n",
+    		number,
+			i->seq,
+			i->inst->PC,
+			(int) reg);
+
     /* locate creator of operand */
     CVLink producer = cpu->create_vector[i->thread_number()].entry(reg);
 
@@ -237,6 +243,7 @@ BaseIQ::link_idep(BaseIQ::iterator &i)
     i->idep_reg[number] = (TheISA::RegIndex)-1;
     i->idep_ready[number] = false;
     i->idep_ptr[number] = NULL;
+    DPRINTF(IQ, "Setting dependency number %d for inst # %d (PC %d)\n", number, i->seq, i->inst->PC);
     return curTick;
 }
 

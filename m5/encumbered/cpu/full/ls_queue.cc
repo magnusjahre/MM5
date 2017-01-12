@@ -133,63 +133,68 @@ load_store_queue::rq_raw_dump()
 
 BaseIQ::iterator
 load_store_queue::add_impl(DynInst *inst, InstSeqNum seq,
-			   ROBStation *rob, RegInfoElement *ri,
-			   NewChainInfo *c)
+		ROBStation *rob, RegInfoElement *ri,
+		NewChainInfo *c)
 {
-    BaseIQ::iterator p = queue->add_tail();
+	DPRINTF(IQ, "Adding instruction # %d, PC %d\n", seq, inst->PC);
 
-    ++total_insts;
-    ++insts[inst->thread_number];
+	BaseIQ::iterator p = queue->add_tail();
 
-    if (inst->isLoad()) {
-	++total_loads;
-	++loads[inst->thread_number];
-    } else if (inst->isStore()) {
-	++total_stores;
-	++stores[inst->thread_number];
-    } else {
-	// shouldn't get here otherwise!
-	assert(inst->isMemBarrier());
-    }
+	++total_insts;
+	++insts[inst->thread_number];
 
-    p->inst		= inst;
-    p->in_LSQ		= true;
-    p->ea_comp		= false;
-    p->seq		= seq;
-    p->queued		= false;
-    p->squashed		= false;
-    //p->blocked	= false;
-    p->mem_result	= MA_NOT_ISSUED;
-    p->head_of_chain	= false;
-    p->rob_entry	= rob;
-    p->num_ideps	= 0;
+	if (inst->isLoad()) {
+		++total_loads;
+		++loads[inst->thread_number];
+	} else if (inst->isStore()) {
+		++total_stores;
+		++stores[inst->thread_number];
+	} else {
+		// shouldn't get here otherwise!
+		assert(inst->isMemBarrier());
+	}
 
-    if (!inst->isMemBarrier()) {
-	// This dummy idep is for the input dependence on the effective
-	// address computation in the IQ.  By putting it first we
-	// guarantee that it's at index 0 (MEM_ADDR_INDEX), which is how
-	// the writeback of the EA computation finds it (ugliness
-	// inherited from SimpleScalar).
-	link_idep(p);
+	p->inst		= inst;
+	p->in_LSQ		= true;
+	p->ea_comp		= false;
+	p->seq		= seq;
+	p->queued		= false;
+	p->squashed		= false;
+	//p->blocked	= false;
+	p->mem_result	= MA_NOT_ISSUED;
+	p->head_of_chain	= false;
+	p->rob_entry	= rob;
+	p->num_ideps	= 0;
 
-	// now link in non-EA input deps (if any: should just be store
-	// data on stores)
-	StaticInstPtr<TheISA> eff_si = inst->staticInst->memAccInst();
+	if (!inst->isMemBarrier()) {
+		DPRINTF(IQ, "Instruction # %d (PC %d) is not a memory barrier\n", seq, inst->PC);
+		// This dummy idep is for the input dependence on the effective
+		// address computation in the IQ.  By putting it first we
+		// guarantee that it's at index 0 (MEM_ADDR_INDEX), which is how
+		// the writeback of the EA computation finds it (ugliness
+		// inherited from SimpleScalar).
+		link_idep(p);
 
-	for (int i = 0; i < eff_si->numSrcRegs(); ++i)
-	    link_idep(p, eff_si->srcRegIdx(i));
-    }
 
-    // This shouldn't be necessary, since we should never look past
-    // num_ideps in the array, but there are too many loops that go
-    // all the way to TheISA::MaxNumSrcRegs.
-    for (int i = p->num_ideps; i < TheISA::MaxInstSrcRegs; ++i) {
-	p->idep_ptr[i] = 0;
-	p->idep_reg[i] = 0;
-	p->idep_ready[i] = true;
-    }
+		// now link in non-EA input deps (if any: should just be store
+		// data on stores)
+		StaticInstPtr<TheISA> eff_si = inst->staticInst->memAccInst();
 
-    return p;
+		for (int i = 0; i < eff_si->numSrcRegs(); ++i){
+			link_idep(p, eff_si->srcRegIdx(i));
+		}
+	}
+
+	// This shouldn't be necessary, since we should never look past
+	// num_ideps in the array, but there are too many loops that go
+	// all the way to TheISA::MaxNumSrcRegs.
+	for (int i = p->num_ideps; i < TheISA::MaxInstSrcRegs; ++i) {
+		p->idep_ptr[i] = 0;
+		p->idep_reg[i] = 0;
+		p->idep_ready[i] = true;
+	}
+
+	return p;
 };
 
 
@@ -211,62 +216,64 @@ load_store_queue::add_impl(DynInst *inst, InstSeqNum seq,
 //
 unsigned load_store_queue::writeback(ROBStation *rob, unsigned ignored)
 {
-    unsigned consumers = 0;
-    unsigned const queue_num = 0;
+	unsigned consumers = 0;
+	unsigned const queue_num = 0;
 
-    for (int index = 0; index < TheISA::MaxInstDestRegs; ++index) {
-	DepLink *olink = rob->odep_list[index][queue_num];
-	DepLink *olink_next;
-	for (; olink; olink = olink_next) {
-	    //  grab the next link... we may delete this one
-	    olink_next = olink->next();
+	DPRINTF(IQ, "Writing back instruction # %d (PC %d)\n", rob->seq, rob->inst->PC);
 
-	    if (olink->valid()) {
-		res_list<IQStation>::iterator q_entry = olink->consumer();
+	for (int index = 0; index < TheISA::MaxInstDestRegs; ++index) {
+		DepLink *olink = rob->odep_list[index][queue_num];
+		DepLink *olink_next;
+		for (; olink; olink = olink_next) {
+			//  grab the next link... we may delete this one
+			olink_next = olink->next();
 
-		//  This instruction is doing writeback into the LSQ...
-		//  Ignore an IQ entries in the consumer list
-		if (!q_entry->in_LSQ) {
-		    continue;
+			if (olink->valid()) {
+				res_list<IQStation>::iterator q_entry = olink->consumer();
+
+				//  This instruction is doing writeback into the LSQ...
+				//  Ignore an IQ entries in the consumer list
+				if (!q_entry->in_LSQ) {
+					continue;
+				}
+
+				++consumers;
+
+				if (q_entry->idep_ready[olink->idep_num])
+					panic("output dependence already satisfied");
+
+				assert(q_entry->inst->isStore());
+
+				// input is now ready
+				q_entry->idep_ready[olink->idep_num] = true;
+				q_entry->idep_ptr[olink->idep_num] = 0;
+
+				// are all the input operands ready?
+				if (q_entry->ops_ready()) {
+					ready_list_enqueue(q_entry);
+					q_entry->ready_timestamp = curTick;
+				}
+			}
+
+			//  Remove this link from the chain...
+			if (rob->odep_list[index][queue_num] != olink) {
+				if (olink->prev_dep)
+					olink->prev_dep->next_dep = olink->next_dep;
+				if (olink->next_dep)
+					olink->next_dep->prev_dep = olink->prev_dep;
+			} else {
+				// Special handling for first element
+				rob->odep_list[index][queue_num] = olink->next_dep;
+				if (olink->next_dep)
+					olink->next_dep->prev_dep = 0;
+			}
+
+			//  Free link elements that belong to this queue
+			delete olink;
 		}
-
-		++consumers;
-
-		if (q_entry->idep_ready[olink->idep_num])
-		    panic("output dependence already satisfied");
-
-		assert(q_entry->inst->isStore());
-
-		// input is now ready
-		q_entry->idep_ready[olink->idep_num] = true;
-		q_entry->idep_ptr[olink->idep_num] = 0;
-
-		// are all the input operands ready?
-		if (q_entry->ops_ready()) {
-		    ready_list_enqueue(q_entry);
-		    q_entry->ready_timestamp = curTick;
-		}
-	    }
-
-	    //  Remove this link from the chain...
-	    if (rob->odep_list[index][queue_num] != olink) {
-		if (olink->prev_dep)
-		    olink->prev_dep->next_dep = olink->next_dep;
-		if (olink->next_dep)
-		    olink->next_dep->prev_dep = olink->prev_dep;
-	    } else {
-		// Special handling for first element
-		rob->odep_list[index][queue_num] = olink->next_dep;
-		if (olink->next_dep)
-		    olink->next_dep->prev_dep = 0;
-	    }
-
-	    //  Free link elements that belong to this queue
-	    delete olink;
 	}
-    }
 
-    return consumers;
+	return consumers;
 }
 
 

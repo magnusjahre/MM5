@@ -220,6 +220,8 @@ FullCPU::commit()
 			crash_counter = 0;
 		}
 
+		DPRINTF(Commit, "Commit because the ROB is empty\n");
+
 		assert(!isStalled);
 		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_EMPTY_ROB, 1);
 		updateITCAEmptyROB(true);
@@ -275,10 +277,19 @@ FullCPU::commit()
 	//  We also keep track of the first non-commitable inst for each thread
 	//  and overall, and also squash instructions we encounter along the way
 	//
+
 	bool done = false;
 	for (ROBStation *rs = ROB.head(); (rs != NULL) && !done; rs = ROB.next(rs))
 	{
 		unsigned thread = rs->thread_number;
+
+		string outstr;
+		rs->inst->dump(outstr);
+		DPRINTF(Commit, "Considering instruction %s for commit @ PC %d, %s, %s\n",
+				outstr.c_str(),
+				rs->inst->PC,
+				(rs->issued ? "issued" : "not issued"),
+				(rs->completed ? "completed" : "not complete"));
 
 		//
 		//  count the number of instruction ready to commit
@@ -422,20 +433,24 @@ FullCPU::commit()
 		case COMMIT_BW:
 		case COMMIT_NO_INSN:
 		case COMMIT_MEMBAR:
+			DPRINTF(Commit, "Commit is stalled due to bandwidth, no instruction or memory barrier\n");
 			assert(!isStalled);
 			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_OTHER, 1);
 			break;
 		case COMMIT_STOREBUF:
 			assert(!isStalled);
+			DPRINTF(Commit, "Commit is stalled because of the store buffer\n");
 			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_STORE_BUFFER, 1);
 			break;
 		case COMMIT_FU:
 			floss_state.commit_fu[0][0] = OpClass(detail);
 			assert(!isStalled);
+			DPRINTF(Commit, "Commit is stalled because no functional unit is available\n");
 			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_FUNC_UNIT, 1);
 			break;
 		case COMMIT_DMISS:
 		{
+			DPRINTF(Commit, "Commit is stalled due to a data cache miss\n");
 			commit_total_mem_stall_time++;
 
 			tmpBlockedCycles++;
@@ -471,6 +486,7 @@ FullCPU::commit()
 			break;
 		}
 		case COMMIT_CAUSE_NOT_SET:
+			DPRINTF(Commit, "Commit is stalled, but no cause has been set\n");
 			done = true;  // dummy
 			assert(!isStalled);
 			overlapEstimator->addStall(MemoryOverlapEstimator::STALL_UNKNOWN, 1);

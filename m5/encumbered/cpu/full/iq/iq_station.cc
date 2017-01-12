@@ -40,6 +40,17 @@
 
 using namespace std;
 
+bool
+IQStation::ops_ready()
+{
+	for (int i = 0; i < num_ideps; ++i) {
+		if (!idep_ready[i]){
+			return false;
+		}
+	}
+	return true;
+}
+
 void
 IQStation::dump(int length)
 {

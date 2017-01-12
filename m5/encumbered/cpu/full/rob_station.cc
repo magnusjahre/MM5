@@ -193,7 +193,7 @@ ROBStation::dump()
 {
     Addr seq_PC = inst->PC + sizeof(MachInst);
 
-    cprintf("T%d : %d `", thread_number, inst->PC);
+    cprintf("T%d : %#08x `", thread_number, inst->PC);
     cout << inst->staticInst->disassemble(inst->PC);
     cout << "'\n";
     if (inst->isLoad()) {

@@ -152,13 +152,7 @@ struct IQStation
     // debugging purposes
     TheISA::RegIndex idep_reg[TheISA::MaxInstSrcRegs];
 
-    bool ops_ready()
-    {
-	for (int i = 0; i < num_ideps; ++i) {
-	    if (!idep_ready[i]) return false;
-	}
-	return true;
-    }
+    bool ops_ready();
 
     int dependence_depth;
 

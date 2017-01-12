@@ -166,7 +166,8 @@ baseFlags = [
     'ITCA',
     'ITCAProgress',
     'ITCACache',
-    'PerformanceModelMeasurements'
+    'PerformanceModelMeasurements',
+    'Store'
     ]
 
 #

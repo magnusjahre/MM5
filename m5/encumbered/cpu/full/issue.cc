@@ -216,12 +216,21 @@ FullCPU::lsq_refresh()
 		} else if (inst->isStore()) {
 			// Stores...
 
+			DPRINTF(IQ, "LSQ store for instruction # %d, %s, %s\n",
+					inst->fetch_seq,
+					(lsq->queued ? "is queued" : "not queued"),
+					(lsq->ops_ready() ? "ops ready": "ops not ready"));
+
 			// If it's ready to go, put it on the ready list.
 			// (This used to be done unconditionally in writeback, but
 			// was moved here so we could suppress it when a memory
 			// barrier is pending.)
 			if (!lsq->queued && lsq->ops_ready()) {
 				ls_queue->ready_list_enqueue(lsq);
+				DPRINTF(IQ, "LSQ: enqueuing instruction # %d, new state is, %s, %s\n",
+						inst->fetch_seq,
+						(lsq->queued ? "is queued" : "not queued"),
+						(lsq->ops_ready() ? "ops ready": "ops not ready"));
 			}
 
 			if (disambig_mode == DISAMBIG_CONSERVATIVE) {
@@ -1093,256 +1102,308 @@ FullCPU::issue()
 	BaseIQ::rq_iterator *iq_rq_iterator = new BaseIQ::rq_iterator[numIQueues];
 
 #ifdef DEBUG_ISSUE
-std::cerr << "-------------------------------" << std::endl;
-std::cerr << " ISSUE cycle: " << curTick << std::endl;
-std::cerr << "-------------------------------" << std::endl;
+	std::cerr << "-------------------------------" << std::endl;
+	std::cerr << " ISSUE cycle: " << curTick << std::endl;
+	std::cerr << "-------------------------------" << std::endl;
 #endif
 
-//  for each queue, the list of RQ iterators to instructions belonging
-//  to the high-priority thread
-list<BaseIQ::rq_iterator> *hp_rq_it_list
-= new list<BaseIQ::rq_iterator>[numIQueues];
+	//  for each queue, the list of RQ iterators to instructions belonging
+	//  to the high-priority thread
+	list<BaseIQ::rq_iterator> *hp_rq_it_list
+	= new list<BaseIQ::rq_iterator>[numIQueues];
 
 
-for (int i = 0; i < SMT_MAX_THREADS; ++i)
-	issued_by_thread[i] = 0;
+	for (int i = 0; i < SMT_MAX_THREADS; ++i)
+		issued_by_thread[i] = 0;
 
 
-BaseIQ::rq_iterator lsq_rq_iterator  = LSQ->issuable_list();
-StoreBuffer::rq_iterator sb_rq_iterator = storebuffer->issuable_list();
+	BaseIQ::rq_iterator lsq_rq_iterator  = LSQ->issuable_list();
+	StoreBuffer::rq_iterator sb_rq_iterator = storebuffer->issuable_list();
+
+	//  We will start issuing out of this IQ
+	unsigned current_iq = issue_starting_iqueue;
+	unsigned current_fu_pool = issue_starting_fu_pool;
+
+	//  Increment the last_iq index (RR fashion) for next cycle
+	issue_starting_iqueue = (issue_starting_iqueue+1) % numIQueues;
+	issue_starting_fu_pool = (issue_starting_fu_pool+1) % numFUPools;
 
 
-//  We will start issuing out of this IQ
-unsigned current_iq = issue_starting_iqueue;
-unsigned current_fu_pool = issue_starting_fu_pool;
-
-//  Increment the last_iq index (RR fashion) for next cycle
-issue_starting_iqueue = (issue_starting_iqueue+1) % numIQueues;
-issue_starting_fu_pool = (issue_starting_fu_pool+1) % numFUPools;
+	// visit all ready instructions (i.e., insts whose register input
+	// dependencies have been satisfied, stop issue when no more instructions
+	// are available or issue bandwidth is exhausted
+	n_issued = 0;
 
 
-// visit all ready instructions (i.e., insts whose register input
-// dependencies have been satisfied, stop issue when no more instructions
-// are available or issue bandwidth is exhausted
-n_issued = 0;
+	//
+	//  Check to see if we need to change HP thread
+	//
+	if (prioritize_issue && (hp_thread_change <= curTick)) {
+		hp_thread = (hp_thread+1) % number_of_threads;
 
-
-//
-//  Check to see if we need to change HP thread
-//
-if (prioritize_issue && (hp_thread_change <= curTick)) {
-	hp_thread = (hp_thread+1) % number_of_threads;
-
-	// schedule the next change
-	hp_thread_change = curTick + issue_thread_weights[hp_thread];
-}
+		// schedule the next change
+		hp_thread_change = curTick + issue_thread_weights[hp_thread];
+	}
 
 
 #if DUMP_ISSUE
-cerr << "@" << curTick << endl;
+	cerr << "@" << curTick << endl;
 
-list<issue_info> issued_list;
+	list<issue_info> issued_list;
 #endif
 
-//
-//  If there are no ready instructions, blame the stopage on the oldest
-//  instruction found in the IQ or LSQ.
-//
-//     THERE ARE THREE SUB-CASES:
-//       (a)  No instructions anywhere  ==> ISSUE_NO_INSN
-//       (a)  The oldest instruction has not-ready operands
-//              => ISSUE_DEPS
-//       (b)  The oldest instruction is ops-ready
-//              => ISSUE_IQ
-//
-unsigned n_ready = IQNumReadyInstructions() + LSQ->ready_count();
-if (n_ready == 0) {
+	//
+	//  If there are no ready instructions, blame the stopage on the oldest
+	//  instruction found in the IQ or LSQ.
+	//
+	//     THERE ARE THREE SUB-CASES:
+	//       (a)  No instructions anywhere  ==> ISSUE_NO_INSN
+	//       (a)  The oldest instruction has not-ready operands
+	//              => ISSUE_DEPS
+	//       (b)  The oldest instruction is ops-ready
+	//              => ISSUE_IQ
+	//
 
-	if ((IQNumInstructions() == 0) && (LSQ->count() == 0)) {
-		floss_state.issue_end_cause[0] = ISSUE_NO_INSN;
-	} else {
-		//  Find the oldest instruction....
-		evil_inst = IQOldestInstruction();
-		if (evil_inst.notnull()) {
-			if (LSQ->oldest().notnull()) {
-				if (LSQ->oldest()->seq < evil_inst->seq) {
-					evil_inst = LSQ->oldest();
+	DPRINTF(IQ, "Entering issue, IQ has %d ready instructions and LSQ has %d ready instructions\n",
+			IQNumReadyInstructions(),
+			LSQ->ready_count());
+
+	unsigned n_ready = IQNumReadyInstructions() + LSQ->ready_count();
+	if (n_ready == 0) {
+
+		if ((IQNumInstructions() == 0) && (LSQ->count() == 0)) {
+			floss_state.issue_end_cause[0] = ISSUE_NO_INSN;
+		} else {
+			//  Find the oldest instruction....
+			evil_inst = IQOldestInstruction();
+			if (evil_inst.notnull()) {
+				if (LSQ->oldest().notnull()) {
+					if (LSQ->oldest()->seq < evil_inst->seq) {
+						evil_inst = LSQ->oldest();
+					} else {
+						// existing IQ inst is older
+					}
 				} else {
-					// existing IQ inst is older
+					// existing IQ inst older than non-existant LSQ
 				}
 			} else {
-				// existing IQ inst older than non-existant LSQ
+				//  LSQ oldest since IQ doesn't exist
+				evil_inst = LSQ->oldest();
+
+				//  since we've already decided that we MUST have at least
+				//  one instruction, and it's not in the IQ...
+				assert(evil_inst.notnull());
 			}
-		} else {
-			//  LSQ oldest since IQ doesn't exist
-			evil_inst = LSQ->oldest();
 
-			//  since we've already decided that we MUST have at least
-			//  one instruction, and it's not in the IQ...
-			assert(evil_inst.notnull());
-		}
-
-		if (evil_inst->ops_ready()) {
-			floss_state.issue_end_cause[0] = ISSUE_IQ;
-		} else {
-			//  instruction is waiting on dependencies...
-			//  make a note of each fu-type that is producing the data
-			//  that this instruction is waiting for
-			floss_state.issue_end_cause[0] = ISSUE_DEPS;
-			if (!find_idep_to_blame(evil_inst, 0))
+			if (evil_inst->ops_ready()) {
 				floss_state.issue_end_cause[0] = ISSUE_IQ;
-		}
-	}
-
-	//  If the store-ready-queue is empty, then we're done
-	if (sb_rq_iterator.isnull()) {
-		delete[] iq_rq_iterator;
-		delete[] hp_rq_it_list;
-		return;
-	}
-}
-
-
-//
-//  Main issue loop
-//
-//  This loop executes once for each instruction that is considered
-//  for issue. Instructions can issue from the IQ, LSQ, or Storebuffer.
-//  The process is:
-//
-//    (0)  Extract the status of the ready-lists for each IQ
-//    (1)  Extract the oldest instruction from each of the three
-//         ready queues
-//    (2)  Choose the oldest instruction of these three and indicate
-//         the selection with the "source" variable
-//    (3)  Attempt to issue the instruction
-//    (4)  Collect statistical data on what happened in #3
-//    (5)  Check the status of the current queue's ready-list, then
-//         rotate to the next queue
-//    (6)  Check to see if the issue process is complete for this cycle
-//
-
-//
-//  STEP 0:
-//
-//  This should help our speed through the IQ-selection logic
-//
-IQList done_list(numIQueues);
-
-//  we don't check BW here, since all should have BW available
-//  at the start of the issue process
-for (int i = 0; i < numIQueues; ++i)
-	if (IQ[i]->ready_count() == 0)
-		done_list.markDone(i);
-
-done_with_iq = done_list.allDone();
-
-bool *hp_done = new bool[numIQueues];
-
-//
-//  Point to the issuable lists
-//  Populate the HP thread lists too...
-//
-for (int q = 0; q < numIQueues; ++q) {
-	if (! done_list.done(q)) {
-		if (prioritize_issue) {
-			BaseIQ::rq_iterator i;
-
-			//  Walk the list for each queue, putting the RQ iterators to
-			//  the high-priority thread into the list for this queue
-
-			i = IQ[q]->issuable_list();
-			while (i.notnull()) {
-
-				//  add RQ iterator to list if it's the HP thread
-				if ((*i)->inst->thread_number == hp_thread)
-					hp_rq_it_list[q].push_back(i);
-
-				i = i.next();
+			} else {
+				//  instruction is waiting on dependencies...
+				//  make a note of each fu-type that is producing the data
+				//  that this instruction is waiting for
+				floss_state.issue_end_cause[0] = ISSUE_DEPS;
+				if (!find_idep_to_blame(evil_inst, 0))
+					floss_state.issue_end_cause[0] = ISSUE_IQ;
 			}
 		}
 
-		//  save this for non-prioritized issue
-		iq_rq_iterator[q] = IQ[q]->issuable_list();
+		//  If the store-ready-queue is empty, then we're done
+		if (sb_rq_iterator.isnull()) {
+			delete[] iq_rq_iterator;
+			delete[] hp_rq_it_list;
+			return;
+		}
 	}
 
-	hp_done[q] = false;
-}
-
-do {
-	InstSeqNum seq_num = 0;
-	DynInst *inst = 0;
-	unsigned thread = 0;
-	//	Tick pred_issue_cycle = 0;
-	Tick ready_ts = 0;
-	Tick dispatch_ts = 0;
-	//	OpClass op_class = No_OpClass;
-	bool issued = false;
-
-	unsigned issue_events = 0;
-	//	InstSeqNum fetch_seq = 0;
-
-	BaseIQ::iterator iq_it = 0, lsq_it = 0;
-	StoreBuffer::iterator sb_it = 0;
-
-	InstSeqNum oldestIQInstSeq = 0;
-	int           oldestIQIndex = -1;
 
 	//
-	//  STEP #1:  Convert from RQ iterator to Queue iterator
+	//  Main issue loop
 	//
-	//  If the RQ is empty, signal that we don't need to continue
-	//  looking into that structure...
+	//  This loop executes once for each instruction that is considered
+	//  for issue. Instructions can issue from the IQ, LSQ, or Storebuffer.
+	//  The process is:
 	//
-	//  We also catch the case where we are out of instructions
+	//    (0)  Extract the status of the ready-lists for each IQ
+	//    (1)  Extract the oldest instruction from each of the three
+	//         ready queues
+	//    (2)  Choose the oldest instruction of these three and indicate
+	//         the selection with the "source" variable
+	//    (3)  Attempt to issue the instruction
+	//    (4)  Collect statistical data on what happened in #3
+	//    (5)  Check the status of the current queue's ready-list, then
+	//         rotate to the next queue
+	//    (6)  Check to see if the issue process is complete for this cycle
 	//
-	if (!done_with_iq) {
 
-		//
-		//  PRIORITIZED ISSUE:
-		//     set iq_rq_iterator[current_iq] to the next HP instruction,
-		//     if it exists, otherwise,
-		//
-		if (prioritize_issue) {
+	//
+	//  STEP 0:
+	//
+	//  This should help our speed through the IQ-selection logic
+	//
+	IQList done_list(numIQueues);
 
-			//  if there are elements in the high-priority list
-			if (hp_rq_it_list[current_iq].size()) {
+	//  we don't check BW here, since all should have BW available
+	//  at the start of the issue process
+	for (int i = 0; i < numIQueues; ++i)
+		if (IQ[i]->ready_count() == 0)
+			done_list.markDone(i);
 
-				// get the next instruction
-				iq_rq_iterator[current_iq]
-				               = hp_rq_it_list[current_iq].front();
+	done_with_iq = done_list.allDone();
 
-				// remove it from this list (still in RQ)
-				hp_rq_it_list[current_iq].pop_front();
-			} else {
-				if (!hp_done[current_iq]) {
-					// otherwise, look through the remaining RQ entries...
-					iq_rq_iterator[current_iq]
-					               = IQ[current_iq]->issuable_list();
+	bool *hp_done = new bool[numIQueues];
 
-					hp_done[current_iq] = true;
-				} else {
-					// we've already set up the iq_rq_iterator[] entry
-					// don't mess with it again
+	//
+	//  Point to the issuable lists
+	//  Populate the HP thread lists too...
+	//
+	for (int q = 0; q < numIQueues; ++q) {
+		if (! done_list.done(q)) {
+			if (prioritize_issue) {
+				BaseIQ::rq_iterator i;
+
+				//  Walk the list for each queue, putting the RQ iterators to
+				//  the high-priority thread into the list for this queue
+
+				i = IQ[q]->issuable_list();
+				while (i.notnull()) {
+
+					//  add RQ iterator to list if it's the HP thread
+					if ((*i)->inst->thread_number == hp_thread)
+						hp_rq_it_list[q].push_back(i);
+
+					i = i.next();
 				}
 			}
+
+			//  save this for non-prioritized issue
+			iq_rq_iterator[q] = IQ[q]->issuable_list();
 		}
 
+		hp_done[q] = false;
+	}
+
+	do {
+		InstSeqNum seq_num = 0;
+		DynInst *inst = 0;
+		unsigned thread = 0;
+		//	Tick pred_issue_cycle = 0;
+		Tick ready_ts = 0;
+		Tick dispatch_ts = 0;
+		//	OpClass op_class = No_OpClass;
+		bool issued = false;
+
+		unsigned issue_events = 0;
+		//	InstSeqNum fetch_seq = 0;
+
+		BaseIQ::iterator iq_it = 0, lsq_it = 0;
+		StoreBuffer::iterator sb_it = 0;
+
+		InstSeqNum oldestIQInstSeq = 0;
+		int           oldestIQIndex = -1;
 
 		//
-		//  Try to grab an iterator to the first ready IQ instruction
-		//  we can issue
+		//  STEP #1:  Convert from RQ iterator to Queue iterator
 		//
-		if (iq_rq_iterator[current_iq].notnull()) {
+		//  If the RQ is empty, signal that we don't need to continue
+		//  looking into that structure...
+		//
+		//  We also catch the case where we are out of instructions
+		//
+		if (!done_with_iq) {
 
-			if (IQ[current_iq]->issue_bw()) {
-				//  This iterator points to the first instruction in the
-				//  ready-queue
-				iq_it = *iq_rq_iterator[current_iq];
+			//
+			//  PRIORITIZED ISSUE:
+			//     set iq_rq_iterator[current_iq] to the next HP instruction,
+			//     if it exists, otherwise,
+			//
+			if (prioritize_issue) {
+
+				//  if there are elements in the high-priority list
+				if (hp_rq_it_list[current_iq].size()) {
+
+					// get the next instruction
+					iq_rq_iterator[current_iq]
+								   = hp_rq_it_list[current_iq].front();
+
+					// remove it from this list (still in RQ)
+					hp_rq_it_list[current_iq].pop_front();
+				} else {
+					if (!hp_done[current_iq]) {
+						// otherwise, look through the remaining RQ entries...
+						iq_rq_iterator[current_iq]
+									   = IQ[current_iq]->issuable_list();
+
+						hp_done[current_iq] = true;
+					} else {
+						// we've already set up the iq_rq_iterator[] entry
+						// don't mess with it again
+					}
+				}
+			}
+
+
+			//
+			//  Try to grab an iterator to the first ready IQ instruction
+			//  we can issue
+			//
+			if (iq_rq_iterator[current_iq].notnull()) {
+
+				if (IQ[current_iq]->issue_bw()) {
+					//  This iterator points to the first instruction in the
+					//  ready-queue
+					iq_it = *iq_rq_iterator[current_iq];
+				} else {
+					//  this cluster ran out of bandwidth
+					SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+							ISSUE_BW);
+
+					done_with_iq = done_list.markDone(current_iq);
+
+					if (!done_with_iq) {
+						//  get the next index...
+						//  false return indicates none available
+#ifndef NDEBUG
+						bool avail =
+#endif
+								done_list.next(current_iq);
+						assert(avail);
+
+						//  point to the first instruction in this ready-queue
+						iq_it = *iq_rq_iterator[current_iq];
+					}
+				}
 			} else {
-				//  this cluster ran out of bandwidth
-				SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-						ISSUE_BW);
+				//
+				//  No ready instructions in this cluster...
+				//
+				if (IQ[current_iq]->issue_bw() == 0) {
+
+					//  we have run out of bandwidth, but there were no
+					//  instructions to issue, so...
+					SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+							ISSUE_NO_INSN);
+				} else {
+					//  Ready-List is empty, but BW is available...:
+					//    Either: (1) we have no instructions in the
+					//                issue window,
+					//            (2) or the existing instructions
+					//                have dependants
+					if (IQ[current_iq]->iw_count() == 0) {
+						SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+								ISSUE_NO_INSN);
+					} else {
+						// Empty ready-list, insts available ==> DEPS
+						if (floss_state.issue_end_cause[0] ==
+								ISSUE_CAUSE_NOT_SET)
+						{
+							floss_state.issue_end_cause[0] = ISSUE_DEPS;
+							evil_inst = IQ[current_iq]->oldest();
+							if (!find_idep_to_blame(evil_inst, 0))
+								floss_state.issue_end_cause[0] = ISSUE_IQ;
+						}
+					}
+				}
+
 
 				done_with_iq = done_list.markDone(current_iq);
 
@@ -1359,562 +1420,514 @@ do {
 					iq_it = *iq_rq_iterator[current_iq];
 				}
 			}
-		} else {
+
+
 			//
-			//  No ready instructions in this cluster...
+			//  Find the IQ with the oldest instruction that we can issue
 			//
-			if (IQ[current_iq]->issue_bw() == 0) {
-
-				//  we have run out of bandwidth, but there were no
-				//  instructions to issue, so...
-				SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-						ISSUE_NO_INSN);
-			} else {
-				//  Ready-List is empty, but BW is available...:
-				//    Either: (1) we have no instructions in the
-				//                issue window,
-				//            (2) or the existing instructions
-				//                have dependants
-				if (IQ[current_iq]->iw_count() == 0) {
-					SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-							ISSUE_NO_INSN);
-				} else {
-					// Empty ready-list, insts available ==> DEPS
-					if (floss_state.issue_end_cause[0] ==
-							ISSUE_CAUSE_NOT_SET)
-					{
-						floss_state.issue_end_cause[0] = ISSUE_DEPS;
-						evil_inst = IQ[current_iq]->oldest();
-						if (!find_idep_to_blame(evil_inst, 0))
-							floss_state.issue_end_cause[0] = ISSUE_IQ;
-					}
-				}
-			}
-
-
-			done_with_iq = done_list.markDone(current_iq);
-
 			if (!done_with_iq) {
-				//  get the next index...
-				//  false return indicates none available
-#ifndef NDEBUG
-				bool avail =
-#endif
-						done_list.next(current_iq);
-				assert(avail);
-
-				//  point to the first instruction in this ready-queue
-				iq_it = *iq_rq_iterator[current_iq];
-			}
-		}
-
-
-		//
-		//  Find the IQ with the oldest instruction that we can issue
-		//
-		if (!done_with_iq) {
-			for (int i = 0; i < numIQueues; ++i) {
-				if (!done_list.done(i)) {
-					BaseIQ::iterator j = *iq_rq_iterator[i];
-
-					if (j->seq < oldestIQInstSeq || oldestIQIndex == -1) {
-						oldestIQInstSeq = j->seq;
-						oldestIQIndex = i;
-					}
-				}
-			}
-#if ISSUE_OLDEST
-			current_iq = oldestIQIndex;
-			//  point to the first instruction in this ready-queue
-			iq_it = *iq_rq_iterator[current_iq];
-#endif
-		}
-
-
-		//  Handle the case where we need a 1:1 relationship between
-		//  IQ's and FU pools
-		if (numIQueues == numFUPools)
-			current_fu_pool = current_iq;
-	}
-
-
-	if (!done_with_lsq) {
-		if (lsq_rq_iterator.notnull())
-			lsq_it = *lsq_rq_iterator;
-		else
-			done_with_lsq = true;
-	}
-
-	if (!done_with_sb) {
-		if (sb_rq_iterator.notnull())
-			sb_it = *sb_rq_iterator;
-		else
-			done_with_sb = true;
-	}
-
-
-	//
-	//  Early out...
-	//
-	if (done_with_iq && done_with_lsq && done_with_sb)
-		break;
-
-	//
-	//  STEP #2: Select the source for our next issued instruction
-	//
-	source = none;
-	if (!done_with_iq) {
-		seq_num = iq_it->seq;
-		source = iq;
-
-		if (!done_with_lsq && (seq_num > lsq_it->seq)) {
-			seq_num = lsq_it->seq;
-			source = lsq;
-		}
-
-		if (!done_with_sb && (seq_num > sb_it->seq)) {
-			seq_num = sb_it->seq;
-			source = sb;
-		}
-	} else if (!done_with_lsq) {
-		seq_num = lsq_it->seq;
-		source = lsq;
-
-		if (!done_with_sb && (seq_num > sb_it->seq)) {
-			seq_num = sb_it->seq;
-			source = sb;
-		}
-	} else if (!done_with_sb) {
-		seq_num = sb_it->seq;
-		source = sb;
-	}
-
-	if (issue_break && (issue_break == seq_num))
-		issue_breakpoint();
-
-	//
-	//  INORDER ISSUE: If seq_num is not the sequence number we expect,
-	//                 stall issue.
-	//
-	if (inorder_issue) {
-		if ((seq_num != expected_inorder_seq_num) && (source != sb)) {
-			// [DAG] Do sequence numbers wrap around?  They're long longs,
-			// so they shouldn't!
-			assert(expected_inorder_seq_num < seq_num);
-			break;
-		}
-	}
-
-
-	//
-	//  STEP #3:  Attempt to issue the instruction
-	//
-	switch (source) {
-	case iq:
-		//	    op_class = iq_it->opClass();
-		inst     = iq_it->inst;
-		thread   = iq_it->inst->thread_number;
-
-		if (issued_by_thread[thread] < issue_bandwidth[thread]) {
-			issued = iq_issue(iq_it, current_fu_pool);
-#if DUMP_ISSUE
-			string s;
-			iq_it->inst->dump(s);
-			issued_list.push_back(issue_info(iq_it->inst->fetch_seq, current_iq, s));
-#endif
-		} else {
-			issued = false;
-			SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-					ISSUE_BW);
-		}
-
-		if (issued) {
-			//		pred_issue_cycle = iq_it->pred_issue_cycle;
-			ready_ts         = iq_it->ready_timestamp;
-			dispatch_ts      = iq_it->dispatch_timestamp;
-
-			//		fetch_seq        = inst->fetch_seq;
-
-			if (iq_it->ea_comp)
-				issue_events = PipeTrace::AddressGen;
-
-			//
-			//  We have to let everyone else know that an
-			//  instruction has issued
-			//
-			for (unsigned i = 0; i < numIQueues; ++i)
-				if (i != current_iq)
-					IQ[i]->inform_issue(iq_it);
-#if 0
-			if (chainGenerator)
-				chainGenerator->removeInstruction(iq_it->rob_entry);
-#endif
-
-			//  Inform the IQ that this instruction has issued
-			//  and update the RQ iterator for this queue
-			iq_rq_iterator[current_iq]
-			               = IQ[current_iq]->issue(iq_rq_iterator[current_iq]);
-
-			//  Clear ROB pointer to this inst
-			iq_it->rob_entry->iq_entry = 0;
-
-			//  If this entry has a pointer to an LSQ entry...
-			if (iq_it->lsq_entry.notnull()) {
-				// clear the pointer from the LSQ entry to this IQ entry
-				iq_it->lsq_entry->iq_entry = 0;
-
-				// clear the pointer to the LSQ entry
-				iq_it->lsq_entry = 0;
-			}
-
-			++iq_count;
-
-			//  we've removed one ready instrction from the IQ
-			--n_ready;
-		} else {
-			//  this instruction didn't issue, so point to the next one
-			iq_rq_iterator[current_iq] = iq_rq_iterator[current_iq].next();
-		}
-		break;
-
-	case lsq:
-		//	    op_class = lsq_it->opClass();
-		inst     = lsq_it->inst;
-		thread   = lsq_it->inst->thread_number;
-
-		if ((lsq_it->seq > oldestIQInstSeq) && (oldestIQInstSeq != 0)) {
-			++lsqInversion;
-			current_iq = (current_iq + 1) % numIQueues;
-			source = none;
-			break;  // don't issue it...
-			// we'll get the ordering right next time...
-		}
-
-		if (issued_by_thread[thread] < issue_bandwidth[thread]) {
-
-			// LSQ portions issue into the same pool as the EA-comp if we
-			// have a 1:1 relationship between IQ's and FU Pools
-			if (numIQueues == numFUPools)
-				issued = lsq_issue(lsq_it, lsq_it->rob_entry->queue_num);
-			else
-				issued = lsq_issue(lsq_it, current_fu_pool);
-		} else {
-			issued = false;
-			SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-					ISSUE_BW);
-		}
-
-		if (issued) {
-			//		pred_issue_cycle = lsq_it->pred_issue_cycle;
-			ready_ts         = lsq_it->ready_timestamp;
-			dispatch_ts      = lsq_it->dispatch_timestamp;
-
-			//		fetch_seq        = inst->fetch_seq;
-			if (lsq_it->mem_result != MA_HIT)
-				issue_events = PipeTrace::CacheMiss;
-
-			//  Clean up this instruction
-			lsq_rq_iterator = LSQ->issue(lsq_rq_iterator);
-
-			//
-			//  We have to let the IQ's know that an
-			//  instruction has issued
-			//
-			for (unsigned i = 0; i < numIQueues; ++i)
-				IQ[i]->inform_issue(lsq_it);
-
-			// Clear IQ & ROB pointers to this inst
-			lsq_it->rob_entry->lsq_entry = 0;  // ROB
-
-			++lsq_count;
-
-			//  we've removed one ready instrction from the LSQ
-			--n_ready;
-		} else {
-			// If it was a store (EA comp part) it should have issued
-			// ==> doesn't work if we are limiting issue bandwidth...
-
-
-			if (dcacheInterface->isBlocked())
-				done_with_lsq = true;
-			else
-				lsq_rq_iterator = lsq_rq_iterator.next();
-		}
-		break;
-
-	case sb:
-		//  If we have a 1:1 correspondence between FU's and
-		//  IQ's, then we issue to the FU pool that matches the
-		//  EA-Comp portion of this store
-		if (numIQueues == numFUPools)
-			issue_current_fupool_for_sb = sb_it->queue_num;
-
-		issued = sb_issue(sb_it, issue_current_fupool_for_sb);
-
-		thread   = sb_it->thread_number();
-		//	    op_class = MemWriteOp;
-
-		if (issued) {
-			//		fetch_seq = sb_it->fetch_seq;
-
-			//  Remove current element, and return pointer to next
-			sb_rq_iterator = storebuffer->issue(sb_rq_iterator);
-
-			// Mark a copy storebuffer as complete, since we don't
-			// need a response currently
-			if (sb_it->isCopy) {
-				storebuffer->completeStore(sb_it);
-			}
-
-			//  each load attempts to issue to the "next" pool
-			issue_current_fupool_for_sb
-			= (issue_current_fupool_for_sb+1) % numFUPools;
-
-			++sb_count;
-		} else {
-			//  If we can't issue this one... don't worry about the
-			//  rest...
-			done_with_sb = true;
-		}
-		break;
-
-	case none:
-		//
-		//  We get here when NO instruction tries to issue on this pass
-		//  through the loop.  This can happen when we hit an empty IQ
-		//  before we empty all the IQ's
-		//
-		break;
-	}
-
-
-	//
-	//  STEP #4:
-	//
-	//  Do book-keeping only if we tried to issue from IQ or LSQ on this
-	//  iteration
-	//
-	if ((source == iq) || (source == lsq)) {
-		if (issued) {
-
-			//
-			//  Pipetrace this instruction if it issued...
-			//
-			//  This doesn't quite work the way we might want it:
-			//    - The fourth parameter (latency) can't be filled in,
-			//      since we don't actually know how long it will take to
-			//      service the cache miss...
-			//    - The fifth parameter (longest latency event) is designed
-			//      to indicate which of several events took the longest...
-			//      since our model doesn't generate multiple events, this
-			//      isn't used here either.
-			//
-			if (ptrace) {
-				unsigned load_latency = 0;
-				unsigned longest_event = 0;
-				ptrace->moveInst(inst, PipeTrace::Issue, issue_events,
-						load_latency, longest_event);
-			}
-
-#ifdef DEBUG_ISSUE
-			std::cerr << "Issued instruction " << fetch_seq;
-			if (inst != 0) {
-				std::cerr << " 0x" << std::hex
-						<< inst->PC << std::dec << " (seq "
-						<< inst->fetch_seq << " spec mode "
-						<< inst->spec_mode << "): ";
-				std::cerr << inst->staticInst->disassemble(inst->xc->PC);
-			}
-			std::cerr << std::endl;
-#endif
-
-
-			//
-			//  RR for FU pool if there isn't a 1:1 match between
-			//  Queues and FU pools...
-			//
-			if (numIQueues != numFUPools)
-				current_fu_pool = (current_fu_pool + 1) % numFUPools;
-
-			++n_issued;
-			++issued_by_thread[thread];
-
-			++expected_inorder_seq_num;
-
-			issue_delay_dist[inst->opClass()]
-			                 .sample(curTick - ready_ts);
-
-			queue_res_dist[inst->opClass()]
-			               .sample(curTick - dispatch_ts);
-
-			//
-			//  Update INSTRUCTION statistics
-			//
-			if (source == iq)
-				update_exe_inst_stats(inst);
-
-			//
-			//  Update OPERATION statistics
-			//
-			++issued_ops[thread];
-		}
-	}
-
-	//
-	//  STEP #5:
-	//
-	//  Rotate through the IQ's
-	//  (first to check to see if this ready-list is empty)
-	//
-	if (source == iq) {
-		bool no_rdy_insts = iq_rq_iterator[current_iq].isnull();
-		bool no_bw        = (IQ[current_iq]->issue_bw() == 0);
-
-		if (no_rdy_insts || no_bw) {
-			//  mark this queue done, check for all done
-			done_with_iq = done_list.markDone(current_iq);
-
-			if (no_rdy_insts) {
-				if (IQ[current_iq]->iw_count()) {
-					// iq not empty, but no ready insts...
-					if (floss_state.issue_end_cause[0] ==
-							ISSUE_CAUSE_NOT_SET)
-					{
-						//
-						//  Either the oldest instruction is waiting for
-						//  it's inputs or some other IQ-related problem
-						//
-						evil_inst = IQ[current_iq]->oldest();
-						if (!evil_inst->ops_ready()) {
-							floss_state.issue_end_cause[0] = ISSUE_DEPS;
-							if (!find_idep_to_blame(evil_inst, 0))
-								floss_state.issue_end_cause[0] = ISSUE_IQ;
-						} else {
-							floss_state.issue_end_cause[0] = ISSUE_IQ;
+				for (int i = 0; i < numIQueues; ++i) {
+					if (!done_list.done(i)) {
+						BaseIQ::iterator j = *iq_rq_iterator[i];
+
+						if (j->seq < oldestIQInstSeq || oldestIQIndex == -1) {
+							oldestIQInstSeq = j->seq;
+							oldestIQIndex = i;
 						}
 					}
 				}
-				else {
-					// iq empty
-					SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
-							ISSUE_NO_INSN);
-				}
+#if ISSUE_OLDEST
+				current_iq = oldestIQIndex;
+				//  point to the first instruction in this ready-queue
+				iq_it = *iq_rq_iterator[current_iq];
+#endif
 			}
-			else {
-				//
-				//  Must have been BW...
-				//
+
+
+			//  Handle the case where we need a 1:1 relationship between
+			//  IQ's and FU pools
+			if (numIQueues == numFUPools)
+				current_fu_pool = current_iq;
+		}
+
+
+		if (!done_with_lsq) {
+			if (lsq_rq_iterator.notnull())
+				lsq_it = *lsq_rq_iterator;
+			else
+				done_with_lsq = true;
+		}
+
+		if (!done_with_sb) {
+			if (sb_rq_iterator.notnull())
+				sb_it = *sb_rq_iterator;
+			else
+				done_with_sb = true;
+		}
+
+
+		//
+		//  Early out...
+		//
+		if (done_with_iq && done_with_lsq && done_with_sb)
+			break;
+
+		//
+		//  STEP #2: Select the source for our next issued instruction
+		//
+		source = none;
+		if (!done_with_iq) {
+			seq_num = iq_it->seq;
+			source = iq;
+
+			if (!done_with_lsq && (seq_num > lsq_it->seq)) {
+				seq_num = lsq_it->seq;
+				source = lsq;
+			}
+
+			if (!done_with_sb && (seq_num > sb_it->seq)) {
+				seq_num = sb_it->seq;
+				source = sb;
+			}
+		} else if (!done_with_lsq) {
+			seq_num = lsq_it->seq;
+			source = lsq;
+
+			if (!done_with_sb && (seq_num > sb_it->seq)) {
+				seq_num = sb_it->seq;
+				source = sb;
+			}
+		} else if (!done_with_sb) {
+			seq_num = sb_it->seq;
+			source = sb;
+		}
+
+		if (issue_break && (issue_break == seq_num))
+			issue_breakpoint();
+
+		//
+		//  INORDER ISSUE: If seq_num is not the sequence number we expect,
+		//                 stall issue.
+		//
+		if (inorder_issue) {
+			if ((seq_num != expected_inorder_seq_num) && (source != sb)) {
+				// [DAG] Do sequence numbers wrap around?  They're long longs,
+				// so they shouldn't!
+				assert(expected_inorder_seq_num < seq_num);
+				break;
+			}
+		}
+
+
+		//
+		//  STEP #3:  Attempt to issue the instruction
+		//
+		switch (source) {
+		case iq:
+			//	    op_class = iq_it->opClass();
+			inst     = iq_it->inst;
+			thread   = iq_it->inst->thread_number;
+
+			if (issued_by_thread[thread] < issue_bandwidth[thread]) {
+				issued = iq_issue(iq_it, current_fu_pool);
+#if DUMP_ISSUE
+				string s;
+				iq_it->inst->dump(s);
+				issued_list.push_back(issue_info(iq_it->inst->fetch_seq, current_iq, s));
+#endif
+			} else {
+				issued = false;
 				SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
 						ISSUE_BW);
 			}
+
+			if (issued) {
+				//		pred_issue_cycle = iq_it->pred_issue_cycle;
+				ready_ts         = iq_it->ready_timestamp;
+				dispatch_ts      = iq_it->dispatch_timestamp;
+
+				//		fetch_seq        = inst->fetch_seq;
+
+				if (iq_it->ea_comp)
+					issue_events = PipeTrace::AddressGen;
+
+				//
+				//  We have to let everyone else know that an
+				//  instruction has issued
+				//
+				for (unsigned i = 0; i < numIQueues; ++i)
+					if (i != current_iq)
+						IQ[i]->inform_issue(iq_it);
+#if 0
+				if (chainGenerator)
+					chainGenerator->removeInstruction(iq_it->rob_entry);
+#endif
+
+				//  Inform the IQ that this instruction has issued
+				//  and update the RQ iterator for this queue
+				iq_rq_iterator[current_iq]
+							   = IQ[current_iq]->issue(iq_rq_iterator[current_iq]);
+
+				//  Clear ROB pointer to this inst
+				iq_it->rob_entry->iq_entry = 0;
+
+				//  If this entry has a pointer to an LSQ entry...
+				if (iq_it->lsq_entry.notnull()) {
+					// clear the pointer from the LSQ entry to this IQ entry
+					iq_it->lsq_entry->iq_entry = 0;
+
+					// clear the pointer to the LSQ entry
+					iq_it->lsq_entry = 0;
+				}
+
+				++iq_count;
+
+				//  we've removed one ready instrction from the IQ
+				--n_ready;
+			} else {
+				//  this instruction didn't issue, so point to the next one
+				iq_rq_iterator[current_iq] = iq_rq_iterator[current_iq].next();
+			}
+			break;
+
+		case lsq:
+			//	    op_class = lsq_it->opClass();
+			inst     = lsq_it->inst;
+			thread   = lsq_it->inst->thread_number;
+
+			if ((lsq_it->seq > oldestIQInstSeq) && (oldestIQInstSeq != 0)) {
+				++lsqInversion;
+				current_iq = (current_iq + 1) % numIQueues;
+				source = none;
+				break;  // don't issue it...
+				// we'll get the ordering right next time...
+			}
+
+			if (issued_by_thread[thread] < issue_bandwidth[thread]) {
+
+				// LSQ portions issue into the same pool as the EA-comp if we
+				// have a 1:1 relationship between IQ's and FU Pools
+				if (numIQueues == numFUPools)
+					issued = lsq_issue(lsq_it, lsq_it->rob_entry->queue_num);
+				else
+					issued = lsq_issue(lsq_it, current_fu_pool);
+			} else {
+				issued = false;
+				SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+						ISSUE_BW);
+			}
+
+			if (issued) {
+				//		pred_issue_cycle = lsq_it->pred_issue_cycle;
+				ready_ts         = lsq_it->ready_timestamp;
+				dispatch_ts      = lsq_it->dispatch_timestamp;
+
+				//		fetch_seq        = inst->fetch_seq;
+				if (lsq_it->mem_result != MA_HIT)
+					issue_events = PipeTrace::CacheMiss;
+
+				//  Clean up this instruction
+				lsq_rq_iterator = LSQ->issue(lsq_rq_iterator);
+
+				//
+				//  We have to let the IQ's know that an
+				//  instruction has issued
+				//
+				for (unsigned i = 0; i < numIQueues; ++i)
+					IQ[i]->inform_issue(lsq_it);
+
+				// Clear IQ & ROB pointers to this inst
+				lsq_it->rob_entry->lsq_entry = 0;  // ROB
+
+				++lsq_count;
+
+				//  we've removed one ready instrction from the LSQ
+				--n_ready;
+			} else {
+				// If it was a store (EA comp part) it should have issued
+				// ==> doesn't work if we are limiting issue bandwidth...
+
+
+				if (dcacheInterface->isBlocked())
+					done_with_lsq = true;
+				else
+					lsq_rq_iterator = lsq_rq_iterator.next();
+			}
+			break;
+
+		case sb:
+			//  If we have a 1:1 correspondence between FU's and
+			//  IQ's, then we issue to the FU pool that matches the
+			//  EA-Comp portion of this store
+			if (numIQueues == numFUPools)
+				issue_current_fupool_for_sb = sb_it->queue_num;
+
+			issued = sb_issue(sb_it, issue_current_fupool_for_sb);
+
+			thread   = sb_it->thread_number();
+			//	    op_class = MemWriteOp;
+
+			if (issued) {
+				//		fetch_seq = sb_it->fetch_seq;
+
+				//  Remove current element, and return pointer to next
+				sb_rq_iterator = storebuffer->issue(sb_rq_iterator);
+
+				// Mark a copy storebuffer as complete, since we don't
+				// need a response currently
+				if (sb_it->isCopy) {
+					storebuffer->completeStore(sb_it);
+				}
+
+				//  each load attempts to issue to the "next" pool
+				issue_current_fupool_for_sb
+				= (issue_current_fupool_for_sb+1) % numFUPools;
+
+				++sb_count;
+			} else {
+				//  If we can't issue this one... don't worry about the
+				//  rest...
+				done_with_sb = true;
+			}
+			break;
+
+		case none:
+			//
+			//  We get here when NO instruction tries to issue on this pass
+			//  through the loop.  This can happen when we hit an empty IQ
+			//  before we empty all the IQ's
+			//
+			break;
 		}
 
-#if ISSUE_OLDEST == 0
-		if (!done_with_iq)
-			current_iq = (current_iq + 1) % numIQueues;
+
+		//
+		//  STEP #4:
+		//
+		//  Do book-keeping only if we tried to issue from IQ or LSQ on this
+		//  iteration
+		//
+		if ((source == iq) || (source == lsq)) {
+			if (issued) {
+
+				//
+				//  Pipetrace this instruction if it issued...
+				//
+				//  This doesn't quite work the way we might want it:
+				//    - The fourth parameter (latency) can't be filled in,
+				//      since we don't actually know how long it will take to
+				//      service the cache miss...
+				//    - The fifth parameter (longest latency event) is designed
+				//      to indicate which of several events took the longest...
+				//      since our model doesn't generate multiple events, this
+				//      isn't used here either.
+				//
+				if (ptrace) {
+					unsigned load_latency = 0;
+					unsigned longest_event = 0;
+					ptrace->moveInst(inst, PipeTrace::Issue, issue_events,
+							load_latency, longest_event);
+				}
+
+#ifdef DEBUG_ISSUE
+				std::cerr << "Issued instruction " << fetch_seq;
+				if (inst != 0) {
+					std::cerr << " 0x" << std::hex
+							<< inst->PC << std::dec << " (seq "
+							<< inst->fetch_seq << " spec mode "
+							<< inst->spec_mode << "): ";
+					std::cerr << inst->staticInst->disassemble(inst->xc->PC);
+				}
+				std::cerr << std::endl;
 #endif
-	}
+
+
+				//
+				//  RR for FU pool if there isn't a 1:1 match between
+				//  Queues and FU pools...
+				//
+				if (numIQueues != numFUPools)
+					current_fu_pool = (current_fu_pool + 1) % numFUPools;
+
+				++n_issued;
+				++issued_by_thread[thread];
+
+				++expected_inorder_seq_num;
+
+				issue_delay_dist[inst->opClass()]
+								 .sample(curTick - ready_ts);
+
+				queue_res_dist[inst->opClass()]
+							   .sample(curTick - dispatch_ts);
+
+				//
+				//  Update INSTRUCTION statistics
+				//
+				if (source == iq)
+					update_exe_inst_stats(inst);
+
+				//
+				//  Update OPERATION statistics
+				//
+				++issued_ops[thread];
+			}
+		}
+
+		//
+		//  STEP #5:
+		//
+		//  Rotate through the IQ's
+		//  (first to check to see if this ready-list is empty)
+		//
+		if (source == iq) {
+			bool no_rdy_insts = iq_rq_iterator[current_iq].isnull();
+			bool no_bw        = (IQ[current_iq]->issue_bw() == 0);
+
+			if (no_rdy_insts || no_bw) {
+				//  mark this queue done, check for all done
+				done_with_iq = done_list.markDone(current_iq);
+
+				if (no_rdy_insts) {
+					if (IQ[current_iq]->iw_count()) {
+						// iq not empty, but no ready insts...
+						if (floss_state.issue_end_cause[0] ==
+								ISSUE_CAUSE_NOT_SET)
+						{
+							//
+							//  Either the oldest instruction is waiting for
+							//  it's inputs or some other IQ-related problem
+							//
+							evil_inst = IQ[current_iq]->oldest();
+							if (!evil_inst->ops_ready()) {
+								floss_state.issue_end_cause[0] = ISSUE_DEPS;
+								if (!find_idep_to_blame(evil_inst, 0))
+									floss_state.issue_end_cause[0] = ISSUE_IQ;
+							} else {
+								floss_state.issue_end_cause[0] = ISSUE_IQ;
+							}
+						}
+					}
+					else {
+						// iq empty
+						SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+								ISSUE_NO_INSN);
+					}
+				}
+				else {
+					//
+					//  Must have been BW...
+					//
+					SET_FIRST_FLOSS_CAUSE(floss_state.issue_end_cause[0],
+							ISSUE_BW);
+				}
+			}
+
+#if ISSUE_OLDEST == 0
+			if (!done_with_iq)
+				current_iq = (current_iq + 1) % numIQueues;
+#endif
+		}
+
+
+		//
+		//  STEP #6:
+		//
+		//  When we run out of bandwidth, indicate
+		//  that we are done issuing from the IQ & LSQ
+		//
+		if (n_issued >= issue_width) {
+			done_with_iq = true;
+			done_with_lsq = true;
+		}
+
+
+	} while (!done_with_iq || !done_with_sb || !done_with_lsq);
 
 
 	//
-	//  STEP #6:
+	//  Delete the allocated lists...
 	//
-	//  When we run out of bandwidth, indicate
-	//  that we are done issuing from the IQ & LSQ
-	//
-	if (n_issued >= issue_width) {
-		done_with_iq = true;
-		done_with_lsq = true;
-	}
-
-
-} while (!done_with_iq || !done_with_sb || !done_with_lsq);
-
-
-//
-//  Delete the allocated lists...
-//
-delete[] iq_rq_iterator;
-delete[] hp_rq_it_list;
-delete[] hp_done;
+	delete[] iq_rq_iterator;
+	delete[] hp_rq_it_list;
+	delete[] hp_done;
 
 
 #if DUMP_ISSUE
-if (!issued_list.empty()) {
-	issued_list.sort();
+	if (!issued_list.empty()) {
+		issued_list.sort();
 
-	list<issue_info>::iterator i = issued_list.begin();
-	list<issue_info>::iterator end = issued_list.end();
-	for (; i != end; ++i)
-	{
-		cerr << "   #" << i->seq << " (clust " << i->clust << ") "
-				<< i->inst << endl;
+		list<issue_info>::iterator i = issued_list.begin();
+		list<issue_info>::iterator end = issued_list.end();
+		for (; i != end; ++i)
+		{
+			cerr << "   #" << i->seq << " (clust " << i->clust << ") "
+					<< i->inst << endl;
+		}
 	}
-}
 #endif
 
-//
-//
-//  We've issued n_issued instructions from the IQ or LSQ
-//
-n_issued_dist[n_issued]++;
+	//
+	//
+	//  We've issued n_issued instructions from the IQ or LSQ
+	//
+	n_issued_dist[n_issued]++;
 
-if (n_issued == issue_width) {
-	//
-	//  Issue BW limit reached... blame loss on BW only if there are
-	//  no ready instructions
-	//
-	if (floss_state.issue_end_cause[0] != ISSUE_IQ) {
+	if (n_issued == issue_width) {
 		//
-		//  NOTE:  these causes over-ride any previously-set cause
+		//  Issue BW limit reached... blame loss on BW only if there are
+		//  no ready instructions
 		//
-		if (n_ready == 0) {
-			if (IQNumInstructions() != 0) {
+		if (floss_state.issue_end_cause[0] != ISSUE_IQ) {
+			//
+			//  NOTE:  these causes over-ride any previously-set cause
+			//
+			if (n_ready == 0) {
+				if (IQNumInstructions() != 0) {
+					floss_state.issue_end_cause[0] = ISSUE_DEPS;
+
+					evil_inst = IQOldestInstruction();
+					if (!find_idep_to_blame(evil_inst, 0)) {
+						floss_state.issue_end_cause[0] = ISSUE_IQ;
+					}
+				} else {
+					floss_state.issue_end_cause[0] = ISSUE_NO_INSN;
+				}
+			} else {
+				floss_state.issue_end_cause[0] = ISSUE_BW;
+			}
+		}
+	} else {
+		//
+		//  We have issue BW left:
+		//     (1) We must have tried to issue from the IQ
+		//           ==> issue_end_cause is set in Sep #1
+		//     (2) OR, we must have tried to issue from the LSQ
+		//           ==> issue_end_cause may not be set
+		//                 -> No instructions
+		//                 -> No instructions ready
+		//                 -> issue trouble... cause will be set in lsq_issue
+		//     (3) OR, we only issued from the SB
+		//           ==> issue_end_cause is set in Sep #1
+		//     (4) OR, we were issuing inorder
+		//           ==> ISSUE_INORDER
+		//
+
+		if (floss_state.issue_end_cause[0] == ISSUE_CAUSE_NOT_SET) {
+			if (LSQ->count() != 0) {
 				floss_state.issue_end_cause[0] = ISSUE_DEPS;
 
-				evil_inst = IQOldestInstruction();
-				if (!find_idep_to_blame(evil_inst, 0)) {
+				evil_inst = LSQ->oldest();
+				if (!find_idep_to_blame(evil_inst, 0))
 					floss_state.issue_end_cause[0] = ISSUE_IQ;
-				}
 			} else {
 				floss_state.issue_end_cause[0] = ISSUE_NO_INSN;
 			}
-		} else {
-			floss_state.issue_end_cause[0] = ISSUE_BW;
 		}
 	}
-} else {
-	//
-	//  We have issue BW left:
-	//     (1) We must have tried to issue from the IQ
-	//           ==> issue_end_cause is set in Sep #1
-	//     (2) OR, we must have tried to issue from the LSQ
-	//           ==> issue_end_cause may not be set
-	//                 -> No instructions
-	//                 -> No instructions ready
-	//                 -> issue trouble... cause will be set in lsq_issue
-	//     (3) OR, we only issued from the SB
-	//           ==> issue_end_cause is set in Sep #1
-	//     (4) OR, we were issuing inorder
-	//           ==> ISSUE_INORDER
-	//
-
-	if (floss_state.issue_end_cause[0] == ISSUE_CAUSE_NOT_SET) {
-		if (LSQ->count() != 0) {
-			floss_state.issue_end_cause[0] = ISSUE_DEPS;
-
-			evil_inst = LSQ->oldest();
-			if (!find_idep_to_blame(evil_inst, 0))
-				floss_state.issue_end_cause[0] = ISSUE_IQ;
-		} else {
-			floss_state.issue_end_cause[0] = ISSUE_NO_INSN;
-		}
-	}
-}
 
 #if DEBUG_FLOSS
-if (floss_state.issue_end_cause[0] == ISSUE_CAUSE_NOT_SET)
-	panic("cause not set");
+	if (floss_state.issue_end_cause[0] == ISSUE_CAUSE_NOT_SET)
+		panic("cause not set");
 #endif
 }
 

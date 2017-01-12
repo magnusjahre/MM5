@@ -85,6 +85,8 @@ StandardIQ::add_impl(DynInst *inst, InstSeqNum seq, ROBStation *rob,
 {
     iterator p = queue->add_tail();
 
+    DPRINTFR(IQ, "Standard IQ: Adding instruction # %d, PC %d\n", seq, inst->PC);
+
     ++total_insts;
     ++insts[inst->thread_number];
 
@@ -102,8 +104,9 @@ StandardIQ::add_impl(DynInst *inst, InstSeqNum seq, ROBStation *rob,
     StaticInstPtr<TheISA> eff_si = p->ea_comp ? si->eaCompInst() : si;
 
     p->num_ideps = 0;
-    for (int i = 0; i < eff_si->numSrcRegs(); ++i)
-	link_idep(p, eff_si->srcRegIdx(i));
+    for (int i = 0; i < eff_si->numSrcRegs(); ++i){
+    	link_idep(p, eff_si->srcRegIdx(i));
+    }
 
     // This shouldn't be necessary, since we should never look past
     // num_ideps in the array, but there are too many loops that go

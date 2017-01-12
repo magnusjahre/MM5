@@ -149,8 +149,11 @@ StoreBuffer::add(unsigned thread_number, unsigned asid, int size,
 		 unsigned mem_req_flags, Addr pc, InstSeqNum seq,
 		 InstSeqNum fseq, unsigned queue_num)
 {
-    if (full())
-	return false;
+    if (full()){
+    	DPRINTF(Store, "Store buffer is full, add for instruction # %d, PC %d, addr %d failed\n", seq, pc, paddr);
+    	return false;
+    }
+	DPRINTF(Store, "Adding store for instruction # %d, PC %d, addr %d\n", seq, pc, paddr);
 
     iterator p = queue->add_tail();
 
@@ -309,48 +312,52 @@ StoreBuffer::rq_raw_dump()
 void
 StoreBuffer::completeStore(iterator entry)
 {
-    assert(entry->issued);
+	assert(entry->issued);
 
-    if (entry->writeBarrierFlag) {
-	// There's a write barrier after this write. If there are
-	// older writes outstanding, transfer the barrier flag to the
-	// next older write.  If not, then the barrier is satisfied,
-	// and we can mark all younger writes as ready (up to the next
-	// barrier, if any).
-	
-	DPRINTF(WriteBarrier, "wmb store seq %d completed\n", entry->seq);
+	DPRINTF(Store, "Completing store for instruction @ PC %d, %s\n",
+			entry->pc,
+			(entry->writeBarrierFlag ? "write barrier" : "no write barrier"));
 
-	int thread = entry->thread;
-	iterator p = findPrevInThread(thread, entry);
-	if (p.notnull()) {
-	    DPRINTF(WriteBarrier, "wmb moved to seq %d\n", p->seq);
-	    p->writeBarrierFlag = true;
-	}
-	else {
-	    bool stillPending = false; // assume we're going to clear flag
-	    p = entry.next();
-	    while (p.notnull()) {
-		if (p->thread == thread) {
-		    DPRINTF(WriteBarrier, "waking store seq %d\n", p->seq);
-		    ready_list_enqueue(p);
-		    if (p->writeBarrierFlag) {
-			// another barrier: stop waking up stores,
-			// and don't clear thread flag either
-			DPRINTF(WriteBarrier, "wmb encountered seq %d\n",
-				p->seq);
-			stillPending = true;
-			break;
-		    }
+	if (entry->writeBarrierFlag) {
+		// There's a write barrier after this write. If there are
+		// older writes outstanding, transfer the barrier flag to the
+		// next older write.  If not, then the barrier is satisfied,
+		// and we can mark all younger writes as ready (up to the next
+		// barrier, if any).
+
+		DPRINTF(WriteBarrier, "wmb store seq %d completed\n", entry->seq);
+
+		int thread = entry->thread;
+		iterator p = findPrevInThread(thread, entry);
+		if (p.notnull()) {
+			DPRINTF(WriteBarrier, "wmb moved to seq %d\n", p->seq);
+			p->writeBarrierFlag = true;
 		}
-		p = p.next();
-	    }
+		else {
+			bool stillPending = false; // assume we're going to clear flag
+			p = entry.next();
+			while (p.notnull()) {
+				if (p->thread == thread) {
+					DPRINTF(WriteBarrier, "waking store seq %d\n", p->seq);
+					ready_list_enqueue(p);
+					if (p->writeBarrierFlag) {
+						// another barrier: stop waking up stores,
+						// and don't clear thread flag either
+						DPRINTF(WriteBarrier, "wmb encountered seq %d\n",
+								p->seq);
+						stillPending = true;
+						break;
+					}
+				}
+				p = p.next();
+			}
 
-	    assert(writeBarrierPending[thread]);
-	    writeBarrierPending[thread] = stillPending;
+			assert(writeBarrierPending[thread]);
+			writeBarrierPending[thread] = stillPending;
+		}
 	}
-    }
 
-    remove(entry);
+	remove(entry);
 }
 
 

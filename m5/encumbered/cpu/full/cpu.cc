@@ -1162,6 +1162,8 @@ FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
 
+	DPRINTF(Commit, "Restarting process...\n");
+
 	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
 	for(ROBStation* el = ROB.head(); el != NULL; el = ROB.next(el)) {
 		IQ[0]->squash(el->iq_entry);
