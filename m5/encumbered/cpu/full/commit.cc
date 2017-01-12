@@ -819,6 +819,10 @@ FullCPU::commit_one_inst(ROBStation *rs)
 	bool store_inst = false;
 	unsigned thread = rs->thread_number;
 
+	string inststr;
+	rs->inst->dump(inststr);
+	DPRINTF(Commit, "Committing %s @ PC %d\n", inststr.c_str(), rs->inst->PC);
+
 	//
 	// Stores: commit to store buffer if an entry is available.
 	// Skip stores that faulted and write prefetches that didn't
