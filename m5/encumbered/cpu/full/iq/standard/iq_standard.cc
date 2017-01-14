@@ -85,20 +85,20 @@ StandardIQ::add_impl(DynInst *inst, InstSeqNum seq, ROBStation *rob,
 {
     iterator p = queue->add_tail();
 
-    DPRINTFR(IQ, "Standard IQ: Adding instruction # %d, PC %d\n", seq, inst->PC);
+    DPRINTFR(IQ, "%d: %s: Adding instruction # %d, PC %d\n", curTick, name, seq, inst->PC);
 
     ++total_insts;
     ++insts[inst->thread_number];
 
-    p->inst		= inst;
-    p->in_LSQ		= false;
-    p->ea_comp		= inst->isMemRef();
-    p->seq		= seq;
-    p->queued		= false;
-    p->squashed		= false;
-    p->rob_entry	= rob;
+    p->inst				= inst;
+    p->in_LSQ			= false;
+    p->ea_comp			= inst->isMemRef();
+    p->seq				= seq;
+    p->queued			= false;
+    p->squashed			= false;
+    p->rob_entry		= rob;
     p->segment_number	= 0;   // need this for dump_dep_tree();
-    p->lsq_entry	= 0;   // may be modified later
+    p->lsq_entry		= 0;   // may be modified later
 
     StaticInstPtr<TheISA> si = inst->staticInst;
     StaticInstPtr<TheISA> eff_si = p->ea_comp ? si->eaCompInst() : si;
@@ -112,14 +112,15 @@ StandardIQ::add_impl(DynInst *inst, InstSeqNum seq, ROBStation *rob,
     // num_ideps in the array, but there are too many loops that go
     // all the way to TheISA::MaxNumSrcRegs.
     for (int i = p->num_ideps; i < TheISA::MaxInstSrcRegs; ++i) {
-	p->idep_ptr[i] = 0;
-	p->idep_reg[i] = 0;
-	p->idep_ready[i] = true;
+    	p->idep_ptr[i] = 0;
+    	p->idep_reg[i] = 0;
+    	p->idep_ready[i] = true;
     }
 
     if (p->ops_ready()) {
-	ready_list_enqueue(p);
-	p->ready_timestamp = curTick;
+    	DPRINTFR(IQ, "%d: %s: Instruction # %d, PC %d ops are ready, adding to ready queue\n", curTick, name, seq, inst->PC);
+    	ready_list_enqueue(p);
+    	p->ready_timestamp = curTick;
     }
 
     return p;
