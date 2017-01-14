@@ -976,8 +976,10 @@ FullCPU::find_idep_to_blame(BaseIQ::iterator inst, int thread)
 		for (int i = 0; i < inst->num_ideps; ++i) {
 			if (!inst->idep_ready[i]) {
 				found_fu = true;
-				ROBStation *rob = inst->idep_ptr[i]->rob_producer;
 
+				ROBStation *rob = inst->idep_ptr[i]->rob_producer;
+				assert(rob != NULL);
+				assert(rob->inst != NULL);
 				OpClass op_class = rob->inst->opClass();
 
 				assert(op_class != No_OpClass);
