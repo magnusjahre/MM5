@@ -631,8 +631,8 @@ FetchCompleteEvent::process()
 {
 	IcacheOutputBuffer *bufferp;
 	IcacheOutputBufferEntry *entryp;
-	int index = first_index;
 
+	int index = first_index;
 	bufferp = cpu->icache_output_buffer[thread_number];
 
 	DPRINTF(Fetch, "Processing FetchCompleteEvent for CPU %d, thread %d\n", cpu->CPUParamsCpuID, thread_number);
@@ -643,8 +643,11 @@ FetchCompleteEvent::process()
 	if (!entryp->inst || entryp->inst->fetch_seq != first_seq_num) {
 		// squashed! no point in continuing, as any squash will
 		// eliminate the whole group of instrs
-		DPRINTF(Fetch, "Eliminating fetch group due to squash for CPU %d, thread %d (seq num %d, first seq num %d)\n",
-				cpu->CPUParamsCpuID, thread_number, entryp->inst->fetch_seq, first_seq_num);
+		DPRINTF(Fetch, "Eliminating fetch group due to squash for %s, thread %d (seq num %d, first seq num %d)\n",
+				cpu->name(),
+				thread_number,
+				(entryp->inst != NULL ? entryp->inst->fetch_seq : 0),
+				first_seq_num);
 		goto done;
 	}
 
