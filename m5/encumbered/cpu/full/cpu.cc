@@ -1162,9 +1162,11 @@ FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
 
-	DPRINTF(Commit, "Restarting process...\n");
+	DPRINTF(Commit, "Restarting process, PC is %d\n", execContexts[0]->regs.pc);
 
 	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
+	fetch_squash(0);
+	decodeQueue->squash();
 	for(ROBStation* el = ROB.head(); el != NULL; el = ROB.next(el)) {
 		IQ[0]->squash(el->iq_entry);
 		LSQ->squash(el->lsq_entry);
@@ -1173,9 +1175,10 @@ FullCPU::restartProcess(){
 	}
 	ROB.check();
 
-	decodeQueue->squash();
-
+	assert(!thread[0]->misspeculating());
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
+
+	DPRINTF(Commit, "Restarting complete, new PC is %d\n", execContexts[0]->regs.pc);
 
 	cout << curTick << " " << name() << ": restart procedure finished\n";
 }

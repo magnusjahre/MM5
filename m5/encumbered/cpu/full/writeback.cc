@@ -84,191 +84,202 @@ FullCPU::writeback()
 unsigned
 ROBStation::writeback(FullCPU *cpu, unsigned wb_iqueue)
 {
-    int i;
-    unsigned wb_events = 0;
+	int i;
+	unsigned wb_events = 0;
 
-    if (writeback_break && (writeback_break == seq)) {
-	writeback_breakpoint();
-    }
+	DPRINTF(IQ, "%s: Writing back instruction # %d (PC %d)\n", cpu->name(), seq, inst->PC);
 
-    /* RS has completed execution and (possibly) produced a result */
-    if (!issued || completed)
-	panic("writeback: inst completed and !issued or completed");
-
-    /*  Squashed instructions need to be removed  */
-    if (squashed) {
-	/*  We need to remove associated LSQ entries also  */
-	if (lsq_entry.notnull()) {
-	    cpu->LSQ->squash(lsq_entry);
-	    if (cpu->ptrace)
-		cpu->ptrace->deleteInst(lsq_entry->inst);
+	if (writeback_break && (writeback_break == seq)) {
+		writeback_breakpoint();
 	}
 
-	cpu->remove_ROB_element(this);
+	/* RS has completed execution and (possibly) produced a result */
+	if (!issued || completed)
+		panic("writeback: inst completed and !issued or completed");
 
-	return 0;
-    }
-
-    Tick pred_cycle = (eaCompPending ? pred_wb_cycle - 1 : pred_wb_cycle);
-
-    cpu->pred_wb_error_dist.sample(curTick - pred_cycle);
-
-    //
-    //  MISPREDICTED Branch
-    //
-    //  Clean up if this is the FIRST writeback event for this instruction
-    //
-    if (inst->recover_inst) {
-	wb_events = PipeTrace::MisPredict;
-
-        //
-        //  The idea here is to order recovery events such that
-        //  once an event of spec-level "n" is scheduled, we do not
-        //  sechedule an event for spec-level of "m" if m < n
-        //
-        //  This means that once an event is scheduled, we don't
-        //  schedule events for younger recovery-instructions
-        //  (since these should be blown away by the existing
-        //  event, anyway)
-        //
-	ThreadInfo *threadInfo = &cpu->thread_info[thread_number];
-
-        if (!threadInfo->recovery_event_pending ||
-	    threadInfo->recovery_spec_level > inst->spec_mode) {
-	    Tick sched_time = curTick + cpu->cycles(cpu->mispred_fixup_penalty);
-
-	    //
-	    //  If we are using multiple IQ's, we schedule a _single_ event
-	    //  for all of them, but we delay this event by the
-	    //  IQ communication latency
-	    //
-	    if (cpu->numIQueues > 1)
-		sched_time += cpu->cycles(cpu->iq_comm_latency);
-
-            //  Schedule the event that will fix up the Fetch stage, IFQ,
-            //  FTDQ, and IQ/LSQ
-            BranchRecoveryEvent *ev =
-		new BranchRecoveryEvent(cpu, this, thread_number,
-					spec_state, inst->spec_mode);
-            ev->schedule(sched_time);
-
-	    //
-	    //  The recovery event will take responsibility for deleting the
-	    // spec_state information
-	    //
-	    spec_state = 0;
-
-            //  Grab a pointer to this event in case commit needs it.
-            recovery_event = ev;
-
-            //  Make a note of this event...
-            cpu->thread_info[thread_number].recovery_event_pending = true;
-            cpu->thread_info[thread_number].recovery_spec_level
-		= inst->spec_mode;
-        }
-    }
-
-
-    //
-    //  Writeback the results of this instrution to the specified IQ
-    //
-    //
-    int eff_num_outputs = num_outputs;
-    unsigned num_consumers = 0;
-
-    if (!eaCompPending) {
-	CreateVector *cv = &cpu->create_vector[thread_number];
-
-	//
-	//  This instruction has written its results back to the register
-	//  file... update the create vectors to indicate this fact
-	//
-	for (i = 0; i < num_outputs; i++) {
-	    if (inst->spec_mode) {
-
-		// update the speculative create vector:
-		// future operations get value from later creator or
-		// architected reg file
-		CVLink link = cv->spec_cv[onames[i]];
-
-		if (link.rs == this && link.odep_num == i) {
-
-		    // the result can now be read from a physical
-		    // register, indicate this as so
-		    cv->spec_cv[onames[i]] = CVLINK_NULL;
-		    cv->spec_timestamp[onames[i]] = curTick;
+	/*  Squashed instructions need to be removed  */
+	if (squashed) {
+		DPRINTF(IQ, "%s: Instruction # %d (PC %d) is squashed, returning\n", cpu->name(), seq, inst->PC);
+		/*  We need to remove associated LSQ entries also  */
+		if (lsq_entry.notnull()) {
+			cpu->LSQ->squash(lsq_entry);
+			if (cpu->ptrace)
+				cpu->ptrace->deleteInst(lsq_entry->inst);
 		}
-		// else, creator invalidated or there is another
-		// creator
-	    } else {
 
-		// update the non-speculative create vector, future
-		// operations get value from later creator or
-		// architected register file
-		CVLink link = cv->cv[onames[i]];
-		if (link.rs == this && link.odep_num == i) {
-		    // the result can now be read from a physical
-		    // register, indicate this as so
-		    cv->cv[onames[i]] = CVLINK_NULL;
-		    cv->timestamp[onames[i]] = curTick;
+		cpu->remove_ROB_element(this);
+
+		return 0;
+	}
+
+	Tick pred_cycle = (eaCompPending ? pred_wb_cycle - 1 : pred_wb_cycle);
+
+	cpu->pred_wb_error_dist.sample(curTick - pred_cycle);
+
+	//
+	//  MISPREDICTED Branch
+	//
+	//  Clean up if this is the FIRST writeback event for this instruction
+	//
+	if (inst->recover_inst) {
+		wb_events = PipeTrace::MisPredict;
+
+		//
+		//  The idea here is to order recovery events such that
+		//  once an event of spec-level "n" is scheduled, we do not
+		//  sechedule an event for spec-level of "m" if m < n
+		//
+		//  This means that once an event is scheduled, we don't
+		//  schedule events for younger recovery-instructions
+		//  (since these should be blown away by the existing
+		//  event, anyway)
+		//
+		ThreadInfo *threadInfo = &cpu->thread_info[thread_number];
+
+		if (!threadInfo->recovery_event_pending ||
+				threadInfo->recovery_spec_level > inst->spec_mode) {
+			Tick sched_time = curTick + cpu->cycles(cpu->mispred_fixup_penalty);
+
+			//
+			//  If we are using multiple IQ's, we schedule a _single_ event
+			//  for all of them, but we delay this event by the
+			//  IQ communication latency
+			//
+			if (cpu->numIQueues > 1)
+				sched_time += cpu->cycles(cpu->iq_comm_latency);
+
+			DPRINTF(IQ, "%s: Instruction #%d (#%d, PC %d) resolves branch mispredict, scheduling recovery for %d\n",
+					cpu->name(), seq, inst->fetch_seq, inst->PC, sched_time);
+
+			//  Schedule the event that will fix up the Fetch stage, IFQ,
+			//  FTDQ, and IQ/LSQ
+			BranchRecoveryEvent *ev =
+					new BranchRecoveryEvent(cpu, this, thread_number,
+							spec_state, inst->spec_mode);
+			ev->schedule(sched_time);
+
+			//
+			//  The recovery event will take responsibility for deleting the
+			// spec_state information
+			//
+			spec_state = 0;
+
+			//  Grab a pointer to this event in case commit needs it.
+			recovery_event = ev;
+
+			//  Make a note of this event...
+			cpu->thread_info[thread_number].recovery_event_pending = true;
+			cpu->thread_info[thread_number].recovery_spec_level
+			= inst->spec_mode;
 		}
-		// else, creator invalidated or there is another
-		// creator
-	    }
-	}		//   for all outputs
+	}
+
 
 	//
-	//  Tell IQ & LSQ that this instruction is complete
+	//  Writeback the results of this instrution to the specified IQ
 	//
-	//  Every non-EA_Comp instruction must walk its output-dependence
-	//  chains to broadcast its results to other instructions
 	//
-	num_consumers =  cpu->IQ[wb_iqueue]->writeback(this, wb_iqueue);
+	int eff_num_outputs = num_outputs;
+	unsigned num_consumers = 0;
+
+	if (!eaCompPending) {
+
+		CreateVector *cv = &cpu->create_vector[thread_number];
+
+		//
+		//  This instruction has written its results back to the register
+		//  file... update the create vectors to indicate this fact
+		//
+		for (i = 0; i < num_outputs; i++) {
+			if (inst->spec_mode) {
+
+				// update the speculative create vector:
+				// future operations get value from later creator or
+				// architected reg file
+				CVLink link = cv->spec_cv[onames[i]];
+
+				if (link.rs == this && link.odep_num == i) {
+
+					// the result can now be read from a physical
+					// register, indicate this as so
+					cv->spec_cv[onames[i]] = CVLINK_NULL;
+					cv->spec_timestamp[onames[i]] = curTick;
+				}
+				// else, creator invalidated or there is another
+				// creator
+			} else {
+
+				// update the non-speculative create vector, future
+				// operations get value from later creator or
+				// architected register file
+				CVLink link = cv->cv[onames[i]];
+				if (link.rs == this && link.odep_num == i) {
+					// the result can now be read from a physical
+					// register, indicate this as so
+					cv->cv[onames[i]] = CVLINK_NULL;
+					cv->timestamp[onames[i]] = curTick;
+				}
+				// else, creator invalidated or there is another
+				// creator
+			}
+		}		//   for all outputs
+
+		DPRINTF(IQ, "%s: Instruction #%d (#%d ,PC %d) has been executed, notifying consumers in the IQ and LSQ\n", cpu->name(), seq, inst->fetch_seq, inst->PC);
+
+		//
+		//  Tell IQ & LSQ that this instruction is complete
+		//
+		//  Every non-EA_Comp instruction must walk its output-dependence
+		//  chains to broadcast its results to other instructions
+		//
+		num_consumers =  cpu->IQ[wb_iqueue]->writeback(this, wb_iqueue);
+
+		//
+		//  It's ok to call the LSQ multiple times, since the odep link gets
+		//  removed once it has been used.
+		//
+		//  The queue number argument is unused (ignored) for the LSQ
+		num_consumers += cpu->LSQ->writeback(this, 0);
+	} else {
+		//
+		//  Address-generation portion of load/store gets special handling
+		//
+		//  --> only one op receives the result data
+		//  --> no create-vectors to mess with
+		//
+
+		DPRINTF(IQ, "%s: Address generation complete for instruction #%d (#%d, PC %d)\n", cpu->name(), seq, inst->fetch_seq, inst->PC);
+
+		assert(seq == lsq_entry->seq);
+
+		eff_num_outputs = 1;
+		num_consumers = 1;
+
+		//  Indicate that we've finished with the address generation portion
+		eaCompPending = false;
+
+		lsq_entry->idep_ready[MEM_ADDR_INDEX] = true;
+
+		issued = false;
+		completed = false;
+
+		// LSQ operation will be placed on LSQ's ready list in
+		// lsq_refresh(), depending on things like address
+		// disambiguation and memory barriers.
+	}
+
+	if (cpu->ptrace)
+		cpu->ptrace->moveInst(inst, PipeTrace::Writeback, wb_events, 0, 0);
 
 	//
-	//  It's ok to call the LSQ multiple times, since the odep link gets
-	//  removed once it has been used.
+	//  Statistics...
 	//
-	//  The queue number argument is unused (ignored) for the LSQ
-	num_consumers += cpu->LSQ->writeback(this, 0);
-    } else {
-	//
-	//  Address-generation portion of load/store gets special handling
-	//
-	//  --> only one op receives the result data
-	//  --> no create-vectors to mess with
-	//
+	if (eff_num_outputs > 0) {
+		++cpu->producer_inst[thread_number];
+		cpu->consumer_inst[thread_number] += num_consumers;
+	}
 
-	assert(seq == lsq_entry->seq);
-
-	eff_num_outputs = 1;
-	num_consumers = 1;
-
-	//  Indicate that we've finished with the address generation portion
-	eaCompPending = false;
-
-	lsq_entry->idep_ready[MEM_ADDR_INDEX] = true;
-
-	issued = false;
-	completed = false;
-
-	// LSQ operation will be placed on LSQ's ready list in
-	// lsq_refresh(), depending on things like address
-	// disambiguation and memory barriers.
-    }
-
-    if (cpu->ptrace)
-	cpu->ptrace->moveInst(inst, PipeTrace::Writeback, wb_events, 0, 0);
-
-    //
-    //  Statistics...
-    //
-    if (eff_num_outputs > 0) {
-	++cpu->producer_inst[thread_number];
-	cpu->consumer_inst[thread_number] += num_consumers;
-    }
-
-    return num_consumers;
+	return num_consumers;
 }
 
 
@@ -437,6 +448,9 @@ BranchRecoveryEvent::~BranchRecoveryEvent()
 void
 BranchRecoveryEvent::process()
 {
+
+	DPRINTF(IQ, "%s: Processing branch recovery event, setting PC to %d\n", cpu->name(), correct_PC);
+
     SpecExecContext *xc = cpu->thread[thread_number];
 
     cpu->recover(branch_entry, thread_number);

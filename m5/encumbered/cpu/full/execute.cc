@@ -124,6 +124,10 @@ FullCPU::execute_instruction(DynInst *fetched_inst, int thread_number)
 #endif
     }
 
+    string dissasembly;
+    fetched_inst->dump(dissasembly);
+    DPRINTF(IQ, "Executing instruction at PC %d, %s\n", xc->regs.pc, dissasembly);
+
     // Default value for next_PC.  We need to set this in case the
     // instruction does not.
     xc->regs.npc = xc->regs.pc + sizeof(MachInst);

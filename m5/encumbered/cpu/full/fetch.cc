@@ -1146,6 +1146,8 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 	/*  Mask lower bits to get block starting address         */
 	Addr blockAddress = icacheBlockAlignPC(xc->regs.pc);
 
+	DPRINTF(Fetch, "Fetching address %d for PC %d\n", blockAddress, xc->regs.pc);
+
 #if FULL_SYSTEM
 	bool pal_pc = xc->inPalMode();
 #endif
