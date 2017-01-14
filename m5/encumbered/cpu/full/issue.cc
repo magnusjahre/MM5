@@ -738,6 +738,12 @@ FullCPU::iq_issue(BaseIQ::iterator i, unsigned fu_pool_num)
 		 */
 
 		if (!i->rob_entry->completed && (fu_lat >= 0)) {
+
+			DPRINTF(IQ, "Writeback for instruction #%d (PC %d) is scheduled for %d\n",
+					i->seq,
+					i->inst->PC,
+					curTick + cycles(fu_lat));
+
 			WritebackEvent *wb_event =
 					new WritebackEvent(this, i->rob_entry);
 
@@ -1542,6 +1548,9 @@ FullCPU::issue()
 			}
 
 			if (issued) {
+
+				DPRINTF(IQ, "Issued instruction #%d (PC %d) from the issue queue\n", iq_it->seq, iq_it->inst->PC);
+
 				//		pred_issue_cycle = iq_it->pred_issue_cycle;
 				ready_ts         = iq_it->ready_timestamp;
 				dispatch_ts      = iq_it->dispatch_timestamp;
@@ -1618,6 +1627,9 @@ FullCPU::issue()
 			}
 
 			if (issued) {
+
+				DPRINTF(IQ, "Issued instruction #%d (PC %d) from the load/store queue\n", lsq_it->seq, lsq_it->inst->PC);
+
 				//		pred_issue_cycle = lsq_it->pred_issue_cycle;
 				ready_ts         = lsq_it->ready_timestamp;
 				dispatch_ts      = lsq_it->dispatch_timestamp;
@@ -1669,6 +1681,8 @@ FullCPU::issue()
 
 			if (issued) {
 				//		fetch_seq = sb_it->fetch_seq;
+
+				DPRINTF(IQ, "Issued instruction #%d (PC %d) from the issue queue\n", sb_it->seq, sb_it->pc);
 
 				//  Remove current element, and return pointer to next
 				sb_rq_iterator = storebuffer->issue(sb_rq_iterator);
