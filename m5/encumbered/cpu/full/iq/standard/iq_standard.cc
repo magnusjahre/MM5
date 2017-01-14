@@ -143,7 +143,7 @@ StandardIQ::add_impl(DynInst *inst, InstSeqNum seq, ROBStation *rob,
 unsigned
 StandardIQ::writeback(ROBStation *rob, unsigned queue_num)
 {
-    DepLink *olink, *olink_next;
+	DepLink *olink, *olink_next;
     unsigned consumers = 0;
 
     for (int i=0; i<TheISA::MaxInstDestRegs; ++i) {

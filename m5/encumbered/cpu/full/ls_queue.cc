@@ -219,8 +219,6 @@ unsigned load_store_queue::writeback(ROBStation *rob, unsigned ignored)
 	unsigned consumers = 0;
 	unsigned const queue_num = 0;
 
-	DPRINTF(IQ, "Writing back instruction # %d (PC %d)\n", rob->seq, rob->inst->PC);
-
 	for (int index = 0; index < TheISA::MaxInstDestRegs; ++index) {
 		DepLink *olink = rob->odep_list[index][queue_num];
 		DepLink *olink_next;
