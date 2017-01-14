@@ -196,6 +196,11 @@ FullCPU::lsq_refresh()
 	//
 	BaseIQ::iterator lsq = ls_queue->head();
 	for (; lsq.notnull(); lsq = lsq.next()) {
+		DPRINTF(IQ, "Processing instruction #%d (#%d, PC %d) in LSQ refresh\n",
+				lsq->rob_entry->seq,
+				lsq->inst->fetch_seq,
+				lsq->rob_entry->inst->PC);
+
 		//  Skip any LSQ entries that have been squashed
 		if (lsq->squashed)
 			continue;
@@ -216,8 +221,8 @@ FullCPU::lsq_refresh()
 		} else if (inst->isStore()) {
 			// Stores...
 
-			DPRINTF(IQ, "LSQ store for instruction # %d, %s, %s\n",
-					inst->fetch_seq,
+			DPRINTF(IQ, "Instruction #%d is a store, %s, %s\n",
+					lsq->rob_entry->seq,
 					(lsq->queued ? "is queued" : "not queued"),
 					(lsq->ops_ready() ? "ops ready": "ops not ready"));
 
@@ -275,6 +280,11 @@ FullCPU::lsq_refresh()
 			//  Uncacheable loads can't be issued until they become
 			//  non-speculative, so we ignore them here.  They will be
 			//  added to the ready list in commit.
+
+			DPRINTF(IQ, "Instruction #%d is a load, %s, %s\n",
+					lsq->rob_entry->seq,
+					(lsq->queued ? "is queued" : "not queued"),
+					(lsq->ops_ready() ? "ops ready": "ops not ready"));
 
 			if (!lsq->queued && lsq->ops_ready()
 					&& !(lsq->inst->mem_req_flags & UNCACHEABLE)) {
