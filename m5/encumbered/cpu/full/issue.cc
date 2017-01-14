@@ -972,12 +972,20 @@ FullCPU::find_idep_to_blame(BaseIQ::iterator inst, int thread)
 {
 	bool found_fu = false;
 
+	DPRINTF(IQ, "Oldest un-issuable instruction is %d (%d, PC %d), finding input dependency to blame\n",
+				inst->seq,
+				inst->inst->fetch_seq,
+				inst->inst->PC);
+
 	if (!inst->in_LSQ) {
 		for (int i = 0; i < inst->num_ideps; ++i) {
 			if (!inst->idep_ready[i]) {
 				found_fu = true;
 
 				ROBStation *rob = inst->idep_ptr[i]->rob_producer;
+
+				DPRINTF(IQ, "Instruction %d cannot issue because instruction %d is not complete\n", inst->seq, rob->seq);
+
 				assert(rob != NULL);
 				assert(rob->inst != NULL);
 				OpClass op_class = rob->inst->opClass();
