@@ -220,7 +220,7 @@ FullCPU::commit()
 			crash_counter = 0;
 		}
 
-		DPRINTF(Commit, "Commit because the ROB is empty\n");
+		DPRINTF(Commit, "Commit is stalled because the ROB is empty\n");
 
 		assert(!isStalled);
 		overlapEstimator->addStall(MemoryOverlapEstimator::STALL_EMPTY_ROB, 1);
