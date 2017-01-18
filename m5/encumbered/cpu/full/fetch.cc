@@ -187,37 +187,43 @@ FetchQueue::pull()
 
 //    This version squashes everything in this queue
 void
-FetchQueue::squash()
+FetchQueue::squash(FullCPU* cpu)
 {
-    assert(mt_frontend);
+	assert(mt_frontend);
 
-    if (num_valid) {
-	int idx = head;
-	do {
-	    if (!instrs[idx].squashed) {
-		unsigned t = instrs[idx].thread_number;
-		assert(mt_frontend && t == num_threads);
+	if (num_valid) {
+		int idx = head;
+		do {
+			if (!instrs[idx].squashed) {
 
-		--num_valid;
-		--num_valid_thread[t];
+				DPRINTF(Fetch, "%d: Squashing instruction #%d, PC %d in the multi-threaded fetch queue\n",
+						(cpu != NULL ? cpu->name() : "NULL"),
+						instrs[idx].inst->fetch_seq,
+						instrs[idx].inst->PC);
 
-		++num_squashed;
-		++num_squashed_thread[t];
+				unsigned t = instrs[idx].thread_number;
+				assert(mt_frontend && t == num_threads);
 
-		instrs[idx].squash();
-	    }
+				--num_valid;
+				--num_valid_thread[t];
 
-	    idx = incr(idx);
+				++num_squashed;
+				++num_squashed_thread[t];
 
-	} while (idx != tail);
+				instrs[idx].squash();
+			}
 
-	assert(num_valid == 0);
-    }
+			idx = incr(idx);
 
-    num_reserved = 0;
+		} while (idx != tail);
 
-    assert(num_valid_thread[num_threads] == 0);
-    num_reserved_thread[num_threads] = 0;
+		assert(num_valid == 0);
+	}
+
+	num_reserved = 0;
+
+	assert(num_valid_thread[num_threads] == 0);
+	num_reserved_thread[num_threads] = 0;
 }
 
 
@@ -227,32 +233,37 @@ FetchQueue::squash()
 //  should only be used in the non-MT frontend case
 //
 void
-FetchQueue::squash(int t)
+FetchQueue::squash(int t, FullCPU* cpu)
 {
-    assert(!mt_frontend && t >= 0 && t <= num_threads);
+	assert(!mt_frontend && t >= 0 && t <= num_threads);
 
-    if (num_valid) {
-	int idx = head;
-	do {
-	    if (!instrs[idx].squashed && (instrs[idx].thread_number == t)) {
+	if (num_valid) {
+		int idx = head;
+		do {
+			if (!instrs[idx].squashed && (instrs[idx].thread_number == t)) {
 
-		instrs[idx].squash();
+				DPRINTF(Fetch, "%d: Squashing instruction #%d, PC %d in the single-threaded fetch queue\n",
+						(cpu != NULL ? cpu->name() : "NULL"),
+						instrs[idx].inst->fetch_seq,
+						instrs[idx].inst->PC);
 
-		--num_valid;
-		--num_valid_thread[t];
+				instrs[idx].squash();
 
-		++num_squashed;
-		++num_squashed_thread[t];
-	    }
+				--num_valid;
+				--num_valid_thread[t];
 
-	    idx = incr(idx);
-	} while (idx != tail);
+				++num_squashed;
+				++num_squashed_thread[t];
+			}
 
-	assert(num_valid_thread[t] == 0);
-    }
+			idx = incr(idx);
+		} while (idx != tail);
 
-    num_reserved -= num_reserved_thread[t];
-    num_reserved_thread[t] = 0;
+		assert(num_valid_thread[t] == 0);
+	}
+
+	num_reserved -= num_reserved_thread[t];
+	num_reserved_thread[t] = 0;
 }
 
 
@@ -357,7 +368,7 @@ struct IcacheOutputBuffer
     }
 
     // squash all instructions
-    void squash(int thread_number);
+    void squash(int thread_number, FullCPU* cpu = NULL);
 
     void dump();
 };
@@ -388,17 +399,21 @@ IcacheOutputBuffer::dump()
 }
 
 void
-IcacheOutputBuffer::squash(int thread_number)
+IcacheOutputBuffer::squash(int thread_number, FullCPU* cpu)
 {
-    for (int i = 0, idx = head; i < num_insts; ++i, idx = incr(idx)) {
-	IcacheOutputBufferEntry *entryp = &insts[idx];
+	for (int i = 0, idx = head; i < num_insts; ++i, idx = incr(idx)) {
+		IcacheOutputBufferEntry *entryp = &insts[idx];
+		DPRINTF(Fetch, "%d: Squashing instruction #%d, PC %d in the i-cache output buffer\n",
+				(cpu != NULL ? cpu->name() : "NULL"),
+				entryp->inst->fetch_seq,
+				entryp->inst->PC);
 
-	entryp->inst->squash();
-	delete entryp->inst;
-	entryp->inst = NULL;
+		entryp->inst->squash();
+		delete entryp->inst;
+		entryp->inst = NULL;
 
-	entryp->ready = false;
-    }
+		entryp->ready = false;
+	}
 
     // buffer is now empty
     head = tail;
@@ -557,13 +572,13 @@ FullCPU::change_thread_state(int thread_number, int activate, int priority)
 void
 FullCPU::fetch_squash(int thread_number)
 {
-    icache_output_buffer[thread_number]->squash(thread_number);
+    icache_output_buffer[thread_number]->squash(thread_number, this);
 
     // free ifq slots reserved for icache_output_buffer insts
     if (mt_frontend)
-        ifq[thread_number].squash();
+        ifq[thread_number].squash(this);
     else
-        ifq[0].squash(thread_number);
+        ifq[0].squash(thread_number, this);
 
     icacheInterface->squash(thread_number);
 }

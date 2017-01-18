@@ -137,8 +137,8 @@ struct FetchQueue
     DynInst *pull();
 
     // squash all instructions from the specified thread
-    void squash();          // Used for MT front-end
-    void squash(int thread);    // Used for non-MT front-end
+    void squash(FullCPU* cpu = NULL);          // Used for MT front-end
+    void squash(int thread, FullCPU* cpu = NULL);    // Used for non-MT front-end
 
     void dump() { dump(" "); }
     void dump(const std::string &str);

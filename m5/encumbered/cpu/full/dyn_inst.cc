@@ -67,27 +67,27 @@ int DynInst::instcount = 0;
 void
 DynInst::squash()
 {
-    // already been squashed once... nothing to do
-    if (squashed)
-	return;
+	// already been squashed once... nothing to do
+	if (squashed)
+		return;
 
-    if (DTRACE(Pipeline)) {
-	string s;
-	dump(s);
-	DPRINTF(Pipeline, "Squash %s\n", s);
-    }
+	if (DTRACE(Pipeline)) {
+		string s;
+		dump(s);
+		DPRINTF(Pipeline, "Squash %s\n", s);
+	}
 
-    if (recover_inst) {
-	xc->spec_mode--;
-	recover_inst = false;
-    }
+	if (recover_inst) {
+		xc->spec_mode--;
+		recover_inst = false;
+	}
 
-    if (fault != No_Fault) {
-	assert(cpu->fetch_fault_count[thread_number] > 0);
-	cpu->fetch_fault_count[thread_number]--;
-    }
+	if (fault != No_Fault) {
+		assert(cpu->fetch_fault_count[thread_number] > 0);
+		cpu->fetch_fault_count[thread_number]--;
+	}
 
-    squashed = true;
+	squashed = true;
 }
 
 
