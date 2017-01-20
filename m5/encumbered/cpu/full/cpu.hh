@@ -807,6 +807,8 @@ public:
 	Stats::Scalar<> commit_total_mem_stall_time;
 	Stats::Scalar<> commit_cycles_empty_ROB;
 
+	Stats::Scalar<> process_restarts;
+
 	//----------------------------------------------------------------------
 	//
 	//  Other

@@ -1060,6 +1060,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			if(restartSimulationPoint){
 				assert(restartEvent == NULL);
 				cout << curTick << " " << name() << ": simulation point is finished @ " << stat_com_inst[thread].value() << " committed instructions, scheduling restart\n";
+				process_restarts++;
 				restartEvent = new ProcessRestartEvent(this);
 				restartEvent->schedule(curTick);
 			}
@@ -1180,6 +1181,11 @@ FullCPU::commitRegStats()
 	.name(name() + ".COM:commit_cycles_empty_ROB")
 	.desc("Number of ticks the processor could not commit instructions because the ROB was empty")
 	;
+
+	process_restarts
+		.name(name() + ".COM:process_restarts")
+		.desc("Number of times a the process was restarted (i.e., number of complete sim point iterations)")
+		;
 
 }
 
