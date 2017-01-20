@@ -1180,6 +1180,9 @@ FullCPU::restartProcess(){
 	}
 	ROB.check();
 
+	DPRINTF(IQ, "Reinitializing the create vector\n");
+	cv_init();
+
 	assert(!thread[0]->misspeculating());
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 

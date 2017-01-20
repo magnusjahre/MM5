@@ -201,38 +201,44 @@ BaseIQ::issue(BaseIQ::rq_iterator &inst)
 Tick
 BaseIQ::link_idep(BaseIQ::iterator &i, TheISA::RegIndex reg)
 {
-    int number = i->num_ideps++;
+	int number = i->num_ideps++;
 
-    i->idep_reg[number] = reg;
+	i->idep_reg[number] = reg;
 
-    DPRINTF(IQ, "Setting dependency number %d for inst # %d (PC %d) on register %d\n",
-    		number,
+	/* locate creator of operand */
+	CVLink producer = cpu->create_vector[i->thread_number()].entry(reg);
+
+	/* any creator? */
+	if (!producer.rs) {
+		/* no active creator, use value available in architected reg file,
+		 * indicate the operand is ready for use */
+
+		DPRINTF(IQ, "Dependency number %d for inst #%d (PC %d) is satisfied by the current register value, setting it to ready\n",
+				number,
+				i->seq,
+				i->inst->PC);
+
+		i->idep_ready[number] = true;
+		i->idep_ptr[number] = NULL;
+		return curTick;
+	}
+	/* else, creator operation will make this value sometime in the future */
+
+	DPRINTF(IQ, "Setting dependency number %d for inst #%d (PC %d) on inst #%d\n",
+			number,
 			i->seq,
 			i->inst->PC,
-			(int) reg);
+			producer.rs->seq);
 
-    /* locate creator of operand */
-    CVLink producer = cpu->create_vector[i->thread_number()].entry(reg);
+	/* indicate value will be created sometime in the future, i.e., operand
+	 * is not yet ready for use */
+	i->idep_ready[number] = false;
 
-    /* any creator? */
-    if (!producer.rs) {
-	/* no active creator, use value available in architected reg file,
-	 * indicate the operand is ready for use */
-	i->idep_ready[number] = true;
-	i->idep_ptr[number] = NULL;
-	return curTick;
-    }
-    /* else, creator operation will make this value sometime in the future */
+	/* link onto the top of the creator's output list of dependant operand */
+	i->idep_ptr[number] = new DepLink(producer.rs, producer.odep_num,
+			i, number, queue_num);
 
-    /* indicate value will be created sometime in the future, i.e., operand
-     * is not yet ready for use */
-    i->idep_ready[number] = false;
-
-    /* link onto the top of the creator's output list of dependant operand */
-    i->idep_ptr[number] = new DepLink(producer.rs, producer.odep_num,
-				      i, number, queue_num);
-
-    return producer.rs->pred_wb_cycle;
+	return producer.rs->pred_wb_cycle;
 }
 
 
