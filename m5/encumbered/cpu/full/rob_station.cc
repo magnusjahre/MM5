@@ -156,31 +156,40 @@ ROBStation::setMemOp(BaseIQ::iterator lsq)
 void
 ROBStation::squash()
 {
-    tag++;
-    squashed = true;
+	tag++;
+	squashed = true;
 
-    if (wb_event) {
-	wb_event->squash();
-	wb_event = 0;
-    }
+	DPRINTF(IQ, "Squashing instruction #%d (fetch seq #%d, PC %d) in the ROB\n",
+			seq,
+			inst->fetch_seq,
+			inst->PC);
 
-    if (delayed_wb_event) {
-	delayed_wb_event->squash();
-	delayed_wb_event = 0;
-    }
+	if (wb_event) {
+		DPRINTF(IQ, "Squashing the writeback event for inst #%d\n", seq);
+		wb_event->squash();
+		wb_event = 0;
+	}
 
-    if (cache_event_ptr) {
-	cache_event_ptr->squash();
-	cache_event_ptr = 0;
-    }
+	if (delayed_wb_event) {
+		DPRINTF(IQ, "Squashing the delayed writeback event for inst #%d\n", seq);
+		delayed_wb_event->squash();
+		delayed_wb_event = 0;
+	}
 
-    if (recovery_event) {
-	recovery_event->invalidate_branch_entry();
-	recovery_event->squash();
-	recovery_event = 0;
-    }
+	if (cache_event_ptr) {
+		DPRINTF(IQ, "Squashing the delayed cache event pointer for inst #%d\n", seq);
+		cache_event_ptr->squash();
+		cache_event_ptr = 0;
+	}
 
-    inst->squash();
+	if (recovery_event) {
+		DPRINTF(IQ, "Squashing the branch recovery event for inst #%d\n", seq);
+		recovery_event->invalidate_branch_entry();
+		recovery_event->squash();
+		recovery_event = 0;
+	}
+
+	inst->squash();
 }
 
 
