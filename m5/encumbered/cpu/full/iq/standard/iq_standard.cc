@@ -210,27 +210,46 @@ StandardIQ::writeback(ROBStation *rob, unsigned queue_num)
 BaseIQ::iterator
 StandardIQ::squash(BaseIQ::iterator &e)
 {
-    iterator next = 0;
+	iterator next = 0;
 
-    if (e.notnull()) {
-	next = e.next();
+	if (e.notnull()) {
+		next = e.next();
 
-	for (int i = 0; i < TheISA::MaxInstSrcRegs; ++i) {
-	    if (e->idep_ptr[i]) {
-		delete e->idep_ptr[i];
-		e->idep_ptr[i] = 0;
-	    }
+		DPRINTFR(IQ, "%d: %s: Squashing instruction #%d (fetch seq #%d, PC %d) in the IQ\n",
+				curTick,
+				name,
+				e->seq,
+				e->inst->fetch_seq,
+				e->inst->PC);
+
+		for (int i = 0; i < TheISA::MaxInstSrcRegs; ++i) {
+			if (e->idep_ptr[i]) {
+				DPRINTFR(IQ, "%d: %s: Removing input dependency on producer #%d for squashed inst #%d\n",
+						curTick,
+						name,
+						e->idep_ptr[i]->producer()->seq,
+						e->seq);
+
+				delete e->idep_ptr[i];
+				e->idep_ptr[i] = 0;
+			}
+		}
+
+		--total_insts;
+		--insts[e->thread_number()];
+		queue->remove(e);
+
+		if (e->queued){
+			DPRINTFR(IQ, "%d: %s: Removing squashed inst #%d from the ready queue\n",
+					curTick,
+					name,
+					e->seq);
+
+			ready_list->remove(e->rq_entry);
+		}
 	}
 
-	--total_insts;
-	--insts[e->thread_number()];
-	queue->remove(e);
-
-	if (e->queued)
-	    ready_list->remove(e->rq_entry);
-    }
-
-    return next;
+	return next;
 };
 
 
