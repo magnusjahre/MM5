@@ -961,48 +961,53 @@ FullCPU::remove_LSQ_element(BaseIQ::iterator i)
 void
 FullCPU::remove_ROB_element(ROBStation *rob_entry)
 {
-    if (rob_entry->cache_event_ptr)
-	rob_entry->cache_event_ptr->squash();
+	if (rob_entry->cache_event_ptr)
+		rob_entry->cache_event_ptr->squash();
 
-    int thread = rob_entry->thread_number;
+	int thread = rob_entry->thread_number;
 
-    //  These pointers should have been cleared either when
-    //  this entry was squashed, or when the event was processed
-    assert(rob_entry->wb_event == 0);
-    assert(rob_entry->delayed_wb_event == 0);
-    assert(rob_entry->cache_event_ptr == 0);
-    assert(rob_entry->recovery_event == 0);
+	//  These pointers should have been cleared either when
+	//  this entry was squashed, or when the event was processed
+	assert(rob_entry->wb_event == 0);
+	assert(rob_entry->delayed_wb_event == 0);
+	assert(rob_entry->cache_event_ptr == 0);
+	assert(rob_entry->recovery_event == 0);
 
 
-    if (rob_entry->spec_state.notnull()) {
-	state_list.dump(rob_entry->spec_state);
-	rob_entry->spec_state = 0;
-    }
+	if (rob_entry->spec_state.notnull()) {
+		state_list.dump(rob_entry->spec_state);
+		rob_entry->spec_state = 0;
+	}
 
-    //
-    //  Only free physical registers when instruction is removed
-    //  from the ROB.
-    //
-    //
+	//
+	//  Only free physical registers when instruction is removed
+	//  from the ROB.
+	//
+	//
 
-    unsigned num_fp_regs = rob_entry->inst->numFPDestRegs();
-    unsigned num_int_regs = rob_entry->inst->numIntDestRegs();
+	unsigned num_fp_regs = rob_entry->inst->numFPDestRegs();
+	unsigned num_int_regs = rob_entry->inst->numIntDestRegs();
 
-    free_fp_physical_regs += num_fp_regs;
-    free_int_physical_regs += num_int_regs;
+	free_fp_physical_regs += num_fp_regs;
+	free_int_physical_regs += num_int_regs;
 
-    used_fp_physical_regs[thread] -= num_fp_regs;
-    used_int_physical_regs[thread] -= num_int_regs;
+	used_fp_physical_regs[thread] -= num_fp_regs;
+	used_int_physical_regs[thread] -= num_int_regs;
 
-    if (rob_entry->head_of_chain) {
-	--chain_heads_in_rob;
-    }
+	if (rob_entry->head_of_chain) {
+		--chain_heads_in_rob;
+	}
 
-    ROB.remove(rob_entry);
+	DPRINTF(IQ, "Removing the ROB entry for #%d (fetch seq #%d, PC %d)\n",
+			rob_entry->seq,
+			rob_entry->inst->fetch_seq,
+			rob_entry->inst->PC);
 
-    // do this after ROB.remove() since that function needs the thread number
-    delete rob_entry->inst;
-    rob_entry->inst = NULL;
+	ROB.remove(rob_entry);
+
+	// do this after ROB.remove() since that function needs the thread number
+	delete rob_entry->inst;
+	rob_entry->inst = NULL;
 }
 
 
@@ -1162,9 +1167,9 @@ FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
 
-	DPRINTF(Commit, "Restarting process, PC is %d\n", execContexts[0]->regs.pc);
-
+	DPRINTF(Commit, "========= RESTARTING PROCESS: PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
+
 	fetch_squash(0);
 	decodeQueue->squash();
 	for(ROBStation* el = ROB.head(); el != NULL; el = ROB.next(el)) {
@@ -1178,9 +1183,8 @@ FullCPU::restartProcess(){
 	assert(!thread[0]->misspeculating());
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 
-	DPRINTF(Commit, "Restarting complete, new PC is %d\n", execContexts[0]->regs.pc);
-
-	cout << curTick << " " << name() << ": restart procedure finished\n";
+	DPRINTF(Commit, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
+	cout << curTick << " " << name() << ": Restart procedure finished\n";
 }
 
 
