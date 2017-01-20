@@ -99,6 +99,9 @@ InstructionFifo::squash()
     iterator i = instructions->head();
     for (; i.notnull(); i = i.next()) {
 	if (i->inst != 0) {
+	    DPRINTF(Fetch, "Squashing instruction #%d, PC %d in the dispatch buffer or skid buffer\n",
+				i->inst->fetch_seq,
+				i->inst->PC);
 	    i->squash();
 	    ++cnt;
 	}

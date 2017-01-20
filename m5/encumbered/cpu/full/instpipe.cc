@@ -100,7 +100,11 @@ void
 InstructionPacket::squash(unsigned idx)
 {
     if (insts[idx] == 0)
-	return;
+    	return;
+
+    DPRINTF(Fetch, "Squashing instruction #%d, PC %d in the decode instruction pipeline\n",
+			insts[idx]->fetch_seq,
+			insts[idx]->PC);
 
     insts[idx]->squash();
 
