@@ -277,36 +277,47 @@ unsigned load_store_queue::writeback(ROBStation *rob, unsigned ignored)
 
 BaseIQ::iterator load_store_queue::squash(BaseIQ::iterator &e)
 {
-    iterator next;
+	iterator next;
 
-    if (e.notnull()) {
-	next = e.next();
+	if (e.notnull()) {
+		next = e.next();
 
-	for (int i = 0; i < TheISA::MaxInstSrcRegs; ++i) {
-	    if (e->idep_ptr[i]) {
-		delete e->idep_ptr[i];
-		e->idep_ptr[i] = 0;
-	    }
+		DPRINTF(IQ, "Squashing instruction #%d (fetch seq #%d, PC %d) in the LSQ\n",
+				e->seq,
+				e->inst->fetch_seq,
+				e->inst->PC);
+
+		for (int i = 0; i < TheISA::MaxInstSrcRegs; ++i) {
+			if (e->idep_ptr[i]) {
+
+				DPRINTF(IQ, "Removing input dependency on producer #%d for squashed inst #%d\n",
+						e->idep_ptr[i]->producer()->seq,
+						e->seq);
+
+				delete e->idep_ptr[i];
+				e->idep_ptr[i] = 0;
+			}
+		}
+
+		--total_insts;
+		--insts[e->thread_number()];
+		if (e->inst->isLoad()) {
+			--total_loads;
+			--loads[e->thread_number()];
+		} else {
+			--total_stores;
+			--stores[e->thread_number()];
+		}
+
+		queue->remove(e);
+
+		if (e->queued) {
+			DPRINTF(IQ, "Removing squashed inst #%d from the ready queue\n", e->seq);
+			ready_list->remove(e->rq_entry);
+		}
 	}
 
-	--total_insts;
-	--insts[e->thread_number()];
-	if (e->inst->isLoad()) {
-	    --total_loads;
-	    --loads[e->thread_number()];
-	} else {
-	    --total_stores;
-	    --stores[e->thread_number()];
-	}
-
-	queue->remove(e);
-
-	if (e->queued) {
-	    ready_list->remove(e->rq_entry);
-	}
-    }
-
-    return next;
+	return next;
 }
 
 void
