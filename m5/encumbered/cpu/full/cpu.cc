@@ -1185,6 +1185,8 @@ FullCPU::restartProcess(){
 
 	assert(!thread[0]->misspeculating());
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
+	thread[0]->reset_spec_state();
+	thread[0]->spec_mode = 0;
 
 	DPRINTF(Commit, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Restart procedure finished\n";
