@@ -1183,7 +1183,6 @@ FullCPU::restartProcess(){
 	DPRINTF(IQ, "Reinitializing the create vector\n");
 	cv_init();
 
-	assert(!thread[0]->misspeculating());
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 	thread[0]->reset_spec_state();
 	thread[0]->spec_mode = 0;
