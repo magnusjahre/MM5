@@ -182,8 +182,9 @@ FullCPU::execute_instruction(DynInst *fetched_inst, int thread_number)
     // non-speculative path.  Do this after the trace so we get to see
     // the trace record for the faulting instruction.
     if (fault != No_Fault) {
-	panic("non-speculative fault (%d) @ PC %#08x in thread %d",
-	      fault, fetched_inst->PC, thread_number);
+    	fetched_inst->dump();
+    	panic("non-speculative fault (%d) @ PC %#08x in thread %d for %s",
+    			fault, fetched_inst->PC, thread_number, name());
     }
 #endif // !FULL_SYSTEM
 
