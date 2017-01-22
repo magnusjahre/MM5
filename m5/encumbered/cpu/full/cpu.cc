@@ -1167,7 +1167,7 @@ FullCPU::restartProcess(){
 	restartEvent = NULL;
 	assert(number_of_threads == 1);
 
-	DPRINTF(Commit, "========= RESTARTING PROCESS: PC is %d\n", execContexts[0]->regs.pc);
+	DPRINTF(Restart, "========= RESTARTING PROCESS: PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
 
 	fetch_squash(0);
@@ -1180,14 +1180,14 @@ FullCPU::restartProcess(){
 	}
 	ROB.check();
 
-	DPRINTF(IQ, "Reinitializing the create vector\n");
+	DPRINTF(Restart, "Reinitializing the create vector\n");
 	cv_init();
 
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 	thread[0]->reset_spec_state();
 	thread[0]->spec_mode = 0;
 
-	DPRINTF(Commit, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
+	DPRINTF(Restart, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Restart procedure finished\n";
 }
 

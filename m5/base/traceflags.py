@@ -167,7 +167,8 @@ baseFlags = [
     'ITCAProgress',
     'ITCACache',
     'PerformanceModelMeasurements',
-    'Store'
+    'Store',
+    'Restart'
     ]
 
 #
