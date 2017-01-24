@@ -1187,7 +1187,6 @@ FullCPU::restartProcess(){
 	thread[0]->reset_spec_state();
 	thread[0]->spec_mode = 0;
 	thread[0]->spec_mem->clear();
-	thread[0]->regs.pc += sizeof(MachInst);
 
 	DPRINTF(Restart, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Restart procedure finished\n";
