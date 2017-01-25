@@ -287,8 +287,9 @@ class DynInst : public FastAlloc
 
     bool misspeculating() { return xc->misspeculating(); }
     ExecContext *xcBase() { return xc; }
-};
 
+    void debugPrint(bool write, Addr addr, uint64_t data);
+};
 
 template <class T>
 inline Fault
@@ -316,7 +317,8 @@ DynInst::read(Addr addr, T &data, unsigned flags)
 #endif
 
     if (fault == No_Fault) {
-	fault = xc->read(req, data);
+    	fault = xc->read(req, data);
+    	debugPrint(false, addr, (uint64_t) data);
     }
     else {
 	// Return a fixed value to keep simulation deterministic even
@@ -359,7 +361,8 @@ DynInst::write(T data, Addr addr, unsigned flags, uint64_t *res)
 #endif
 
     if (fault == No_Fault) {
-	fault = xc->write(req, data);
+    	fault = xc->write(req, data);
+    	debugPrint(true, addr, (uint64_t) data);
     }
 
     if (res) {

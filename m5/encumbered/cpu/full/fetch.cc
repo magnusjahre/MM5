@@ -778,7 +778,10 @@ FullCPU::fetchOneInst(int thread_number)
 
     if (fetch_fault == No_Fault) {
 	// translation succeeded... attempt access
-	fetch_fault = xc->mem->read(req, IR);
+    	fetch_fault = xc->mem->read(req, IR);
+    	DPRINTF(FuncMem, "Read instruction from addr 0x%x, data 0x%x\n",
+    			req->paddr,
+				(uint64_t) IR);
     }
 
     if (fetch_fault != No_Fault) {

@@ -207,7 +207,7 @@ MainMemory::swapPages(Addr newAddr){
 
 	if (ptab[ptab_set(newAddr)].tag != INVALID_TAG) {
 
-		DPRINTF(FuncMem, "Page %x needs to be removed to make space for %x in set %d\n",
+		DPRINTF(FuncMem, "Page %x needs to be removed to make space for 0x%x in set %d\n",
 				page_addr(page_addr(ptab[ptab_set(newAddr)].tag, ptab_set(newAddr))),
 				page_addr(newAddr),
 				ptab_set(newAddr));
@@ -225,7 +225,7 @@ MainMemory::swapPages(Addr newAddr){
 			victimBuffer[newVictimID].page = ptab[ptab_set(oldAddr)].page;
 			victimBuffer[newVictimID].timestamp = curTick;
 
-			DPRINTF(FuncMem, "Swapped contents of victim buffer %d, old page %x, new page %x\n",
+			DPRINTF(FuncMem, "Swapped contents of victim buffer %d, old page 0x%x, new page 0x%x\n",
 								newVictimID,
 								(uint64_t) ptab[ptab_set(oldAddr)].page,
 								(uint64_t) tmp);
@@ -240,7 +240,7 @@ MainMemory::swapPages(Addr newAddr){
 		}
 	}
 	else{
-		DPRINTF(FuncMem, "Installing page %x in empty set %d\n",
+		DPRINTF(FuncMem, "Installing page 0x%x in empty set %d\n",
 				page_addr(newAddr),
 				ptab_set(newAddr));
 	}
@@ -249,7 +249,7 @@ MainMemory::swapPages(Addr newAddr){
 	int newAddrIndex = findDiskEntry(newAddr);
 	assert(ptab_set(newAddr) < memPageTabSize);
 	if(newAddrIndex == -1){
-		DPRINTF(FuncMem, "New page addr %x does not exist on disk, resetting memory content for set %d\n",
+		DPRINTF(FuncMem, "New page addr 0x%x does not exist on disk, resetting memory content for set %d\n",
 				page_addr(newAddr),
 				ptab_set(newAddr));
 
@@ -316,7 +316,7 @@ MainMemory::writeDiskEntry(Addr oldAddr, uint8_t* page){
 void
 MainMemory::readDiskEntry(int diskEntryIndex){
 
-	DPRINTF(FuncMem, "Reading page addr %x to disk at offset %d to set %d\n",
+	DPRINTF(FuncMem, "Reading page addr 0x%x from disk at offset %d to set %d\n",
 			diskEntries[diskEntryIndex].pageAddress,
 			diskEntries[diskEntryIndex].offset,
 			ptab_set(diskEntries[diskEntryIndex].pageAddress));
@@ -365,6 +365,11 @@ MainMemory::flushPageTable(){
 uint8_t *
 MainMemory::page(Addr addr)
 {
+	DPRINTF(FuncMem, "CPU%d page access for addr 0x%x, page addr is %d, set %d\n",
+			cpuID,
+			addr,
+			ptab_set(addr),
+			ptab_tag(addr));
 
 	accesses++;
 	// first attempt to hit in first entry, otherwise call xlation fn
@@ -420,6 +425,8 @@ MainMemory::clearMemory(Addr fromAddr, Addr toAddr){
 void
 MainMemory::prot_read(Addr addr, uint8_t *p, int size)
 {
+	DPRINTF(FuncMem, "Protected read of %d bytes for address %x\n", addr, size);
+
 	int count = min((Addr)size,
 			((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
 
@@ -442,6 +449,8 @@ MainMemory::prot_read(Addr addr, uint8_t *p, int size)
 void
 MainMemory::prot_write(Addr addr, const uint8_t *p, int size)
 {
+	DPRINTF(FuncMem, "Protected write of %d bytes for address %x\n", addr, size);
+
 	int count = min((Addr)size,
 			((addr - 1) & ~(VMPageSize - 1)) + VMPageSize - addr);
 
@@ -514,6 +523,8 @@ MainMemory::page_check(Addr addr, int size) const
 Fault
 MainMemory::read(MemReqPtr &req, uint8_t *p)
 {
+	DPRINTF(FuncMem, "Reading %d bytes for address %x\n", req->paddr, req->size);
+
 	mem_block_test(req->paddr);
 	Fault fault = page_check(req->paddr, req->size);
 
@@ -526,6 +537,8 @@ MainMemory::read(MemReqPtr &req, uint8_t *p)
 Fault
 MainMemory::write(MemReqPtr &req, const uint8_t *p)
 {
+	DPRINTF(FuncMem, "Writing %d bytes for address %x\n", req->paddr, req->size);
+
 	mem_block_test(req->paddr);
 	Fault fault = page_check(req->paddr, req->size);
 
@@ -747,12 +760,14 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 
 	string diskpagefilename;
 	UNSERIALIZE_SCALAR(diskpagefilename);
+	DPRINTF(Restart, "Unserializing disk page file %s\n", diskpagefilename);
 	diskpages.open(diskpagefilename.c_str(), ios::binary | ios::out | ios::in);
 	if(!diskpages.is_open()) fatal("could not read file %s", diskpagefilename.c_str());
 
 	// read diskpage metadata
 	string filename;
 	UNSERIALIZE_SCALAR(filename);
+	DPRINTF(Restart, "Unserializing page file %s\n", filename);
 	ifstream pagefile(filename.c_str(),  ios::binary);
 	if(!pagefile.is_open()) fatal("could not read file %s", filename.c_str());
 

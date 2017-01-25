@@ -65,6 +65,15 @@ int DynInst::instcount = 0;
 //int break_inst = -1;
 
 void
+DynInst::debugPrint(bool write, Addr addr, uint64_t data){
+	DPRINTF(FuncMem, "CPU%d %s data addr 0x%x, data 0x%x\n",
+			cpu->CPUParamsCpuID,
+			(write ? "wrote" : "read"),
+			addr,
+			(uint64_t) data);
+}
+
+void
 DynInst::squash()
 {
 	// already been squashed once... nothing to do
