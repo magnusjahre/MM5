@@ -133,6 +133,7 @@ struct SpecExecContext : ExecContext
     Fault read(MemReqPtr &req, T &data)
     {
 	if (!spec_mode) {
+		DPRINTF(FuncMem, "Not speculating, redirecting request for addr 0x%x to functional memory\n", req->paddr);
 	    return ExecContext::read(req, data);
 	} else {
 	    if (req->flags & (UNCACHEABLE | LOCKED)) {
@@ -142,6 +143,7 @@ struct SpecExecContext : ExecContext
 		data = 0;
 		return No_Fault;
 	    } else {
+	    	DPRINTF(FuncMem, "Speculating, redirecting request for addr 0x%x to speculative memory\n", req->paddr);
 		Fault fault = spec_mem->read(req, data);
 
 		if (fault != No_Fault) {

@@ -33,6 +33,7 @@
 #include <string>
 
 
+#include "base/trace.hh"
 #include "base/intmath.hh"
 #include "base/misc.hh"
 #include "encumbered/cpu/full/spec_memory.hh"
@@ -50,15 +51,18 @@ SpeculativeMemory::~SpeculativeMemory()
 bool
 SpeculativeMemory::read_block(Addr addr, Block &data)
 {
-    if (addr != block_addr(addr))
+	if (addr != block_addr(addr))
 	panic("read_block can only be called with a block aligned address!");
 
     mem_block_test(addr);
 
     hash_citer_t iter = table.find(addr);
-    if (iter == table.end())
-	return false;
+    if (iter == table.end()){
+    	DPRINTF(FuncMem, "Block address 0x%x not found in the speculative memory\n", addr);
+    	return false;
+    }
 
+    DPRINTF(FuncMem, "Block address 0x%x is in the speculative memory\n", addr);
     data = iter->second.front();
 
     return true;

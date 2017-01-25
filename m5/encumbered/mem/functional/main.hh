@@ -198,6 +198,8 @@ protected:
 		: pageAddress(INVALID_TAG), timestamp(0), page(NULL){
 
 		}
+
+		void reset();
 	};
 
 	entry* ptab;	// inverted page table

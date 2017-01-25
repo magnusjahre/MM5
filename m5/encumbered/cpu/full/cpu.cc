@@ -1190,6 +1190,13 @@ FullCPU::restartProcess(){
 
 	DPRINTF(Restart, "========= RESTART COMPLETE: New PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Restart procedure finished\n";
+
+//	Addr addr = 0x12a01de30;
+//	uint64_t data = 0;
+//	MemReqPtr req = new MemReq(addr, thread[0], sizeof(uint64_t));
+//	req->paddr = addr;
+//	thread[0]->read(req, data);
+//	DPRINTF(Restart, "The value at address 0x%x is 0x%x\n", addr, data);
 }
 
 

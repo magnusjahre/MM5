@@ -140,6 +140,13 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID, int _victimEn
 	allocatedVictims = 0;
 }
 
+void
+MainMemory::VictimEntry::reset(){
+	pageAddress = INVALID_TAG;
+	timestamp = 0;
+	::memset(page, 0, VMPageSize);
+}
+
 MainMemory::~MainMemory()
 {
 	diskpages.close();
@@ -753,6 +760,11 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 		}
 	}
 
+	// clear the victim buffer (neccessary on restarts)
+	for(int i=0;i<victimBuffer.size();i++){
+		victimBuffer[i].reset();
+	}
+
 	// clear diskpages and open checkpointed diskpages
 	curFileEnd = 0;
 	diskEntries.clear();
@@ -784,6 +796,11 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	}
 
 	pagefile.close();
+
+//	addr = 0x12a01de30;
+//	data = 0;
+//	page_read(addr, (uint8_t*) &data, sizeof(uint64_t));
+//	DPRINTF(Restart, "Unserialize end: The value at address 0x%x is 0x%x\n", addr, data);
 }
 
 #ifdef DO_SERIALIZE_VALIDATION
