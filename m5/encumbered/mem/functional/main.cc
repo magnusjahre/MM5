@@ -764,6 +764,7 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	for(int i=0;i<victimBuffer.size();i++){
 		victimBuffer[i].reset();
 	}
+	allocatedVictims = 0;
 
 	// clear diskpages and open checkpointed diskpages
 	curFileEnd = 0;
