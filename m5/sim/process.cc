@@ -83,6 +83,7 @@ Process::Process(const string &nm,
 
 	// allocate memory space
 	memory = new MainMemory(name() + ".MainMem", _memSizeMB, _cpuID, _victimEntries);
+	cpuID = _cpuID;
 
     // allocate initial register file
     init_regs = new RegFile;
@@ -361,11 +362,20 @@ Process::cleanFileState(Checkpoint *cp, const std::string &section){
 		}
 
 	}
+
+	stringstream useDiskpages;
+	useDiskpages << "diskpages-cpt" << cpuID << ".bin";
+	stringstream cleanDiskpages;
+	cleanDiskpages << "diskpages-cpt" << cpuID << ".bin.clean";
+
+	cout << "RESTART: Restoring diskpages from clean file " << cleanDiskpages.str() << " with clean file " << useDiskpages.str() << "\n";
+	copyFile(cleanDiskpages.str(), useDiskpages.str());
 }
 
 void
 Process::unserialize(Checkpoint *cp, const std::string &section){
 
+	memory->clearDiskpages();
 	if(cp != NULL){
 		currentCheckpoint = cp;
 	}

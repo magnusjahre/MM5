@@ -311,6 +311,8 @@ MainMemory::writeDiskEntry(Addr oldAddr, uint8_t* page){
 		d = diskEntries[oldAddrIndex];
 	}
 
+	cout << curTick << " " << "CPU" << cpuID << " IS WRITING A DISKPAGE!!!!!!!!!11\n";
+
 	DPRINTF(FuncMem, "Writing page addr %x to disk at offset %d\n", d.pageAddress, d.offset);
 
 	assert(diskpages.good());
@@ -747,6 +749,14 @@ MainMemory::generateID(const char* prefix, int index, int linkedListNum){
 }
 
 void
+MainMemory::clearDiskpages(){
+	DPRINTF(Restart, "Clearing diskEntries and closing diskpages...\n");
+	curFileEnd = 0;
+	diskEntries.clear();
+	diskpages.close();
+}
+
+void
 MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	UNSERIALIZE_SCALAR(break_address);
 	UNSERIALIZE_SCALAR(break_thread);
@@ -766,10 +776,9 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 	}
 	allocatedVictims = 0;
 
-	// clear diskpages and open checkpointed diskpages
-	curFileEnd = 0;
-	diskEntries.clear();
-	diskpages.close();
+	// open checkpointed diskpages
+	assert(diskEntries.empty());
+	assert(!diskpages.is_open());
 
 	string diskpagefilename;
 	UNSERIALIZE_SCALAR(diskpagefilename);

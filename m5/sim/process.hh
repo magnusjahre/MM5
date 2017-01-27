@@ -193,6 +193,7 @@ class Process : public SimObject
     // file descriptor remapping support
     static const int MAX_FD = 100000;	// max legal fd value
     int fd_map[MAX_FD+1];
+    int cpuID;
 
     std::map<int, FileParameters> tgtFDFileParams;
 

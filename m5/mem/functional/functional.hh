@@ -100,6 +100,10 @@ class FunctionalMemory : public SimObject
     	fatal("clearMemory not implemented");
     }
 
+    virtual void clearDiskpages(){
+    	fatal("clearDiskpages not implemented");
+    }
+
 #if FULL_SYSTEM
   public:
     virtual bool badaddr(Addr paddr) const { return false; }

@@ -645,7 +645,7 @@ def copyCheckpointFiles(directory):
                 #shutil.copy(directory+"/"+name, name+".clean
                 if name.startswith("diskpages"):
                     newname = name.replace("diskpages", "diskpages-cpt")
-                    nozipname = newname.replace(".zip","")
+                    newname = newname.replace(".zip","")
                     if os.path.exists(name):
                         os.remove(name)
                     if os.path.exists(name.replace(".zip","")):
@@ -654,7 +654,7 @@ def copyCheckpointFiles(directory):
                     if name.endswith(".zip"):
                         print >> sys.stderr, "Uncompressing "+name
                         subprocess.call(["unzip", "-o", directory+"/"+name])
-                        os.rename("diskpages0.bin", nozipname) 
+                        os.rename("diskpages0.bin", newname) 
                     else:
                         successful = False
                         cnt = 0 
@@ -670,6 +670,9 @@ def copyCheckpointFiles(directory):
                             cnt += 1
                         if not successful:
                             raise Exception("Could not copy file "+str(newname)+", retried 5 times")
+                    
+                    print >> sys.stderr, "Creating clean copy of "+newname+" for simulation point restarts"
+                    shutil.copy(newname, newname+".clean")
                     continue
                 else:
                     if os.path.exists(name):
@@ -679,7 +682,8 @@ def copyCheckpointFiles(directory):
                 cleanname = name+".clean"
                 if os.path.exists(cleanname):
                     os.remove(cleanname)
-                os.symlink(directory+"/"+name, cleanname)
+                if not name.startswith("pagefile-content"):
+                    os.symlink(directory+"/"+name, cleanname)
             else:
                 print >> sys.stderr, "Skipping directory "+name
 

@@ -308,6 +308,8 @@ public:
 public:
 	virtual void regStats();
 
+	virtual void clearDiskpages();
+
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 };
