@@ -311,8 +311,6 @@ MainMemory::writeDiskEntry(Addr oldAddr, uint8_t* page){
 		d = diskEntries[oldAddrIndex];
 	}
 
-	cout << curTick << " " << "CPU" << cpuID << " IS WRITING A DISKPAGE!!!!!!!!!11\n";
-
 	DPRINTF(FuncMem, "Writing page addr %x to disk at offset %d\n", d.pageAddress, d.offset);
 
 	assert(diskpages.good());
