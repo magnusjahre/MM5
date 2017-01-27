@@ -722,6 +722,8 @@ FullCPU::FullCPU(Params *p,
 	commitTraceFrequency = _commitTraceFrequency;
 	commitTraceInstructions = _commitTraceInstructions;
 	useInstsForCommitTrace = !commitTraceInstructions.empty();
+
+	crash_counter = 0;
 }
 
 Addr

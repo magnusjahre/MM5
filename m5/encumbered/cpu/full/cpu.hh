@@ -109,6 +109,7 @@ private:
 	Addr stalledOnAddr;
 	InstSeqNum stalledOnInstSeqNum;
 	MemoryOverlapEstimator* overlapEstimator;
+	int crash_counter;
 
 public:
 	////////////////////////////////////////////

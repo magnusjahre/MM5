@@ -58,7 +58,7 @@ using namespace std;
 
 
 /*  Number of cycles we are allowed to go without committing an instruction  */
-#define CRASH_COUNT 500000
+#define CRASH_COUNT 500
 
 #define MEM_BLOCKED_TRACE_FREQUENCY 100000
 
@@ -146,7 +146,6 @@ FullCPU::updateITCAEmptyROB(bool stalled){
 void
 FullCPU::commit()
 {
-	static int crash_counter = 0;
 	unsigned committed = 0;
 	unsigned committed_thread[SMT_MAX_THREADS];
 	int finished_thread[SMT_MAX_THREADS];
@@ -212,14 +211,7 @@ FullCPU::commit()
 	}
 
 	if (num_finished_threads == number_of_threads) {
-		// If we're not committing because all the threads are
-		// inactive, don't consider this a microarchitectural
-		// deadlock... it can happen e.g. in an MP where there is only
-		// one runnable thread.
-		if (num_inactive_threads == number_of_threads) {
-			crash_counter = 0;
-		}
-
+		crash_counter = 0;
 		DPRINTF(Commit, "Commit is stalled because the ROB is empty\n");
 
 		assert(!isStalled);
@@ -452,6 +444,7 @@ FullCPU::commit()
 		{
 			DPRINTF(Commit, "Commit is stalled due to a data cache miss\n");
 			commit_total_mem_stall_time++;
+			crash_counter = 0;
 
 			tmpBlockedCycles++;
 
