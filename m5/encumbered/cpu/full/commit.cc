@@ -58,7 +58,7 @@ using namespace std;
 
 
 /*  Number of cycles we are allowed to go without committing an instruction  */
-#define CRASH_COUNT 500
+#define CRASH_COUNT 10000000
 
 #define MEM_BLOCKED_TRACE_FREQUENCY 100000
 
