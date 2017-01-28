@@ -196,10 +196,11 @@ FullCPU::lsq_refresh()
 	//
 	BaseIQ::iterator lsq = ls_queue->head();
 	for (; lsq.notnull(); lsq = lsq.next()) {
-		DPRINTF(IQ, "Processing instruction #%d (#%d, PC %d) in LSQ refresh\n",
+		DPRINTF(IQ, "Processing instruction #%d (#%d, PC %d) in LSQ refresh, %s\n",
 				lsq->rob_entry->seq,
 				lsq->inst->fetch_seq,
-				lsq->rob_entry->inst->PC);
+				lsq->rob_entry->inst->PC,
+				(lsq->squashed ? "squashed" : "not squashed"));
 
 		//  Skip any LSQ entries that have been squashed
 		if (lsq->squashed)

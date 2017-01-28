@@ -650,7 +650,7 @@ FetchCompleteEvent::process()
 	int index = first_index;
 	bufferp = cpu->icache_output_buffer[thread_number];
 
-	DPRINTF(Fetch, "Processing FetchCompleteEvent for CPU %d, thread %d\n", cpu->CPUParamsCpuID, thread_number);
+	DPRINTF(Fetch, "Processing FetchCompleteEvent for CPU%d, thread %d, first_seq_num=%d\n", cpu->CPUParamsCpuID, thread_number, first_seq_num);
 
 	// checkmshrp->targets[target_idx]. to see if first instruction is
 	// still valid
@@ -665,6 +665,8 @@ FetchCompleteEvent::process()
 				first_seq_num);
 		goto done;
 	}
+
+	DPRINTF(Fetch, "CPU%d: FetchCompleteEvent first index is %d, head of buffer %d\n", cpu->CPUParamsCpuID, first_index, bufferp->head);
 
 	// are the instrs we fetched at the head of the buffer?  if so,
 	// we'll want to copy them to the ifq as we go.  if we allow
@@ -838,6 +840,11 @@ FullCPU::fetchOneInst(int thread_number)
 
     inst->correctPathSeq = (xc->spec_mode == 0) ? correctPathSeq[thread_number]++ : 0;
 
+    DPRINTF(Fetch, "Creating instruction #%d, %s, initial speculative mode is %d\n",
+    		inst->fetch_seq,
+			(inst->isControl() ? "control instruction" : "not control instruction"),
+			inst->spec_mode);
+
     // Predict next PC to fetch.
     // default guess: sequential
     inst->Pred_PC = pc + sizeof(MachInst);
@@ -951,8 +958,11 @@ FullCPU::fetchOneInst(int thread_number)
 	// that shouldn't matter for a renaming machine with the LRT.
 	// Ah, except the LRT won't be updated until the map executes,
 	// which is too late.
-	inst->recover_inst = true;
-	xc->spec_mode++;
+    	inst->recover_inst = true;
+    	xc->spec_mode++;
+		DPRINTF(Fetch, "Instruction #%d result is mispredicted, increasing speculative mode to %d\n",
+	    		inst->fetch_seq,
+				xc->spec_mode);
     }
 
     return make_pair(inst, No_Fault);
@@ -1167,7 +1177,8 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 	/*  Mask lower bits to get block starting address         */
 	Addr blockAddress = icacheBlockAlignPC(xc->regs.pc);
 
-	DPRINTF(Fetch, "Fetching address %d for PC %d\n", blockAddress, xc->regs.pc);
+	DPRINTF(Fetch, "Fetching address %d for PC %d, next_fetch_seq is %d, first index %d\n",
+			blockAddress, xc->regs.pc, next_fetch_seq, first_inst_index);
 
 #if FULL_SYSTEM
 	bool pal_pc = xc->inPalMode();
@@ -1208,6 +1219,9 @@ FullCPU::fetchOneThread(int thread_number, int max_to_fetch)
 					       fetched_this_line,
 					       first_inst_seq_num,
 					       req);
+
+	    DPRINTF(Fetch, "Registering completion event with first index %d, first seq num %d\n",
+	    			first_inst_index, first_inst_seq_num);
 
 	    req->completionEvent = ev;
             req->expectCompletionEvent = true;

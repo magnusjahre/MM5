@@ -1028,7 +1028,7 @@ FullCPU::activateContext(int thread_num, int delay)
 void
 FullCPU::tick()
 {
-    numCycles++;
+	numCycles++;
 
     floss_this_cycle = 0;
     floss_state.clear();
@@ -1182,8 +1182,10 @@ FullCPU::restartProcess(){
 	}
 	ROB.check();
 
-	DPRINTF(Restart, "Reinitializing the create vector\n");
+	DPRINTF(Restart, "Reinitializing the create vector and the fetch list\n");
 	cv_init();
+	thread_info[0].recovery_event_pending = false;
+	thread_info[0].recovery_spec_level = 0;
 
 	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
 	thread[0]->reset_spec_state();

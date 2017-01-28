@@ -277,11 +277,12 @@ FullCPU::commit()
 
 		string outstr;
 		rs->inst->dump(outstr);
-		DPRINTF(Commit, "Considering instruction %s for commit @ PC %d, %s, %s\n",
+		DPRINTF(Commit, "Considering instruction %s for commit @ PC %d, %s, %s, %s\n",
 				outstr.c_str(),
 				rs->inst->PC,
 				(rs->issued ? "issued" : "not issued"),
-				(rs->completed ? "completed" : "not complete"));
+				(rs->completed ? "completed" : "not complete"),
+				(rs->squashed ? "squashed" :  "not squashed"));
 
 		//
 		//  count the number of instruction ready to commit
@@ -621,6 +622,7 @@ FullCPU::commit()
 			--num_eligible;
 
 			if (eligible_to_commit(rs, &reason)) {
+				DPRINTF(Commit, "Instruction %d is eligible, speculative mode %d\n", rs->seq, rs->inst->spec_mode);
 				if (rs->inst->spec_mode == 0) {
 
 					commit_one_inst(rs);
@@ -774,8 +776,10 @@ FullCPU::eligible_to_commit(ROBStation *rs,
 	//  - for "leading" thread of reg-file-checking redundant pair,
 	//      reg check buffer entry must be available
 
-	if (!rs->completed)
+	if (!rs->completed){
+		DPRINTF(Commit, "Instruction %d is not eligible for commit because is is not complete\n", rs->seq);
 		return false;
+	}
 
 	if (rs->inst->isStore()) {
 		storebuf_stall = storebuffer->full();
@@ -787,9 +791,12 @@ FullCPU::eligible_to_commit(ROBStation *rs,
 	//
 	//  If everything is OK for committing this instruction...
 	//
-	if (!storebuf_stall)
+	if (!storebuf_stall){
+		DPRINTF(Commit, "Instruction %d is eligible for commit\n", rs->seq);
 		return true;
+	}
 
+	DPRINTF(Commit, "Instruction %d is not eligible for commit because the storebuffer is stalled\n", rs->seq);
 	return false;
 }
 

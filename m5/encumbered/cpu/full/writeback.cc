@@ -87,7 +87,7 @@ ROBStation::writeback(FullCPU *cpu, unsigned wb_iqueue)
 	int i;
 	unsigned wb_events = 0;
 
-	DPRINTF(IQ, "%s: Writing back instruction # %d (PC %d)\n", cpu->name(), seq, inst->PC);
+	DPRINTF(IQ, "%s: Writing back instruction #%d (#%d, PC %d)\n", cpu->name(), seq, inst->fetch_seq, inst->PC);
 
 	if (writeback_break && (writeback_break == seq)) {
 		writeback_breakpoint();
@@ -135,6 +135,14 @@ ROBStation::writeback(FullCPU *cpu, unsigned wb_iqueue)
 		//  event, anyway)
 		//
 		ThreadInfo *threadInfo = &cpu->thread_info[thread_number];
+
+		DPRINTF(IQ, "%s: inst %#d (#%d) is mispredict and needs recovery, %s, thread info spec level %d, inst spec mode %d\n",
+				cpu->name(),
+				seq,
+				inst->fetch_seq,
+				(threadInfo->recovery_event_pending ? "recovery event pending" : "no recovery event pending"),
+				threadInfo->recovery_spec_level,
+				inst->spec_mode);
 
 		if (!threadInfo->recovery_event_pending ||
 				threadInfo->recovery_spec_level > inst->spec_mode) {
@@ -334,6 +342,8 @@ FullCPU::recover(ROBStation *ROB_branch_entry, int branch_thread)
 	    }
 #endif
 
+	    DPRINTF(IQ, "Branch recovery event causes squash of inst #%d\n", ROB_entry->seq);
+
 	    //
 	    //  Inform the IQ and LSQ that an instruction is being squashed
 	    //
@@ -448,10 +458,14 @@ BranchRecoveryEvent::~BranchRecoveryEvent()
 void
 BranchRecoveryEvent::process()
 {
-
-	DPRINTF(IQ, "%s: Processing branch recovery event, setting PC to %d\n", cpu->name(), correct_PC);
-
     SpecExecContext *xc = cpu->thread[thread_number];
+
+	DPRINTF(IQ, "%s: Processing branch recovery event for inst #%d, setting PC to %d, setting speculative mode to %d (was %d)\n",
+			cpu->name(),
+			(branch_entry != NULL ? branch_entry->seq : 0),
+			correct_PC,
+			this_spec_mode,
+			xc->spec_mode);
 
     cpu->recover(branch_entry, thread_number);
 
