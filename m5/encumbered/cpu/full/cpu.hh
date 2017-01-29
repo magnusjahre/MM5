@@ -1056,6 +1056,8 @@ public:
 			void disableCommitTrace();
 			bool getCommitTraceEnabled();
 
+			void writeCommittedInstsFile();
+
 
 			//----------------------------------------------------------------------
 			//
@@ -1169,5 +1171,14 @@ struct NewChainInfo
 		if (head_of_chain)
 			std::cout << "   Head of chain: " << head_chain << std::endl;
 	}
+};
+
+class CommittedInstsCallback : public Callback
+{
+    private:
+        FullCPU *cpu;
+    public:
+        CommittedInstsCallback(FullCPU* _cpu) : cpu(_cpu) {}
+        virtual void process() { cpu->writeCommittedInstsFile(); };
 };
 #endif // __ENCUMBERED_CPU_FULL_CPU_HH__

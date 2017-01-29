@@ -724,6 +724,8 @@ FullCPU::FullCPU(Params *p,
 	useInstsForCommitTrace = !commitTraceInstructions.empty();
 
 	crash_counter = 0;
+
+	registerExitCallback(new CommittedInstsCallback(this));
 }
 
 Addr

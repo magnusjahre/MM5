@@ -1074,6 +1074,22 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 }
 
 void
+FullCPU::writeCommittedInstsFile(){
+	assert(stat_com_inst.size() == 1);
+
+	stringstream filename;
+	filename << "cpu-com-insts" << CPUParamsCpuID << ".txt";
+
+	ofstream outfile(filename.str().c_str());
+	assert(outfile.good());
+	outfile << stat_com_inst[0].value() << "\n";
+	assert(outfile.good());
+
+	outfile.flush();
+	outfile.close();
+}
+
+void
 FullCPU::disableCommitTrace(){
 	commitTraceEnabled = false;
 }
