@@ -1038,13 +1038,18 @@ if "USE-CHECKPOINT" in env:
     useCheckpointPath = env["USE-CHECKPOINT"]
 
 simInsts = -1
+restartProcessAt = 0
 useFile = False
 if env["NP"] == 1 and "SIMINSTS-FILE" in env:
     useFile = True
     instfile = open(env["SIMINSTS-FILE"])
     simInsts = int(instfile.read())
     instfile.close()
-    print >> sys.stderr, "Retrieved instruction count "+str(simInsts)+" from file "+str(env["SIMINSTS-FILE"])
+    
+    assert "SIMINSTS" in env
+    restartProcessAt = int(env["SIMINSTS"])
+    
+    print >> sys.stderr, "Retrieved instruction count "+str(simInsts)+" from file "+str(env["SIMINSTS-FILE"])+", will restart every "+str(restartProcessAt)+" instructions"
 
 if "SIMINSTS" in env and not useFile:
     simInsts = int(env["SIMINSTS"])
@@ -1100,7 +1105,8 @@ if "USE-SIMPOINT" in env:
         root.checkpoint = checkpointDirPath
         for cpu in root.detailedCPU:
             cpu.min_insts_all_cpus = simInsts
-            cpu.quit_on_cpu_id = quitOnCPUID 
+            cpu.quit_on_cpu_id = quitOnCPUID
+            cpu.restart_process_at = restartProcessAt
 else:
     
     if "SIMULATETICKS" in env and simInsts != -1:
@@ -1129,6 +1135,7 @@ else:
             for cpu in root.detailedCPU:
                 cpu.min_insts_all_cpus = simInsts 
                 cpu.quit_on_cpu_id = quitOnCPUID
+                cpu.restart_process_at = restartProcessAt
         
 root.sampler = Sampler()
 root.sampler.phase0_cpus = Parent.simpleCPU

@@ -378,7 +378,8 @@ FullCPU::FullCPU(Params *p,
 		 int _quitOnCPUID,
 		 MemoryOverlapEstimator* _overlapEst,
 		 int _commitTraceFrequency,
-		 vector<int> _commitTraceInstructions)
+		 vector<int> _commitTraceInstructions,
+		 Tick _restartProcessAt)
     : BaseCPU(p),
       ROB_size(_ROB_size),
       LSQ_size(_LSQ_size),
@@ -713,6 +714,8 @@ FullCPU::FullCPU(Params *p,
 
 	quitOnCPUID = _quitOnCPUID;
 	quitInstCounter = 0;
+	resetInstCounter = 0;
+	restartProcessAt = _restartProcessAt;
 
 	overlapEstimator = _overlapEst;
 	isStalled = false;
@@ -1299,6 +1302,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     SimObjectParam<MemoryOverlapEstimator* > overlapEstimator;
     Param<int> commit_trace_frequency;
     VectorParam<int> commit_trace_instructions;
+    Param<Tick> restart_process_at;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
 
@@ -1450,7 +1454,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(FullCPU)
     INIT_PARAM_DFLT(quit_on_cpu_id, "Quit when this CPU reaches a certain number of instructions", -1),
     INIT_PARAM_DFLT(overlapEstimator, "overlap estimator pointer", NULL),
     INIT_PARAM_DFLT(commit_trace_frequency, "commit trace frequency in committed instructions", 500000),
-	INIT_PARAM(commit_trace_instructions, "Array of instruction counts to sample at")
+	INIT_PARAM(commit_trace_instructions, "Array of instruction counts to sample at"),
+	INIT_PARAM_DFLT(restart_process_at, "restart process after this number of instructions (0 = no restart)", 0)
 END_INIT_SIM_OBJECT_PARAMS(FullCPU)
 
 
@@ -1655,7 +1660,8 @@ CREATE_SIM_OBJECT(FullCPU)
 			  quit_on_cpu_id,
 			  overlapEstimator,
 			  commit_trace_frequency,
-			  commit_trace_instructions);
+			  commit_trace_instructions,
+			  restart_process_at);
 
     return cpu;
 }

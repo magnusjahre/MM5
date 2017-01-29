@@ -226,7 +226,15 @@ class BaseCPU : public SimObject
     static std::vector<BaseCPU *> cpuList;   //!< Static global cpu list
 
   public:
-	  static int numSimulatedCPUs() { return cpuList.size(); }
+	  static int numSimulatedCPUs() {
+		  int cnt = 0;
+		  for(int i=0;i<cpuList.size();i++){
+			  if(cpuList[i]->useInExitDesicion){
+				  cnt++;
+			  }
+		  }
+		  return cnt;
+	  }
 	  static Counter numSimulatedInstructions()
 	  {
 		  Counter total = 0;

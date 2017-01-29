@@ -104,6 +104,8 @@ private:
 
 	int quitOnCPUID;
 	Tick quitInstCounter;
+	Tick resetInstCounter;
+	Tick restartProcessAt;
 
 	bool isStalled;
 	Addr stalledOnAddr;
@@ -296,7 +298,8 @@ public:
 			int _quitOnCPUID,
 			MemoryOverlapEstimator* _overlapEst,
 			int _commitTraceFrequency,
-			std::vector<int> _commitTraceInstructions
+			std::vector<int> _commitTraceInstructions,
+			Tick _restartProcessAt
 	);
 
 

@@ -987,6 +987,7 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 		commitedInstructionSample++;
 		stat_com_inst[thread]++;
 		quitInstCounter++;
+		resetInstCounter++;
 		amha->coreCommittedInstruction(CPUParamsCpuID);
 		committedSinceLast++;
 
@@ -1066,6 +1067,20 @@ FullCPU::update_com_inst_stats(DynInst *inst)
 			}
 		}
 		quitInstCounter = 0;
+	}
+
+	if(numSimulatedCPUs() == 1 && restartProcessAt > 0){
+
+		assert(resetInstCounter <= restartProcessAt);
+		if(resetInstCounter == restartProcessAt){
+			cout << curTick << " " << name() << ": private mode simulation point is finished @ " << stat_com_inst[thread].value() << " committed instructions, scheduling restart\n";
+			assert(restartEvent == NULL);
+			process_restarts++;
+			restartEvent = new ProcessRestartEvent(this);
+			restartEvent->schedule(curTick);
+
+			resetInstCounter = 0;
+		}
 	}
 
 	if(stat_com_inst[thread].value() == minInstructionsAllCPUs && CPUParamsCpuID == quitOnCPUID){

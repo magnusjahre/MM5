@@ -125,3 +125,4 @@ class FullCPU(BaseCPU):
     overlapEstimator = Param.MemoryOverlapEstimator("The overlap estimator")
     commit_trace_frequency = Param.Int("commit trace frequency in committed instructions")
     commit_trace_instructions = VectorParam.Int("Array of instruction counts to sample at")
+    restart_process_at = Param.Tick("restart process after this number of instructions (0 = no restart)")
