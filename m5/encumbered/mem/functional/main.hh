@@ -94,6 +94,8 @@
 
 #include "base/statistics.hh"
 #include "sim/stats.hh"
+#include "base/callback.hh"
+#include "sim/sim_exit.hh"
 
 //#define DO_SERIALIZE_VALIDATION
 
@@ -164,6 +166,8 @@ private:
 	// the common case), and do the full list search (if necessary) in
 	// this out-of-line function
 	bool checkLockedAddrList(MemReqPtr &req);
+
+	void removeMemoryFile(std::string filename);
 
 protected:
 
@@ -312,6 +316,8 @@ public:
 
     virtual void serialize(std::ostream &os);
     virtual void unserialize(Checkpoint *cp, const std::string &section);
+
+    void removeMemoryFiles();
 };
 
 // compute address of access within a host page
@@ -476,5 +482,14 @@ MainMemory::write(MemReqPtr &req, uint64_t data)
 		page_write(req->paddr, data);
 	return No_Fault;
 }
+
+class CleanMemoryFileCallback : public Callback
+{
+    private:
+        MainMemory *mem;
+    public:
+        CleanMemoryFileCallback(MainMemory* _mem) : mem(_mem) {}
+        virtual void process() { mem->removeMemoryFiles(); };
+};
 
 #endif // __MAIN_MEMORY_HH__

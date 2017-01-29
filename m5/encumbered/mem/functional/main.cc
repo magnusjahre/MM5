@@ -85,6 +85,7 @@
 #include <cassert>
 #include <string>
 #include <sstream>
+#include <cstdio>
 
 #include "base/intmath.hh"
 #include "base/statistics.hh"
@@ -138,6 +139,8 @@ MainMemory::MainMemory(const string &n, int _maxMemMB, int _cpuID, int _victimEn
 	}
 
 	allocatedVictims = 0;
+
+	registerExitCallback(new CleanMemoryFileCallback(this));
 }
 
 void
@@ -809,6 +812,25 @@ MainMemory::unserialize(Checkpoint *cp, const std::string &section){
 //	data = 0;
 //	page_read(addr, (uint8_t*) &data, sizeof(uint64_t));
 //	DPRINTF(Restart, "Unserialize end: The value at address 0x%x is 0x%x\n", addr, data);
+}
+
+void
+MainMemory::removeMemoryFiles(){
+	diskpages.close();
+
+	stringstream filename;
+	filename << "diskpages-cpt" << cpuID << ".bin";
+	removeMemoryFile(filename.str());
+
+	filename << ".clean";
+	removeMemoryFile(filename.str());
+}
+
+void
+MainMemory::removeMemoryFile(std::string filename){
+	int retval = remove(filename.c_str());
+	if(retval == 0) cerr << name() << ": successfully removed file " << filename<< "\n";
+	else cerr << name() << ": could not remove file " << filename << "\n";
 }
 
 #ifdef DO_SERIALIZE_VALIDATION
