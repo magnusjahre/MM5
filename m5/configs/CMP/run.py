@@ -1038,7 +1038,15 @@ if "USE-CHECKPOINT" in env:
     useCheckpointPath = env["USE-CHECKPOINT"]
 
 simInsts = -1
-if "SIMINSTS" in env:
+useFile = False
+if env["NP"] == 1 and "SIMINSTS-FILE" in env:
+    useFile = True
+    instfile = open(env["SIMINSTS-FILE"])
+    simInsts = int(instfile.read())
+    instfile.close()
+    print >> sys.stderr, "Retrieved instruction count "+str(simInsts)+" from file "+str(env["SIMINSTS-FILE"])
+
+if "SIMINSTS" in env and not useFile:
     simInsts = int(env["SIMINSTS"])
     
 quitOnCPUID = -1
