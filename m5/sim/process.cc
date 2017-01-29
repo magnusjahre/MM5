@@ -307,23 +307,16 @@ void
 Process::copyFile(std::string fromPath, std::string toPath){
 	cout << "Copying " << fromPath << " " << toPath << "\n";
 
-	FILE *from = NULL;
-	FILE *to = NULL;
-	char ch = '0';
+    ifstream  src(fromPath.c_str(), std::ios::binary);
+    ofstream  dst(toPath.c_str(),   std::ios::binary);
 
-	if((from = fopen(fromPath.c_str(), "rb")) ==NULL) fatal("Cannot open source file %s", fromPath);
-	if((to = fopen(toPath.c_str(), "wb"))==NULL) fatal("Cannot open destination file %s", toPath);
+    dst << src.rdbuf();
+    assert(src.good());
+    assert(dst.good());
 
-	/* copy the file */
-	while(!feof(from)) {
-		ch = fgetc(from);
-		if(ferror(from)) fatal("Error reading source file %s", fromPath);
-		if(!feof(from)) fputc(ch, to);
-		if(ferror(to)) fatal("Error writing destination file %s", toPath);
-	}
-
-	fclose(from);
-	fclose(to);
+    src.close();
+    dst.flush();
+    dst.close();
 }
 
 void
