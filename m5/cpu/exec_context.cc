@@ -150,21 +150,18 @@ ExecContext::serialize(ostream &os)
 }
 
 void
-ExecContext::restartProcess(int cpuID, int cpuCount){
+ExecContext::restartProcess(int cpuID){
 
 	stringstream xcName;
 	xcName << "simpleCPU" << cpuID << ".xc";
 
 	stringstream wlName;
 	wlName << "simpleCPU" << cpuID;
-	if(cpuCount > 1) wlName << ".workload";
-	else wlName << ".workload0";
-	assert(cpuCount > 0);
 
 	cout << "RESTART: Unserializing the execution context section " << xcName.str() << "...\n";
 	unserialize(currentCheckpoint, xcName.str());
 	cout << "RESTART: Unserializing the process and functional memory " << wlName.str() << "...\n";
-	process->unserialize(NULL, wlName.str());
+	process->unserialize(NULL, process->currentSection);
 	cout << "RESTART: Done!\n";
 }
 

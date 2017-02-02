@@ -1192,7 +1192,7 @@ FullCPU::restartProcess(){
 	thread_info[0].recovery_event_pending = false;
 	thread_info[0].recovery_spec_level = 0;
 
-	thread[0]->restartProcess(CPUParamsCpuID, amha->getCPUCount());
+	thread[0]->restartProcess(CPUParamsCpuID);
 	thread[0]->reset_spec_state();
 	thread[0]->spec_mode = 0;
 	thread[0]->spec_mem->clear();

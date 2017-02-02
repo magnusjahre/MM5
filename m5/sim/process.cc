@@ -104,6 +104,7 @@ Process::Process(const string &nm,
     // other parameters will be initialized when the program is loaded
 
     currentCheckpoint = NULL;
+    currentSection = "";
 }
 
 void
@@ -327,7 +328,7 @@ Process::copyFile(std::string fromPath, std::string toPath){
 }
 
 void
-Process::cleanFileState(Checkpoint *cp, const std::string &section){
+Process::cleanFileState(){
 
 	cout << "RESTART: Cleaning file state\n";
 
@@ -377,11 +378,18 @@ Process::unserialize(Checkpoint *cp, const std::string &section){
 
 	memory->clearDiskpages();
 	if(cp != NULL){
+		assert(currentCheckpoint == NULL);
+		assert(currentSection == "");
+
 		currentCheckpoint = cp;
+		currentSection = section;
 	}
 	else{
+		assert(cp == NULL);
+		assert(section != "");
+
 		cp = currentCheckpoint;
-		cleanFileState(cp, section);
+		cleanFileState();
 	}
 	assert(cp != NULL);
 

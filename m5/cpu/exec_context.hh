@@ -204,7 +204,7 @@ class ExecContext
     void unserialize(Checkpoint *cp, const std::string &section);
 
     Checkpoint* currentCheckpoint;
-    void restartProcess(int cpuID, int cpuCount);
+    void restartProcess(int cpuID);
 
 #if FULL_SYSTEM
     bool validInstAddr(Addr addr) { return true; }

@@ -172,6 +172,7 @@ class Process : public SimObject
     };
 
     Checkpoint* currentCheckpoint;
+    std::string currentSection;
 
   protected:
     // constructor
@@ -199,7 +200,7 @@ class Process : public SimObject
 
     std::string generateFileStateName(const char* prefix, int tgt_fd);
 
-    void cleanFileState(Checkpoint *cp, const std::string &section);
+    void cleanFileState();
 
     void copyFile(std::string fromPath, std::string toPath);
 
