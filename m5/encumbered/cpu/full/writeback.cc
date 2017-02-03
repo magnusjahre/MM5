@@ -443,7 +443,7 @@ BranchRecoveryEvent::BranchRecoveryEvent(FullCPU *_cpu, ROBStation *rs,
 	  cpu(_cpu), thread_number(thread), branch_entry(rs),
 	  correct_PC(rs->inst->Next_PC), branch_PC(rs->inst->PC),
 	  dir_update(rs->inst->dir_update), staticInst(rs->inst->staticInst),
-	  this_spec_mode(spec_mode), spec_state(sstate)
+	  this_spec_mode(spec_mode), spec_state(sstate), issuedAt(curTick)
 {
     setFlags(AutoDelete);
 }
@@ -458,7 +458,15 @@ BranchRecoveryEvent::~BranchRecoveryEvent()
 void
 BranchRecoveryEvent::process()
 {
-    SpecExecContext *xc = cpu->thread[thread_number];
+	if(issuedAt <= cpu->processRestartAt){
+		DPRINTF(IQ, "%s: Discarding branch recovery event because it was issued at %d and process restarted at %d\n",
+				cpu->name(),
+				issuedAt,
+				cpu->processRestartAt);
+		return;
+	}
+
+	SpecExecContext *xc = cpu->thread[thread_number];
 
 	DPRINTF(IQ, "%s: Processing branch recovery event for inst #%d, setting PC to %d, setting speculative mode to %d (was %d)\n",
 			cpu->name(),
@@ -467,59 +475,59 @@ BranchRecoveryEvent::process()
 			this_spec_mode,
 			xc->spec_mode);
 
-    cpu->recover(branch_entry, thread_number);
+	cpu->recover(branch_entry, thread_number);
 
-    //
-    //  If the ROB entry has not committed yet...
-    //    (1) mark that we have already recovered for this instruction
-    //    (2)
-    //
-    if (branch_entry != NULL) {
-	branch_entry->inst->recover_inst = false;
-	branch_entry->recovery_event = 0;
-    }
+	//
+	//  If the ROB entry has not committed yet...
+	//    (1) mark that we have already recovered for this instruction
+	//    (2)
+	//
+	if (branch_entry != NULL) {
+		branch_entry->inst->recover_inst = false;
+		branch_entry->recovery_event = 0;
+	}
 
-    /*  Put the PC back on track  */
-    xc->regs.pc = correct_PC;
-    xc->regs.npc = correct_PC + sizeof(MachInst);
+	/*  Put the PC back on track  */
+	xc->regs.pc = correct_PC;
+	xc->regs.npc = correct_PC + sizeof(MachInst);
 
-    if (staticInst->isControl() && cpu->branch_pred)
-	cpu->branch_pred->recover(thread_number, branch_PC, &dir_update);
+	if (staticInst->isControl() && cpu->branch_pred)
+		cpu->branch_pred->recover(thread_number, branch_PC, &dir_update);
 
-    //
-    //  Only clear the pending flag if this event is the lowest
-    //  spec-level event
-    //
-    if (cpu->thread_info[thread_number].recovery_spec_level ==
-	this_spec_mode)
-    {
-	cpu->thread_info[thread_number].recovery_event_pending = false;
-	cpu->thread_info[thread_number].recovery_spec_level = 0;
-    }
+	//
+	//  Only clear the pending flag if this event is the lowest
+	//  spec-level event
+	//
+	if (cpu->thread_info[thread_number].recovery_spec_level ==
+			this_spec_mode)
+	{
+		cpu->thread_info[thread_number].recovery_event_pending = false;
+		cpu->thread_info[thread_number].recovery_spec_level = 0;
+	}
 
-    //  Set the global spec_mode[] value...
-    xc->spec_mode = this_spec_mode;
+	//  Set the global spec_mode[] value...
+	xc->spec_mode = this_spec_mode;
 
-    //
-    //  Clear out speculative state if this was the last level of
-    //  misspeculation.
-    //
-    //  This CLEAR_MAP step SHOULD be unnecessary given that the
-    //  COPY step should always be correct.
-    //
+	//
+	//  Clear out speculative state if this was the last level of
+	//  misspeculation.
+	//
+	//  This CLEAR_MAP step SHOULD be unnecessary given that the
+	//  COPY step should always be correct.
+	//
 
-    cpu->state_list.release(spec_state);
-    //	delete spec_state;
-    spec_state = 0;    // don't try to delete this more than once...
+	cpu->state_list.release(spec_state);
+	//	delete spec_state;
+	spec_state = 0;    // don't try to delete this more than once...
 
 
-    if (xc->spec_mode == 0) {
-	/* reset use_spec_? reg maps and speculative memory state */
-	xc->reset_spec_state();
+	if (xc->spec_mode == 0) {
+		/* reset use_spec_? reg maps and speculative memory state */
+		xc->reset_spec_state();
 
-	// since reset_spec_state() doesn't do this...
-	cpu->create_vector[thread_number].clear_spec();
-    }
+		// since reset_spec_state() doesn't do this...
+		cpu->create_vector[thread_number].clear_spec();
+	}
 }
 
 

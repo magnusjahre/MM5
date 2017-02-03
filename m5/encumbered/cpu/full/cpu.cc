@@ -728,6 +728,8 @@ FullCPU::FullCPU(Params *p,
 
 	crash_counter = 0;
 
+	processRestartAt = 0;
+
 	registerExitCallback(new CommittedInstsCallback(this));
 }
 
@@ -1176,6 +1178,7 @@ FullCPU::restartProcess(){
 
 	DPRINTF(Restart, "========= RESTARTING PROCESS: PC is %d\n", execContexts[0]->regs.pc);
 	cout << curTick << " " << name() << ": Squashing all pending instructions...\n";
+	processRestartAt = curTick;
 
 	fetch_squash(0);
 	decodeQueue->squash();

@@ -199,6 +199,8 @@ public:
 	{
 	};
 
+	Tick processRestartAt;
+
 	void registerProcessHalt();
 	void restartProcess();
 

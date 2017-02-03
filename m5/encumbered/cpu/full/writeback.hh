@@ -104,6 +104,8 @@ class BranchRecoveryEvent : public Event
     //    CreateVecSpecState *spec_state;
     SpecStateList::ss_iterator spec_state;
 
+    Tick issuedAt;
+
   public:
     // constructor
     BranchRecoveryEvent(FullCPU *_cpu, ROBStation *rs, int thread,
