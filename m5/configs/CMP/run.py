@@ -1043,7 +1043,7 @@ useFile = False
 if env["NP"] == 1 and "SIMINSTS-FILE" in env:
     useFile = True
     instfile = open(env["SIMINSTS-FILE"])
-    simInsts = int(instfile.read())
+    simInsts = int(float(instfile.read()))
     instfile.close()
     
     assert "SIMINSTS" in env
