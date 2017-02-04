@@ -682,7 +682,7 @@ def copyCheckpointFiles(directory):
                 cleanname = name+".clean"
                 if os.path.exists(cleanname):
                     os.remove(cleanname)
-                if not name.startswith("pagefile-content"):
+                if not os.path.islink(name):
                     os.symlink(directory+"/"+name, cleanname)
             else:
                 print >> sys.stderr, "Skipping directory "+name
