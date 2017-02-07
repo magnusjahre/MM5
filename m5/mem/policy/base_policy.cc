@@ -1009,7 +1009,7 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 
 	comInstModelTraceCummulativeInst[cpuID] += committedInsts;
 
-	data.push_back(comInstModelTraceCummulativeInst[cpuID]);
+	data.push_back(RequestTraceEntry(comInstModelTraceCummulativeInst[cpuID], TICK_TRACE));
 	data.push_back(cyclesInSample);
 	data.push_back(stallCycles);
 	data.push_back(privateStallCycles);

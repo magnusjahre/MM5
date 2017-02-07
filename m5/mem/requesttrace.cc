@@ -9,6 +9,37 @@
 
 using namespace std;
 
+
+RequestTraceEntry::RequestTraceEntry(Tick _val, TRACE_ENTRY_TYPE _type){
+    resetValues();
+    tickVal = _val;
+    type = _type;
+}
+
+RequestTraceEntry::RequestTraceEntry(Addr _val){
+    resetValues();
+    addrVal = _val;
+    type = ADDR_TRACE;
+}
+
+RequestTraceEntry::RequestTraceEntry(int _val){
+    resetValues();
+    intVal = _val;
+    type = INT_TRACE;
+}
+
+RequestTraceEntry::RequestTraceEntry(double _val){
+    resetValues();
+    doubleVal = _val;
+    type = DOUBLE_TRACE;
+}
+
+RequestTraceEntry::RequestTraceEntry(const char* _val){
+    resetValues();
+    strVal = (char*) _val;
+    type = STR_TRACE;
+}
+
 RequestTrace::RequestTrace(std::string _simobjectname, const char* _filename, bool _disableTrace){
 
     stringstream filenamestream;

@@ -35,35 +35,11 @@ class RequestTraceEntry{
         char* strVal;
         TRACE_ENTRY_TYPE type;
 
-        RequestTraceEntry(Tick _val){
-            resetValues();
-            tickVal = _val;
-            type = TICK_TRACE;
-        }
-
-        RequestTraceEntry(Addr _val){
-            resetValues();
-            addrVal = _val;
-            type = ADDR_TRACE;
-        }
-
-        RequestTraceEntry(int _val){
-            resetValues();
-            intVal = _val;
-            type = INT_TRACE;
-        }
-
-        RequestTraceEntry(double _val){
-            resetValues();
-            doubleVal = _val;
-            type = DOUBLE_TRACE;
-        }
-
-        RequestTraceEntry(const char* _val){
-            resetValues();
-            strVal = (char*) _val;
-            type = STR_TRACE;
-        }
+        RequestTraceEntry(Tick _val, TRACE_ENTRY_TYPE _type = TICK_TRACE);
+        RequestTraceEntry(Addr _val);
+        RequestTraceEntry(int _val);
+        RequestTraceEntry(double _val);
+        RequestTraceEntry(const char* _val);
 };
 
 class RequestTrace{
