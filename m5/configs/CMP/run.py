@@ -966,7 +966,7 @@ if 'COMMIT-TRACE-INSTRUCTION-FILE' in env:
     except:
         assert False, "Commit trace instruction file parse error in file "+env['COMMIT-TRACE-INSTRUCTION-FILE']
     ifinsts.sort()
-    r.commit_trace_instructions = ifinsts
+    root.detailedCPU[0].commit_trace_instructions = ifinsts
 else:
     for r in root.detailedCPU:
         r.commit_trace_instructions = []

@@ -378,7 +378,7 @@ FullCPU::FullCPU(Params *p,
 		 int _quitOnCPUID,
 		 MemoryOverlapEstimator* _overlapEst,
 		 int _commitTraceFrequency,
-		 vector<int> _commitTraceInstructions,
+		 vector<Tick> _commitTraceInstructions,
 		 Tick _restartProcessAt)
     : BaseCPU(p),
       ROB_size(_ROB_size),
@@ -1304,7 +1304,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(FullCPU)
     Param<int> quit_on_cpu_id;
     SimObjectParam<MemoryOverlapEstimator* > overlapEstimator;
     Param<int> commit_trace_frequency;
-    VectorParam<int> commit_trace_instructions;
+    VectorParam<Tick> commit_trace_instructions;
     Param<Tick> restart_process_at;
 
 END_DECLARE_SIM_OBJECT_PARAMS(FullCPU)

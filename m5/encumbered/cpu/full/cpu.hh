@@ -95,10 +95,10 @@ private:
 
 	int committedSinceLast;
 
-	int committedTraceCounter;
+	Tick committedTraceCounter;
 	int stallCycleTraceCounter;
 	Tick lastDumpTick;
-	int lastDumpCommit;
+	Tick lastDumpCommit;
 	bool commitTraceEnabled;
 	RequestTrace committedInstTrace;
 
@@ -300,7 +300,7 @@ public:
 			int _quitOnCPUID,
 			MemoryOverlapEstimator* _overlapEst,
 			int _commitTraceFrequency,
-			std::vector<int> _commitTraceInstructions,
+			std::vector<Tick> _commitTraceInstructions,
 			Tick _restartProcessAt
 	);
 
@@ -399,7 +399,7 @@ public:
 	CommitModelEnum commit_model;
 	bool prioritized_commit;
 	int commitTraceFrequency;
-	std::vector<int> commitTraceInstructions;
+	std::vector<Tick> commitTraceInstructions;
 	bool useInstsForCommitTrace;
 
 	//
