@@ -1118,9 +1118,9 @@ void
 FullCPU::updatePrivPerfEst(bool instSampling){
 	int thread = 0; //Multithreading is not supported (assertion in commit loop)
 
-	int curCommitCnt = (int) stat_com_inst[thread].value();
+	Tick curCommitCnt = (Tick) stat_com_inst[thread].value();
 	Tick ticksInSample = curTick - lastDumpTick;
-	int instsInSample = curCommitCnt - lastDumpCommit;
+	Tick instsInSample = curCommitCnt - lastDumpCommit;
 	double ipc = (double) instsInSample / (double) ticksInSample;
 
 	DPRINTF(MissBWPolicy, "Updating private performance estimates @ inst count %d, insts in sample %d, CCs in sample %d\n",
