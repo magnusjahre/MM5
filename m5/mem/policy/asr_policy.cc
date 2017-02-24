@@ -1,5 +1,6 @@
 
 #include "asr_policy.hh"
+#include <cstdlib>
 
 using namespace std;
 
@@ -18,7 +19,8 @@ ASRPolicy::ASRPolicy(std::string _name,
 					 EmptyROBStallTechnique _rst,
 					 double _maximumDamping,
 					 double _hybridDecisionError,
-					 int _hybridBufferSize)
+					 int _hybridBufferSize,
+					 int _epoch)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -35,11 +37,47 @@ ASRPolicy::ASRPolicy(std::string _name,
 			_hybridDecisionError,
 			_hybridBufferSize){
 
+	epoch = _epoch;
+	if(_period < epoch) fatal("ASR quantum (aka period) has to be larger than the epoch");
+
+	maxWays = 0;
+	curHighPriCPUID = 0;
+
+	epochEvent = new ASREpochEvent(this, epoch);
+	epochEvent->schedule(epoch);
+
+	srand(240000);
 }
 
 void
-ASRPolicy::init(){
-	fatal("init not implemented");
+ASRPolicy::changeHighPriProcess(){
+	int newHighPriCPUID = (rand() / (double) RAND_MAX) * cpuCount;
+	DPRINTF(ASRPolicy, "Changing high priority process from %d to %d\n", curHighPriCPUID, newHighPriCPUID);
+	curHighPriCPUID = newHighPriCPUID;
+
+	//intManager->setASRHighPriCPUID(newHighPriCPUID);
+}
+
+void
+ASRPolicy::initPolicy(){
+	if(cpuCount != 1){
+		disableCommitSampling();
+	}
+
+	assert(!sharedCaches.empty());
+	maxWays = sharedCaches[0]->getAssoc();
+
+	changeHighPriProcess();
+}
+
+void
+ASRPolicy::handleEpochEvent(){
+	DPRINTF(ASRPolicy, "Handling epoch event\n");
+	fatal("handleEpochEvent not implemented");
+
+	//TODO: Gather measurements
+
+	changeHighPriProcess();
 }
 
 void
@@ -70,6 +108,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASRPolicy)
 	Param<double> maximumDamping;
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
+	Param<int> epoch;
 END_DECLARE_SIM_OBJECT_PARAMS(ASRPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
@@ -86,7 +125,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
 	INIT_PARAM(emptyROBStallTechnique, "The technique to use to estimate private mode empty ROB stalls"),
 	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
-	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3)
+	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
+	INIT_PARAM(epoch, "The number of cycles in each epoch")
 END_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
 
 CREATE_SIM_OBJECT(ASRPolicy)
@@ -115,7 +155,8 @@ CREATE_SIM_OBJECT(ASRPolicy)
 									  rst,
 									  maximumDamping,
 									  hybridDecisionError,
-									  hybridBufferSize);
+									  hybridBufferSize,
+									  epoch);
 }
 
 REGISTER_SIM_OBJECT("ASRPolicy", ASRPolicy)

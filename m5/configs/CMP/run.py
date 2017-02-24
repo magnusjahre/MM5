@@ -456,6 +456,9 @@ def setUpASRPolicy():
     policy.interferenceManager = root.interferenceManager
     policy.cpuCount = int(env["NP"])
     
+    assert optionName+"EPOCH" in env
+    policy.epoch = int(env[optionName+"EPOCH"])
+    
     #TODO: Change to ASR
     policy.performanceEstimationMethod = "cpl" 
     

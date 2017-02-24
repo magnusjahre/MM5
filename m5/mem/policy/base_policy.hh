@@ -333,7 +333,7 @@ public:
 
 	virtual bool doEvaluation(int cpuID) = 0;
 
-	virtual void init();
+	virtual void initPolicy();
 };
 
 class MissBandwidthPolicyEvent : public Event{
@@ -413,7 +413,7 @@ public:
 	}
 
 	void process(){
-		policy->init();
+		policy->initPolicy();
 		assert(!scheduled());
 		delete this;
 	}

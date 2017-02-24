@@ -3,5 +3,5 @@ from BasePolicy import BasePolicy
 
 class ASRPolicy(BasePolicy):    
     type = 'ASRPolicy'
-    #maxSteps = Param.Int("Maximum number of changes from current allocation")
-
+    epoch = Param.Int("Number of cycles in each epoch")
+    

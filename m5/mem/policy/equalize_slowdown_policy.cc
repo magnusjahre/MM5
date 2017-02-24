@@ -82,7 +82,7 @@ EqualizeSlowdownPolicy::EqualizeSlowdownPolicy(std::string _name,
 }
 
 void
-EqualizeSlowdownPolicy::init(){
+EqualizeSlowdownPolicy::initPolicy(){
 	if(cpuCount != 1){
 		disableCommitSampling();
 	}

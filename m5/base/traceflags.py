@@ -168,7 +168,8 @@ baseFlags = [
     'ITCACache',
     'PerformanceModelMeasurements',
     'Store',
-    'Restart'
+    'Restart',
+    'ASRPolicy'
     ]
 
 #

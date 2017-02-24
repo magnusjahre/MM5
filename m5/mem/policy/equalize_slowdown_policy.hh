@@ -104,7 +104,7 @@ public:
 						   std::string _gradientModel,
 						   int _lookaheadCap);
 
-	virtual void init();
+	virtual void initPolicy();
 
 	virtual void runPolicy(PerformanceMeasurement measurements);
 

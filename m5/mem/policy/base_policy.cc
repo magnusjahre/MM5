@@ -126,7 +126,7 @@ BasePolicy::~BasePolicy(){
 }
 
 void
-BasePolicy::init(){
+BasePolicy::initPolicy(){
 	// Empty base class init method
 }
 
