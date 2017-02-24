@@ -1006,6 +1006,13 @@ InterferenceManager::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 	overlapEstimators[0]->busWritebackCompleted(req, finishedAt);
 }
 
+void
+InterferenceManager::setASRHighPriCPUID(int newHighPriCPUID){
+	for(int i=0;i<memoryBuses.size();i++){
+		memoryBuses[i]->setASRHighPriCPUID(newHighPriCPUID);
+	}
+}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
 BEGIN_DECLARE_SIM_OBJECT_PARAMS(InterferenceManager)

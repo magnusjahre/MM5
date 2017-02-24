@@ -55,7 +55,7 @@ ASRPolicy::changeHighPriProcess(){
 	DPRINTF(ASRPolicy, "Changing high priority process from %d to %d\n", curHighPriCPUID, newHighPriCPUID);
 	curHighPriCPUID = newHighPriCPUID;
 
-	//intManager->setASRHighPriCPUID(newHighPriCPUID);
+	intManager->setASRHighPriCPUID(newHighPriCPUID);
 }
 
 void

@@ -43,6 +43,8 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     starvationPreventionThreshold = -1; //FIXME: parameterize
     numReqsPastOldest = 0;
 
+    highPriCPUID = -1;
+
     if(_priority_scheme == FCFS){
         equalReadWritePri = true;
     }
@@ -756,6 +758,12 @@ RDFCFSTimingMemoryController::computeInterference(MemReqPtr& req, Tick busOccupi
     pageResultTraces[req->adaptiveMHASenderID].addTrace(vals);
 
 #endif
+}
+
+void
+RDFCFSTimingMemoryController::setASRHighPriCPUID(int cpuID){
+	DPRINTF(ASRPolicy, "Setting CPU %d as the high priority thread, was %d\n", cpuID, highPriCPUID);
+	highPriCPUID = cpuID;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

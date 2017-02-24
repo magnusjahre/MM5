@@ -300,6 +300,8 @@ public:
 	PerformanceModelMeasurements buildModelMeasurements(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols);
 
 	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
+
+	void setASRHighPriCPUID(int newHighPriCPUID);
 };
 
 #endif

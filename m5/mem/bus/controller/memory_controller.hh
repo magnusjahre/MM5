@@ -189,6 +189,10 @@ class TimingMemoryController : public SimObject
     void addBusQueueInterference(Tick interference, MemReqPtr& req);
     void addBusServiceInterference(Tick interference, MemReqPtr& req);
 
+    virtual void setASRHighPriCPUID(int cpuID){
+
+    }
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__
