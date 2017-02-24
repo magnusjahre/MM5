@@ -674,6 +674,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 
 					if(!isShared){
 						setSenderID(writebacks.front());
+						writebacks.front()->nfqWBID = cacheCpuID;
 					}
 					else{
 
@@ -690,7 +691,7 @@ Cache<TagStore,Buffering,Coherence>::handleResponse(MemReqPtr &req)
 							break;
 						default:
 							writebacks.front()->adaptiveMHASenderID = -1;
-							writebacks.front()->nfqWBID = -1;
+							writebacks.front()->nfqWBID = blk->prevOrigRequestingCpuID;
 							break;
 						}
 

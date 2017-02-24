@@ -153,12 +153,12 @@ int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
     }
 
-    DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d, cmd %s, page %d\n",
+    DPRINTF(MemoryController, "Inserting new request, cmd %s addr %d bank %d, page %d, CPUID %d\n",
     		req->cmd,
     		req->paddr,
     		getMemoryBankID(req->paddr),
-    		req->cmd.toString(),
-    		getPage(req));
+    		getPage(req),
+			(req->cmd == Writeback ? req->nfqWBID : req->adaptiveMHASenderID));
 
     vector<int> waitingReads;
     vector<int> waitingWrites;
@@ -670,6 +670,26 @@ RDFCFSTimingMemoryController::closePageForRequest(MemReqPtr& choosenReq, MemReqP
     return true;
 }
 
+int
+RDFCFSTimingMemoryController::countRequests(int cpuID, std::list<MemReqPtr>* queue){
+	int cnt = 0;
+	list<MemReqPtr>::iterator iter =  queue->begin();
+	while(iter != queue->end()){
+		MemReqPtr req = *iter;
+		assert(req->cmd == Read || req->cmd == Writeback);
+		if(req->cmd == Read){
+			assert(req->adaptiveMHASenderID != -1);
+			if(req->adaptiveMHASenderID == cpuID) cnt++;
+		}
+		else if(req->cmd == Writeback){
+			assert(req->nfqWBID != -1);
+			if(req->nfqWBID == cpuID) cnt++;
+		}
+		iter++;
+	}
+	return cnt;
+}
+
 list<MemReqPtr>
 RDFCFSTimingMemoryController::mergeQueues(){
     list<MemReqPtr> retlist;
@@ -713,7 +733,62 @@ RDFCFSTimingMemoryController::mergeQueues(){
         prevTick = tmpreq->inserted_into_memory_controller;
     }
 
+    if(highPriCPUID != -1){
+    	int highPriReadCnt = countRequests(highPriCPUID, &readQueue);
+    	int highPriWriteCnt = countRequests(highPriCPUID, &writeQueue);
+    	DPRINTF(MemoryController, "High priority CPU %d has %d pending reads and %d pending writes\n",
+    			highPriCPUID,
+				highPriReadCnt,
+				highPriWriteCnt);
+
+    	if(highPriReadCnt + highPriWriteCnt == 0){
+    		DPRINTF(MemoryController, "High priority CPU %d has no pending requests, returning unmodified merged queue\n", highPriCPUID);
+    		return retlist;
+    	}
+    	return filterQueue(retlist);
+    }
     return retlist;
+}
+
+std::list<MemReqPtr>
+RDFCFSTimingMemoryController::filterQueue(std::list<MemReqPtr> queue){
+
+	list<MemReqPtr> filteredList;
+	list<MemReqPtr>::iterator filterIter = queue.begin();
+
+	for( ; filterIter != queue.end() ; filterIter++){
+		MemReqPtr candReq = *filterIter;
+		bool add = false;
+		if(candReq->cmd == Read){
+			assert(candReq->adaptiveMHASenderID != -1);
+			if(candReq->adaptiveMHASenderID == highPriCPUID){
+				add = true;
+			}
+		}
+		if(candReq->cmd == Writeback){
+			assert(candReq->nfqWBID != -1);
+			if(candReq->nfqWBID == highPriCPUID){
+				add = true;
+			}
+		}
+
+		if(add){
+			DPRINTF(MemoryController, "Adding high priority CPU %d request addr %d, cmd %s to filtered list (queued at %d)\n",
+					highPriCPUID,
+					candReq->paddr,
+					candReq->cmd,
+					candReq->inserted_into_memory_controller);
+			filteredList.push_back(candReq);
+		}
+		else{
+			DPRINTF(MemoryController, "Skipping request from CPU %d, addr %d, cmd %s (queued at %d)\n",
+					(candReq->cmd == Read ? candReq->adaptiveMHASenderID : candReq->nfqWBID),
+					candReq->paddr,
+					candReq->cmd,
+					candReq->inserted_into_memory_controller);
+		}
+	}
+	return filteredList;
 }
 
 list<MemReqPtr>

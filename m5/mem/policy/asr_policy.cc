@@ -43,8 +43,10 @@ ASRPolicy::ASRPolicy(std::string _name,
 	maxWays = 0;
 	curHighPriCPUID = 0;
 
-	epochEvent = new ASREpochEvent(this, epoch);
-	epochEvent->schedule(epoch);
+	if(_cpuCount > 1){
+		epochEvent = new ASREpochEvent(this, epoch);
+		epochEvent->schedule(epoch);
+	}
 
 	srand(240000);
 }
@@ -67,13 +69,14 @@ ASRPolicy::initPolicy(){
 	assert(!sharedCaches.empty());
 	maxWays = sharedCaches[0]->getAssoc();
 
-	changeHighPriProcess();
+	if(cpuCount > 1){
+		changeHighPriProcess();
+	}
 }
 
 void
 ASRPolicy::handleEpochEvent(){
 	DPRINTF(ASRPolicy, "Handling epoch event\n");
-	fatal("handleEpochEvent not implemented");
 
 	//TODO: Gather measurements
 
