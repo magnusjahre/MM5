@@ -46,6 +46,9 @@ ASRPolicy::ASRPolicy(std::string _name,
 	if(_cpuCount > 1){
 		epochEvent = new ASREpochEvent(this, epoch);
 		epochEvent->schedule(epoch);
+
+		epochMeasurements = vector<ASREpochMeasurements>(_cpuCount, ASREpochMeasurements());
+		for(int i=0;i<epochMeasurements.size();i++) epochMeasurements[i].highPriCPU = i;
 	}
 
 	srand(240000);
@@ -76,9 +79,11 @@ ASRPolicy::initPolicy(){
 
 void
 ASRPolicy::handleEpochEvent(){
-	DPRINTF(ASRPolicy, "Handling epoch event\n");
+	DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
+	epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
 
-	//TODO: Gather measurements
+	DPRINTF(ASRPolicy, "Resetting epoch measurements\n");
+	intManager->asrEpocMeasurements.reset();
 
 	changeHighPriProcess();
 }

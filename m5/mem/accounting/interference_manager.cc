@@ -1008,9 +1008,38 @@ InterferenceManager::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 
 void
 InterferenceManager::setASRHighPriCPUID(int newHighPriCPUID){
+	asrEpocMeasurements.highPriCPU = newHighPriCPUID;
 	for(int i=0;i<memoryBuses.size();i++){
 		memoryBuses[i]->setASRHighPriCPUID(newHighPriCPUID);
 	}
+}
+
+char* ASREpochMeasurements::ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS] = {
+		(char*) "epoch hits",
+		(char*) "epoch misses",
+		(char*) "epoch hit time",
+		(char*) "epoch miss time",
+		(char*) "epoch ATD hit",
+		(char*) "epoch ATD miss"
+};
+
+void
+ASREpochMeasurements::addValue(ASR_COUNTER_TYPE type, int value){
+	assert(highPriCPU != 1);
+	data[type] += value;
+	DPRINTF(ASRPolicy, "CPU %d: Added %d items of type %s, item count is now %d\n", highPriCPU, value, ASR_COUNTER_NAMES[type], data[type]);
+}
+
+void
+ASREpochMeasurements::addValueVector(std::vector<Tick> valVec){
+	assert(valVec.size() == data.size());
+	for(int i=0;i<valVec.size();i++){
+		data[i] += valVec[i];
+		DPRINTF(ASRPolicy, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n", highPriCPU, valVec[i], ASR_COUNTER_NAMES[i], data[i]);
+	}
+	epochCount++;
+	DPRINTF(ASRPolicy, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
+
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

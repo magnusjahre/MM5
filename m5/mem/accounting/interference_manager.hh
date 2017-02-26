@@ -64,6 +64,39 @@ public:
 	}
 };
 
+class ASREpochMeasurements{
+public:
+	enum ASR_COUNTER_TYPE{
+		EPOCH_HIT,
+		EPOCH_MISS,
+		EPOCH_HIT_TIME,
+		EPOCH_MISS_TIME,
+		EPOCH_ATD_HIT,
+		EPOCH_ATD_MISS,
+		NUM_EPOCH_COUNTERS
+	};
+
+	static char* ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS];
+
+	int highPriCPU;
+	int epochCount;
+	std::vector<Tick> data;
+
+	ASREpochMeasurements(){
+		reset();
+		epochCount = 0;
+	}
+
+	void reset(){
+		highPriCPU = -1;
+		data = std::vector<Tick>(NUM_EPOCH_COUNTERS, 0);
+	}
+
+	void addValue(ASR_COUNTER_TYPE type, int value);
+
+	void addValueVector(std::vector<Tick> valVec);
+};
+
 class InterferenceManager : public SimObject{
 
 private:
@@ -160,6 +193,8 @@ private:
 	std::vector<PerformanceModel* > performanceModels;
 
 public:
+
+	ASREpochMeasurements asrEpocMeasurements;
 
 	CacheInterference* cacheInterference;
 

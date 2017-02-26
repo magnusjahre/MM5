@@ -20,6 +20,8 @@ private:
 	int curHighPriCPUID;
 	ASREpochEvent* epochEvent;
 
+	vector<ASREpochMeasurements> epochMeasurements;
+
 	void changeHighPriProcess();
 
 public:
