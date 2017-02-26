@@ -36,6 +36,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 	requestsSinceLastSample.resize(_cpu_count, 0);
 	maxMSHRs = 0;
 
+	asrEpocMeasurements = ASREpochMeasurements(_cpu_count);
+
 	sharedLatencyAccumulator.resize(_cpu_count, 0);
 	interferenceAccumulator.resize(_cpu_count, 0);
 	sharedLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
@@ -1024,10 +1026,22 @@ char* ASREpochMeasurements::ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS] = {
 };
 
 void
-ASREpochMeasurements::addValue(ASR_COUNTER_TYPE type, int value){
-	assert(highPriCPU != 1);
-	data[type] += value;
-	DPRINTF(ASRPolicy, "CPU %d: Added %d items of type %s, item count is now %d\n", highPriCPU, value, ASR_COUNTER_NAMES[type], data[type]);
+ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
+	assert(highPriCPU != -1);
+	assert(cpuID >= 0);
+	if(cpuID == highPriCPU){
+		data[type] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d items of type %s, item count is now %d\n", highPriCPU, value, ASR_COUNTER_NAMES[type], data[type]);
+	}
+
+	if(type == EPOCH_ATD_HIT){
+		cpuATDHits[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d ATD hit items, item count is now %d\n", cpuID, value, cpuATDHits[cpuID]);
+	}
+	if(type == EPOCH_ATD_MISS){
+		cpuATDMisses[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d ATD miss items, item count is now %d\n", cpuID, value, cpuATDMisses[cpuID]);
+	}
 }
 
 void

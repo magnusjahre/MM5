@@ -47,7 +47,7 @@ ASRPolicy::ASRPolicy(std::string _name,
 		epochEvent = new ASREpochEvent(this, epoch);
 		epochEvent->schedule(epoch);
 
-		epochMeasurements = vector<ASREpochMeasurements>(_cpuCount, ASREpochMeasurements());
+		epochMeasurements = vector<ASREpochMeasurements>(_cpuCount, ASREpochMeasurements(_cpuCount));
 		for(int i=0;i<epochMeasurements.size();i++) epochMeasurements[i].highPriCPU = i;
 	}
 
@@ -83,13 +83,14 @@ ASRPolicy::handleEpochEvent(){
 	epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
 
 	DPRINTF(ASRPolicy, "Resetting epoch measurements\n");
-	intManager->asrEpocMeasurements.reset();
+	intManager->asrEpocMeasurements.epochReset();
 
 	changeHighPriProcess();
 }
 
 void
 ASRPolicy::runPolicy(PerformanceMeasurement measurements){
+	intManager->asrEpocMeasurements.quantumReset();
 	fatal("runPolicy not implemented");
 }
 

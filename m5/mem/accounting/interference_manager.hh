@@ -80,19 +80,36 @@ public:
 
 	int highPriCPU;
 	int epochCount;
+	int cpuCount;
 	std::vector<Tick> data;
+	std::vector<int> cpuATDHits;
+	std::vector<int> cpuATDMisses;
+
 
 	ASREpochMeasurements(){
-		reset();
+		highPriCPU = -1;
 		epochCount = 0;
+		cpuCount = -1;
 	}
 
-	void reset(){
+	ASREpochMeasurements(int _cpuCount){
+		epochCount = 0;
+		cpuCount = _cpuCount;
+		quantumReset();
+	}
+
+	void epochReset(){
 		highPriCPU = -1;
 		data = std::vector<Tick>(NUM_EPOCH_COUNTERS, 0);
 	}
 
-	void addValue(ASR_COUNTER_TYPE type, int value);
+	void quantumReset(){
+		epochReset();
+		cpuATDHits = std::vector<int>(cpuCount, 0);
+		cpuATDMisses = std::vector<int>(cpuCount, 0);
+	}
+
+	void addValue(int cpuID, ASR_COUNTER_TYPE type, int value = 1);
 
 	void addValueVector(std::vector<Tick> valVec);
 };

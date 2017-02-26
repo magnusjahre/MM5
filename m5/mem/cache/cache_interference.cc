@@ -254,6 +254,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				if(req->cmd == Read) commitTracePrivateMisses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
 			}
 			estimatedShadowMisses[req->adaptiveMHASenderID] += estConstAccesses;
+
+			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_MISS);
 		}
 		else{ // shadow hit
 			if(isCacheMiss && curTick >= detailedSimStart){
@@ -266,6 +268,8 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 				privateInterferenceEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 			}
 			privateHitEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
+
+			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_HIT);
 		}
 
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);
