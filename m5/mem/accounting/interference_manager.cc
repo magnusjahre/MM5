@@ -1045,14 +1045,75 @@ ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
 }
 
 void
+ASREpochMeasurements::finalizeEpoch(){
+	DPRINTF(ASRPolicy, "Finalizing the epoch for high priority CPU %d\n", highPriCPU);
+	if(outstandingHitCnt[highPriCPU] > 0){
+		addValue(highPriCPU, EPOCH_HIT_TIME, curTick - firstHitAt[highPriCPU]);
+	}
+	if(outstandingMissCnt[highPriCPU] > 0){
+		addValue(highPriCPU, EPOCH_MISS_TIME, curTick - firstMissAt[highPriCPU]);
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		firstHitAt[i] = curTick;
+		firstMissAt[i] = curTick;
+	}
+}
+
+void
 ASREpochMeasurements::addValueVector(std::vector<Tick> valVec){
 	assert(valVec.size() == data.size());
+
 	for(int i=0;i<valVec.size();i++){
 		data[i] += valVec[i];
 		DPRINTF(ASRPolicy, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n", highPriCPU, valVec[i], ASR_COUNTER_NAMES[i], data[i]);
 	}
 	epochCount++;
 	DPRINTF(ASRPolicy, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
+
+}
+
+void
+ASREpochMeasurements::llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type){
+	assert(cpuID >= 0);
+
+	if(issued){
+		if(type == EPOCH_HIT_TIME){
+			if(outstandingHitCnt[cpuID] == 0) firstHitAt[cpuID] = curTick;
+			outstandingHitCnt[cpuID]++;
+		}
+		else if(type == EPOCH_MISS_TIME){
+			if(outstandingMissCnt[cpuID] == 0) firstMissAt[cpuID] = curTick;
+			outstandingMissCnt[cpuID]++;
+		}
+		else{
+			fatal("Unknown issue type in ASR llcEvent");
+		}
+	}
+	else{
+		if(type == EPOCH_HIT_TIME){
+			outstandingHitCnt[cpuID]--;
+			if(outstandingHitCnt[cpuID] == 0) addValue(cpuID, type, curTick - firstHitAt[cpuID]);
+		}
+		else if(type == EPOCH_MISS_TIME){
+			outstandingMissCnt[cpuID]--;
+			if(outstandingMissCnt[cpuID] == 0) addValue(cpuID, type, curTick - firstMissAt[cpuID]);
+		}
+		else{
+			fatal("Unknown completion type in ASR llcEvent");
+		}
+	}
+
+	DPRINTF(ASRPolicy, "CPU %d: %s of type %s, outstanding requests are now %d\n",
+			cpuID,
+			(issued ? "issued LLC event" : "completed LLC event"),
+			ASR_COUNTER_NAMES[type],
+			(type == EPOCH_HIT_TIME ? outstandingHitCnt[cpuID] : outstandingMissCnt[cpuID]));
+
+	assert(outstandingMissCnt[cpuID] >= 0);
+	assert(outstandingHitCnt[cpuID] >= 0);
+	assert(firstHitAt[cpuID] <= curTick);
+	assert(firstMissAt[cpuID] <= curTick);
 
 }
 

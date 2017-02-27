@@ -80,6 +80,7 @@ ASRPolicy::initPolicy(){
 void
 ASRPolicy::handleEpochEvent(){
 	DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
+	intManager->asrEpocMeasurements.finalizeEpoch();
 	epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
 
 	DPRINTF(ASRPolicy, "Resetting epoch measurements\n");

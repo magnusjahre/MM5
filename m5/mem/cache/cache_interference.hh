@@ -306,4 +306,23 @@ public:
     bool addRequestToHitCounters(MemReqPtr &req);
 };
 
+class ASRLLCHitCompletionEvent : public Event{
+private:
+	int cpuID;
+	InterferenceManager* im;
+
+public:
+	ASRLLCHitCompletionEvent(int _cpuID, InterferenceManager* _im):
+	Event(&mainEventQueue), cpuID(_cpuID), im(_im){
+
+	}
+
+	void process();
+
+	virtual const char *description() {
+		return "ASR LLC Hit Completion Event";
+	}
+
+};
+
 #endif /* CACHE_INTERFERENCE_HH_ */

@@ -216,8 +216,16 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	DPRINTF(CachePartitioning, "Access for request address %d from CPU %d, command %s\n", req->paddr, req->adaptiveMHASenderID, req->cmd.toString());
 
-	if(isCacheMiss) interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_MISS);
-	else interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_HIT);
+	if(isCacheMiss){
+		interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_MISS);
+		interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_MISS_TIME);
+	}
+	else{
+		interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_HIT);
+		interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_HIT_TIME);
+		ASRLLCHitCompletionEvent* hitCompEvent = new ASRLLCHitCompletionEvent(req->adaptiveMHASenderID, interferenceManager);
+		hitCompEvent->schedule(curTick + cache->getHitLatency());
+	}
 
 	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 	int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
@@ -550,6 +558,8 @@ CacheInterference::handleResponse(MemReqPtr& req, MemReqList writebacks, BaseCac
 	assert(req->adaptiveMHASenderID != -1);
 	assert(req->cmd == Read);
 
+	interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, false, ASREpochMeasurements::EPOCH_MISS_TIME);
+
 	if(curTick >= cache->detailedSimulationStartTick){
 		sampleSharedResponses[req->adaptiveMHASenderID].increment(req);
 		sharedResponsesSinceLastPrivWriteback[req->adaptiveMHASenderID]++;
@@ -850,6 +860,12 @@ CacheInterference::unserialize(Checkpoint *cp, const std::string &section){
 	for(int i=0;i<cpuCount;i++){
 		shadowTags[i]->unserialize(cp, section, filenames[i]);
 	}
+}
+
+void
+ASRLLCHitCompletionEvent::process() {
+	im->asrEpocMeasurements.llcEvent(cpuID, false, ASREpochMeasurements::EPOCH_HIT_TIME);
+	delete this;
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

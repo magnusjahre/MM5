@@ -85,6 +85,10 @@ public:
 	std::vector<int> cpuATDHits;
 	std::vector<int> cpuATDMisses;
 
+	std::vector<int> outstandingMissCnt;
+	std::vector<Tick> firstMissAt;
+	std::vector<int> outstandingHitCnt;
+	std::vector<Tick> firstHitAt;
 
 	ASREpochMeasurements(){
 		highPriCPU = -1;
@@ -95,8 +99,15 @@ public:
 	ASREpochMeasurements(int _cpuCount){
 		epochCount = 0;
 		cpuCount = _cpuCount;
+		outstandingMissCnt = std::vector<int>(_cpuCount, 0);
+		outstandingHitCnt = std::vector<int>(_cpuCount, 0);
+		firstMissAt = std::vector<Tick>(_cpuCount, 0);
+		firstHitAt  = std::vector<Tick>(_cpuCount, 0);
+
 		quantumReset();
 	}
+
+	void finalizeEpoch();
 
 	void epochReset(){
 		highPriCPU = -1;
@@ -112,6 +123,8 @@ public:
 	void addValue(int cpuID, ASR_COUNTER_TYPE type, int value = 1);
 
 	void addValueVector(std::vector<Tick> valVec);
+
+	void llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type);
 };
 
 class InterferenceManager : public SimObject{
