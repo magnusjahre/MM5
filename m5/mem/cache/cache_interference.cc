@@ -216,8 +216,10 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	DPRINTF(CachePartitioning, "Access for request address %d from CPU %d, command %s\n", req->paddr, req->adaptiveMHASenderID, req->cmd.toString());
 
-	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
+	if(isCacheMiss) interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_MISS);
+	else interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_HIT);
 
+	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
 	int shadowSet = shadowTags[req->adaptiveMHASenderID]->extractSet(req->paddr);
 	shadowLeaderSet = isLeaderSet(shadowSet);
 
