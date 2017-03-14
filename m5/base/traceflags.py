@@ -169,7 +169,8 @@ baseFlags = [
     'PerformanceModelMeasurements',
     'Store',
     'Restart',
-    'ASRPolicy'
+    'ASRPolicy',
+    'ASRPolicyProgress'
     ]
 
 #

@@ -292,6 +292,7 @@ public:
 	void addTraceEntry(PerformanceMeasurement* measurement);
 
 	virtual void runPolicy(PerformanceMeasurement measurements) = 0;
+	virtual void prepareEstimates(){ }
 
 	void doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements modelMeasurements);
 

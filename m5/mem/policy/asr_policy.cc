@@ -79,20 +79,37 @@ ASRPolicy::initPolicy(){
 
 void
 ASRPolicy::handleEpochEvent(){
-	DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
+	if(curTick % period != 0){
+		DPRINTF(ASRPolicyProgress, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
+		intManager->asrEpocMeasurements.finalizeEpoch();
+		epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
+
+		DPRINTF(ASRPolicyProgress, "Resetting epoch measurements\n");
+		intManager->asrEpocMeasurements.epochReset();
+
+		changeHighPriProcess();
+	}
+	else{
+		DPRINTF(ASRPolicyProgress, "Skipping epoch event handling due to policy event in the same cycle\n");
+	}
+}
+
+void
+ASRPolicy::prepareEstimates(){
+	DPRINTF(ASRPolicyProgress, "===== Handling policy event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 	intManager->asrEpocMeasurements.finalizeEpoch();
 	epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
 
-	DPRINTF(ASRPolicy, "Resetting epoch measurements\n");
-	intManager->asrEpocMeasurements.epochReset();
+	//TODO: Implement private mode performance estimation
 
+	DPRINTF(ASRPolicyProgress, "Resetting quantum and epoch measurements\n");
+	intManager->asrEpocMeasurements.quantumReset();
 	changeHighPriProcess();
 }
 
 void
 ASRPolicy::runPolicy(PerformanceMeasurement measurements){
-	intManager->asrEpocMeasurements.quantumReset();
-	fatal("runPolicy not implemented");
+	//TODO: Implement allocation policy
 }
 
 bool

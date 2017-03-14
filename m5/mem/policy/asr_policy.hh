@@ -49,6 +49,8 @@ public:
 	virtual bool doEvaluation(int cpuID);
 
 	void handleEpochEvent();
+
+	virtual void prepareEstimates();
 };
 
 class ASREpochEvent : public Event{

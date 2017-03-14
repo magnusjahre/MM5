@@ -208,6 +208,7 @@ void
 BasePolicy::handlePolicyEvent(){
 	DPRINTF(MissBWPolicy, "Handling policy event\n");
 	if(cpuCount > 1){
+		prepareEstimates();
 		PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
 		runPolicy(curMeasurement);
 	}
