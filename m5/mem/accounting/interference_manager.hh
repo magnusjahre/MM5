@@ -125,6 +125,7 @@ public:
 		cpuATDHits = std::vector<int>(cpuCount, 0);
 		cpuATDMisses = std::vector<int>(cpuCount, 0);
 		cpuSharedLLCAccesses = std::vector<int>(cpuCount, 0);
+		epochCount = 0;
 	}
 
 	void addValue(int cpuID, ASR_COUNTER_TYPE type, int value = 1);

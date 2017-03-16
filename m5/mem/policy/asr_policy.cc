@@ -80,17 +80,17 @@ ASRPolicy::initPolicy(){
 void
 ASRPolicy::handleEpochEvent(){
 	if(curTick % period != 0){
-		DPRINTF(ASRPolicyProgress, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
+		DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 		intManager->asrEpocMeasurements.finalizeEpoch();
 		epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
 
-		DPRINTF(ASRPolicyProgress, "Resetting epoch measurements\n");
+		DPRINTF(ASRPolicy, "Resetting epoch measurements\n");
 		intManager->asrEpocMeasurements.epochReset();
 
 		changeHighPriProcess();
 	}
 	else{
-		DPRINTF(ASRPolicyProgress, "Skipping epoch event handling due to policy event in the same cycle\n");
+		DPRINTF(ASRPolicy, "Skipping epoch event handling due to policy event in the same cycle\n");
 	}
 }
 
@@ -119,12 +119,17 @@ ASRPolicy::prepareEstimates(){
 				carShared);
 	}
 
+	int numEpochs = 0;
+	for(int i=0;i<cpuCount;i++){
+		numEpochs += epochMeasurements[i].epochCount;
+	}
+	assert(numEpochs*epoch == period);
+
+
 	DPRINTF(ASRPolicyProgress, "Resetting quantum and epoch measurements\n");
 	for(int i=0;i<cpuCount;i++) epochMeasurements[i].quantumReset();
 	intManager->asrEpocMeasurements.quantumReset();
 	changeHighPriProcess();
-
-	fatal("stop");
 }
 
 void

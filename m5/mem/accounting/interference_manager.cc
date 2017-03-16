@@ -1074,10 +1074,14 @@ ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
 
 	// Compute convenience values
 	double sharedLLCAccesses = data[EPOCH_HIT] + data[EPOCH_MISS];
+	double atdAccesses = cpuATDHits[cpuID] + cpuATDMisses[cpuID];
 	double totalCycles = epochCount * epochLength;
 
+	DPRINTF(ASRPolicyProgress, "CPU %d: %d shared LLC hits, %d shared LLC misses, %d ATD hits, %d ATD misses\n",
+				cpuID, data[EPOCH_HIT], data[EPOCH_MISS], cpuATDHits[cpuID], cpuATDMisses[cpuID]);
+
 	// Compute excessCycles
-	double pmHitFraction = safeDiv(cpuATDHits[cpuID], cpuATDMisses[cpuID]);
+	double pmHitFraction = safeDiv(cpuATDHits[cpuID], atdAccesses);
 	double pmHitEstimate = pmHitFraction * sharedLLCAccesses;
 
 	double contentionMisses = 0.0;
@@ -1099,7 +1103,7 @@ ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
 	double excessCycles = contentionMisses * (avgMissTime - avgHitTime);
 
 	// Compute queuing delay
-	double pmMissFraction = safeDiv(cpuATDMisses[cpuID], cpuATDHits[cpuID]);
+	double pmMissFraction = safeDiv(cpuATDMisses[cpuID], atdAccesses);
 	double pmMissEstimate = pmMissFraction * sharedLLCAccesses;
 	double avgQueuingDelay = safeDiv(data[EPOCH_QUEUEING_CYCLES], data[EPOCH_MISS]);
 	double queuingDelay = pmMissEstimate * avgQueuingDelay;
@@ -1156,20 +1160,20 @@ ASREpochMeasurements::addValues(ASREpochMeasurements* measurements){
 
 	for(int i=0;i<measurements->data.size();i++){
 		data[i] += measurements->data[i];
-		DPRINTF(ASRPolicyProgress, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n",
+		DPRINTF(ASRPolicy, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n",
 				highPriCPU,
 				measurements->data[i],
 				ASR_COUNTER_NAMES[i],
 				data[i]);
 	}
-	DPRINTF(ASRPolicyProgress, "CPU %d now has %d ATD hits %d ATD misses and %d LLC accesses\n",
+	DPRINTF(ASRPolicy, "CPU %d now has %d ATD hits %d ATD misses and %d LLC accesses\n",
 			highPriCPU,
 			measurements->cpuATDHits[highPriCPU],
 			measurements->cpuATDMisses[highPriCPU],
 			measurements->cpuSharedLLCAccesses[highPriCPU]);
 
 	epochCount++;
-	DPRINTF(ASRPolicyProgress, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
+	DPRINTF(ASRPolicy, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
 
 }
 
