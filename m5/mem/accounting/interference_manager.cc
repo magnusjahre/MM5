@@ -1042,6 +1042,79 @@ ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
 		cpuATDMisses[cpuID] += value;
 		DPRINTF(ASRPolicy, "CPU %d: Added %d ATD miss items, item count is now %d\n", cpuID, value, cpuATDMisses[cpuID]);
 	}
+	if(type == EPOCH_HIT || type == EPOCH_MISS){
+		cpuSharedLLCAccesses[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d LLC access items, item count is now %d\n", cpuID, value, cpuSharedLLCAccesses[cpuID]);
+	}
+}
+
+double
+ASREpochMeasurements::safeDiv(double numerator, double denominator){
+	if(numerator == 0.0 && denominator == 0.0) return 0.0;
+	if(denominator == 0.0){
+		assert(numerator >= 0.0);
+		return 1.0;
+	}
+	return numerator / denominator;
+}
+
+double
+ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
+
+	// Compute convenience values
+	double sharedLLCAccesses = data[EPOCH_HIT] + data[EPOCH_MISS];
+	double totalCycles = epochCount * epochLength;
+
+	// Compute excessCycles
+	double pmHitFraction = safeDiv(cpuATDHits[cpuID], cpuATDMisses[cpuID]);
+	double pmHitEstimate = pmHitFraction * sharedLLCAccesses;
+
+	double contentionMisses = 0.0;
+	if(pmHitEstimate > data[EPOCH_HIT]) contentionMisses = pmHitEstimate - data[EPOCH_HIT];
+
+	DPRINTF(ASRPolicyProgress, "CPU %d PM hit fraction %f, shared accesses %f and %d shared hits gives %f contention misses\n",
+			cpuID, pmHitFraction, sharedLLCAccesses, data[EPOCH_HIT], contentionMisses);
+	assert(pmHitFraction >= 0.0);
+	assert(contentionMisses >= 0.0);
+
+	double avgMissTime = safeDiv(data[EPOCH_MISS_TIME], data[EPOCH_MISS]);
+	double avgHitTime = safeDiv(data[EPOCH_HIT_TIME], data[EPOCH_HIT]);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d average hit time is %f and average miss time %f\n",
+			cpuID, avgHitTime, avgMissTime);
+	assert(avgMissTime >= 0.0);
+	assert(avgHitTime >= 0.0);
+
+	double excessCycles = contentionMisses * (avgMissTime - avgHitTime);
+
+	// Compute queuing delay
+	double queuingDelay = 0; //TODO
+
+	assert(totalCycles > excessCycles + queuingDelay);
+	double carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d CAR-alone is %f, LLC accesses %f, totalCycles %f, excessCycles %f, queueingDelay %f\n",
+								cpuID,
+								carAlone,
+								sharedLLCAccesses,
+								totalCycles,
+								excessCycles,
+								queuingDelay);
+
+	return carAlone;
+}
+
+double
+ASREpochMeasurements::computeCARShared(int cpuID, Tick period){
+	double carShared = (double) ((double) cpuSharedLLCAccesses[cpuID] / (double) period);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d CAR-shared is %f, LLC accesses %d, period length %d\n",
+			cpuID,
+			carShared,
+			cpuSharedLLCAccesses[cpuID],
+			period);
+
+	return carShared;
 }
 
 void
@@ -1061,15 +1134,25 @@ ASREpochMeasurements::finalizeEpoch(){
 }
 
 void
-ASREpochMeasurements::addValueVector(std::vector<Tick> valVec){
-	assert(valVec.size() == data.size());
+ASREpochMeasurements::addValues(ASREpochMeasurements* measurements){
+	assert(measurements->data.size() == data.size());
 
-	for(int i=0;i<valVec.size();i++){
-		data[i] += valVec[i];
-		DPRINTF(ASRPolicy, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n", highPriCPU, valVec[i], ASR_COUNTER_NAMES[i], data[i]);
+	for(int i=0;i<measurements->data.size();i++){
+		data[i] += measurements->data[i];
+		DPRINTF(ASRPolicyProgress, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n",
+				highPriCPU,
+				measurements->data[i],
+				ASR_COUNTER_NAMES[i],
+				data[i]);
 	}
+	DPRINTF(ASRPolicyProgress, "CPU %d now has %d ATD hits %d ATD misses and %d LLC accesses\n",
+			highPriCPU,
+			measurements->cpuATDHits[highPriCPU],
+			measurements->cpuATDMisses[highPriCPU],
+			measurements->cpuSharedLLCAccesses[highPriCPU]);
+
 	epochCount++;
-	DPRINTF(ASRPolicy, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
+	DPRINTF(ASRPolicyProgress, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
 
 }
 

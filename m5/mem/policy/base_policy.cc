@@ -114,6 +114,8 @@ BasePolicy::BasePolicy(string _name,
 
 	enableOccupancyTrace = false;
 
+	asrPrivateModeSpeedupEsts.resize(cpuCount, 0.0);
+
 	BasePolicyInitEvent* init = new BasePolicyInitEvent(this);
 	init->schedule(curTick);
 }

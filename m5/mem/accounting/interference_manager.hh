@@ -84,6 +84,7 @@ public:
 	std::vector<Tick> data;
 	std::vector<int> cpuATDHits;
 	std::vector<int> cpuATDMisses;
+	std::vector<int> cpuSharedLLCAccesses;
 
 	std::vector<int> outstandingMissCnt;
 	std::vector<Tick> firstMissAt;
@@ -118,13 +119,20 @@ public:
 		epochReset();
 		cpuATDHits = std::vector<int>(cpuCount, 0);
 		cpuATDMisses = std::vector<int>(cpuCount, 0);
+		cpuSharedLLCAccesses = std::vector<int>(cpuCount, 0);
 	}
 
 	void addValue(int cpuID, ASR_COUNTER_TYPE type, int value = 1);
 
-	void addValueVector(std::vector<Tick> valVec);
+	void addValues(ASREpochMeasurements* measurements);
 
 	void llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type);
+
+	double computeCARAlone(int cpuID, Tick epochLength);
+
+	double computeCARShared(int cpuID, Tick epochLength);
+
+	double safeDiv(double numerator, double denominator);
 };
 
 class InterferenceManager : public SimObject{

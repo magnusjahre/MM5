@@ -175,6 +175,8 @@ protected:
 	std::vector<std::vector<double> > mostRecentMWSEstimate;
 	std::vector<std::vector<double> > mostRecentMLPEstimate;
 
+	std::vector<double> asrPrivateModeSpeedupEsts;
+
 	PerformanceMeasurement* currentMeasurements;
 
 	int maxMSHRs;

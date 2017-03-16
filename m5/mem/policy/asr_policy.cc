@@ -82,7 +82,7 @@ ASRPolicy::handleEpochEvent(){
 	if(curTick % period != 0){
 		DPRINTF(ASRPolicyProgress, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 		intManager->asrEpocMeasurements.finalizeEpoch();
-		epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
+		epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
 
 		DPRINTF(ASRPolicyProgress, "Resetting epoch measurements\n");
 		intManager->asrEpocMeasurements.epochReset();
@@ -98,13 +98,33 @@ void
 ASRPolicy::prepareEstimates(){
 	DPRINTF(ASRPolicyProgress, "===== Handling policy event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 	intManager->asrEpocMeasurements.finalizeEpoch();
-	epochMeasurements[curHighPriCPUID].addValueVector(intManager->asrEpocMeasurements.data);
+	epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
+	for(int i=0;i<cpuCount;i++){
+		epochMeasurements[i].cpuATDHits = intManager->asrEpocMeasurements.cpuATDHits;
+		epochMeasurements[i].cpuATDMisses = intManager->asrEpocMeasurements.cpuATDMisses;
+		epochMeasurements[i].cpuSharedLLCAccesses = intManager->asrEpocMeasurements.cpuSharedLLCAccesses;
+	}
 
-	//TODO: Implement private mode performance estimation
+	for(int i=0;i<cpuCount;i++){
+		double carAlone = epochMeasurements[i].computeCARAlone(i, epoch);
+		double carShared = epochMeasurements[i].computeCARShared(i, period);
+
+		assert(carShared >= 0.0);
+		assert(carAlone >= carShared);
+		asrPrivateModeSpeedupEsts[i] = carAlone / carShared;
+		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
+				i,
+				asrPrivateModeSpeedupEsts[i],
+				carAlone,
+				carShared);
+	}
 
 	DPRINTF(ASRPolicyProgress, "Resetting quantum and epoch measurements\n");
+	for(int i=0;i<cpuCount;i++) epochMeasurements[i].quantumReset();
 	intManager->asrEpocMeasurements.quantumReset();
 	changeHighPriProcess();
+
+	fatal("stop");
 }
 
 void
