@@ -1022,7 +1022,8 @@ char* ASREpochMeasurements::ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS] = {
 		(char*) "epoch hit time",
 		(char*) "epoch miss time",
 		(char*) "epoch ATD hit",
-		(char*) "epoch ATD miss"
+		(char*) "epoch ATD miss",
+		(char*) "epoch queuing cycles",
 };
 
 void
@@ -1030,6 +1031,16 @@ ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
 	assert(highPriCPU != -1);
 	assert(cpuID >= 0);
 	if(cpuID == highPriCPU){
+
+		if(type == EPOCH_QUEUEING_CYCLES){
+			Tick maxQueueVal = curTick - epochStartAt;
+			if(value > maxQueueVal){
+				DPRINTF(ASRPolicy, "CPU %d: Queue cycle value %d is larger than epoch, reducing size to %d\n",
+						cpuID, value, maxQueueVal);
+				value = maxQueueVal;
+			}
+		}
+
 		data[type] += value;
 		DPRINTF(ASRPolicy, "CPU %d: Added %d items of type %s, item count is now %d\n", highPriCPU, value, ASR_COUNTER_NAMES[type], data[type]);
 	}
@@ -1088,7 +1099,13 @@ ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
 	double excessCycles = contentionMisses * (avgMissTime - avgHitTime);
 
 	// Compute queuing delay
-	double queuingDelay = 0; //TODO
+	double pmMissFraction = safeDiv(cpuATDMisses[cpuID], cpuATDHits[cpuID]);
+	double pmMissEstimate = pmMissFraction * sharedLLCAccesses;
+	double avgQueuingDelay = safeDiv(data[EPOCH_QUEUEING_CYCLES], data[EPOCH_MISS]);
+	double queuingDelay = pmMissEstimate * avgQueuingDelay;
+
+	DPRINTF(ASRPolicyProgress, "CPU %d queuing delay is %f from estimated PM misses %f and average queuing delay %f\n",
+			cpuID, queuingDelay, pmMissEstimate, avgQueuingDelay);
 
 	assert(totalCycles > excessCycles + queuingDelay);
 	double carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);

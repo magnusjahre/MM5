@@ -320,6 +320,13 @@ MemReqPtr RDFCFSTimingMemoryController::getRequest() {
     if((retval->cmd == Read || retval->cmd == Writeback) && !isShadow){
         assert(!isShadow);
 
+        if(retval->adaptiveMHASenderID == highPriCPUID && currentOccupyingCPUID != highPriCPUID && retval->cmd == Read){
+        	assert(curTick >= retval->inserted_into_memory_controller);
+        	bus->interferenceManager->asrEpocMeasurements.addValue(highPriCPUID,
+        			ASREpochMeasurements::EPOCH_QUEUEING_CYCLES,
+					curTick - retval->inserted_into_memory_controller);
+        }
+
         // store the ID of the CPU that used the bus prevoiusly and update current vals
         lastDeliveredReqAt = currentDeliveredReqAt;
         lastOccupyingCPUID = currentOccupyingCPUID;

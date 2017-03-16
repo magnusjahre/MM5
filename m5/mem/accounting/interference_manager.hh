@@ -73,6 +73,7 @@ public:
 		EPOCH_MISS_TIME,
 		EPOCH_ATD_HIT,
 		EPOCH_ATD_MISS,
+		EPOCH_QUEUEING_CYCLES,
 		NUM_EPOCH_COUNTERS
 	};
 
@@ -81,6 +82,8 @@ public:
 	int highPriCPU;
 	int epochCount;
 	int cpuCount;
+	Tick epochStartAt;
+
 	std::vector<Tick> data;
 	std::vector<int> cpuATDHits;
 	std::vector<int> cpuATDMisses;
@@ -95,6 +98,7 @@ public:
 		highPriCPU = -1;
 		epochCount = 0;
 		cpuCount = -1;
+		epochStartAt = 0;
 	}
 
 	ASREpochMeasurements(int _cpuCount){
@@ -112,6 +116,7 @@ public:
 
 	void epochReset(){
 		highPriCPU = -1;
+		epochStartAt = curTick;
 		data = std::vector<Tick>(NUM_EPOCH_COUNTERS, 0);
 	}
 
