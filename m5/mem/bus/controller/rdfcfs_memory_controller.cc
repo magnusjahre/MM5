@@ -285,7 +285,7 @@ MemReqPtr RDFCFSTimingMemoryController::getRequest() {
 
         readyFound = getReady(retval);
         if(readyFound){
-            DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d page %d\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr), getPage(retval));
+            DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d page %d cpu %d (%d)\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr), getPage(retval), retval->adaptiveMHASenderID, retval->nfqWBID);
             assert(!bankIsClosed(retval));
             assert(retval->cmd != InvalidCmd);
         }
@@ -331,7 +331,7 @@ MemReqPtr RDFCFSTimingMemoryController::getRequest() {
         lastDeliveredReqAt = currentDeliveredReqAt;
         lastOccupyingCPUID = currentOccupyingCPUID;
         currentDeliveredReqAt = curTick;
-        currentOccupyingCPUID = retval->adaptiveMHASenderID;
+        currentOccupyingCPUID = (retval->cmd == Read ? retval->adaptiveMHASenderID : retval->nfqWBID);
     }
 
     return retval;
