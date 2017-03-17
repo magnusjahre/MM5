@@ -64,7 +64,8 @@ public:
         PRIVATE_LATENCY_ONLY,
         SHARED_STALL,
         ZERO_STALL,
-		CONST_1
+		CONST_1,
+		ASR
     } PerformanceEstimationMethod;
 
     typedef enum{

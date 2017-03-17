@@ -459,8 +459,7 @@ def setUpASRPolicy():
     assert optionName+"EPOCH" in env
     policy.epoch = int(env[optionName+"EPOCH"])
     
-    #TODO: Change to ASR
-    policy.performanceEstimationMethod = "cpl" 
+    policy.performanceEstimationMethod = "ASR" 
     
     # The following parameter do not matter for ASR
     policy.writeStallTechnique = "ws-none"
