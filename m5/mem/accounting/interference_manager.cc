@@ -1111,8 +1111,10 @@ ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
 	DPRINTF(ASRPolicyProgress, "CPU %d queuing delay is %f from estimated PM misses %f and average queuing delay %f\n",
 			cpuID, queuingDelay, pmMissEstimate, avgQueuingDelay);
 
-	assert(totalCycles > excessCycles + queuingDelay);
-	double carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);
+	double carAlone = 0.0;
+	if(totalCycles > excessCycles + queuingDelay){
+		carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);
+	}
 
 	DPRINTF(ASRPolicyProgress, "CPU %d CAR-alone is %f, LLC accesses %f, totalCycles %f, excessCycles %f, queueingDelay %f\n",
 								cpuID,

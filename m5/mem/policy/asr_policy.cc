@@ -110,7 +110,8 @@ ASRPolicy::prepareEstimates(){
 		double carShared = epochMeasurements[i].computeCARShared(i, period);
 
 		assert(carShared >= 0.0);
-		asrPrivateModeSpeedupEsts[i] = carAlone / carShared;
+		if(carAlone == 0.0) asrPrivateModeSpeedupEsts[i] = 1.0;
+		else asrPrivateModeSpeedupEsts[i] = carAlone / carShared;
 		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
 				i,
 				asrPrivateModeSpeedupEsts[i],
