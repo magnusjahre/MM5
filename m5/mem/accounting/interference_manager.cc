@@ -1028,7 +1028,7 @@ char* ASREpochMeasurements::ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS] = {
 
 void
 ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
-	assert(highPriCPU != -1);
+	if(highPriCPU == -1) return; //Return if ASR is not enabled
 	assert(cpuID >= 0);
 	if(cpuID == highPriCPU){
 
