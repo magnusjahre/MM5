@@ -442,6 +442,32 @@ def setUpModThrotPolicy():
     
     return policy
 
+def setUpASRPolicy():
+    policy = ASRPolicy()
+    optionName = 'ASR-' 
+    if env[optionName+"POLICY"] == "off":
+        policy.enforcePolicy = False
+    else:
+        assert env[optionName+"POLICY"] ==  "on"
+        policy.enforcePolicy = True 
+
+    assert optionName+"PERIOD" in env
+    policy.period = int(env[optionName+"PERIOD"])        
+    policy.interferenceManager = root.interferenceManager
+    policy.cpuCount = int(env["NP"])
+    
+    assert optionName+"EPOCH" in env
+    policy.epoch = int(env[optionName+"EPOCH"])
+    
+    policy.performanceEstimationMethod = "ASR" 
+    
+    # The following parameter do not matter for ASR
+    policy.writeStallTechnique = "ws-none"
+    policy.privateBlockedStallTechnique = "pbs-none"
+    policy.emptyROBStallTechnique = "rst-none"
+    
+    return policy
+    
 def setUpEqualizeSlowdownPolicy():
     policy = EqualizeSlowdownPolicy()
     optionName = 'EQUAL-SD-' 
@@ -932,6 +958,10 @@ if 'MODEL-THROTLING-POLICY' in env:
 
 if 'EQUAL-SD-POLICY' in env:
     root.globalPolicy = setUpEqualizeSlowdownPolicy()
+    useMissBWPolicy = True
+    
+if 'ASR-POLICY' in env:
+    root.globalPolicy = setUpASRPolicy()
     useMissBWPolicy = True
 
 ###############################################################################

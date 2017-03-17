@@ -385,6 +385,8 @@ class Bus : public BaseHier
 
     PerformanceModelMeasurements updateModelMeasurements(PerformanceModelMeasurements measurements);
 
+    void setASRHighPriCPUID(int cpuID);
+
   private:
     std::vector<int> perCPUDataBusUse;
     std::vector<int> perCPUQueueCycles;

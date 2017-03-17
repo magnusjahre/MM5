@@ -1375,6 +1375,11 @@ Bus::setBandwidthQuotas(std::vector<double> quotas){
 	memoryController->setBandwidthQuotas(quotas);
 }
 
+void
+Bus::setASRHighPriCPUID(int cpuID){
+	memoryController->setASRHighPriCPUID(cpuID);
+}
+
 MemoryBusTraceData::MemoryBusTraceData(std::string _name, int _np){
 
 	np = _np;

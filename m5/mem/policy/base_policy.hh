@@ -64,7 +64,8 @@ public:
         PRIVATE_LATENCY_ONLY,
         SHARED_STALL,
         ZERO_STALL,
-		CONST_1
+		CONST_1,
+		ASR
     } PerformanceEstimationMethod;
 
     typedef enum{
@@ -174,6 +175,8 @@ protected:
 
 	std::vector<std::vector<double> > mostRecentMWSEstimate;
 	std::vector<std::vector<double> > mostRecentMLPEstimate;
+
+	std::vector<double> asrPrivateModeSpeedupEsts;
 
 	PerformanceMeasurement* currentMeasurements;
 
@@ -292,6 +295,7 @@ public:
 	void addTraceEntry(PerformanceMeasurement* measurement);
 
 	virtual void runPolicy(PerformanceMeasurement measurements) = 0;
+	virtual void prepareEstimates(){ }
 
 	void doPerformanceModelTrace(int cpuID, PerformanceModelMeasurements modelMeasurements);
 
@@ -333,7 +337,7 @@ public:
 
 	virtual bool doEvaluation(int cpuID) = 0;
 
-	virtual void init();
+	virtual void initPolicy();
 };
 
 class MissBandwidthPolicyEvent : public Event{
@@ -413,7 +417,7 @@ public:
 	}
 
 	void process(){
-		policy->init();
+		policy->initPolicy();
 		assert(!scheduled());
 		delete this;
 	}

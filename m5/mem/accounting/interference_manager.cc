@@ -36,6 +36,8 @@ InterferenceManager::InterferenceManager(std::string _name,
 	requestsSinceLastSample.resize(_cpu_count, 0);
 	maxMSHRs = 0;
 
+	asrEpocMeasurements = ASREpochMeasurements(_cpu_count);
+
 	sharedLatencyAccumulator.resize(_cpu_count, 0);
 	interferenceAccumulator.resize(_cpu_count, 0);
 	sharedLatencyBreakdownAccumulator.resize(_cpu_count, vector<double>(NUM_LAT_TYPES, 0));
@@ -1004,6 +1006,221 @@ void
 InterferenceManager::busWritebackCompleted(MemReqPtr& req, Tick finishedAt){
 	assert(cpuCount == 1);
 	overlapEstimators[0]->busWritebackCompleted(req, finishedAt);
+}
+
+void
+InterferenceManager::setASRHighPriCPUID(int newHighPriCPUID){
+	asrEpocMeasurements.highPriCPU = newHighPriCPUID;
+	for(int i=0;i<memoryBuses.size();i++){
+		memoryBuses[i]->setASRHighPriCPUID(newHighPriCPUID);
+	}
+}
+
+char* ASREpochMeasurements::ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS] = {
+		(char*) "epoch hits",
+		(char*) "epoch misses",
+		(char*) "epoch hit time",
+		(char*) "epoch miss time",
+		(char*) "epoch ATD hit",
+		(char*) "epoch ATD miss",
+		(char*) "epoch queuing cycles",
+};
+
+void
+ASREpochMeasurements::addValue(int cpuID, ASR_COUNTER_TYPE type, int value){
+	assert(highPriCPU != -1);
+	assert(cpuID >= 0);
+	if(cpuID == highPriCPU){
+
+		if(type == EPOCH_QUEUEING_CYCLES){
+			Tick maxQueueVal = curTick - epochStartAt;
+			if(value > maxQueueVal){
+				DPRINTF(ASRPolicy, "CPU %d: Queue cycle value %d is larger than epoch, reducing size to %d\n",
+						cpuID, value, maxQueueVal);
+				value = maxQueueVal;
+			}
+		}
+
+		data[type] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d items of type %s, item count is now %d\n", highPriCPU, value, ASR_COUNTER_NAMES[type], data[type]);
+	}
+
+	if(type == EPOCH_ATD_HIT){
+		cpuATDHits[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d ATD hit items, item count is now %d\n", cpuID, value, cpuATDHits[cpuID]);
+	}
+	if(type == EPOCH_ATD_MISS){
+		cpuATDMisses[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d ATD miss items, item count is now %d\n", cpuID, value, cpuATDMisses[cpuID]);
+	}
+	if(type == EPOCH_HIT || type == EPOCH_MISS){
+		cpuSharedLLCAccesses[cpuID] += value;
+		DPRINTF(ASRPolicy, "CPU %d: Added %d LLC access items, item count is now %d\n", cpuID, value, cpuSharedLLCAccesses[cpuID]);
+	}
+}
+
+double
+ASREpochMeasurements::safeDiv(double numerator, double denominator){
+	if(numerator == 0.0 && denominator == 0.0) return 0.0;
+	if(denominator == 0.0){
+		assert(numerator >= 0.0);
+		return 1.0;
+	}
+	return numerator / denominator;
+}
+
+double
+ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
+
+	// Compute convenience values
+	double sharedLLCAccesses = data[EPOCH_HIT] + data[EPOCH_MISS];
+	double atdAccesses = cpuATDHits[cpuID] + cpuATDMisses[cpuID];
+	double totalCycles = epochCount * epochLength;
+
+	DPRINTF(ASRPolicyProgress, "CPU %d: %d shared LLC hits, %d shared LLC misses, %d ATD hits, %d ATD misses\n",
+				cpuID, data[EPOCH_HIT], data[EPOCH_MISS], cpuATDHits[cpuID], cpuATDMisses[cpuID]);
+
+	// Compute excessCycles
+	double pmHitFraction = safeDiv(cpuATDHits[cpuID], atdAccesses);
+	double pmHitEstimate = pmHitFraction * sharedLLCAccesses;
+
+	double contentionMisses = 0.0;
+	if(pmHitEstimate > data[EPOCH_HIT]) contentionMisses = pmHitEstimate - data[EPOCH_HIT];
+
+	DPRINTF(ASRPolicyProgress, "CPU %d PM hit fraction %f, shared accesses %f and %d shared hits gives %f contention misses\n",
+			cpuID, pmHitFraction, sharedLLCAccesses, data[EPOCH_HIT], contentionMisses);
+	assert(pmHitFraction >= 0.0);
+	assert(contentionMisses >= 0.0);
+
+	double avgMissTime = safeDiv(data[EPOCH_MISS_TIME], data[EPOCH_MISS]);
+	double avgHitTime = safeDiv(data[EPOCH_HIT_TIME], data[EPOCH_HIT]);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d average hit time is %f and average miss time %f\n",
+			cpuID, avgHitTime, avgMissTime);
+	assert(avgMissTime >= 0.0);
+	assert(avgHitTime >= 0.0);
+
+	double excessCycles = contentionMisses * (avgMissTime - avgHitTime);
+
+	// Compute queuing delay
+	double pmMissFraction = safeDiv(cpuATDMisses[cpuID], atdAccesses);
+	double pmMissEstimate = pmMissFraction * sharedLLCAccesses;
+	double avgQueuingDelay = safeDiv(data[EPOCH_QUEUEING_CYCLES], data[EPOCH_MISS]);
+	double queuingDelay = pmMissEstimate * avgQueuingDelay;
+
+	DPRINTF(ASRPolicyProgress, "CPU %d queuing delay is %f from estimated PM misses %f and average queuing delay %f\n",
+			cpuID, queuingDelay, pmMissEstimate, avgQueuingDelay);
+
+	assert(totalCycles > excessCycles + queuingDelay);
+	double carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d CAR-alone is %f, LLC accesses %f, totalCycles %f, excessCycles %f, queueingDelay %f\n",
+								cpuID,
+								carAlone,
+								sharedLLCAccesses,
+								totalCycles,
+								excessCycles,
+								queuingDelay);
+
+	return carAlone;
+}
+
+double
+ASREpochMeasurements::computeCARShared(int cpuID, Tick period){
+	double carShared = (double) ((double) cpuSharedLLCAccesses[cpuID] / (double) period);
+
+	DPRINTF(ASRPolicyProgress, "CPU %d CAR-shared is %f, LLC accesses %d, period length %d\n",
+			cpuID,
+			carShared,
+			cpuSharedLLCAccesses[cpuID],
+			period);
+
+	return carShared;
+}
+
+void
+ASREpochMeasurements::finalizeEpoch(int epochCycles){
+	DPRINTF(ASRPolicy, "Finalizing the epoch for high priority CPU %d\n", highPriCPU);
+	if(outstandingHitCnt[highPriCPU] > 0){
+		addValue(highPriCPU, EPOCH_HIT_TIME, curTick - firstHitAt[highPriCPU]);
+	}
+	if(outstandingMissCnt[highPriCPU] > 0){
+		addValue(highPriCPU, EPOCH_MISS_TIME, curTick - firstMissAt[highPriCPU]);
+	}
+
+	for(int i=0;i<cpuCount;i++){
+		firstHitAt[i] = curTick;
+		firstMissAt[i] = curTick;
+	}
+
+	assert(data[EPOCH_MISS_TIME] <= epochCycles);
+}
+
+void
+ASREpochMeasurements::addValues(ASREpochMeasurements* measurements){
+	assert(measurements->data.size() == data.size());
+
+	for(int i=0;i<measurements->data.size();i++){
+		data[i] += measurements->data[i];
+		DPRINTF(ASRPolicy, "VectorAdd for CPU %d: Adding %d items of type %s, item count is now %d\n",
+				highPriCPU,
+				measurements->data[i],
+				ASR_COUNTER_NAMES[i],
+				data[i]);
+	}
+	DPRINTF(ASRPolicy, "CPU %d now has %d ATD hits %d ATD misses and %d LLC accesses\n",
+			highPriCPU,
+			measurements->cpuATDHits[highPriCPU],
+			measurements->cpuATDMisses[highPriCPU],
+			measurements->cpuSharedLLCAccesses[highPriCPU]);
+
+	epochCount++;
+	DPRINTF(ASRPolicy, "CPU %d has had high priority for %d epochs\n", highPriCPU, epochCount);
+
+}
+
+void
+ASREpochMeasurements::llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type){
+	assert(cpuID >= 0);
+
+	if(issued){
+		if(type == EPOCH_HIT_TIME){
+			if(outstandingHitCnt[cpuID] == 0) firstHitAt[cpuID] = curTick;
+			outstandingHitCnt[cpuID]++;
+		}
+		else if(type == EPOCH_MISS_TIME){
+			if(outstandingMissCnt[cpuID] == 0) firstMissAt[cpuID] = curTick;
+			outstandingMissCnt[cpuID]++;
+		}
+		else{
+			fatal("Unknown issue type in ASR llcEvent");
+		}
+	}
+	else{
+		if(type == EPOCH_HIT_TIME){
+			outstandingHitCnt[cpuID]--;
+			if(outstandingHitCnt[cpuID] == 0) addValue(cpuID, type, curTick - firstHitAt[cpuID]);
+		}
+		else if(type == EPOCH_MISS_TIME){
+			outstandingMissCnt[cpuID]--;
+			if(outstandingMissCnt[cpuID] == 0) addValue(cpuID, type, curTick - firstMissAt[cpuID]);
+		}
+		else{
+			fatal("Unknown completion type in ASR llcEvent");
+		}
+	}
+
+	DPRINTF(ASRPolicy, "CPU %d: %s of type %s, outstanding requests are now %d\n",
+			cpuID,
+			(issued ? "issued LLC event" : "completed LLC event"),
+			ASR_COUNTER_NAMES[type],
+			(type == EPOCH_HIT_TIME ? outstandingHitCnt[cpuID] : outstandingMissCnt[cpuID]));
+
+	assert(outstandingMissCnt[cpuID] >= 0);
+	assert(outstandingHitCnt[cpuID] >= 0);
+	assert(firstHitAt[cpuID] <= curTick);
+	assert(firstMissAt[cpuID] <= curTick);
+
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

@@ -114,6 +114,8 @@ BasePolicy::BasePolicy(string _name,
 
 	enableOccupancyTrace = false;
 
+	asrPrivateModeSpeedupEsts.resize(cpuCount, 0.0);
+
 	BasePolicyInitEvent* init = new BasePolicyInitEvent(this);
 	init->schedule(curTick);
 }
@@ -126,7 +128,7 @@ BasePolicy::~BasePolicy(){
 }
 
 void
-BasePolicy::init(){
+BasePolicy::initPolicy(){
 	// Empty base class init method
 }
 
@@ -208,6 +210,7 @@ void
 BasePolicy::handlePolicyEvent(){
 	DPRINTF(MissBWPolicy, "Handling policy event\n");
 	if(cpuCount > 1){
+		prepareEstimates();
 		PerformanceMeasurement curMeasurement = intManager->buildInterferenceMeasurement(period);
 		runPolicy(curMeasurement);
 	}
@@ -639,8 +642,8 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	    DPRINTF(MissBWPolicyExtra, "Returning Bois estimate of stall time, %d cycles\n", boisAloneStallEst);
 	    return boisAloneStallEst;
 	}
-	else if(perfEstMethod == ITCA){
-		//ITCA is handled directly in the trace since they do not partition the categories like we do
+	else if(perfEstMethod == ITCA || perfEstMethod == ASR){
+		//ITCA and ASR are handled directly in the trace since they do not partition the categories like we do
 		return 0.0;
 	}
 
@@ -1048,12 +1051,13 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 
 		double sharedIPC = (double) committedInsts / (double) cyclesInSample;
 		double aloneIPCEstimate = (double) committedInsts / (commitCycles + writeStallEstimate + memoryIndependentStallCycles + alonePrivBlockedStallEstimate + aloneROBStallEstimate + newStallEstimate);
+
+		Tick curStallCycles = stallCycles + privateStallCycles;
 		if(perfEstMethod == ITCA){
 			aloneIPCEstimate = (double) committedInsts / (double) ols.itcaAccountedCycles.accountedCycles;
 			assert(newStallEstimate == 0.0);
 			assert(cyclesInSample == ols.itcaAccountedCycles.accountedCycles + ols.itcaAccountedCycles.notAccountedCycles);
 
-			Tick curStallCycles = stallCycles + privateStallCycles;
 			if(curStallCycles > ols.itcaAccountedCycles.notAccountedCycles){
 				newStallEstimate = curStallCycles - ols.itcaAccountedCycles.notAccountedCycles;
 			}
@@ -1061,6 +1065,13 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 				newStallEstimate = 0.0;
 			}
 			assert(newStallEstimate >= 0.0);
+		}
+		else if(perfEstMethod == ASR){
+			assert(asrPrivateModeSpeedupEsts[cpuID] >= 0.0);
+			aloneIPCEstimate = asrPrivateModeSpeedupEsts[cpuID] * sharedIPC;
+			newStallEstimate = curStallCycles / asrPrivateModeSpeedupEsts[cpuID];
+			DPRINTF(MissBWPolicy, "CPU %d - Computed alone IPC estimate %f and stall estimate %f with speed-up %f\n",
+					cpuID, aloneIPCEstimate, newStallEstimate, asrPrivateModeSpeedupEsts[cpuID]);
 		}
 		else if(perfEstMethod == CONST_1){
 			aloneIPCEstimate = 1.0;
@@ -1273,6 +1284,7 @@ BasePolicy::parsePerformanceMethod(std::string methodName){
 	if(methodName == "shared-stall") return SHARED_STALL;
 	if(methodName == "zero-stall") return ZERO_STALL;
 	if(methodName == "const-1") return CONST_1;
+	if(methodName == "ASR") return ASR;
 
 	fatal("unknown performance estimation method");
 	return LATENCY_MLP;

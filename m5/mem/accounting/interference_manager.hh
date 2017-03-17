@@ -64,6 +64,83 @@ public:
 	}
 };
 
+class ASREpochMeasurements{
+public:
+	enum ASR_COUNTER_TYPE{
+		EPOCH_HIT,
+		EPOCH_MISS,
+		EPOCH_HIT_TIME,
+		EPOCH_MISS_TIME,
+		EPOCH_ATD_HIT,
+		EPOCH_ATD_MISS,
+		EPOCH_QUEUEING_CYCLES,
+		NUM_EPOCH_COUNTERS
+	};
+
+	static char* ASR_COUNTER_NAMES[NUM_EPOCH_COUNTERS];
+
+	int highPriCPU;
+	int epochCount;
+	int cpuCount;
+	Tick epochStartAt;
+
+	std::vector<Tick> data;
+	std::vector<int> cpuATDHits;
+	std::vector<int> cpuATDMisses;
+	std::vector<int> cpuSharedLLCAccesses;
+
+	std::vector<int> outstandingMissCnt;
+	std::vector<Tick> firstMissAt;
+	std::vector<int> outstandingHitCnt;
+	std::vector<Tick> firstHitAt;
+
+	ASREpochMeasurements(){
+		highPriCPU = -1;
+		epochCount = 0;
+		cpuCount = -1;
+		epochStartAt = 0;
+	}
+
+	ASREpochMeasurements(int _cpuCount){
+		epochCount = 0;
+		cpuCount = _cpuCount;
+		outstandingMissCnt = std::vector<int>(_cpuCount, 0);
+		outstandingHitCnt = std::vector<int>(_cpuCount, 0);
+		firstMissAt = std::vector<Tick>(_cpuCount, 0);
+		firstHitAt  = std::vector<Tick>(_cpuCount, 0);
+
+		quantumReset();
+	}
+
+	void finalizeEpoch(int epochCycles);
+
+	void epochReset(){
+		highPriCPU = -1;
+		epochStartAt = curTick;
+		data = std::vector<Tick>(NUM_EPOCH_COUNTERS, 0);
+	}
+
+	void quantumReset(){
+		epochReset();
+		cpuATDHits = std::vector<int>(cpuCount, 0);
+		cpuATDMisses = std::vector<int>(cpuCount, 0);
+		cpuSharedLLCAccesses = std::vector<int>(cpuCount, 0);
+		epochCount = 0;
+	}
+
+	void addValue(int cpuID, ASR_COUNTER_TYPE type, int value = 1);
+
+	void addValues(ASREpochMeasurements* measurements);
+
+	void llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type);
+
+	double computeCARAlone(int cpuID, Tick epochLength);
+
+	double computeCARShared(int cpuID, Tick epochLength);
+
+	double safeDiv(double numerator, double denominator);
+};
+
 class InterferenceManager : public SimObject{
 
 private:
@@ -160,6 +237,8 @@ private:
 	std::vector<PerformanceModel* > performanceModels;
 
 public:
+
+	ASREpochMeasurements asrEpocMeasurements;
 
 	CacheInterference* cacheInterference;
 
@@ -300,6 +379,8 @@ public:
 	PerformanceModelMeasurements buildModelMeasurements(int cpuID, int committedInstructions, Tick ticksInSample, OverlapStatistics ols);
 
 	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
+
+	void setASRHighPriCPUID(int newHighPriCPUID);
 };
 
 #endif

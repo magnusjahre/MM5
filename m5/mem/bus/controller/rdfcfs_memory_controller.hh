@@ -26,6 +26,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     Tick lastDeliveredReqAt;
     int lastOccupyingCPUID;
 
+    int highPriCPUID;
+
     std::list<MemReqPtr>::iterator queueIterator;
 
     struct ActivationEntry{
@@ -65,6 +67,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     std::list<MemReqPtr> mergeQueues();
     bool closePageForRequest(MemReqPtr& choosenReq, MemReqPtr& oldestReq);
+    int countRequests(int cpuID, std::list<MemReqPtr>* queue);
+    std::list<MemReqPtr> filterQueue(std::list<MemReqPtr> queue);
 
     std::vector<Tick> requestSequenceNumbers;
 
@@ -140,5 +144,7 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
     virtual void computeInterference(MemReqPtr& req, Tick busOccupiedFor);
 
     virtual void initializeTraceFiles(Bus* regbus);
+
+    void setASRHighPriCPUID(int cpuID);
 
 };
