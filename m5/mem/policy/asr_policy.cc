@@ -81,7 +81,7 @@ void
 ASRPolicy::handleEpochEvent(){
 	if(curTick % period != 0){
 		DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
-		intManager->asrEpocMeasurements.finalizeEpoch();
+		intManager->asrEpocMeasurements.finalizeEpoch(epoch);
 		epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
 
 		DPRINTF(ASRPolicy, "Resetting epoch measurements\n");
@@ -97,7 +97,7 @@ ASRPolicy::handleEpochEvent(){
 void
 ASRPolicy::prepareEstimates(){
 	DPRINTF(ASRPolicyProgress, "===== Handling policy event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
-	intManager->asrEpocMeasurements.finalizeEpoch();
+	intManager->asrEpocMeasurements.finalizeEpoch(epoch);
 	epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
 	for(int i=0;i<cpuCount;i++){
 		epochMeasurements[i].cpuATDHits = intManager->asrEpocMeasurements.cpuATDHits;
@@ -110,7 +110,6 @@ ASRPolicy::prepareEstimates(){
 		double carShared = epochMeasurements[i].computeCARShared(i, period);
 
 		assert(carShared >= 0.0);
-		assert(carAlone >= carShared);
 		asrPrivateModeSpeedupEsts[i] = carAlone / carShared;
 		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
 				i,

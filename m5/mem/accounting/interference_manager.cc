@@ -1139,7 +1139,7 @@ ASREpochMeasurements::computeCARShared(int cpuID, Tick period){
 }
 
 void
-ASREpochMeasurements::finalizeEpoch(){
+ASREpochMeasurements::finalizeEpoch(int epochCycles){
 	DPRINTF(ASRPolicy, "Finalizing the epoch for high priority CPU %d\n", highPriCPU);
 	if(outstandingHitCnt[highPriCPU] > 0){
 		addValue(highPriCPU, EPOCH_HIT_TIME, curTick - firstHitAt[highPriCPU]);
@@ -1152,6 +1152,8 @@ ASREpochMeasurements::finalizeEpoch(){
 		firstHitAt[i] = curTick;
 		firstMissAt[i] = curTick;
 	}
+
+	assert(data[EPOCH_MISS_TIME] <= epochCycles);
 }
 
 void

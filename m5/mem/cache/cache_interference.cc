@@ -216,15 +216,17 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 
 	DPRINTF(CachePartitioning, "Access for request address %d from CPU %d, command %s\n", req->paddr, req->adaptiveMHASenderID, req->cmd.toString());
 
-	if(isCacheMiss){
-		interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_MISS);
-		interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_MISS_TIME);
-	}
-	else{
-		interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_HIT);
-		interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_HIT_TIME);
-		ASRLLCHitCompletionEvent* hitCompEvent = new ASRLLCHitCompletionEvent(req->adaptiveMHASenderID, interferenceManager);
-		hitCompEvent->schedule(curTick + cache->getHitLatency());
+	if(req->cmd == Read){
+		if(isCacheMiss){
+			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_MISS);
+			interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_MISS_TIME);
+		}
+		else{
+			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_HIT);
+			interferenceManager->asrEpocMeasurements.llcEvent(req->adaptiveMHASenderID, true, ASREpochMeasurements::EPOCH_HIT_TIME);
+			ASRLLCHitCompletionEvent* hitCompEvent = new ASRLLCHitCompletionEvent(req->adaptiveMHASenderID, interferenceManager);
+			hitCompEvent->schedule(curTick + cache->getHitLatency());
+		}
 	}
 
 	int numberOfSets = shadowTags[req->adaptiveMHASenderID]->getNumSets();
@@ -265,7 +267,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			}
 			estimatedShadowMisses[req->adaptiveMHASenderID] += estConstAccesses;
 
-			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_MISS);
+			if(req->cmd == Read) interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_MISS);
 		}
 		else{ // shadow hit
 			if(isCacheMiss && curTick >= detailedSimStart){
@@ -279,7 +281,7 @@ CacheInterference::access(MemReqPtr& req, bool isCacheMiss, int hitLat, Tick det
 			}
 			privateHitEstimateAccumulator[req->adaptiveMHASenderID] += estConstAccesses;
 
-			interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_HIT);
+			if(req->cmd == Read) interferenceManager->asrEpocMeasurements.addValue(req->adaptiveMHASenderID, ASREpochMeasurements::EPOCH_ATD_HIT);
 		}
 
 		if(req->cmd == Read) commitTracePrivateAccesses[req->adaptiveMHASenderID].increment(req, estConstAccesses);

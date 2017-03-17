@@ -112,7 +112,7 @@ public:
 		quantumReset();
 	}
 
-	void finalizeEpoch();
+	void finalizeEpoch(int epochCycles);
 
 	void epochReset(){
 		highPriCPU = -1;
