@@ -160,7 +160,6 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         active_bank_count--;
         Tick closelatency = 0;
         assert (Bankstate[bank] != DDR2Idle);
-        assert(Bankstate[bank] != DDR2Active);
 
         Tick prechCmdTick = 0;
         if (Bankstate[bank] == DDR2Read) {
@@ -179,11 +178,21 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
                 prechCmdTick = curTick + data_time + write_recovery_time;
             }
         }
+        if (Bankstate[bank] == DDR2Active) {
+        	if(activateTime[bank] > curTick){
+        		prechCmdTick = activateTime[bank];
+        	}
+        	else{
+        		prechCmdTick = curTick;
+        	}
+        	DPRINTF(DRAM, "Bank %d is active, activated at %d, precharge command can issue at %d\n", bank, activateTime[bank], prechCmdTick);
+        }
         assert(prechCmdTick != 0);
 
         Tick actToPrechLat = prechCmdTick - activateTime[bank];
         if (actToPrechLat < min_activate_to_precharge_latency) {
            closelatency =  min_activate_to_precharge_latency - actToPrechLat;
+           DPRINTF(DRAM, "Bank %d: Computed close latency %d with min activate to precharge %d and activate time %d\n", bank, closelatency, min_activate_to_precharge_latency, activateTime[bank]);
         }
 
         closelatency += precharge_latency;
@@ -192,14 +201,12 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         DPRINTF(DRAM, "Closing bank %d, will reach idle state at %d\n", bank, closeTime[bank]);
 
         Bankstate[bank] = DDR2Idle;
-
         return 0;
     }
 
     if (req->cmd == Activate) {
 
         if(closeTime[bank] >= curTick && closeTime[bank] != 0){
-
             bankInConflict[bank] = true;
         }
 
