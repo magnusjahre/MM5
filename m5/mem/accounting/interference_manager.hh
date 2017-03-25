@@ -64,6 +64,54 @@ public:
 	}
 };
 
+class ASMValues{
+public:
+	// CAR Alone values
+	double sharedLLCAccesses;
+	double atdAccesses;
+	double totalCycles;
+	double pmHitFraction;
+	double pmHitEstimate;
+	double contentionMisses;
+	double avgMissTime;
+	double avgHitTime;
+	double excessCycles;
+	double pmMissFraction;
+	double pmMissEstimate;
+	double avgQueuingDelay;
+	double queuingDelay;
+	double carAlone;
+
+	// CAR Shared Values
+	double cpuSharedLLCAccesses;
+	double carShared;
+
+	// Other
+	double speedup;
+	int numEpochs;
+
+	ASMValues(){
+		sharedLLCAccesses = 0.0;
+		atdAccesses = 0.0;
+		totalCycles = 0.0;
+		pmHitFraction = 0.0;
+		pmHitEstimate = 0.0;
+		contentionMisses = 0.0;
+		avgMissTime = 0.0;
+		avgHitTime = 0.0;
+		excessCycles = 0.0;
+		pmMissFraction = 0.0;
+		pmMissEstimate = 0.0;
+		avgQueuingDelay = 0.0;
+		queuingDelay = 0.0;
+		carAlone = 0.0;
+		cpuSharedLLCAccesses = 0.0;
+		carShared = 0.0;
+		speedup = 0.0;
+		numEpochs = 0.0;
+	}
+};
+
 class ASREpochMeasurements{
 public:
 	enum ASR_COUNTER_TYPE{
@@ -134,9 +182,9 @@ public:
 
 	void llcEvent(int cpuID, bool issued, ASR_COUNTER_TYPE type);
 
-	double computeCARAlone(int cpuID, Tick epochLength);
+	void computeCARAlone(int cpuID, Tick epochLength, ASMValues* asmvals);
 
-	double computeCARShared(int cpuID, Tick epochLength);
+	void computeCARShared(int cpuID, Tick epochLength, ASMValues* asmvals);
 
 	double safeDiv(double numerator, double denominator);
 };

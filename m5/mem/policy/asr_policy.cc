@@ -52,6 +52,8 @@ ASRPolicy::ASRPolicy(std::string _name,
 	}
 
 	srand(240000);
+
+	prepareASMTraces(_cpuCount);
 }
 
 void
@@ -105,26 +107,32 @@ ASRPolicy::prepareEstimates(){
 		epochMeasurements[i].cpuSharedLLCAccesses = intManager->asrEpocMeasurements.cpuSharedLLCAccesses;
 	}
 
-	for(int i=0;i<cpuCount;i++){
-		double carAlone = epochMeasurements[i].computeCARAlone(i, epoch);
-		double carShared = epochMeasurements[i].computeCARShared(i, period);
+	vector<ASMValues> values = vector<ASMValues>(cpuCount, ASMValues());
 
-		assert(carShared >= 0.0);
-		if(carAlone == 0.0) asrPrivateModeSpeedupEsts[i] = 1.0;
-		else asrPrivateModeSpeedupEsts[i] = carAlone / carShared;
+	for(int i=0;i<cpuCount;i++){
+		epochMeasurements[i].computeCARAlone(i, epoch, &values.at(i));
+		epochMeasurements[i].computeCARShared(i, period, &values.at(i));
+
+		assert(values[i].carShared >= 0.0);
+		if(values[i].carAlone == 0.0) values[i].speedup = 1.0;
+		else values[i].speedup = values[i].carAlone / values[i].carShared;
+
+		asrPrivateModeSpeedupEsts[i] = values[i].speedup;
 		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
 				i,
 				asrPrivateModeSpeedupEsts[i],
-				carAlone,
-				carShared);
+				values[i].carAlone,
+				values[i].carShared);
 	}
 
 	int numEpochs = 0;
 	for(int i=0;i<cpuCount;i++){
+		values[i].numEpochs = epochMeasurements[i].epochCount;
 		numEpochs += epochMeasurements[i].epochCount;
 	}
 	assert(numEpochs*epoch == period);
 
+	traceASMValues(values);
 
 	DPRINTF(ASRPolicyProgress, "Resetting quantum and epoch measurements\n");
 	for(int i=0;i<cpuCount;i++) epochMeasurements[i].quantumReset();
@@ -141,6 +149,67 @@ bool
 ASRPolicy::doEvaluation(int cpuID){
 	fatal("doEvaluation not implemented");
 	return false;
+}
+
+void
+ASRPolicy::prepareASMTraces(int numCPUs){
+	vector<string> headers;
+	headers.push_back("Shared LLC Accesses");
+	headers.push_back("ATD Accesses");
+	headers.push_back("Total Cycles");
+	headers.push_back("Private Mode Hit Fraction");
+	headers.push_back("Private Mode Hit Estimate");
+	headers.push_back("Contention Misses");
+	headers.push_back("Avg Miss Time");
+	headers.push_back("Avg Hit Time");
+	headers.push_back("Excess Cycles");
+	headers.push_back("Private Mode Miss Fraction");
+	headers.push_back("Private Mode Miss Estimate");
+	headers.push_back("Avg Queuing Delay");
+	headers.push_back("Queuing Delay");
+	headers.push_back("CAR Alone (x10^6)");
+
+	headers.push_back("Shared Mode LLC Accesses");
+	headers.push_back("CAR Shared (x10^6)");
+
+	headers.push_back("Speedup");
+	headers.push_back("Number of Epochs");
+
+	asmTraces.resize(cpuCount, RequestTrace());
+	for(int i=0;i<cpuCount;i++){
+		asmTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("ASM", i).c_str());
+		asmTraces[i].initalizeTrace(headers);
+	}
+}
+
+void
+ASRPolicy::traceASMValues(std::vector<ASMValues> values){
+	for(int i=0;i<values.size();i++){
+		vector<RequestTraceEntry> data;
+
+		data.push_back(values[i].sharedLLCAccesses);
+		data.push_back(values[i].atdAccesses);
+		data.push_back(values[i].totalCycles);
+		data.push_back(values[i].pmHitFraction);
+		data.push_back(values[i].pmHitEstimate);
+		data.push_back(values[i].contentionMisses);
+		data.push_back(values[i].avgMissTime);
+		data.push_back(values[i].avgHitTime);
+		data.push_back(values[i].excessCycles);
+		data.push_back(values[i].pmMissFraction);
+		data.push_back(values[i].pmMissEstimate);
+		data.push_back(values[i].avgQueuingDelay);
+		data.push_back(values[i].queuingDelay);
+		data.push_back(values[i].carAlone*1000000);
+
+		data.push_back(values[i].cpuSharedLLCAccesses);
+		data.push_back(values[i].carShared*1000000);
+
+		data.push_back(values[i].speedup);
+		data.push_back(values[i].numEpochs);
+
+		asmTraces[i].addTrace(data);
+	}
 }
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS

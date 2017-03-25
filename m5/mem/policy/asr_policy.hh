@@ -21,8 +21,12 @@ private:
 	ASREpochEvent* epochEvent;
 
 	vector<ASREpochMeasurements> epochMeasurements;
+	std::vector<RequestTrace> asmTraces;
 
 	void changeHighPriProcess();
+
+	void prepareASMTraces(int numCPUs);
+	void traceASMValues(std::vector<ASMValues> values);
 
 public:
 	ASRPolicy(std::string _name,

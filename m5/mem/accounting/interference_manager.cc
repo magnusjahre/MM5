@@ -1069,75 +1069,72 @@ ASREpochMeasurements::safeDiv(double numerator, double denominator){
 	return numerator / denominator;
 }
 
-double
-ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength){
+void
+ASREpochMeasurements::computeCARAlone(int cpuID, Tick epochLength, ASMValues* asmvals){
 
 	// Compute convenience values
-	double sharedLLCAccesses = data[EPOCH_HIT] + data[EPOCH_MISS];
-	double atdAccesses = cpuATDHits[cpuID] + cpuATDMisses[cpuID];
-	double totalCycles = epochCount * epochLength;
+	asmvals->sharedLLCAccesses = data[EPOCH_HIT] + data[EPOCH_MISS];
+	asmvals->atdAccesses = cpuATDHits[cpuID] + cpuATDMisses[cpuID];
+	asmvals->totalCycles = epochCount * epochLength;
 
 	DPRINTF(ASRPolicyProgress, "CPU %d: %d shared LLC hits, %d shared LLC misses, %d ATD hits, %d ATD misses\n",
 				cpuID, data[EPOCH_HIT], data[EPOCH_MISS], cpuATDHits[cpuID], cpuATDMisses[cpuID]);
 
 	// Compute excessCycles
-	double pmHitFraction = safeDiv(cpuATDHits[cpuID], atdAccesses);
-	double pmHitEstimate = pmHitFraction * sharedLLCAccesses;
+	asmvals->pmHitFraction = safeDiv(cpuATDHits[cpuID], asmvals->atdAccesses);
+	asmvals->pmHitEstimate = asmvals->pmHitFraction * asmvals->sharedLLCAccesses;
 
-	double contentionMisses = 0.0;
-	if(pmHitEstimate > data[EPOCH_HIT]) contentionMisses = pmHitEstimate - data[EPOCH_HIT];
+	asmvals->contentionMisses = 0.0;
+	if(asmvals->pmHitEstimate > data[EPOCH_HIT]) asmvals->contentionMisses = asmvals->pmHitEstimate - data[EPOCH_HIT];
 
 	DPRINTF(ASRPolicyProgress, "CPU %d PM hit fraction %f, shared accesses %f and %d shared hits gives %f contention misses\n",
-			cpuID, pmHitFraction, sharedLLCAccesses, data[EPOCH_HIT], contentionMisses);
-	assert(pmHitFraction >= 0.0);
-	assert(contentionMisses >= 0.0);
+			cpuID, asmvals->pmHitFraction, asmvals->sharedLLCAccesses, data[EPOCH_HIT], asmvals->contentionMisses);
+	assert(asmvals->pmHitFraction >= 0.0);
+	assert(asmvals->contentionMisses >= 0.0);
 
-	double avgMissTime = safeDiv(data[EPOCH_MISS_TIME], data[EPOCH_MISS]);
-	double avgHitTime = safeDiv(data[EPOCH_HIT_TIME], data[EPOCH_HIT]);
+	asmvals->avgMissTime = safeDiv(data[EPOCH_MISS_TIME], data[EPOCH_MISS]);
+	asmvals->avgHitTime = safeDiv(data[EPOCH_HIT_TIME], data[EPOCH_HIT]);
 
 	DPRINTF(ASRPolicyProgress, "CPU %d average hit time is %f and average miss time %f\n",
-			cpuID, avgHitTime, avgMissTime);
-	assert(avgMissTime >= 0.0);
-	assert(avgHitTime >= 0.0);
+			cpuID, asmvals->avgHitTime, asmvals->avgMissTime);
+	assert(asmvals->avgMissTime >= 0.0);
+	assert(asmvals->avgHitTime >= 0.0);
 
-	double excessCycles = contentionMisses * (avgMissTime - avgHitTime);
+	asmvals->excessCycles = asmvals->contentionMisses * (asmvals->avgMissTime - asmvals->avgHitTime);
 
 	// Compute queuing delay
-	double pmMissFraction = safeDiv(cpuATDMisses[cpuID], atdAccesses);
-	double pmMissEstimate = pmMissFraction * sharedLLCAccesses;
-	double avgQueuingDelay = safeDiv(data[EPOCH_QUEUEING_CYCLES], data[EPOCH_MISS]);
-	double queuingDelay = pmMissEstimate * avgQueuingDelay;
+	asmvals->pmMissFraction = safeDiv(cpuATDMisses[cpuID], asmvals->atdAccesses);
+	asmvals->pmMissEstimate = asmvals->pmMissFraction * asmvals->sharedLLCAccesses;
+	asmvals->avgQueuingDelay = safeDiv(data[EPOCH_QUEUEING_CYCLES], data[EPOCH_MISS]);
+	asmvals->queuingDelay = asmvals->pmMissEstimate * asmvals->avgQueuingDelay;
 
 	DPRINTF(ASRPolicyProgress, "CPU %d queuing delay is %f from estimated PM misses %f and average queuing delay %f\n",
-			cpuID, queuingDelay, pmMissEstimate, avgQueuingDelay);
+			cpuID, asmvals->queuingDelay, asmvals->pmMissEstimate, asmvals->avgQueuingDelay);
 
-	double carAlone = 0.0;
-	if(totalCycles > excessCycles + queuingDelay){
-		carAlone = sharedLLCAccesses / (totalCycles - excessCycles - queuingDelay);
+	asmvals->carAlone = 0.0;
+	if(asmvals->totalCycles > asmvals->excessCycles + asmvals->queuingDelay){
+		asmvals->carAlone = asmvals->sharedLLCAccesses / (asmvals->totalCycles - asmvals->excessCycles - asmvals->queuingDelay);
 	}
 
 	DPRINTF(ASRPolicyProgress, "CPU %d CAR-alone is %f, LLC accesses %f, totalCycles %f, excessCycles %f, queueingDelay %f\n",
 								cpuID,
-								carAlone,
-								sharedLLCAccesses,
-								totalCycles,
-								excessCycles,
-								queuingDelay);
-
-	return carAlone;
+								asmvals->carAlone,
+								asmvals->sharedLLCAccesses,
+								asmvals->totalCycles,
+								asmvals->excessCycles,
+								asmvals->queuingDelay);
 }
 
-double
-ASREpochMeasurements::computeCARShared(int cpuID, Tick period){
-	double carShared = (double) ((double) cpuSharedLLCAccesses[cpuID] / (double) period);
+void
+ASREpochMeasurements::computeCARShared(int cpuID, Tick period, ASMValues* asmvals){
+	asmvals->cpuSharedLLCAccesses = cpuSharedLLCAccesses[cpuID];
+	asmvals->carShared = (double) (asmvals->cpuSharedLLCAccesses / (double) period);
 
 	DPRINTF(ASRPolicyProgress, "CPU %d CAR-shared is %f, LLC accesses %d, period length %d\n",
 			cpuID,
-			carShared,
-			cpuSharedLLCAccesses[cpuID],
+			asmvals->carShared,
+			asmvals->cpuSharedLLCAccesses,
 			period);
-
-	return carShared;
 }
 
 void
