@@ -23,6 +23,7 @@ private:
 
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
+	RequestTrace allocationTrace;
 
 	vector<int> curAllocation;
 	vector<double> avgLLCMissAdditionalCycles;

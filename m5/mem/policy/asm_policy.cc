@@ -59,6 +59,15 @@ ASMPolicy::ASMPolicy(std::string _name,
 	srand(240000);
 
 	prepareASMTraces(_cpuCount);
+
+	allocationTrace = RequestTrace(_name, "AllocationTrace");
+	vector<string> header = vector<string>();
+	for(int i=0;i<_cpuCount;i++){
+		stringstream curstr;
+		curstr << "CPU" << i;
+		header.push_back(curstr.str());
+	}
+	allocationTrace.initalizeTrace(header);
 }
 
 void
@@ -184,7 +193,11 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	assert(!sharedCaches.empty());
-	vector<int> curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0);
+	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0);
+
+	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
+	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
+	allocationTrace.addTrace(tracedata);
 
 	for(int i=0;i<sharedCaches.size();i++){
 		sharedCaches[i]->setCachePartition(curAllocation);
