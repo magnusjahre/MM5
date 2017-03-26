@@ -18,6 +18,7 @@ private:
 	int epoch;
 	int maxWays;
 	int curHighPriCPUID;
+	bool doLLCAlloc;
 	ASREpochEvent* epochEvent;
 
 	vector<ASREpochMeasurements> epochMeasurements;
@@ -48,7 +49,8 @@ public:
 			  double _maximumDamping,
 			  double _hybridDecisionError,
 			  int _hybridBufferSize,
-			  int _epoch);
+			  int _epoch,
+			  bool _doLLCAlloc);
 
 	virtual void initPolicy();
 

@@ -461,6 +461,9 @@ def setUpASMPolicy():
     
     policy.performanceEstimationMethod = "ASR" 
     
+    assert optionName+"DO-LLC-ALLOC" in env
+    policy.allocateLLC = env[optionName+"DO-LLC-ALLOC"]
+    
     # The following parameter do not matter for ASR
     policy.writeStallTechnique = "ws-none"
     policy.privateBlockedStallTechnique = "pbs-none"

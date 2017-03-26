@@ -20,7 +20,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 					 double _maximumDamping,
 					 double _hybridDecisionError,
 					 int _hybridBufferSize,
-					 int _epoch)
+					 int _epoch,
+					 bool _doLLCAlloc)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -42,6 +43,7 @@ ASMPolicy::ASMPolicy(std::string _name,
 
 	maxWays = 0;
 	curHighPriCPUID = 0;
+	doLLCAlloc = _doLLCAlloc;
 
 	if(_cpuCount > 1){
 		epochEvent = new ASREpochEvent(this, epoch);
@@ -157,7 +159,7 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	//TODO 1: Implement allocation tracing
 	//TODO 2: Implement tracing of key values
-
+	if(!doLLCAlloc) return;
 	DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
 
 	vector<vector<double> > speedups(cpuCount, vector<double>(maxWays, 0.0));
@@ -275,6 +277,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
 	Param<int> epoch;
+	Param<bool> allocateLLC;
 END_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
@@ -292,7 +295,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 	INIT_PARAM_DFLT(maximumDamping, "The maximum absolute damping the damping policies can apply", 0.25),
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
-	INIT_PARAM(epoch, "The number of cycles in each epoch")
+	INIT_PARAM(epoch, "The number of cycles in each epoch"),
+	INIT_PARAM(allocateLLC, "Do LLC allocation?")
 END_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 
 CREATE_SIM_OBJECT(ASMPolicy)
@@ -322,7 +326,8 @@ CREATE_SIM_OBJECT(ASMPolicy)
 									  maximumDamping,
 									  hybridDecisionError,
 									  hybridBufferSize,
-									  epoch);
+									  epoch,
+									  allocateLLC);
 }
 
 REGISTER_SIM_OBJECT("ASMPolicy", ASMPolicy)
