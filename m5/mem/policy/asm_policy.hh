@@ -23,6 +23,10 @@ private:
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
 
+	vector<int> curAllocation;
+	vector<double> avgLLCMissAdditionalCycles;
+	vector<double> CARshared;
+
 	void changeHighPriProcess();
 
 	void prepareASMTraces(int numCPUs);

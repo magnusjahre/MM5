@@ -51,6 +51,9 @@ ASMPolicy::ASMPolicy(std::string _name,
 		for(int i=0;i<epochMeasurements.size();i++) epochMeasurements[i].highPriCPU = i;
 	}
 
+	avgLLCMissAdditionalCycles = vector<double>(_cpuCount, 0.0);
+	CARshared = vector<double>(_cpuCount, 0.0);
+
 	srand(240000);
 
 	prepareASMTraces(_cpuCount);
@@ -73,9 +76,14 @@ ASMPolicy::initPolicy(){
 
 	assert(!sharedCaches.empty());
 	maxWays = sharedCaches[0]->getAssoc();
+	curAllocation = vector<int>(cpuCount, maxWays/cpuCount);
 
 	if(cpuCount > 1){
 		changeHighPriProcess();
+		for(int i=0;i<sharedCaches.size();i++){
+			sharedCaches[i]->setCachePartition(curAllocation);
+			sharedCaches[i]->enablePartitioning();
+		}
 	}
 }
 
@@ -123,6 +131,10 @@ ASMPolicy::prepareEstimates(){
 				asrPrivateModeSpeedupEsts[i],
 				values[i].carAlone,
 				values[i].carShared);
+
+		CARshared[i] = values[i].carShared;
+		avgLLCMissAdditionalCycles[i] = 0.0;
+		if(values[i].avgMissTime > values[i].avgHitTime) avgLLCMissAdditionalCycles[i] = values[i].avgMissTime - values[i].avgHitTime;
 	}
 
 	int numEpochs = 0;
@@ -142,7 +154,40 @@ ASMPolicy::prepareEstimates(){
 
 void
 ASMPolicy::runPolicy(PerformanceMeasurement measurements){
-	//TODO: Implement allocation policy
+
+	//TODO 1: Implement allocation tracing
+	//TODO 2: Implement tracing of key values
+
+	DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
+
+	vector<vector<double> > speedups(cpuCount, vector<double>(maxWays, 0.0));
+	for(int i=0;i<speedups.size();i++){
+		double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
+		double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
+
+		DPRINTF(ASRPolicyProgress, "CPU %d: computing current hits %f, current LLC accesses %f, avg LLC additional miss cycles %f and CAR shared %f\n",
+				i, curHits, llcAccesses, avgLLCMissAdditionalCycles[i], CARshared[i]);
+
+		for(int j=0;j<maxWays;j++){
+			double hits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[j];
+			double deltaHits = hits - curHits;
+			double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
+
+			speedups[i][j] = 1.0;
+			if(CARn > 0.0) speedups[i][j] = CARn / CARshared[i];
+
+			DPRINTF(ASRPolicyProgress, "CPU %d: computed speedup %f with hits %f, delta hits %f and CARn %f\n",
+					i, speedups[i][j], hits, deltaHits, CARn);
+		}
+	}
+
+	assert(!sharedCaches.empty());
+	vector<int> curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0);
+
+	for(int i=0;i<sharedCaches.size();i++){
+		sharedCaches[i]->setCachePartition(curAllocation);
+		sharedCaches[i]->enablePartitioning();
+	}
 }
 
 bool

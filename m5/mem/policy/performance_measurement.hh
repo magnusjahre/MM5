@@ -20,13 +20,14 @@ public:
 	int accesses;
 	int sharedCacheWritebacks;
 	std::vector<int> privateCumulativeCacheMisses;
+	std::vector<int> privateCumulativeCacheHits;
 
 	CacheMissMeasurements()
 	: readMisses(0), wbMisses(0), interferenceMisses(0), accesses(0), sharedCacheWritebacks(0){
 	}
 
-	CacheMissMeasurements(int _readMisses, int _wbMisses, int _interferenceMisses, int _accesses, int _scwb, std::vector<int> _privateCumulativeCacheMisses)
-	: readMisses(_readMisses), wbMisses(_wbMisses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb), privateCumulativeCacheMisses(_privateCumulativeCacheMisses){
+	CacheMissMeasurements(int _readMisses, int _wbMisses, int _interferenceMisses, int _accesses, int _scwb, std::vector<int> _privateCumulativeCacheMisses, std::vector<int> _privateCumulativeCacheHits)
+	: readMisses(_readMisses), wbMisses(_wbMisses), interferenceMisses(_interferenceMisses), accesses(_accesses), sharedCacheWritebacks(_scwb), privateCumulativeCacheMisses(_privateCumulativeCacheMisses), privateCumulativeCacheHits(_privateCumulativeCacheHits){
 	}
 
 //	void add(CacheMissMeasurements newValues){

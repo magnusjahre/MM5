@@ -796,10 +796,10 @@ CacheInterference::getMissMeasurementSample(){
 	std::vector<CacheMissMeasurements> missMeasurements;
 
 	for(int i=0;i<cpuCount;i++){
-		vector<int> hits = shadowTags[i]->getHitDistribution();
-		vector<int> cumulativeMisses = vector<int>(hits.size(), 0);
+		vector<int> cumulativeHits = shadowTags[i]->getHitDistribution();
+		vector<int> cumulativeMisses = vector<int>(cumulativeHits.size(), 0);
 
-		for(int j=0;j<hits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - hits[j];
+		for(int j=0;j<cumulativeHits.size();j++) cumulativeMisses[j] =  accessAccumulator[i] - cumulativeHits[j];
 		if(!cachePartitioningEnabled) shadowTags[i]->resetHitCounters();
 
 		if(shadowAccessAccumulator[i] > 0){
@@ -823,7 +823,8 @@ CacheInterference::getMissMeasurementSample(){
 								  interferenceMissAccumulator[i],
 								  accessAccumulator[i],
 								  writebackAccumulator[i],
-								  cumulativeMisses);
+								  cumulativeMisses,
+								  cumulativeHits);
 
 		readMissAccumulator[i] = 0;
 		wbMissAccumulator[i] = 0;
