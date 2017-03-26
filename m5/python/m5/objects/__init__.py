@@ -5,7 +5,7 @@ file_bases = ['AdaptiveMHA',
               'AlphaConsole',
               'AlphaFullCPU',
               'AlphaTLB',
-              'ASRPolicy', #Magnus
+              'ASMPolicy', #Magnus
               'BadDevice',
               'BaseCPU',
               'BaseCache',

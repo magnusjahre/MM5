@@ -5,14 +5,14 @@
  *      Author: jahre
  */
 
-#ifndef MEM_POLICY_ASR_POLICY_HH_
-#define MEM_POLICY_ASR_POLICY_HH_
+#ifndef MEM_POLICY_ASM_POLICY_HH_
+#define MEM_POLICY_ASM_POLICY_HH_
 
 #include "base_policy.hh"
 
 class ASREpochEvent;
 
-class ASRPolicy : public BasePolicy{
+class ASMPolicy : public BasePolicy{
 
 private:
 	int epoch;
@@ -29,7 +29,7 @@ private:
 	void traceASMValues(std::vector<ASMValues> values);
 
 public:
-	ASRPolicy(std::string _name,
+	ASMPolicy(std::string _name,
 			  InterferenceManager* _intManager,
 			  Tick _period,
 			  int _cpuCount,
@@ -59,11 +59,11 @@ public:
 
 class ASREpochEvent : public Event{
 private:
-	ASRPolicy* policy;
+	ASMPolicy* policy;
 	Tick epoch;
 
 public:
-	ASREpochEvent(ASRPolicy* _policy, Tick _epoch):
+	ASREpochEvent(ASMPolicy* _policy, Tick _epoch):
 	Event(&mainEventQueue), policy(_policy), epoch(_epoch){
 
 	}
@@ -79,4 +79,4 @@ public:
 
 };
 
-#endif /* MEM_POLICY_ASR_POLICY_HH_ */
+#endif /* MEM_POLICY_ASM_POLICY_HH_ */

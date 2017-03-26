@@ -442,8 +442,8 @@ def setUpModThrotPolicy():
     
     return policy
 
-def setUpASRPolicy():
-    policy = ASRPolicy()
+def setUpASMPolicy():
+    policy = ASMPolicy()
     optionName = 'ASR-' 
     if env[optionName+"POLICY"] == "off":
         policy.enforcePolicy = False
@@ -961,7 +961,7 @@ if 'EQUAL-SD-POLICY' in env:
     useMissBWPolicy = True
     
 if 'ASR-POLICY' in env:
-    root.globalPolicy = setUpASRPolicy()
+    root.globalPolicy = setUpASMPolicy()
     useMissBWPolicy = True
 
 ###############################################################################

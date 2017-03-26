@@ -1,11 +1,11 @@
 
-#include "asr_policy.hh"
+#include <mem/policy/asm_policy.hh>
 #include <cstdlib>
 
 using namespace std;
 
 
-ASRPolicy::ASRPolicy(std::string _name,
+ASMPolicy::ASMPolicy(std::string _name,
 		             InterferenceManager* _intManager,
 					 Tick _period,
 					 int _cpuCount,
@@ -57,7 +57,7 @@ ASRPolicy::ASRPolicy(std::string _name,
 }
 
 void
-ASRPolicy::changeHighPriProcess(){
+ASMPolicy::changeHighPriProcess(){
 	int newHighPriCPUID = (rand() / (double) RAND_MAX) * cpuCount;
 	DPRINTF(ASRPolicy, "Changing high priority process from %d to %d\n", curHighPriCPUID, newHighPriCPUID);
 	curHighPriCPUID = newHighPriCPUID;
@@ -66,7 +66,7 @@ ASRPolicy::changeHighPriProcess(){
 }
 
 void
-ASRPolicy::initPolicy(){
+ASMPolicy::initPolicy(){
 	if(cpuCount != 1){
 		disableCommitSampling();
 	}
@@ -80,7 +80,7 @@ ASRPolicy::initPolicy(){
 }
 
 void
-ASRPolicy::handleEpochEvent(){
+ASMPolicy::handleEpochEvent(){
 	if(curTick % period != 0){
 		DPRINTF(ASRPolicy, "===== Handling epoch event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 		intManager->asrEpocMeasurements.finalizeEpoch(epoch);
@@ -97,7 +97,7 @@ ASRPolicy::handleEpochEvent(){
 }
 
 void
-ASRPolicy::prepareEstimates(){
+ASMPolicy::prepareEstimates(){
 	DPRINTF(ASRPolicyProgress, "===== Handling policy event, high pri CPU %d, accumulating measurements\n", curHighPriCPUID);
 	intManager->asrEpocMeasurements.finalizeEpoch(epoch);
 	epochMeasurements[curHighPriCPUID].addValues(&(intManager->asrEpocMeasurements));
@@ -141,18 +141,18 @@ ASRPolicy::prepareEstimates(){
 }
 
 void
-ASRPolicy::runPolicy(PerformanceMeasurement measurements){
+ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	//TODO: Implement allocation policy
 }
 
 bool
-ASRPolicy::doEvaluation(int cpuID){
+ASMPolicy::doEvaluation(int cpuID){
 	fatal("doEvaluation not implemented");
 	return false;
 }
 
 void
-ASRPolicy::prepareASMTraces(int numCPUs){
+ASMPolicy::prepareASMTraces(int numCPUs){
 	vector<string> headers;
 	headers.push_back("Shared LLC Accesses");
 	headers.push_back("ATD Accesses");
@@ -183,7 +183,7 @@ ASRPolicy::prepareASMTraces(int numCPUs){
 }
 
 void
-ASRPolicy::traceASMValues(std::vector<ASMValues> values){
+ASMPolicy::traceASMValues(std::vector<ASMValues> values){
 	for(int i=0;i<values.size();i++){
 		vector<RequestTraceEntry> data;
 
@@ -214,7 +214,7 @@ ASRPolicy::traceASMValues(std::vector<ASMValues> values){
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
-BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASRPolicy)
+BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 	SimObjectParam<InterferenceManager* > interferenceManager;
 	Param<Tick> period;
 	Param<int> cpuCount;
@@ -230,9 +230,9 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASRPolicy)
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
 	Param<int> epoch;
-END_DECLARE_SIM_OBJECT_PARAMS(ASRPolicy)
+END_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 
-BEGIN_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
+BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 	INIT_PARAM_DFLT(interferenceManager, "The system's interference manager" , NULL),
 	INIT_PARAM_DFLT(period, "The number of clock cycles between each decision", 1048576),
 	INIT_PARAM(cpuCount, "The number of cpus in the system"),
@@ -248,9 +248,9 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM(epoch, "The number of cycles in each epoch")
-END_INIT_SIM_OBJECT_PARAMS(ASRPolicy)
+END_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 
-CREATE_SIM_OBJECT(ASRPolicy)
+CREATE_SIM_OBJECT(ASMPolicy)
 {
 	BasePolicy::PerformanceEstimationMethod perfEstMethod =
 		BasePolicy::parsePerformanceMethod(performanceEstimationMethod);
@@ -262,7 +262,7 @@ CREATE_SIM_OBJECT(ASRPolicy)
 
 	BasePolicy::EmptyROBStallTechnique rst = BasePolicy::parseEmptyROBStallTech(emptyROBStallTechnique);
 
-	return new ASRPolicy(getInstanceName(),
+	return new ASMPolicy(getInstanceName(),
 							          interferenceManager,
 									  period,
 									  cpuCount,
@@ -280,7 +280,7 @@ CREATE_SIM_OBJECT(ASRPolicy)
 									  epoch);
 }
 
-REGISTER_SIM_OBJECT("ASRPolicy", ASRPolicy)
+REGISTER_SIM_OBJECT("ASMPolicy", ASMPolicy)
 
 #endif //DOXYGEN_SHOULD_SKIP_THIS
 
