@@ -91,9 +91,12 @@ ASMPolicy::initPolicy(){
 
 	if(cpuCount > 1){
 		changeHighPriProcess();
-		for(int i=0;i<sharedCaches.size();i++){
-			sharedCaches[i]->setCachePartition(curAllocation);
-			sharedCaches[i]->enablePartitioning();
+
+		if(doLLCAlloc){
+			for(int i=0;i<sharedCaches.size();i++){
+				sharedCaches[i]->setCachePartition(curAllocation);
+				sharedCaches[i]->enablePartitioning();
+			}
 		}
 	}
 }
