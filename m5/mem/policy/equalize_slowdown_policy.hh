@@ -80,9 +80,6 @@ private:
 				     std::vector<double> gradients,
 			         std::vector<double> bs);
 
-	template<typename T>
-	std::vector<RequestTraceEntry> getTraceCurve(std::vector<T> data);
-
 public:
 	EqualizeSlowdownPolicy(std::string _name,
 			               InterferenceManager* _intManager,

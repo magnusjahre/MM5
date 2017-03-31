@@ -263,6 +263,12 @@ protected:
 
 	void disableCommitSampling();
 
+	template<typename T>
+	std::vector<RequestTraceEntry> getTraceCurve(std::vector<T> data);
+
+	virtual std::vector<RequestTraceEntry> getTraceCurveInt(std::vector<int> data);
+	virtual std::vector<RequestTraceEntry> getTraceCurveDbl(std::vector<double> data);
+
 public:
 
 	BasePolicy(std::string _name,

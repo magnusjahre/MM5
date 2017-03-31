@@ -126,17 +126,6 @@ EqualizeSlowdownPolicy::initCurveTracefiles(){
 	}
 }
 
-template<typename T>
-std::vector<RequestTraceEntry>
-EqualizeSlowdownPolicy::getTraceCurve(std::vector<T> data){
-	vector<RequestTraceEntry> reqData;
-	for(int i=0;i<data.size();i++){
-		reqData.push_back(RequestTraceEntry(data[i]));
-	}
-	return reqData;
-}
-
-
 void
 EqualizeSlowdownPolicy::traceCurves(PerformanceMeasurement* measurements,
         							std::vector<double> gradients,
@@ -144,7 +133,7 @@ EqualizeSlowdownPolicy::traceCurves(PerformanceMeasurement* measurements,
 
 	for(int i=0;i<cpuCount;i++){
 		vector<int> misses = measurements->perCoreCacheMeasurements[i].privateCumulativeCacheMisses;
-		vector<RequestTraceEntry> line = getTraceCurve(misses);
+		vector<RequestTraceEntry> line = getTraceCurveInt(misses);
 		missCurveTraces[i].addTrace(line);
 
 		vector<double> perfEstimates = vector<double>(maxWays, 0.0);
@@ -154,10 +143,10 @@ EqualizeSlowdownPolicy::traceCurves(PerformanceMeasurement* measurements,
 			speedups[j] = computeSpeedup(i, misses[j], gradients[i], bs[i]);
 		}
 
-		vector<RequestTraceEntry> perfLine = getTraceCurve(perfEstimates);
+		vector<RequestTraceEntry> perfLine = getTraceCurveDbl(perfEstimates);
 		performanceCurveTraces[i].addTrace(perfLine);
 
-		vector<RequestTraceEntry> speedupLine = getTraceCurve(speedups);
+		vector<RequestTraceEntry> speedupLine = getTraceCurveDbl(speedups);
 		speedupCurveTraces[i].addTrace(speedupLine);
 	}
 

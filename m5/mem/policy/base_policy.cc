@@ -651,6 +651,27 @@ BasePolicy::estimateStallCycles(double currentStallTime,
 	return 0.0;
 }
 
+template<typename T>
+std::vector<RequestTraceEntry>
+BasePolicy::getTraceCurve(std::vector<T> data){
+	vector<RequestTraceEntry> reqData;
+	for(int i=0;i<data.size();i++){
+		reqData.push_back(RequestTraceEntry(data[i]));
+	}
+	return reqData;
+}
+
+std::vector<RequestTraceEntry>
+BasePolicy::getTraceCurveInt(std::vector<int> data){
+	return getTraceCurve(data);
+}
+
+std::vector<RequestTraceEntry>
+BasePolicy::getTraceCurveDbl(std::vector<double> data){
+	return getTraceCurve(data);
+}
+
+
 void
 BasePolicy::updateAloneIPCEstimate(){
 	fatal("call to estimateStallCycles must be reimplemented");

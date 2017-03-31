@@ -71,6 +71,27 @@ ASMPolicy::ASMPolicy(std::string _name,
 }
 
 void
+ASMPolicy::initCurveTracefiles(){
+	vector<string> header;
+	for(int i=0;i<maxWays;i++){
+		stringstream head;
+		head << (i+1);
+		if(i == 0) head << " way";
+		else head << " ways";
+		header.push_back(head.str());
+	}
+
+	speedupCurveTraces.resize(cpuCount, RequestTrace());
+
+	for(int i=0;i<cpuCount;i++){
+		stringstream filename;
+		filename << "SpeedupCurveTrace" << i;
+		speedupCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
+		speedupCurveTraces[i].initalizeTrace(header);
+	}
+}
+
+void
 ASMPolicy::changeHighPriProcess(){
 	int newHighPriCPUID = (rand() / (double) RAND_MAX) * cpuCount;
 	DPRINTF(ASRPolicy, "Changing high priority process from %d to %d\n", curHighPriCPUID, newHighPriCPUID);
@@ -88,6 +109,7 @@ ASMPolicy::initPolicy(){
 	assert(!sharedCaches.empty());
 	maxWays = sharedCaches[0]->getAssoc();
 	curAllocation = vector<int>(cpuCount, maxWays/cpuCount);
+	initCurveTracefiles();
 
 	if(cpuCount > 1){
 		changeHighPriProcess();
@@ -169,8 +191,6 @@ ASMPolicy::prepareEstimates(){
 void
 ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 
-	//TODO 1: Implement allocation tracing
-	//TODO 2: Implement tracing of key values
 	if(!doLLCAlloc) return;
 	DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
 
@@ -193,6 +213,9 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 			DPRINTF(ASRPolicyProgress, "CPU %d: computed speedup %f with hits %f, delta hits %f and CARn %f\n",
 					i, speedups[i][j], hits, deltaHits, CARn);
 		}
+
+		std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(speedups[i]);
+		speedupCurveTraces[i].addTrace(speedupTraceData);
 	}
 
 	assert(!sharedCaches.empty());

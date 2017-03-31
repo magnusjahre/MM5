@@ -24,6 +24,7 @@ private:
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
 	RequestTrace allocationTrace;
+	std::vector<RequestTrace> speedupCurveTraces;
 
 	vector<int> curAllocation;
 	vector<double> avgLLCMissAdditionalCycles;
@@ -33,6 +34,7 @@ private:
 
 	void prepareASMTraces(int numCPUs);
 	void traceASMValues(std::vector<ASMValues> values);
+	void initCurveTracefiles();
 
 public:
 	ASMPolicy(std::string _name,
