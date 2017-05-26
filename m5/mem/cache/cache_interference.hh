@@ -40,6 +40,7 @@ public:
 	InterferenceProbabilityPolicy writebackProbabilityPolicy;
 
     RequestTrace capacityProfileTrace;
+    std::vector<RequestTrace> capacityProfileHistogramTraces;
 	CacheProfileEvent* profileEvent;
 
 	class MissCounter;
@@ -216,6 +217,8 @@ private:
 
 	std::vector<BaseCache*> caches;
 
+	bool histogramTraceInitalized;
+
 	bool LLCCheckpointLoadDisabled;
 
     bool isLeaderSet(int set);
@@ -239,6 +242,8 @@ private:
     int estimateConstituencyAccesses(bool writeback);
 
     void checkSampledITCAInterTaskMiss(MemReqPtr &req, bool shadowLeaderSet, bool shadowHit, bool isCacheMiss, Addr cacheAlignedCPUAddr);
+
+    void initHistogramTraces();
 
 public:
 

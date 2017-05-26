@@ -381,6 +381,8 @@ public:
 
 	virtual std::vector<int> perCoreOccupancy();
 
+	virtual std::vector<double> perCoreOccupancyDistribution(int cpuID);
+
 //	virtual void handleSwitchEvent();
 
 	void resetHitCounters();

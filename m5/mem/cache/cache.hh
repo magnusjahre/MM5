@@ -423,6 +423,10 @@ class Cache : public BaseCache
         return tags->perCoreOccupancy();
     }
 
+    virtual std::vector<double> perCoreOccupancyDistribution(int cpuID){
+    	return tags->perCoreOccupancyDistribution(cpuID);
+    }
+
     virtual void dumpHitStats(){
         tags->dumpHitStats();
     }

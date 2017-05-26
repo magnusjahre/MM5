@@ -916,3 +916,9 @@ CacheTags<Tags,Compression>::perCoreOccupancy(){
     return ct->perCoreOccupancy();
 }
 
+template <class Tags, class Compression>
+std::vector<double>
+CacheTags<Tags,Compression>::perCoreOccupancyDistribution(int cpuID){
+	return ct->perCoreOccupancyDistribution(cpuID);
+}
+

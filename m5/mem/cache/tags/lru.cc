@@ -638,6 +638,30 @@ LRU::perCoreOccupancy(){
 	return ret;
 }
 
+std::vector<double>
+LRU::perCoreOccupancyDistribution(int cpuID){
+	vector<double> ret(assoc+1, 0);
+
+	for(int i=0;i<numSets;i++){
+		int blksInUse = 0;
+		for(int j=0;j<assoc;j++){
+			LRUBlk* blk = sets[i].blks[j];
+			assert(blk->origRequestingCpuID < cache->cpuCount);
+			if(blk->origRequestingCpuID == cpuID && blk->isTouched){
+				blksInUse++;
+			}
+		}
+		assert(blksInUse >= 0 && blksInUse < ret.size());
+		ret[blksInUse]++;
+	}
+
+	for(int i=0;i<ret.size();i++){
+		ret[i] = ret[i] / (double) numSets;
+	}
+
+	return ret;
+}
+
 void
 LRU::resetHitCounters(){
 	DPRINTF(CachePartitioning, "Resetting shadow tag hit counters for ID %d\n", shadowID);

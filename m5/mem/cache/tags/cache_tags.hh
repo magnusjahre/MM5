@@ -334,6 +334,8 @@ class CacheTags
 
     std::vector<int> perCoreOccupancy();
 
+    std::vector<double> perCoreOccupancyDistribution(int cpuID);
+
     int getNumSets(){
         return ct->getNumSets();
     }

@@ -142,6 +142,11 @@ protected:
         return tmp;
     }
 
+    virtual std::vector<double> perCoreOccupancyDistribution(int cpuID) {
+    	std::vector<double> tmp;
+    	return tmp;
+    }
+
     virtual int getNumSets(){
         return 0;
     }

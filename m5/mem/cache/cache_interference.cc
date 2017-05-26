@@ -124,6 +124,8 @@ CacheInterference::CacheInterference(std::string _name,
 	headers.push_back("Not touched");
 	capacityProfileTrace.initalizeTrace(headers);
 
+	histogramTraceInitalized = false;
+
 	profileEvent = new CacheProfileEvent(this);
 	profileEvent->schedule(CACHE_PROFILE_INTERVAL);
 
@@ -220,8 +222,24 @@ CacheInterference::regStats(){
 }
 
 void
+CacheInterference::initHistogramTraces(){
+
+	int assoc = caches[0]->getAssoc();
+	vector<string> histogramHeaders;
+	for(int i=0;i<assoc+1;i++) histogramHeaders.push_back(RequestTrace::buildTraceName("", i));
+
+	capacityProfileHistogramTraces = vector<RequestTrace>(cpuCount, RequestTrace());
+	for(int i=0;i<capacityProfileHistogramTraces.size();i++){
+		capacityProfileHistogramTraces[i] = RequestTrace(name(), RequestTrace::buildFilename("LLCCapacityHistogram", i).c_str());
+		capacityProfileHistogramTraces[i].initalizeTrace(histogramHeaders);
+	}
+
+}
+
+void
 CacheInterference::handleProfileEvent(){
 
+	// Capacity profile
 	vector<double> data = vector<double>(cpuCount+2, 0.0);
 	double totalBlocks = 0.0;
 	double assoc = 0.0;
@@ -243,6 +261,31 @@ CacheInterference::handleProfileEvent(){
 		traceData.push_back((data[i] / totalBlocks) * assoc);
 	}
     capacityProfileTrace.addTrace(traceData);
+
+    // Per core capacity histograms
+    if(!histogramTraceInitalized){
+    	initHistogramTraces();
+    	histogramTraceInitalized = true;
+    }
+
+    for(int i=0;i<cpuCount;i++){
+    	vector<double> profile = vector<double>((int) assoc+1, 0.0);
+    	for(int j=0;j<caches.size();j++){
+    		vector<double> bankProfile = caches[i]->perCoreOccupancyDistribution(i);
+    		assert(bankProfile.size() == profile.size());
+    		for(int k=0;k<profile.size();k++){
+    			profile[k] += (1/(double) caches.size())*bankProfile[k];
+    		}
+    	}
+
+    	vector<RequestTraceEntry> profileTraceData;
+    	for(int j=0;j<profile.size();j++){
+    		profileTraceData.push_back(profile[j]);
+    	}
+    	capacityProfileHistogramTraces[i].addTrace(profileTraceData);
+    }
+
+    // Event management
     profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 

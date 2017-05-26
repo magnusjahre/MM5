@@ -576,6 +576,7 @@ public:
 	virtual int getCurrentMSHRCount(bool onMSHRs) = 0;
 
 	virtual std::vector<int> perCoreOccupancy() = 0;
+	virtual std::vector<double> perCoreOccupancyDistribution(int cpuID) = 0;
 
 	virtual void dumpHitStats() = 0;
 
