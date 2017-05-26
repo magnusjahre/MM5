@@ -69,7 +69,6 @@ class Cache : public BaseCache
 {
   private:
     bool idIsSet;
-    RequestTrace capacityProfileTrace;
 
 //    MultipleTimeSharingParititions* mtp;
 
@@ -380,8 +379,6 @@ class Cache : public BaseCache
 
     virtual void setCachePartition(std::vector<int> setQuotas);
     virtual void enablePartitioning();
-
-    virtual void handleProfileEvent();
 
 //    virtual void handleRepartitioningEvent();
 

@@ -57,7 +57,6 @@
 class Bus;
 class Crossbar;
 class CacheAliveCheckEvent;
-class CacheProfileEvent;
 class CacheInterference;
 
 /**
@@ -207,8 +206,6 @@ public:
 	InterferenceManager* interferenceManager;
 
 	Tick detailedSimulationStartTick;
-
-	CacheProfileEvent* profileEvent;
 
 #ifdef CACHE_DEBUG
 	std::map<Addr, std::pair<int, Tick> > pendingRequests;
@@ -558,8 +555,6 @@ public:
 	virtual void setCachePartition(std::vector<int> setQuotas) = 0;
 	virtual void enablePartitioning() = 0;
 
-	virtual void handleProfileEvent() = 0;
-
 //	virtual void handleRepartitioningEvent() = 0;
 
 	//     virtual DirectoryProtocol* getDirectoryProtocol() = 0;
@@ -648,25 +643,6 @@ public:
 
 	virtual const char *description() {
 		return "Cache Alive Check Event";
-	}
-};
-
-class CacheProfileEvent: public Event {
-
-public:
-
-	BaseCache* cache;
-
-	CacheProfileEvent(BaseCache* _cache) :
-		Event(&mainEventQueue), cache(_cache) {
-	}
-
-	void process() {
-		cache->handleProfileEvent();
-	}
-
-	virtual const char *description() {
-		return "Cache Profiling Event";
 	}
 };
 

@@ -61,8 +61,6 @@
 
 #include "sim/sim_events.hh" // for SimExitEvent
 
-#define CACHE_PROFILE_INTERVAL 100000
-
 using namespace std;
 
 template<class TagStore, class Buffering, class Coherence>
@@ -101,6 +99,9 @@ Cache(const std::string &_name, HierParams *hier_params,
     useAggregateMLPEstimator = params.useAggMLPEstimator;
 
     cacheInterference = params.cacheInterference;
+    if(isShared && cacheInterference != NULL){
+    	cacheInterference->registerCache(this, bankID);
+    }
 
 //    if(params.useMTPPartitioning)
 //    {
@@ -116,22 +117,6 @@ Cache(const std::string &_name, HierParams *hier_params,
     	assert(isShared);
     	params.partitioning->registerCache(this, bankID);
     	cacheInterference->setCachePartitioningEnabled();
-    }
-
-    if(params.isShared){
-        capacityProfileTrace = RequestTrace(name(), "CapacityProfile");
-        vector<string> headers;
-        for(int i=0;i<params.cpu_count;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
-        headers.push_back("Not touched");
-        capacityProfileTrace.initalizeTrace(headers);
-
-        profileEvent = new CacheProfileEvent(this);
-        if(params.detailedSimStartTick > 0){
-            profileEvent->schedule(params.detailedSimStartTick);
-        }
-        else{
-            profileEvent->schedule(CACHE_PROFILE_INTERVAL);
-        }
     }
 
     overlapEstimator = params.overlapEstimator;
@@ -1578,20 +1563,6 @@ Cache<TagStore,Buffering,Coherence>::respond(MemReqPtr &req, Tick time)
 {
     if(simulateContention && curTick >= detailedSimulationStartTick) time = updateAndStoreInterference(req, time);
     si->respond(req,time);
-}
-
-template<class TagStore, class Buffering, class Coherence>
-void
-Cache<TagStore,Buffering,Coherence>::handleProfileEvent(){
-
-    vector<int> ownedBlocks = tags->perCoreOccupancy();
-    assert(ownedBlocks.size() == cpuCount + 2);
-
-    vector<RequestTraceEntry> data;
-    for(int i=0;i<cpuCount+1;i++) data.push_back((double) ((double) ownedBlocks[i] / (double) ownedBlocks[cpuCount+1]));
-    capacityProfileTrace.addTrace(data);
-
-    profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 
 //template<class TagStore, class Buffering, class Coherence>

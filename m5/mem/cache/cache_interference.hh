@@ -22,6 +22,7 @@ class InterferenceManager;
 class CacheAccessMeasurement;
 class LRU;
 class LRUBlk;
+class CacheProfileEvent;
 
 class CacheInterference : public BaseHier{
 
@@ -38,6 +39,8 @@ public:
 	InterferenceProbabilityPolicy loadProbabilityPolicy;
 	InterferenceProbabilityPolicy writebackProbabilityPolicy;
 
+    RequestTrace capacityProfileTrace;
+	CacheProfileEvent* profileEvent;
 
 	class MissCounter;
 	class FixedWidthCounter;
@@ -211,6 +214,8 @@ private:
 
 	std::vector<int> itcaInterTaskCutoffs;
 
+	std::vector<BaseCache*> caches;
+
 	bool LLCCheckpointLoadDisabled;
 
     bool isLeaderSet(int set);
@@ -273,6 +278,8 @@ public:
 
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 
+    void handleProfileEvent();
+
     double getPrivateCommitTraceMissRate(int cpuID){
     	double misses = commitTracePrivateMisses[cpuID].value;
     	double accesses = commitTracePrivateAccesses[cpuID].value;
@@ -304,6 +311,8 @@ public:
     CacheAccessMeasurement getPrivateHitEstimate(int cpuID);
 
     bool addRequestToHitCounters(MemReqPtr &req);
+
+    void registerCache(BaseCache* cache, int bankID);
 };
 
 class ASRLLCHitCompletionEvent : public Event{
@@ -323,6 +332,25 @@ public:
 		return "ASR LLC Hit Completion Event";
 	}
 
+};
+
+class CacheProfileEvent: public Event {
+
+public:
+
+	CacheInterference* cacheInt;
+
+	CacheProfileEvent(CacheInterference* _cacheInt) :
+		Event(&mainEventQueue), cacheInt(_cacheInt) {
+	}
+
+	void process() {
+		cacheInt->handleProfileEvent();
+	}
+
+	virtual const char *description() {
+		return "Cache Profiling Event";
+	}
 };
 
 #endif /* CACHE_INTERFERENCE_HH_ */

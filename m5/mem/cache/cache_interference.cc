@@ -12,6 +12,7 @@
 using namespace std;
 
 #define ITCA_RAND_GEN_RESOLUTION 1024
+#define CACHE_PROFILE_INTERVAL 100000
 
 CacheInterference::CacheInterference(std::string _name,
 		                             int _cpuCount,
@@ -117,7 +118,23 @@ CacheInterference::CacheInterference(std::string _name,
 	cachePartitioningEnabled = false;
 	onlyPerfImpactReqsInHitCounters = _onlyPerfImpactReqsInHitCounters;
 
+	capacityProfileTrace = RequestTrace(name(), "LLCCapacityProfile");
+	vector<string> headers;
+	for(int i=0;i<_cpuCount;i++) headers.push_back(RequestTrace::buildTraceName("CPU", i));
+	headers.push_back("Not touched");
+	capacityProfileTrace.initalizeTrace(headers);
+
+	profileEvent = new CacheProfileEvent(this);
+	profileEvent->schedule(CACHE_PROFILE_INTERVAL);
+
 	srand(240000);
+}
+
+void
+CacheInterference::registerCache(BaseCache* bc, int bankID){
+	caches.push_back(bc);
+	assert(bankID < caches.size()); //Avoid segfault for the next assertion
+	assert(caches[bankID] == bc); //Assumes that the banks are added in order
 }
 
 void
@@ -200,6 +217,33 @@ CacheInterference::regStats(){
         tmp << i;
         shadowTags[i]->regStats(name()+".shadowtags.cpu"+tmp.str());
     }
+}
+
+void
+CacheInterference::handleProfileEvent(){
+
+	vector<double> data = vector<double>(cpuCount+2, 0.0);
+	double totalBlocks = 0.0;
+	double assoc = 0.0;
+	for(int i=0;i<caches.size();i++){
+		vector<int> ownedBlocks = caches[i]->perCoreOccupancy();
+		assert(ownedBlocks.size() == cpuCount + 2);
+
+		for(int j=0;j<cpuCount+1;j++){
+			data[j] += (double) ownedBlocks[j];
+		}
+		totalBlocks += (double) ownedBlocks[cpuCount+1];
+
+		if(assoc == 0.0) assoc = (double) caches[i]->getAssoc();
+		else assert(assoc == (double) caches[i]->getAssoc());
+	}
+
+	vector<RequestTraceEntry> traceData;
+	for(int i=0;i<data.size();i++){
+		traceData.push_back((data[i] / totalBlocks) * assoc);
+	}
+    capacityProfileTrace.addTrace(traceData);
+    profileEvent->schedule(curTick + CACHE_PROFILE_INTERVAL);
 }
 
 void
