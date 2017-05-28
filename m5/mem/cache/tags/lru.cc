@@ -398,19 +398,30 @@ LRU::findBlock(Addr addr, int asid) const
 std::vector<int>
 LRU::getUsedBlocksPerCore(unsigned int set){
 	vector<int> blkCnt(cache->cpuCount, 0);
+	stringstream owners;
 	for(int i=0;i<assoc;i++){
 		int tmpID = sets[set].blks[i]->origRequestingCpuID;
+		owners << i << ":" << tmpID << " ";
 		if(tmpID >= 0){
 			assert(tmpID >= 0 && tmpID < cache->cpuCount);
 			blkCnt[tmpID]++;
 		}
 	}
+	stringstream counts;
+	for(int i=0;i<blkCnt.size();i++) counts << i << ":" <<blkCnt[i] << " ";
+
+	DPRINTF(CachePartitioning, "%sOwner summary for set %d are %s (per way: %s)\n",
+			(isShadow ? "SHADOW: " : ""),
+			set,
+			counts.str().c_str(),
+			owners.str().c_str());
+
 	return blkCnt;
 }
 
 LRUBlk*
 LRU::findLRUBlkForCPU(int cpuID, unsigned int set){
-	// replace the LRU block belonging to this cache
+	// replace the LRU block belonging to this cpuID
 	for(int i = assoc-1;i>=0;i--){
 		LRUBlk* blk = sets[set].blks[i];
 		if(blk->origRequestingCpuID == cpuID){
