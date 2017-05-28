@@ -276,6 +276,9 @@ def createCacheInterference(bank):
     if "WRITEBACK-IPP" in env:
         cacheInt.writeback_ipp = env["WRITEBACK-IPP"]
     
+    if "ATD-SAMP-POLICY" in env:
+        cacheInt.atdSamplingPolicy= env["ATD-SAMP-POLICY"]
+    
     assert "HIT-CURVE-PERF-IMPACT-ONLY" in env
     cacheInt.onlyPerfImpactReqsInHitCurves = env["HIT-CURVE-PERF-IMPACT-ONLY"]
         

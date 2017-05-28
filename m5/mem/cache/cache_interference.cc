@@ -28,7 +28,8 @@ CacheInterference::CacheInterference(std::string _name,
 		                             double _constituencyFactor,
 		                             HierParams* hp,
 									 bool _disableLLCCheckpointLoad,
-									 bool _onlyPerfImpactReqsInHitCounters)
+									 bool _onlyPerfImpactReqsInHitCounters,
+									 ATDSamplingPolicy _atdSampPol)
 : BaseHier(_name, hp){
 
 	size = _size;
@@ -54,6 +55,7 @@ CacheInterference::CacheInterference(std::string _name,
 								i);
 		shadowTags[i]->setCacheInterference(this);
 	}
+	leaderSetMap = vector<bool>(totalSetNumber, false);
 
 	numLeaderSets = _numLeaderSets;
 	if(numLeaderSets == 0) numLeaderSets = totalSetNumber; // 0 means full-map
@@ -130,6 +132,70 @@ CacheInterference::CacheInterference(std::string _name,
 	profileEvent->schedule(CACHE_PROFILE_INTERVAL);
 
 	srand(240000);
+
+	initLeaderSetMap(_atdSampPol);
+}
+
+#define debugPrint(t) if(doDebugPrint) cout << name() << ":" << t << "\n"
+#define debugPrintSet(t, s) if(doDebugPrint) cout << name() << ":" << t << s << "\n"
+
+void
+CacheInterference::initLeaderSetMap(ATDSamplingPolicy atdSampPol){
+	bool doDebugPrint = false;
+	assert(leaderSetMap.size() == totalSetNumber);
+	if(numLeaderSets == totalSetNumber){
+		debugPrint("Sampling disabled, all sets are leader sets");
+		for(int i=0;i<leaderSetMap.size();i++){
+			leaderSetMap[i] = true;
+		}
+	}
+	else{
+		debugPrintSet("Total number of sets ", totalSetNumber);
+		debugPrintSet("Sets in constituency ", setsInConstituency);
+		if(atdSampPol == ATD_SAMP_SIMPLE_STATIC){
+			debugPrint("Simple static sampling policy selected");
+			int offset = 0;
+			for(int i=0;i<leaderSetMap.size();i+=setsInConstituency){
+				debugPrintSet("Selecting leader set ", i+offset);
+				leaderSetMap[i+offset] = true;
+				offset++;
+			}
+		}
+		else if(atdSampPol == ATD_SAMP_STRATIFIED_RANDOM){
+			debugPrint("Stratified random sampling policy selected");
+			for(int i=0;i<leaderSetMap.size();i+=setsInConstituency){
+				int offset = (rand() / (double) RAND_MAX) * setsInConstituency;
+				debugPrintSet("Selecting leader set ", i+offset);
+				leaderSetMap[i+offset] = true;
+			}
+		}
+		else if(atdSampPol == ATD_SAMP_RANDOM){
+			debugPrint("Random sampling policy selected\n");
+			int remaining = numLeaderSets;
+			while(remaining > 0){
+				int leader = (rand() / (double) RAND_MAX) * totalSetNumber;
+				if(!leaderSetMap[leader]){
+					debugPrintSet("Selecting leader set ", leader);
+					leaderSetMap[leader] = true;
+					remaining--;
+				}
+				else{
+					debugPrintSet("Set is already a leader ", leader);
+				}
+
+			}
+		}
+		else{
+			fatal("Unknown sampling policy");
+		}
+
+		int trueCnt = 0;
+		for(int i=0;i<leaderSetMap.size();i++){
+			if(leaderSetMap[i]) trueCnt++;
+		}
+
+		assert(trueCnt == numLeaderSets);
+	}
 }
 
 void
@@ -733,14 +799,7 @@ CacheInterference::computeInterferenceProbabilities(int cpuID){
 
 bool
 CacheInterference::isLeaderSet(int set){
-
-	assert(numLeaderSets != -1);
-	if(numLeaderSets == totalSetNumber) return true;
-
-	int constituencyNumber = set / setsInConstituency;
-	int leaderSet = constituencyNumber * setsInConstituency + (constituencyNumber % setsInConstituency);
-
-	return leaderSet == set;
+	return leaderSetMap[set];
 }
 
 LRUBlk*
@@ -974,6 +1033,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
     Param<double> constituencyFactor;
     Param<bool> disableLLCCheckpointLoad;
     Param<bool> onlyPerfImpactReqsInHitCurves;
+    Param<string> atdSamplingPolicy;
 END_DECLARE_SIM_OBJECT_PARAMS(CacheInterference)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
@@ -989,7 +1049,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(CacheInterference)
     INIT_PARAM(divisionFactor, "The number of cores in shared mode when run in private mode"),
     INIT_PARAM_DFLT(constituencyFactor, "The average percentage of blocks accessed in a constituency", 1.0),
 	INIT_PARAM_DFLT(disableLLCCheckpointLoad, "Disable loading LLC state from the checkpoint", false),
-	INIT_PARAM_DFLT(onlyPerfImpactReqsInHitCurves, "Only count hits that are due to requests with a direct performance impact", false)
+	INIT_PARAM_DFLT(onlyPerfImpactReqsInHitCurves, "Only count hits that are due to requests with a direct performance impact", false),
+	INIT_PARAM_DFLT(atdSamplingPolicy, "The policy to select leader sets in the ATDs", "SimpleStatic")
 END_INIT_SIM_OBJECT_PARAMS(CacheInterference)
 
 
@@ -1024,6 +1085,15 @@ CREATE_SIM_OBJECT(CacheInterference)
 
     HierParams* hp = new HierParams("InterferenceHier", false, true, cpuCount);
 
+    CacheInterference::ATDSamplingPolicy sampPol = CacheInterference::ATD_SAMP_SIMPLE_STATIC;
+    string tmpSampPolicy = atdSamplingPolicy;
+    if(tmpSampPolicy == "Random"){
+    	sampPol = CacheInterference::ATD_SAMP_RANDOM;
+    }
+    else if(tmpSampPolicy == "StratifiedRandom"){
+    	sampPol = CacheInterference::ATD_SAMP_STRATIFIED_RANDOM;
+    }
+
 	return new CacheInterference(getInstanceName(),
 								  cpuCount,
 								  leaderSets,
@@ -1038,7 +1108,8 @@ CREATE_SIM_OBJECT(CacheInterference)
 								  constituencyFactor,
 								  hp,
 								  disableLLCCheckpointLoad,
-								  onlyPerfImpactReqsInHitCurves);
+								  onlyPerfImpactReqsInHitCurves,
+								  sampPol);
 }
 
 REGISTER_SIM_OBJECT("CacheInterference", CacheInterference)

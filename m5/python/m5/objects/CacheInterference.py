@@ -1,6 +1,7 @@
 from m5 import *
 
 class InterferenceProbabilityPolicy(Enum): vals = ['random', 'sequential', 'sequential-reset', 'none']
+class ATDSamplingPolicy(Enum): vals = ['SimpleStatic', 'Random', 'StratifiedRandom']
 
 class CacheInterference(SimObject):
     type = 'CacheInterference'
@@ -18,3 +19,4 @@ class CacheInterference(SimObject):
     constituencyFactor = Param.Float("The average percentage of blocks accessed in a constituency")
     disableLLCCheckpointLoad = Param.Bool("Disable loading LLC state from the checkpoint")
     onlyPerfImpactReqsInHitCurves = Param.Bool("Only count hits that are due to requests with a direct performance impact")
+    atdSamplingPolicy = Param.ATDSamplingPolicy("The policy to select leader sets in the ATDs")

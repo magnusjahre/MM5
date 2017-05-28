@@ -36,6 +36,12 @@ public:
 		IPP_INVALID
 	};
 
+	enum ATDSamplingPolicy{
+		ATD_SAMP_SIMPLE_STATIC,
+		ATD_SAMP_RANDOM,
+		ATD_SAMP_STRATIFIED_RANDOM,
+	};
+
 	InterferenceProbabilityPolicy loadProbabilityPolicy;
 	InterferenceProbabilityPolicy writebackProbabilityPolicy;
 
@@ -174,6 +180,8 @@ private:
 
 	InterferenceManager* interferenceManager;
 
+	std::vector<bool> leaderSetMap;
+
 	std::vector<int> requestCounters;
 	std::vector<int> responseCounters;
 
@@ -222,6 +230,7 @@ private:
 	bool LLCCheckpointLoadDisabled;
 
     bool isLeaderSet(int set);
+    void initLeaderSetMap(ATDSamplingPolicy atdSampPol);
 
     void issuePrivateWriteback(int cpuID, Addr addr, BaseCache* cache, int cacheSet = -1);
 
@@ -261,7 +270,8 @@ public:
 			          double _constituencyFactor,
 			          HierParams* _hp,
 					  bool _disableLLCCheckpointLoad,
-					  bool _onlyPerfImpactReqsInHitCounters);
+					  bool _onlyPerfImpactReqsInHitCounters,
+					  ATDSamplingPolicy _atdSampPol);
 
 	int getNumLeaderSets(){
 		return numLeaderSets;
