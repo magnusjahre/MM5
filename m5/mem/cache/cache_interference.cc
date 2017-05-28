@@ -170,7 +170,7 @@ CacheInterference::initLeaderSetMap(ATDSamplingPolicy atdSampPol){
 			}
 		}
 		else if(atdSampPol == ATD_SAMP_RANDOM){
-			debugPrint("Random sampling policy selected\n");
+			debugPrint("Random sampling policy selected");
 			int remaining = numLeaderSets;
 			while(remaining > 0){
 				int leader = (rand() / (double) RAND_MAX) * totalSetNumber;
