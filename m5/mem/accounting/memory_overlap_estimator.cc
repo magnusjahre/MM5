@@ -36,12 +36,8 @@ MemoryOverlapEstimator::MemoryOverlapEstimator(string name, int id,
 
 	stallIdentifyAlg = _ident;
 
-	// Graph CPL is needed in the private mode to verify the CPL shared mode estimates
-	// TODO: Implement a parameter that can enable the graph CPL measurements in the private mode when they are needed.
-	//       They are quite expensive to retrieve in terms of performance, so they should in general be off.
-	graphCPLEnabled = false;
-	//if(cpu_count > 1) graphCPLEnabled = _graphCPLEnabled;
-	//else graphCPLEnabled = true;
+	if(cpu_count == 1) graphCPLEnabled = _graphCPLEnabled;
+	else graphCPLEnabled = false;
 
 	nextReqID = 0;
 	reqNodeID = 0;
