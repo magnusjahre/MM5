@@ -766,6 +766,10 @@ def setUpOverlapMeasurement():
             root.ITCAs[i].itip = env["ITCA-ITIP"]
         if "ITCA-VERIFY" in env:
             root.ITCAs[i].do_verification = env["ITCA-VERIFY"]
+            
+    if "ENABLE-CPL-GRAPH" in env:
+        for i in range(int(env["NP"])):
+            root.overlapEstimators[i].graph_cpl_enabled = True
 
 def warn(message):
     print >> sys.stderr, "Warning: "+message
