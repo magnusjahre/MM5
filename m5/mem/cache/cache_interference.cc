@@ -158,7 +158,7 @@ CacheInterference::initLeaderSetMap(ATDSamplingPolicy atdSampPol){
 			for(int i=0;i<leaderSetMap.size();i+=setsInConstituency){
 				debugPrintSet("Selecting leader set ", i+offset);
 				leaderSetMap[i+offset] = true;
-				offset++;
+				offset = (offset + 1) % setsInConstituency;
 			}
 		}
 		else if(atdSampPol == ATD_SAMP_STRATIFIED_RANDOM){
@@ -189,13 +189,14 @@ CacheInterference::initLeaderSetMap(ATDSamplingPolicy atdSampPol){
 			fatal("Unknown sampling policy");
 		}
 
-		int trueCnt = 0;
-		for(int i=0;i<leaderSetMap.size();i++){
-			if(leaderSetMap[i]) trueCnt++;
-		}
-
-		assert(trueCnt == numLeaderSets);
 	}
+
+	int trueCnt = 0;
+	for(int i=0;i<leaderSetMap.size();i++){
+		if(leaderSetMap[i]) trueCnt++;
+	}
+
+	assert(trueCnt == numLeaderSets);
 }
 
 void
