@@ -328,13 +328,13 @@ def initSharedCache(bankcnt, optPart):
             bank.disableLLCCheckpointLoad = True
     
     root.cacheInterference = createCacheInterference(root.SharedCache[0]) 
-    if "SHARED-CACHE-ASSOC" in env:
-        root.cacheInterference.disableLLCCheckpointLoad = True
+    #if "SHARED-CACHE-ASSOC" in env:
+    #    root.cacheInterference.disableLLCCheckpointLoad = True
     
-    if "SHARED-CACHE-BANK-SIZE" in env:
-        root.cacheInterference.disableLLCCheckpointLoad = True
-        for bank in root.SharedCache:
-            bank.disableLLCCheckpointLoad = True
+    #if "SHARED-CACHE-BANK-SIZE" in env:
+    root.cacheInterference.disableLLCCheckpointLoad = True
+    for bank in root.SharedCache:
+        bank.disableLLCCheckpointLoad = True
     
     if optPart != None:
         for bank in root.SharedCache:
