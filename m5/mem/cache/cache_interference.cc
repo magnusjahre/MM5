@@ -306,14 +306,14 @@ void
 CacheInterference::handleProfileEvent(){
 
 	// Capacity profile
-	vector<double> data = vector<double>(cpuCount+2, 0.0);
+	vector<double> data = vector<double>(cpuCount+1, 0.0);
 	double totalBlocks = 0.0;
 	double assoc = 0.0;
 	for(int i=0;i<caches.size();i++){
 		vector<int> ownedBlocks = caches[i]->perCoreOccupancy();
 		assert(ownedBlocks.size() == cpuCount + 2);
 
-		for(int j=0;j<cpuCount+1;j++){
+		for(int j=0;j<data.size();j++){
 			data[j] += (double) ownedBlocks[j];
 		}
 		totalBlocks += (double) ownedBlocks[cpuCount+1];
