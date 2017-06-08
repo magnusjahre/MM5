@@ -335,21 +335,21 @@ CacheInterference::handleProfileEvent(){
     	histogramTraceInitalized = true;
     }
 
-    for(int i=0;i<cpuCount;i++){
+    for(int tmpCPUID=0;tmpCPUID<cpuCount;tmpCPUID++){
     	vector<double> profile = vector<double>((int) assoc+1, 0.0);
-    	for(int j=0;j<caches.size();j++){
-    		vector<double> bankProfile = caches[i]->perCoreOccupancyDistribution(i);
+    	for(int tmpBankID=0;tmpBankID<caches.size();tmpBankID++){
+    		vector<double> bankProfile = caches[tmpBankID]->perCoreOccupancyDistribution(tmpCPUID);
     		assert(bankProfile.size() == profile.size());
-    		for(int k=0;k<profile.size();k++){
-    			profile[k] += (1/(double) caches.size())*bankProfile[k];
+    		for(int tmpWayID=0;tmpWayID<profile.size();tmpWayID++){
+    			profile[tmpWayID] += (1/(double) caches.size())*bankProfile[tmpWayID];
     		}
     	}
 
     	vector<RequestTraceEntry> profileTraceData;
-    	for(int j=0;j<profile.size();j++){
-    		profileTraceData.push_back(profile[j]);
+    	for(int i=0;i<profile.size();i++){
+    		profileTraceData.push_back(profile[i]);
     	}
-    	capacityProfileHistogramTraces[i].addTrace(profileTraceData);
+    	capacityProfileHistogramTraces[tmpCPUID].addTrace(profileTraceData);
     }
 
     // Event management
