@@ -463,6 +463,11 @@ def setUpASMPolicy():
     assert optionName+"DO-LLC-ALLOC" in env
     policy.allocateLLC = env[optionName+"DO-LLC-ALLOC"]
     
+    if optionName+"MAX-SPEEDUP" in env:
+        policy.maximumSpeedup = env[optionName+"MAX-SPEEDUP"]
+    else:
+        policy.maximumSpeedup = 0.0
+    
     # The following parameter do not matter for ASR
     policy.writeStallTechnique = "ws-none"
     policy.privateBlockedStallTechnique = "pbs-none"

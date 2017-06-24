@@ -21,7 +21,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 					 double _hybridDecisionError,
 					 int _hybridBufferSize,
 					 int _epoch,
-					 bool _doLLCAlloc)
+					 bool _doLLCAlloc,
+					 double _maximumSpeedup)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -44,6 +45,7 @@ ASMPolicy::ASMPolicy(std::string _name,
 	maxWays = 0;
 	curHighPriCPUID = 0;
 	doLLCAlloc = _doLLCAlloc;
+	maximumSpeedup = _maximumSpeedup;
 
 	if(_cpuCount > 1){
 		epochEvent = new ASREpochEvent(this, epoch);
@@ -160,6 +162,21 @@ ASMPolicy::prepareEstimates(){
 		assert(values[i].carShared >= 0.0);
 		if(values[i].carAlone == 0.0) values[i].speedup = 1.0;
 		else values[i].speedup = values[i].carAlone / values[i].carShared;
+
+		if(maximumSpeedup != 0.0){
+			if(values[i].speedup >= maximumSpeedup){
+				DPRINTF(ASRPolicyProgress, "Speed-up %f greater than max %f, capping\n",
+						values[i].speedup,
+						maximumSpeedup);
+				values[i].speedup = maximumSpeedup;
+			}
+			else{
+				DPRINTF(ASRPolicyProgress, "Speed-up %f is less than cap %f, not capping\n", values[i].speedup, maximumSpeedup);
+			}
+		}
+		else{
+			DPRINTF(ASRPolicyProgress, "Capping disabled for CPU %d\n", i);
+		}
 
 		asrPrivateModeSpeedupEsts[i] = values[i].speedup;
 		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
@@ -317,6 +334,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 	Param<int> hybridBufferSize;
 	Param<int> epoch;
 	Param<bool> allocateLLC;
+	Param<double> maximumSpeedup;
 END_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
@@ -335,7 +353,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM(epoch, "The number of cycles in each epoch"),
-	INIT_PARAM(allocateLLC, "Do LLC allocation?")
+	INIT_PARAM(allocateLLC, "Do LLC allocation?"),
+	INIT_PARAM_DFLT(maximumSpeedup, "Cap speedup at this value", 0.0)
 END_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 
 CREATE_SIM_OBJECT(ASMPolicy)
@@ -366,7 +385,8 @@ CREATE_SIM_OBJECT(ASMPolicy)
 									  hybridDecisionError,
 									  hybridBufferSize,
 									  epoch,
-									  allocateLLC);
+									  allocateLLC,
+									  maximumSpeedup);
 }
 
 REGISTER_SIM_OBJECT("ASMPolicy", ASMPolicy)

@@ -20,6 +20,7 @@ private:
 	int curHighPriCPUID;
 	bool doLLCAlloc;
 	ASREpochEvent* epochEvent;
+	double maximumSpeedup;
 
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
@@ -53,7 +54,8 @@ public:
 			  double _hybridDecisionError,
 			  int _hybridBufferSize,
 			  int _epoch,
-			  bool _doLLCAlloc);
+			  bool _doLLCAlloc,
+			  double _maximumSpeedup);
 
 	virtual void initPolicy();
 
