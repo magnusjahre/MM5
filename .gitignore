@@ -1,0 +1,3 @@
+m5/build/*
+ext/lpsolve/lpsolve55/bin
+*.pyc
