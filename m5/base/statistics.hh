@@ -476,7 +476,7 @@ class Wrap : public Child
     }
 };
 
-template <class Parent, class Child, template <class Child> class Data>
+template <class Parent, class Child, template <class> class Data>
 class WrapVec : public Wrap<Parent, Child, Data>
 {
   public:
@@ -518,7 +518,7 @@ class WrapVec : public Wrap<Parent, Child, Data>
 
 };
 
-template <class Parent, class Child, template <class Child> class Data>
+template <class Parent, class Child, template <class> class Data>
 class WrapVec2d : public WrapVec<Parent, Child, Data>
 {
   public:
