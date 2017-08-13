@@ -85,8 +85,8 @@ hgVersionFileHead = """
 #define __HG_VERSION_HH__
 
 """
-hgVersion = callProg(["hg", "id", "-i"])
-hgBranch = callProg(["hg", "branch"])
+hgVersion = callProg(["git", "rev-parse", "HEAD"])
+hgBranch = callProg(["git", "rev-parse", "--abbrev-ref", "HEAD"])
 
 hgVersionFile = open("hg_version.hh", "w")
 hgVersionFile.write(hgVersionFileHead)

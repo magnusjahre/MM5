@@ -153,7 +153,7 @@ sayHello(ostream &out)
     // display copyright
     ccprintf(out, "%s\n", briefCopyright);
     ccprintf(out, "M5 compiled on %d\n", compileDate);
-    ccprintf(out, "M5 built with hg branch %s and version %s\n", hgBranch, hgVersion);
+    ccprintf(out, "M5 built with git branch %s and version %s\n", hgBranch, hgVersion);
 
     char *host = getenv("HOSTNAME");
     if (!host)
