@@ -358,7 +358,7 @@ Bus::regStats()
 		;
 
     numWaitRequestDist
-    	.init(0,128,1)
+    	.init(0,256,1)
     	.name(name() + ".num_wait_request_distribution")
     	.desc("number of requests each request had to wait for")
     	;
