@@ -184,6 +184,7 @@ buildReqCopy(const MemReqPtr & r, int cpuCount, MemCmdEnum newCommand)
 
 	req->duboisSeqNum = r->duboisSeqNum;
 	req->duboisQueueInterference = r->duboisQueueInterference;
+	req->numMembusWaitReqs = r->numMembusWaitReqs;
 
 	req->data = new uint8_t[r->size];
 	if (r->data != NULL) {
@@ -290,6 +291,8 @@ copyRequest(MemReqPtr & to, const MemReqPtr & from, int cpuCount)
 
 	to->duboisSeqNum = from->duboisSeqNum;
 	to->duboisQueueInterference = from->duboisQueueInterference;
+
+	to->numMembusWaitReqs = from->numMembusWaitReqs;
 
 	if (from->data != NULL) {
 		to->data = new uint8_t[from->size];

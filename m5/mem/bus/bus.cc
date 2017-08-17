@@ -356,6 +356,12 @@ Bus::regStats()
 		.name(name() + ".queue_size_distribution")
 		.desc("number of ticks the given number of requests was queued")
 		;
+
+    numWaitRequestDist
+    	.init(0,128,1)
+    	.name(name() + ".num_wait_request_distribution")
+    	.desc("number of requests each request had to wait for")
+    	;
 }
 
 void
@@ -616,6 +622,13 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 	}
 
+	int contentionWaitReqs = addedContention / serviceLat;
+	DPRINTF(Bus, "Contention %d and service latency %d causes estimated %d extra requests to wait for\n",
+			addedContention,
+			serviceLat,
+			contentionWaitReqs);
+	memoryController->incrementWaitRequestCnt(contentionWaitReqs);
+
 	assert(addedContention >= 0);
 
 	simContLastCompletedAt = time + addedContention;
@@ -665,14 +678,15 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     memoryControllerEvent->schedule(time + simulatedContention);
     nextfree = time + simulatedContention;
 
-    DPRINTF(Bus, "latency calculated req %s, %s, addr %d, latency %d, queue %d, simulated contention %d, next free at %d\n",
+    DPRINTF(Bus, "latency calculated req %s, %s, addr %d, latency %d, queue %d, simulated contention %d, next free at %d, waited for %d reqs\n",
             req->cmd.toString(),
             req->isStore ? "store" : "load",
             req->paddr,
             time - curTick,
             (req->cmd == Read || req->cmd == Writeback) ? curTick - req->inserted_into_memory_controller : 0,
             simulatedContention,
-			nextfree);
+			nextfree,
+			req->numMembusWaitReqs);
 
     if(req->adaptiveMHASenderID == cpu_count){
     	DPRINTF(Bus, "Generated request for addr %d finished, informing generator\n", req->paddr);
@@ -696,6 +710,9 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
 
     	traceQueuedRequests(false);
     	bandwidthTraceData->addData(req, time);
+
+    	numWaitRequestDist.sample(req->numMembusWaitReqs);
+    	memoryController->incrementWaitRequestCnt(1);
 
         busUseCycles += time - curTick;
         memoryController->lastRequestLatency(req->adaptiveMHASenderID, (time - curTick));

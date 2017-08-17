@@ -276,6 +276,8 @@ class MemReq : public FastAlloc, public RefCounted
     int duboisSeqNum;
     Tick duboisQueueInterference;
 
+    int numMembusWaitReqs;
+
     /**
      * Contruct and initialize a memory request.
      * @param va The virtual address.
@@ -366,7 +368,8 @@ class MemReq : public FastAlloc, public RefCounted
     isSharedCacheMiss(false),
     isPrivModeSharedCacheMiss(false),
     duboisSeqNum(-1),
-    duboisQueueInterference(0)
+    duboisQueueInterference(0),
+	numMembusWaitReqs(0)
     {
     	latencyBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
     	interferenceBreakdown.resize(MEM_REQ_LATENCY_BREAKDOWN_SIZE, 0);
@@ -459,6 +462,8 @@ class MemReq : public FastAlloc, public RefCounted
         isPrivModeSharedCacheMiss = r.isPrivModeSharedCacheMiss;
         duboisSeqNum = r.duboisSeqNum;
         duboisQueueInterference = r.duboisQueueInterference;
+
+        numMembusWaitReqs = r.numMembusWaitReqs;
     }
 
     /**

@@ -139,6 +139,24 @@ RDFCFSTimingMemoryController::initializeTraceFiles(Bus* regbus){
 #endif
 }
 
+void
+RDFCFSTimingMemoryController::incrementWaitRequestCnt(int increment){
+	int reqCnt = 0;
+	for(queueIterator = readQueue.begin();queueIterator != readQueue.end(); queueIterator++){
+		MemReqPtr tmp = *queueIterator;
+		tmp->numMembusWaitReqs += increment;
+		reqCnt++;
+	}
+
+	for(queueIterator = writeQueue.begin();queueIterator != writeQueue.end(); queueIterator++){
+		MemReqPtr tmp = *queueIterator;
+		tmp->numMembusWaitReqs += increment;
+		reqCnt++;
+	}
+
+	DPRINTF(MemoryController, "Increasing the request wait counter for %d requests by %d\n", reqCnt, increment);
+}
+
 int RDFCFSTimingMemoryController::insertRequest(MemReqPtr &req) {
 
 	if(controllerInterference != NULL && !controllerInterference->isInitialized()){

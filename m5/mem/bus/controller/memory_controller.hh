@@ -193,6 +193,10 @@ class TimingMemoryController : public SimObject
 
     }
 
+    virtual void incrementWaitRequestCnt(int increment){
+    	fatal("Memory controller does not support incrementWaitRequestCnt()");
+    }
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

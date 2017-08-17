@@ -197,6 +197,8 @@ class Bus : public BaseHier
 
     Stats::Distribution<> queueSizeDistribution;
 
+    Stats::Distribution<> numWaitRequestDist;
+
     /** The last cycle the data arbiter was run, used for debugging. */
 	Tick runDataLast;
 	/** The last cycle the address arbiter was run, used for debugging. */

@@ -147,4 +147,5 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
 
     void setASRHighPriCPUID(int cpuID);
 
+    virtual void incrementWaitRequestCnt(int increment);
 };
