@@ -21,7 +21,8 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
                                                            int _reserved_slots,
                                                            bool _infinite_write_bw,
                                                            priority_scheme _priority_scheme,
-                                                           page_policy _page_policy)
+                                                           page_policy _page_policy,
+														   int _starvationThreshold)
     : TimingMemoryController(_name) {
 
     num_active_pages = 0;
@@ -40,7 +41,7 @@ RDFCFSTimingMemoryController::RDFCFSTimingMemoryController(std::string _name,
     lastDeliveredReqAt = 0;
     lastOccupyingCPUID = -1;
 
-    starvationPreventionThreshold = -1; //FIXME: parameterize
+    starvationPreventionThreshold = _starvationThreshold;
     numReqsPastOldest = 0;
 
     highPriCPUID = -1;
@@ -303,7 +304,14 @@ MemReqPtr RDFCFSTimingMemoryController::getRequest() {
 
         readyFound = getReady(retval);
         if(readyFound){
-            DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d page %d cpu %d (%d)\n", retval->cmd, retval->paddr, getMemoryBankID(retval->paddr), getPage(retval), retval->adaptiveMHASenderID, retval->nfqWBID);
+            DPRINTF(MemoryController, "Found ready request, cmd %s addr %d bank %d page %d cpu %d (%d), position %d\n",
+            		retval->cmd,
+					retval->paddr,
+					getMemoryBankID(retval->paddr),
+					getPage(retval),
+					retval->adaptiveMHASenderID,
+					retval->nfqWBID,
+					retval->memCtrlIssuePosition);
             assert(!bankIsClosed(retval));
             assert(retval->cmd != InvalidCmd);
         }
@@ -480,7 +488,17 @@ RDFCFSTimingMemoryController::getReady(MemReqPtr& req){
     if(equalReadWritePri){
 
     	if(starvationPreventionThreshold != -1){
-			if(numReqsPastOldest == starvationPreventionThreshold) return false;
+			if(numReqsPastOldest == starvationPreventionThreshold){
+				DPRINTF(MemoryController, "Number of bypassing requests is %d, starvation threshold %d, forcing oldest request\n",
+						numReqsPastOldest,
+						starvationPreventionThreshold);
+				return false;
+			}
+
+			DPRINTF(MemoryController, "Number of bypassing requests is %d, starvation threshold %d, allowing search for ready request\n",
+									numReqsPastOldest,
+									starvationPreventionThreshold);
+
 			assert(numReqsPastOldest < starvationPreventionThreshold);
     	}
 
@@ -875,6 +893,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     Param<bool> inf_write_bw;
     Param<string> page_policy;
     Param<string> priority_scheme;
+    Param<int> starvation_threshold;
 END_DECLARE_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -884,7 +903,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
     INIT_PARAM_DFLT(reserved_slots, "Number of activations reserved for reads", 2),
     INIT_PARAM_DFLT(inf_write_bw, "Infinite writeback bandwidth", false),
     INIT_PARAM_DFLT(page_policy, "Controller page policy", "ClosedPage"),
-    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS")
+    INIT_PARAM_DFLT(priority_scheme, "Controller priority scheme", "FCFS"),
+	INIT_PARAM_DFLT(starvation_threshold, "Maximum number of non-oldest requests to issue in a row", -1)
 END_INIT_SIM_OBJECT_PARAMS(RDFCFSTimingMemoryController)
 
 
@@ -914,7 +934,8 @@ CREATE_SIM_OBJECT(RDFCFSTimingMemoryController)
                                             reserved_slots,
                                             inf_write_bw,
                                             priority,
-                                            policy);
+                                            policy,
+											starvation_threshold);
 }
 
 REGISTER_SIM_OBJECT("RDFCFSTimingMemoryController", RDFCFSTimingMemoryController)

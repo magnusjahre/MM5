@@ -13,3 +13,4 @@ class RDFCFSMemoryController(TimingMemoryController):
     page_policy = Param.PagePolicy("Controller page policy")
     priority_scheme = Param.PriorityScheme("Controller priority scheme")
     rf_limit_all_cpus = Param.Int("Private latency estimation ready first limit")
+    starvation_threshold = Param.Int("Maximum number of non-oldest requests to issue in a row")

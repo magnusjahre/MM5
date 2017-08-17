@@ -143,6 +143,9 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
                 root.membus[i].memory_controller.page_policy = env["MEMORY-BUS-PAGE-POLICY"]
             if "MEMORY-BUS-PRIORITY-SCHEME" in env:
                 root.membus[i].memory_controller.priority_scheme = env["MEMORY-BUS-PRIORITY-SCHEME"]
+                
+            if "MEMORY-BUS-STARVATION-THRESHOLD" in env:
+                root.membus[i].memory_controller.starvation_threshold = env["MEMORY-BUS-STARVATION-THRESHOLD"]
         
         elif env["MEMORY-BUS-SCHEDULER"] == "TNFQ":
             root.membus[i].memory_controller = ThroughputNFQMemoryController()

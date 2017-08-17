@@ -97,7 +97,8 @@ class RDFCFSTimingMemoryController : public TimingMemoryController
                                  int _reserved_slots,
                                  bool _infinite_write_bw,
                                  priority_scheme _priority_scheme,
-                                 page_policy _page_policy);
+                                 page_policy _page_policy,
+								 int _starvationThreshold);
 
     /** Frees locally allocated memory. */
     ~RDFCFSTimingMemoryController();
