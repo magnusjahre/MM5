@@ -174,11 +174,13 @@ InterferenceManager::InterferenceManager(std::string _name,
 void
 InterferenceManager::addCommitCycle(int cpuID){
 	commitTraceCommitCycles[cpuID]++;
+	cpuCommitCycles[cpuID]++;
 }
 
 void
 InterferenceManager::addMemIndependentStallCycle(int cpuID){
 	commitTraceMemIndStall[cpuID]++;
+	cpuMemIndStallCycles[cpuID]++;
 }
 
 void
@@ -304,34 +306,41 @@ InterferenceManager::regStats(){
 
 	avgInterferencePercentage = avgTotalInterference / avgTotalLatency;
 
-	cpuStallCycles
+	cpuSharedStallCycles
 		.init(intManCPUCount)
-		.name(name() + ".cpu_stall_cycles")
-		.desc("total number of clock cycles the CPU was stalled");
+		.name(name() + ".cpu_shared_stall_cycles")
+		.desc("total number of clock cycles the CPU was stalled due to a shared memory system request");
 
-	cpuComputeCycles
-		.name(name() + ".cpu_compute_cycles")
-		.desc("total number of clock cycles the CPU used for computation");
+	cpuPrivateStallCycles
+		.init(intManCPUCount)
+		.name(name() + ".cpu_private_stall_cycles")
+		.desc("total number of clock cycles the CPU was stalled due to a private memory system request");
 
-	cpuComputeCycles = simTicks - cpuStallCycles;
+	cpuOtherStallCycles
+		.init(intManCPUCount)
+		.name(name() + ".cpu_other_stall_cycles")
+		.desc("total number of clock cycles the CPU was stalled due blocked L1, empty ROB or full store buffer");
+
+	cpuMemIndStallCycles
+		.init(intManCPUCount)
+		.name(name() + ".cpu_mem_ind_stall_cycles")
+		.desc("total number of clock cycles the CPU was stalled due a memory-independent event");
+
+	cpuCommitCycles
+		.init(intManCPUCount)
+		.name(name() + ".cpu_commit_cycles")
+		.desc("total number of clock cycles the CPU committed instructions");
 
 	numCpuStalls
 		.init(intManCPUCount)
 		.name(name() + ".num_of_cpu_stalls")
 		.desc("total number of times the CPU was stalled");
 
-	cpuStallPercentage
-		.name(name() + ".cpu_stall_percentage")
-		.desc("The percentage of time the CPU was stalled");
+	cpuComputePercentage
+		.name(name() + ".cpu_compute_percentage")
+		.desc("The percentage of time the CPU was computing");
 
-	cpuStallPercentage = cpuStallCycles / simTicks;
-
-	avgCpuStallLength
-		.name(name() + ".avg_cpu_stall_length")
-		.desc("The average length of a CPU stall");
-
-	avgCpuStallLength = cpuStallCycles / numCpuStalls;
-
+	cpuComputePercentage = cpuCommitCycles / simTicks;
 
 	totalPrivateMemsysLatency
 		.init(intManCPUCount)
@@ -737,16 +746,19 @@ InterferenceManager::addStallCycles(int cpuID, Tick cpuStalledFor, bool isShared
 	if(isShared){
 		cpuSharedStallAccumulator[cpuID] += cpuStalledFor;
 		cpuComTraceStallCycles[cpuID] += cpuStalledFor;
-		cpuStallCycles[cpuID] += cpuStalledFor;
+		cpuSharedStallCycles[cpuID] += cpuStalledFor;
 		if(incrementNumStalls) numCpuStalls[cpuID]++;
 	}
 	else{
 		commitTracePrivateStall[cpuID] += cpuStalledFor;
+		cpuPrivateStallCycles[cpuID] += cpuStalledFor;
 	}
 
 	commitTraceWriteStall[cpuID] += writeStall;
 	commitTracePrivateBlockedStall[cpuID] += blockedStall;
 	commitTraceEmptyROBStall[cpuID] += emptyROBStall;
+
+	cpuOtherStallCycles[cpuID] += writeStall + blockedStall + emptyROBStall;
 }
 
 void

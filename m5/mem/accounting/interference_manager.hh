@@ -342,11 +342,14 @@ protected:
 
 	Stats::Vector<> totalMemsysEntryLatency;
 
-	Stats::Vector<> cpuStallCycles;
+	Stats::Vector<> cpuSharedStallCycles;
+	Stats::Vector<> cpuPrivateStallCycles;
+	Stats::Vector<> cpuOtherStallCycles;
+	Stats::Vector<> cpuMemIndStallCycles;
+	Stats::Vector<> cpuCommitCycles;
+
 	Stats::Vector<> numCpuStalls;
-	Stats::Formula cpuStallPercentage;
-	Stats::Formula avgCpuStallLength;
-	Stats::Formula cpuComputeCycles;
+	Stats::Formula cpuComputePercentage;
 
 public:
 
