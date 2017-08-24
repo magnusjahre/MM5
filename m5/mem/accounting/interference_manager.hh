@@ -322,6 +322,7 @@ protected:
 	Stats::Formula avgLatency[NUM_LAT_TYPES];
 	Stats::Formula noBusLatency;
 	Stats::Formula busLatency;
+	Stats::Vector<> busLoads;
 
 	Stats::Formula avgRoundTripLatency;
 

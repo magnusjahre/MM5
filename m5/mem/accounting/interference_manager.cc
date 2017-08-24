@@ -278,6 +278,13 @@ InterferenceManager::regStats(){
 				 latencies[MemoryBusQueue] +
 				 latencies[MemoryBusService];
 
+
+	busLoads
+		.init(intManCPUCount)
+		.name(name() + ".bus_loads")
+		.desc("total number loads that were serviced in the memory bus")
+		.flags(total);
+
 	totalLatency
 		.init(intManCPUCount)
 		.name(name() + ".total_latency")
@@ -453,6 +460,7 @@ InterferenceManager::addLatency(LatencyType t, MemReqPtr& req, int latency){
 	//      This assumption currently holds, but it is too expensive to verify with an explicit assertion
 	if(t == MemoryBusService){
 		llcMissesForLatencyTraceAccumulator[req->adaptiveMHASenderID] += 1;
+		busLoads[req->adaptiveMHASenderID] += 1;
 	}
 
 	sharedLatencyBreakdownAccumulator[req->adaptiveMHASenderID][t] += latency;
