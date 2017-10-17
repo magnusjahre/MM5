@@ -678,7 +678,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     memoryControllerEvent->schedule(time + simulatedContention);
     nextfree = time + simulatedContention;
 
-    DPRINTF(Bus, "latency calculated req %s, %s, addr %d, latency %d, queue %d, simulated contention %d, next free at %d, waited for %d reqs\n",
+    DPRINTF(Bus, "latency calculated req %s, %s, addr %d, latency %d, queue %d, simulated contention %d, next free at %d, waited for %d reqs, %d data transfer cycles\n",
             req->cmd.toString(),
             req->isStore ? "store" : "load",
             req->paddr,
@@ -686,7 +686,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
             (req->cmd == Read || req->cmd == Writeback) ? curTick - req->inserted_into_memory_controller : 0,
             simulatedContention,
 			nextfree,
-			req->numMembusWaitReqs);
+			req->numMembusWaitReqs,
+			slaveInterfaces[0]->getDataTransTime());
 
     if(req->adaptiveMHASenderID == cpu_count){
     	DPRINTF(Bus, "Generated request for addr %d finished, informing generator\n", req->paddr);
@@ -714,7 +715,7 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
     	numWaitRequestDist.sample(req->numMembusWaitReqs);
     	memoryController->incrementWaitRequestCnt(1);
 
-        busUseCycles += time - curTick;
+        busUseCycles += slaveInterfaces[0]->getDataTransTime();
         memoryController->lastRequestLatency(req->adaptiveMHASenderID, (time - curTick));
 
         if(req->adaptiveMHASenderID != -1){
