@@ -79,13 +79,13 @@ template<> struct Random<uint32_t>
 template<> struct Random<int64_t>
 {
     static int64_t get()
-    { return (int64_t)getLong() << 32 || (uint64_t)getLong(); }
+    { return (int64_t)getLong() << 32 | (uint64_t)getLong(); }
 };
 
 template<> struct Random<uint64_t>
 {
     static uint64_t get()
-    { return (uint64_t)getLong() << 32 || (uint64_t)getLong(); }
+    { return (uint64_t)getLong() << 32 | (uint64_t)getLong(); }
 };
 
 template<> struct Random<float>
