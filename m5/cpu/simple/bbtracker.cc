@@ -75,7 +75,7 @@
 
 /* Size of basic block hash table. Should be increased for very 
    large programs (greater than 1 million basic blocks) */
-#define bb_size 100000
+#define bb_size 10000000
 
 typedef  bb_node * bb_node_ptr;
 bb_node_ptr bb_hash[bb_size];
