@@ -1049,8 +1049,9 @@ if env['PROTOCOL'] != 'none':
         
 # Connect L1 caches to CPUs
 for i in xrange(int(env['NP'])):
-    root.simpleCPU[i].dcache = root.L1dcaches[i]
-    root.simpleCPU[i].icache = root.L1icaches[i]
+    if not 'NO-SIMPLECPU-CACHES' in env:
+        root.simpleCPU[i].dcache = root.L1dcaches[i]
+        root.simpleCPU[i].icache = root.L1icaches[i]
     root.detailedCPU[i].dcache = root.L1dcaches[i]
     root.detailedCPU[i].icache = root.L1icaches[i]
     root.simpleCPU[i].cpu_id = i
