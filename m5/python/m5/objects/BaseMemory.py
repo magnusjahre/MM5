@@ -10,11 +10,14 @@ class BaseMemory(BaseMem):
     snarf_updates = Param.Bool(True,
         "update memory on cache-to-cache transfers")
     uncacheable_latency = Param.Latency('0ns', "uncacheable latency")
-    num_banks = Param.Int(8, "Number of banks")
-    RAS_latency = Param.Int(4, "RAS-to-CAS latency (bus cycles)")
-    CAS_latency = Param.Int(4, "CAS latency (bus cycles)")
-    precharge_latency = Param.Int(4, "precharge latency (bus cycles)")
-    min_activate_to_precharge_latency = Param.Int(12, "Minimum activate to precharge time (bus cycles)")
+    
+    bus_frequency = Param.Int("Bus frequency in MHz")
+    num_banks = Param.Int("Number of banks")
+    
+    RAS_latency = Param.Int("RAS-to-CAS latency (bus cycles)")
+    CAS_latency = Param.Int("CAS latency (bus cycles)")
+    precharge_latency = Param.Int("precharge latency (bus cycles)")
+    min_activate_to_precharge_latency = Param.Int("Minimum activate to precharge time (bus cycles)")
     
     static_memory_latency = Param.Bool("Return the same latency for all data transfers")
     

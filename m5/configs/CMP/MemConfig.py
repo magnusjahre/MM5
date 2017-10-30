@@ -396,11 +396,15 @@ class ThroughputNFQMemoryController(NFQMemoryController):
     starvation_prevention_thres = 3
     
 class DDR2(BaseMemory):
+    bus_frequency = 400
     num_banks = 8
+    
     RAS_latency = 4
     CAS_latency = 4
     precharge_latency = 4
     min_activate_to_precharge_latency = 12
+    
+    #TODO: Set all DRAM constants here
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True
@@ -408,11 +412,15 @@ class DDR2(BaseMemory):
         static_memory_latency = False
         
 class DDR4(BaseMemory):
-    num_banks = 8
-    RAS_latency = 4
-    CAS_latency = 4
-    precharge_latency = 4
-    min_activate_to_precharge_latency = 12
+    bus_frequency = 1333
+    num_banks = 16
+    
+    RAS_latency = 18
+    CAS_latency = 18
+    precharge_latency = 18
+    min_activate_to_precharge_latency = 12 #TODO
+    
+    #TODO: Set all DRAM constants here
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True

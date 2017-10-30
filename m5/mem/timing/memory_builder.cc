@@ -71,6 +71,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     Param<bool> compressed;
     SimObjectParam<MemTraceWriter *> mem_trace;
     /* Lagt til av oss */
+    Param<int> bus_frequency;
     Param<int> num_banks;
     Param<int> RAS_latency;
     Param<int> CAS_latency;
@@ -96,7 +97,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(compressed, "This memory stores compressed data.", false),
     INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),
-    INIT_PARAM_DFLT(num_banks, "Number of banks", 8),
+	INIT_PARAM_DFLT(bus_frequency, "Bus frequency", 400),
+	INIT_PARAM_DFLT(num_banks, "Number of banks", 8),
     INIT_PARAM_DFLT(RAS_latency, "RAS-to-CAS latency (bus cycles)", 4),
     INIT_PARAM_DFLT(CAS_latency, "CAS latency (bus cycles)", 4),
     INIT_PARAM_DFLT(precharge_latency, "precharge latency (bus cycles)", 4),
@@ -117,7 +119,10 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.snarf_updates = snarf_updates;
     params.do_writes = do_writes;
     params.addrRange = addr_range;
+
+    params.bus_frequency = bus_frequency;
     params.num_banks = num_banks;
+
     params.RAS_latency = RAS_latency;
     params.CAS_latency = CAS_latency;
     params.precharge_latency = precharge_latency;

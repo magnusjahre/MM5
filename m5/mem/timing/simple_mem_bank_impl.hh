@@ -94,8 +94,8 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     // internal read to precharge can be hidden by the data transfer if it is less than 2 cc
     assert(internal_read_to_precharge >= 2); // assumed by the implementation
 
-    //Clock frequency is 4GHz, bus freq 400MHz
-    bus_to_cpu_factor = 10; // Multiply by this to get cpu - cycles :p
+    //CPU frequency is 4GHz, bus freq 400MHz
+    bus_to_cpu_factor = 4000 / params.bus_frequency; // Multiply by this to get cpu - cycles :p
 
     // Convert to CPU cycles :-)
     RAS_latency *= bus_to_cpu_factor;

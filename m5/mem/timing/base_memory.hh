@@ -167,7 +167,9 @@ class BaseMemory : public BaseMem
 	std::vector<Range<Addr> > addrRange;
 
     /* DDR2 params */
-    int num_banks;
+    int bus_frequency;
+	int num_banks;
+
     int RAS_latency;
     int CAS_latency;
     int precharge_latency;
