@@ -395,7 +395,19 @@ class ThroughputNFQMemoryController(NFQMemoryController):
     wr_queue_size = 64
     starvation_prevention_thres = 3
     
-class SDRAM(BaseMemory):
+class DDR2(BaseMemory):
+    num_banks = 8
+    RAS_latency = 4
+    CAS_latency = 4
+    precharge_latency = 4
+    min_activate_to_precharge_latency = 12
+    
+    if "STATIC-MEMORY-LATENCY" in env:
+        static_memory_latency = True
+    else:
+        static_memory_latency = False
+        
+class DDR4(BaseMemory):
     num_banks = 8
     RAS_latency = 4
     CAS_latency = 4
