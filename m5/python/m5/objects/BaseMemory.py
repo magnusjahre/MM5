@@ -19,6 +19,14 @@ class BaseMemory(BaseMem):
     precharge_latency = Param.Int("precharge latency (bus cycles)")
     min_activate_to_precharge_latency = Param.Int("Minimum activate to precharge time (bus cycles)")
     
+    write_recovery_time = Param.Int("Write recovery time (bus cycles)")
+    internal_write_to_read = Param.Int("Internal write to read (bus cycles)")
+    pagesize = Param.Int("Page size bit shift")
+    internal_read_to_precharge = Param.Int("Internal read to precharge (bus cycles)")
+    data_time = Param.Int("Cycles to transfer a burst (bus cycles)")
+    read_to_write_turnaround = Param.Int("Read to write turn around time (bus cycles)")
+    internal_row_to_row = Param.Int("Internal row to row (bus cycles)")
+    
     static_memory_latency = Param.Bool("Return the same latency for all data transfers")
     
     if build_env['FULL_SYSTEM']:

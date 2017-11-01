@@ -404,7 +404,13 @@ class DDR2(BaseMemory):
     precharge_latency = 4
     min_activate_to_precharge_latency = 12
     
-    #TODO: Set all DRAM constants here
+    write_recovery_time = 6
+    internal_write_to_read = 3
+    pagesize = 10 # 1kB = 2**10 from standard
+    internal_read_to_precharge = 3
+    data_time = 4;
+    read_to_write_turnaround = 6
+    internal_row_to_row = 3
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True
@@ -420,7 +426,14 @@ class DDR4(BaseMemory):
     precharge_latency = 18
     min_activate_to_precharge_latency = 12 #TODO
     
-    #TODO: Set all DRAM constants here
+    #TODO: These values need to be verified
+    write_recovery_time = 6
+    internal_write_to_read = 3
+    pagesize = 10 # 1kB = 2**10 from standard
+    internal_read_to_precharge = 3
+    data_time = 4;
+    read_to_write_turnaround = 6
+    internal_row_to_row = 3
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True

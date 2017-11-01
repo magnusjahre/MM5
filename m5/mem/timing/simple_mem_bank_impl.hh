@@ -69,11 +69,19 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
 
-    returnStaticLatencies = params.static_memory_latency;
+    cout << "DRAM key params: " << num_banks << ", " << RAS_latency << ", " << CAS_latency << ", " << precharge_latency << ", " << min_activate_to_precharge_latency << "\n";
 
-    /* Constants */
-    write_recovery_time = 6;
-    internal_write_to_read = 3;
+    write_recovery_time = params.write_recovery_time;
+    internal_write_to_read = params.internal_write_to_read;
+    pagesize = params.pagesize;
+    internal_read_to_precharge = params.internal_read_to_precharge;
+    data_time = params.data_time;
+    read_to_write_turnaround = params.read_to_write_turnaround;
+    internal_row_to_row = params.internal_row_to_row;
+
+    cout << "Other Params: " << write_recovery_time << ", " << internal_write_to_read << ", " << pagesize << ", " << internal_read_to_precharge << ", " << data_time << ", " << read_to_write_turnaround << ", " << internal_row_to_row << "\n";
+
+    returnStaticLatencies = params.static_memory_latency;
 
     /* Build bank state */
     Bankstate.resize(num_banks, DDR2Idle);
@@ -85,16 +93,10 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
 
     bankInConflict.resize(num_banks, false);
 
-    pagesize = 10; // 1kB = 2**10 from standard :-)
-    internal_read_to_precharge = 3;
-    data_time = 4; // Single channel = 4 (i.e. burst lenght 8), dual channel = 2
-    read_to_write_turnaround = 6; // for burstlength = 8
-    internal_row_to_row = 3;
-
     // internal read to precharge can be hidden by the data transfer if it is less than 2 cc
     assert(internal_read_to_precharge >= 2); // assumed by the implementation
 
-    //CPU frequency is 4GHz, bus freq 400MHz
+    //CPU frequency is 4GHz
     bus_to_cpu_factor = 4000 / params.bus_frequency; // Multiply by this to get cpu - cycles :p
 
     // Convert to CPU cycles :-)

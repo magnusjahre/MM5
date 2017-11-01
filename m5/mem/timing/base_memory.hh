@@ -175,6 +175,14 @@ class BaseMemory : public BaseMem
     int precharge_latency;
     int min_activate_to_precharge_latency;
 
+    int write_recovery_time;
+    int internal_write_to_read;
+    int pagesize;
+    int internal_read_to_precharge;
+    int data_time;
+    int read_to_write_turnaround;
+    int internal_row_to_row;
+
     bool static_memory_latency;
 
     };
