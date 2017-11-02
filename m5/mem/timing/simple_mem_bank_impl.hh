@@ -233,7 +233,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         Bankstate[bank] = DDR2Active;
         openpage[bank] = page;
 
-        DPRINTF(DRAM, "Activating bank %d, will reach the active state at %d\n", bank, activateTime[bank]);
+        DPRINTF(DRAM, "Activating bank %d, closed at %d, last activate at %d, will reach the active state at %d\n",
+        		bank, closeTime[bank], last_activate, activateTime[bank]);
 
         return 0;
     }
