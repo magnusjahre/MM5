@@ -91,9 +91,6 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
 
     bankInConflict.resize(num_banks, false);
 
-    // internal read to precharge can be hidden by the data transfer if it is less than 2 cc
-    assert(internal_read_to_precharge >= 2); // assumed by the implementation
-
     //CPU frequency is 4GHz
     bus_to_cpu_factor = 4000 / params.bus_frequency; // Multiply by this to get cpu - cycles :p
 
@@ -164,11 +161,12 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         Tick prechCmdTick = 0;
         if (Bankstate[bank] == DDR2Read) {
             if(readyTime[bank] > curTick){
-                prechCmdTick = readyTime[bank] + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+                prechCmdTick = readyTime[bank] + internal_read_to_precharge;
             }
             else{
-                prechCmdTick = curTick + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+                prechCmdTick = curTick + internal_read_to_precharge;
             }
+            DPRINTF(DRAM, "Bank %d is read, ready at %d, precharge command can issue at %d\n", bank, readyTime[bank], prechCmdTick);
         }
         if (Bankstate[bank] == DDR2Written) {
             if(readyTime[bank] > curTick){
@@ -177,6 +175,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             else{
                 prechCmdTick = curTick + data_time + write_recovery_time;
             }
+            DPRINTF(DRAM, "Bank %d is written, ready at %d, precharge command can issue at %d\n", bank, readyTime[bank], prechCmdTick);
         }
         if (Bankstate[bank] == DDR2Active) {
         	if(activateTime[bank] > curTick){

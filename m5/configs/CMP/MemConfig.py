@@ -408,7 +408,7 @@ class DDR2(BaseMemory):
     write_recovery_time = 6
     internal_write_to_read = 3
     pagesize = 10 # 1kB = 2**10 from standard
-    internal_read_to_precharge = 3
+    internal_read_to_precharge = 1
     data_time = 4 # BL=8, double data rate
     read_to_write_turnaround = 6
     internal_row_to_row = 3
