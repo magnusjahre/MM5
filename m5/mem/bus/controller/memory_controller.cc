@@ -77,7 +77,6 @@ TimingMemoryController::checkMaxActivePages(){
 	if(max_active_pages == -1){
 		max_active_pages = mem_interface->getMaxActiveBanks();
 		assert(max_active_pages > 0);
-		cout << name() << ": max active pages set to " << max_active_pages << "\n";
 	}
 }
 
