@@ -77,6 +77,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     Param<int> CAS_latency;
     Param<int> precharge_latency;
     Param<int> min_activate_to_precharge_latency;
+    Param<int> write_latency;
 
     Param<int> write_recovery_time;
     Param<int> internal_write_to_read;
@@ -114,6 +115,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
     INIT_PARAM(CAS_latency, "CAS latency (bus cycles)"),
     INIT_PARAM(precharge_latency, "precharge latency (bus cycles)"),
     INIT_PARAM(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)"),
+	INIT_PARAM(write_latency, "The write command latency (bus cycles)"),
 	INIT_PARAM(write_recovery_time, "Write recovery time (bus cycles)"),
 	INIT_PARAM(internal_write_to_read, "Internal write to read (bus cycles)"),
 	INIT_PARAM(pagesize, "Page size bit shift"),
@@ -146,6 +148,7 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.CAS_latency = CAS_latency;
     params.precharge_latency = precharge_latency;
     params.min_activate_to_precharge_latency = min_activate_to_precharge_latency;
+    params.write_latency = write_latency;
 
     params.write_recovery_time = write_recovery_time;
     params.internal_write_to_read = internal_write_to_read;

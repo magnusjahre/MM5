@@ -18,6 +18,7 @@ class BaseMemory(BaseMem):
     CAS_latency = Param.Int("CAS latency (bus cycles)")
     precharge_latency = Param.Int("precharge latency (bus cycles)")
     min_activate_to_precharge_latency = Param.Int("Minimum activate to precharge time (bus cycles)")
+    write_latency = Param.Int("The write command latency (bus cycles)")
     
     write_recovery_time = Param.Int("Write recovery time (bus cycles)")
     internal_write_to_read = Param.Int("Internal write to read (bus cycles)")

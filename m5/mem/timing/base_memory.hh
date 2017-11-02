@@ -174,6 +174,7 @@ class BaseMemory : public BaseMem
     int CAS_latency;
     int precharge_latency;
     int min_activate_to_precharge_latency;
+    int write_latency;
 
     int write_recovery_time;
     int internal_write_to_read;

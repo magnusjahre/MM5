@@ -68,6 +68,7 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     CAS_latency = params.CAS_latency;
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
+    write_latency = params.write_latency;
 
     write_recovery_time = params.write_recovery_time;
     internal_write_to_read = params.internal_write_to_read;
@@ -99,6 +100,7 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     CAS_latency *= bus_to_cpu_factor;
     precharge_latency *= bus_to_cpu_factor;
     min_activate_to_precharge_latency *= bus_to_cpu_factor;
+    write_latency *= bus_to_cpu_factor;
     write_recovery_time *= bus_to_cpu_factor;
     internal_write_to_read *= bus_to_cpu_factor;
     internal_read_to_precharge *= bus_to_cpu_factor;
@@ -281,7 +283,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             case DDR2Read:
             {
                 Bankstate[bank] = DDR2Written;
-                int readCmdToWriteStartLat = read_to_write_turnaround + CAS_latency - 1*bus_to_cpu_factor;
+                int readCmdToWriteStartLat = read_to_write_turnaround + write_latency;
                 int curOffset = curTick - readyTime[bank];
                 if (curOffset <= readCmdToWriteStartLat) {
                     latency = data_time + (readCmdToWriteStartLat - curOffset);
@@ -296,8 +298,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             case DDR2Active:
             {
                 Bankstate[bank] = DDR2Written;
-                int writeLatency = CAS_latency - 1*bus_to_cpu_factor;
-                readyTime[bank] = activateTime[bank] + writeLatency;
+                readyTime[bank] = activateTime[bank] + write_latency;
                 DPRINTF(DRAM, "Writing bank %d, reaching ready state at %d\n", bank, readyTime[bank]);
                 latency = data_time;
                 break;

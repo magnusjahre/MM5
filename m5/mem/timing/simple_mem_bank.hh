@@ -61,6 +61,7 @@ class SimpleMemBank : public BaseMemory
     int CAS_latency;
     int precharge_latency;
     int min_activate_to_precharge_latency;
+    int write_latency;
 
     int active_bank_count;
 

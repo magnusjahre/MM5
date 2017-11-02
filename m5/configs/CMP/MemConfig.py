@@ -404,6 +404,7 @@ class DDR2(BaseMemory):
     CAS_latency = 4
     precharge_latency = 4
     min_activate_to_precharge_latency = 12
+    write_latency = 3
     
     write_recovery_time = 6
     internal_write_to_read = 3
@@ -424,9 +425,10 @@ class DDR4(BaseMemory):
     max_active_bank_cnt = 16
     
     RAS_latency = 18
-    CAS_latency = 18
+    CAS_latency = 18 
     precharge_latency = 18
     min_activate_to_precharge_latency = 43
+    write_latency = 14
     
     write_recovery_time = 20
     internal_write_to_read = 7 
