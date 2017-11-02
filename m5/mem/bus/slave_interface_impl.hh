@@ -202,6 +202,12 @@ SlaveInterface<Mem, Bus>::getMemoryBankCount(){
 }
 
 template<class Mem, class Bus>
+int
+SlaveInterface<Mem, Bus>::getMaxActiveBanks(){
+	return mem->getMaxActiveBanks();
+}
+
+template<class Mem, class Bus>
 Tick
 SlaveInterface<Mem, Bus>::getBankActivatedAt(int bankID){
     return mem->getBankActivatedAt(bankID);

@@ -86,6 +86,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     Param<int> read_to_write_turnaround;
     Param<int> internal_row_to_row;
 
+    Param<int> max_active_bank_cnt;
+
     Param<bool> static_memory_latency;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
@@ -119,6 +121,7 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
 	INIT_PARAM(data_time, "Cycles to transfer a burst (bus cycles)"),
 	INIT_PARAM(read_to_write_turnaround, "Read to write turn around time (bus cycles)"),
 	INIT_PARAM(internal_row_to_row, "Internal row to row (bus cycles)"),
+	INIT_PARAM(max_active_bank_cnt, "Maximum number of active banks"),
     INIT_PARAM_DFLT(static_memory_latency, "Return the same latency for all data transfers", false)
 
 END_INIT_SIM_OBJECT_PARAMS(BaseMemory)
@@ -151,6 +154,8 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.data_time = data_time;
     params.read_to_write_turnaround = read_to_write_turnaround;
     params.internal_row_to_row = internal_row_to_row;
+
+    params.max_active_bank_cnt = max_active_bank_cnt;
 
     params.static_memory_latency = static_memory_latency;
 

@@ -28,7 +28,7 @@ TimingMemoryController::TimingMemoryController(std::string _name)
 	mem_interface = NULL;
 	controllerInterference = NULL;
 
-	max_active_pages = 4;
+	max_active_pages = -1;
 	memCtrCPUCount = -1;
 }
 
@@ -69,6 +69,16 @@ TimingMemoryController::registerBus(Bus* _bus, int cpuCount){
 void
 TimingMemoryController::registerInterface(BaseInterface *interface){
 	mem_interface = interface;
+	assert(max_active_pages == -1);
+}
+
+void
+TimingMemoryController::checkMaxActivePages(){
+	if(max_active_pages == -1){
+		max_active_pages = mem_interface->getMaxActiveBanks();
+		assert(max_active_pages > 0);
+		cout << name() << ": max active pages set to " << max_active_pages << "\n";
+	}
 }
 
 void

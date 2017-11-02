@@ -27,6 +27,8 @@ class BaseMemory(BaseMem):
     read_to_write_turnaround = Param.Int("Read to write turn around time (bus cycles)")
     internal_row_to_row = Param.Int("Internal row to row (bus cycles)")
     
+    max_active_bank_cnt = Param.Int("Maximum number of active banks")
+    
     static_memory_latency = Param.Bool("Return the same latency for all data transfers")
     
     if build_env['FULL_SYSTEM']:

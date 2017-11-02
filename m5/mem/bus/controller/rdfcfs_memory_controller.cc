@@ -278,6 +278,8 @@ bool RDFCFSTimingMemoryController::hasMoreRequests() {
 
 MemReqPtr RDFCFSTimingMemoryController::getRequest() {
 
+	checkMaxActivePages();
+
     MemReqPtr retval = new MemReq();
     retval->cmd = InvalidCmd;
     retval->paddr = MemReq::inval_addr;

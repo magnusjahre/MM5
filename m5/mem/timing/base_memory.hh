@@ -183,6 +183,8 @@ class BaseMemory : public BaseMem
     int read_to_write_turnaround;
     int internal_row_to_row;
 
+    int max_active_bank_cnt;
+
     bool static_memory_latency;
 
     };

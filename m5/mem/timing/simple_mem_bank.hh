@@ -75,6 +75,8 @@ class SimpleMemBank : public BaseMemory
     int read_to_write_turnaround;
     int bus_to_cpu_factor;
 
+    int maximum_active_banks;
+
     std::vector<DDR2State> Bankstate;
     std::vector<Tick> activateTime;
     std::vector<Tick> readyTime;
@@ -134,6 +136,10 @@ class SimpleMemBank : public BaseMemory
     int getMemoryBankCount(){
         return num_banks;
     }
+
+    int getMaxActiveBanks(){
+    	return maximum_active_banks;
+    };
 
     int getPageSize(){
         return pagesize;

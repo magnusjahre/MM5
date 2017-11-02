@@ -69,8 +69,6 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
 
-    cout << "DRAM key params: " << num_banks << ", " << RAS_latency << ", " << CAS_latency << ", " << precharge_latency << ", " << min_activate_to_precharge_latency << "\n";
-
     write_recovery_time = params.write_recovery_time;
     internal_write_to_read = params.internal_write_to_read;
     pagesize = params.pagesize;
@@ -79,7 +77,7 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     read_to_write_turnaround = params.read_to_write_turnaround;
     internal_row_to_row = params.internal_row_to_row;
 
-    cout << "Other Params: " << write_recovery_time << ", " << internal_write_to_read << ", " << pagesize << ", " << internal_read_to_precharge << ", " << data_time << ", " << read_to_write_turnaround << ", " << internal_row_to_row << "\n";
+    maximum_active_banks = params.max_active_bank_cnt;
 
     returnStaticLatencies = params.static_memory_latency;
 
@@ -213,8 +211,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
 
         active_bank_count++;
-        // Max 4 banks can be active at any time according to DDR2 spec.
-        assert(active_bank_count < 5);
+        assert(active_bank_count <= maximum_active_banks);
         Tick extra_latency = 0;
         if (curTick < closeTime[bank]) {
             extra_latency = closeTime[bank] - curTick;

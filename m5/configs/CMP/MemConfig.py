@@ -398,6 +398,7 @@ class ThroughputNFQMemoryController(NFQMemoryController):
 class DDR2(BaseMemory):
     bus_frequency = 400
     num_banks = 8
+    max_active_bank_cnt = 4
     
     RAS_latency = 4
     CAS_latency = 4
@@ -420,6 +421,7 @@ class DDR2(BaseMemory):
 class DDR4(BaseMemory):
     bus_frequency = 1333
     num_banks = 16
+    max_active_bank_cnt = 16
     
     RAS_latency = 18
     CAS_latency = 18
