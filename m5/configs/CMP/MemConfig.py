@@ -408,7 +408,7 @@ class DDR2(BaseMemory):
     internal_write_to_read = 3
     pagesize = 10 # 1kB = 2**10 from standard
     internal_read_to_precharge = 3
-    data_time = 4;
+    data_time = 4 # BL=8, double data rate
     read_to_write_turnaround = 6
     internal_row_to_row = 3
     
@@ -424,16 +424,15 @@ class DDR4(BaseMemory):
     RAS_latency = 18
     CAS_latency = 18
     precharge_latency = 18
-    min_activate_to_precharge_latency = 12 #TODO
+    min_activate_to_precharge_latency = 43
     
-    #TODO: These values need to be verified
-    write_recovery_time = 6
-    internal_write_to_read = 3
-    pagesize = 10 # 1kB = 2**10 from standard
-    internal_read_to_precharge = 3
-    data_time = 4;
-    read_to_write_turnaround = 6
-    internal_row_to_row = 3
+    write_recovery_time = 20
+    internal_write_to_read = 7 
+    pagesize = 10 # 1kB = 2**10 is OK for 8GB and 16GB configurations with 
+    internal_read_to_precharge = 10
+    data_time = 4 # BL=8, double data rate
+    read_to_write_turnaround = 10
+    internal_row_to_row = 61
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True
