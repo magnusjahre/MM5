@@ -1132,7 +1132,9 @@ if "USE-SIMPOINT" in env:
             
             fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
         else:
-            fwticks, simulateCycles = setGenerateCheckpointParams(simpoints.simpoints[env["BENCHMARK"]][simpointNum][simpoints.FWKEY], simpointNum)
+            checkpointAt = simpoints.simpoints[env["BENCHMARK"]][simpointNum]
+            print >> sys.stderr, "Will generate checkpoint at "+str(checkpointAt)+" million instructions"
+            fwticks, simulateCycles = setGenerateCheckpointParams(checkpointAt)
     else:
         
         fwticks = 1
