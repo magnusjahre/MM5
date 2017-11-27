@@ -75,7 +75,7 @@ def parseBenchmarkString(string):
     elif string == 's6-test':
         return Test()
     elif string == 's6-wrf':
-        return Wrf()
+        panic('WRF is incompatible with this simulator')
     elif string == 's6-xalancbmk':
         panic('SPEC2006 xalancbmk did not compile')               
     
