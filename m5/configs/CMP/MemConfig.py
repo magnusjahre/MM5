@@ -395,12 +395,48 @@ class ThroughputNFQMemoryController(NFQMemoryController):
     wr_queue_size = 64
     starvation_prevention_thres = 3
     
-class SDRAM(BaseMemory):
+class DDR2(BaseMemory):
+    bus_frequency = 400
     num_banks = 8
+    max_active_bank_cnt = 4
+    
     RAS_latency = 4
     CAS_latency = 4
     precharge_latency = 4
     min_activate_to_precharge_latency = 12
+    write_latency = 3
+    
+    write_recovery_time = 6
+    internal_write_to_read = 3
+    pagesize = 10 # 1kB = 2**10 from standard
+    internal_read_to_precharge = 1
+    data_time = 4 # BL=8, double data rate
+    read_to_write_turnaround = 6
+    internal_row_to_row = 3
+    
+    if "STATIC-MEMORY-LATENCY" in env:
+        static_memory_latency = True
+    else:
+        static_memory_latency = False
+        
+class DDR4(BaseMemory):
+    bus_frequency = 1333
+    num_banks = 16
+    max_active_bank_cnt = 16
+    
+    RAS_latency = 18
+    CAS_latency = 18 
+    precharge_latency = 18
+    min_activate_to_precharge_latency = 43
+    write_latency = 14
+    
+    write_recovery_time = 20
+    internal_write_to_read = 7 
+    pagesize = 10 # 1kB = 2**10 is OK for 8GB and 16GB configurations with 
+    internal_read_to_precharge = 10
+    data_time = 4 # BL=8, double data rate
+    read_to_write_turnaround = 10
+    internal_row_to_row = 61
     
     if "STATIC-MEMORY-LATENCY" in env:
         static_memory_latency = True

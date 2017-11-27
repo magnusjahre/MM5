@@ -61,6 +61,7 @@ class SimpleMemBank : public BaseMemory
     int CAS_latency;
     int precharge_latency;
     int min_activate_to_precharge_latency;
+    int write_latency;
 
     int active_bank_count;
 
@@ -74,6 +75,8 @@ class SimpleMemBank : public BaseMemory
     int data_time;
     int read_to_write_turnaround;
     int bus_to_cpu_factor;
+
+    int maximum_active_banks;
 
     std::vector<DDR2State> Bankstate;
     std::vector<Tick> activateTime;
@@ -134,6 +137,10 @@ class SimpleMemBank : public BaseMemory
     int getMemoryBankCount(){
         return num_banks;
     }
+
+    int getMaxActiveBanks(){
+    	return maximum_active_banks;
+    };
 
     int getPageSize(){
         return pagesize;

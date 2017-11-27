@@ -167,11 +167,24 @@ class BaseMemory : public BaseMem
 	std::vector<Range<Addr> > addrRange;
 
     /* DDR2 params */
-    int num_banks;
+    int bus_frequency;
+	int num_banks;
+
     int RAS_latency;
     int CAS_latency;
     int precharge_latency;
     int min_activate_to_precharge_latency;
+    int write_latency;
+
+    int write_recovery_time;
+    int internal_write_to_read;
+    int pagesize;
+    int internal_read_to_precharge;
+    int data_time;
+    int read_to_write_turnaround;
+    int internal_row_to_row;
+
+    int max_active_bank_cnt;
 
     bool static_memory_latency;
 

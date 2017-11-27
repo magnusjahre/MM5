@@ -197,6 +197,8 @@ class TimingMemoryController : public SimObject
     	fatal("Memory controller does not support incrementWaitRequestCnt()");
     }
 
+    void checkMaxActivePages();
+
 };
 
 #endif // __TIMINGMEMORYCONTROLLER_HH__

@@ -126,7 +126,13 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
     banksPerBus = bankcnt / channels
     
     root.membus = [ConventionalMemBus() for i in range(channels)]
-    root.ram = [SDRAM(in_bus=root.membus[i]) for i in range(channels)]
+    
+    assert 'MEMORY-BUS-INTERFACE' in env
+    assert env['MEMORY-BUS-INTERFACE'] in ["DDR2", "DDR4"], "Memory bus interface must be either DDR2 or DDR4"
+    if env['MEMORY-BUS-INTERFACE'] == "DDR2":
+        root.ram = [DDR2(in_bus=root.membus[i]) for i in range(channels)]
+    else:
+        root.ram = [DDR4(in_bus=root.membus[i]) for i in range(channels)]
     
     useTrafficGenerator = False
     if "GENERATE-BACKGROUND-TRAFFIC" in env:

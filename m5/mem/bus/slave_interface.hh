@@ -162,6 +162,9 @@ class SlaveInterface : public BusInterface<BusType>
     virtual Tick calculateLatency(MemReqPtr &req);
     
     virtual Tick getDataTransTime();
+
+    virtual int getMaxActiveBanks();
+
 };
 
 #endif // __MEM_BUS_SLAVE_INTERFACE_HH__

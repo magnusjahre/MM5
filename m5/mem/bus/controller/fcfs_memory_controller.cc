@@ -72,6 +72,7 @@ bool FCFSTimingMemoryController::hasMoreRequests() {
 
 MemReqPtr FCFSTimingMemoryController::getRequest() {
 
+	checkMaxActivePages();
     MemReqPtr retval = new MemReq(); // dummy initialization
 
     MemReqPtr oldest = memoryRequestQueue.front();

@@ -68,12 +68,19 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
     CAS_latency = params.CAS_latency;
     precharge_latency = params.precharge_latency;
     min_activate_to_precharge_latency = params.min_activate_to_precharge_latency;
+    write_latency = params.write_latency;
+
+    write_recovery_time = params.write_recovery_time;
+    internal_write_to_read = params.internal_write_to_read;
+    pagesize = params.pagesize;
+    internal_read_to_precharge = params.internal_read_to_precharge;
+    data_time = params.data_time;
+    read_to_write_turnaround = params.read_to_write_turnaround;
+    internal_row_to_row = params.internal_row_to_row;
+
+    maximum_active_banks = params.max_active_bank_cnt;
 
     returnStaticLatencies = params.static_memory_latency;
-
-    /* Constants */
-    write_recovery_time = 6;
-    internal_write_to_read = 3;
 
     /* Build bank state */
     Bankstate.resize(num_banks, DDR2Idle);
@@ -85,23 +92,15 @@ SimpleMemBank<Compression>::SimpleMemBank(const string &name, HierParams *hier,
 
     bankInConflict.resize(num_banks, false);
 
-    pagesize = 10; // 1kB = 2**10 from standard :-)
-    internal_read_to_precharge = 3;
-    data_time = 4; // Single channel = 4 (i.e. burst lenght 8), dual channel = 2
-    read_to_write_turnaround = 6; // for burstlength = 8
-    internal_row_to_row = 3;
-
-    // internal read to precharge can be hidden by the data transfer if it is less than 2 cc
-    assert(internal_read_to_precharge >= 2); // assumed by the implementation
-
-    //Clock frequency is 4GHz, bus freq 400MHz
-    bus_to_cpu_factor = 10; // Multiply by this to get cpu - cycles :p
+    //CPU frequency is 4GHz
+    bus_to_cpu_factor = 4000 / params.bus_frequency; // Multiply by this to get cpu - cycles :p
 
     // Convert to CPU cycles :-)
     RAS_latency *= bus_to_cpu_factor;
     CAS_latency *= bus_to_cpu_factor;
     precharge_latency *= bus_to_cpu_factor;
     min_activate_to_precharge_latency *= bus_to_cpu_factor;
+    write_latency *= bus_to_cpu_factor;
     write_recovery_time *= bus_to_cpu_factor;
     internal_write_to_read *= bus_to_cpu_factor;
     internal_read_to_precharge *= bus_to_cpu_factor;
@@ -164,11 +163,12 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         Tick prechCmdTick = 0;
         if (Bankstate[bank] == DDR2Read) {
             if(readyTime[bank] > curTick){
-                prechCmdTick = readyTime[bank] + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+                prechCmdTick = readyTime[bank] + internal_read_to_precharge;
             }
             else{
-                prechCmdTick = curTick + (internal_read_to_precharge - 2*bus_to_cpu_factor);
+                prechCmdTick = curTick + internal_read_to_precharge;
             }
+            DPRINTF(DRAM, "Bank %d is read, ready at %d, precharge command can issue at %d\n", bank, readyTime[bank], prechCmdTick);
         }
         if (Bankstate[bank] == DDR2Written) {
             if(readyTime[bank] > curTick){
@@ -177,6 +177,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             else{
                 prechCmdTick = curTick + data_time + write_recovery_time;
             }
+            DPRINTF(DRAM, "Bank %d is written, ready at %d, precharge command can issue at %d\n", bank, readyTime[bank], prechCmdTick);
         }
         if (Bankstate[bank] == DDR2Active) {
         	if(activateTime[bank] > curTick){
@@ -211,8 +212,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         }
 
         active_bank_count++;
-        // Max 4 banks can be active at any time according to DDR2 spec.
-        assert(active_bank_count < 5);
+        assert(active_bank_count <= maximum_active_banks);
         Tick extra_latency = 0;
         if (curTick < closeTime[bank]) {
             extra_latency = closeTime[bank] - curTick;
@@ -235,7 +235,8 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
         Bankstate[bank] = DDR2Active;
         openpage[bank] = page;
 
-        DPRINTF(DRAM, "Activating bank %d, will reach the active state at %d\n", bank, activateTime[bank]);
+        DPRINTF(DRAM, "Activating bank %d, closed at %d, last activate at %d, will reach the active state at %d\n",
+        		bank, closeTime[bank], last_activate, activateTime[bank]);
 
         return 0;
     }
@@ -282,7 +283,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             case DDR2Read:
             {
                 Bankstate[bank] = DDR2Written;
-                int readCmdToWriteStartLat = read_to_write_turnaround + CAS_latency - 1*bus_to_cpu_factor;
+                int readCmdToWriteStartLat = read_to_write_turnaround + write_latency;
                 int curOffset = curTick - readyTime[bank];
                 if (curOffset <= readCmdToWriteStartLat) {
                     latency = data_time + (readCmdToWriteStartLat - curOffset);
@@ -297,8 +298,7 @@ SimpleMemBank<Compression>::calculateLatency(MemReqPtr &req)
             case DDR2Active:
             {
                 Bankstate[bank] = DDR2Written;
-                int writeLatency = CAS_latency - 1*bus_to_cpu_factor;
-                readyTime[bank] = activateTime[bank] + writeLatency;
+                readyTime[bank] = activateTime[bank] + write_latency;
                 DPRINTF(DRAM, "Writing bank %d, reaching ready state at %d\n", bank, readyTime[bank]);
                 latency = data_time;
                 break;

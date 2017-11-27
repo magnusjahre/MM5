@@ -71,11 +71,24 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
     Param<bool> compressed;
     SimObjectParam<MemTraceWriter *> mem_trace;
     /* Lagt til av oss */
+    Param<int> bus_frequency;
     Param<int> num_banks;
     Param<int> RAS_latency;
     Param<int> CAS_latency;
     Param<int> precharge_latency;
     Param<int> min_activate_to_precharge_latency;
+    Param<int> write_latency;
+
+    Param<int> write_recovery_time;
+    Param<int> internal_write_to_read;
+    Param<int> pagesize;
+    Param<int> internal_read_to_precharge;
+    Param<int> data_time;
+    Param<int> read_to_write_turnaround;
+    Param<int> internal_row_to_row;
+
+    Param<int> max_active_bank_cnt;
+
     Param<bool> static_memory_latency;
 
 END_DECLARE_SIM_OBJECT_PARAMS(BaseMemory)
@@ -96,11 +109,21 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(BaseMemory)
     INIT_PARAM_DFLT(hier, "Hierarchy global variables", &defaultHierParams),
     INIT_PARAM_DFLT(compressed, "This memory stores compressed data.", false),
     INIT_PARAM_DFLT(mem_trace, "Memory trace to write accesses to", NULL),
-    INIT_PARAM_DFLT(num_banks, "Number of banks", 8),
-    INIT_PARAM_DFLT(RAS_latency, "RAS-to-CAS latency (bus cycles)", 4),
-    INIT_PARAM_DFLT(CAS_latency, "CAS latency (bus cycles)", 4),
-    INIT_PARAM_DFLT(precharge_latency, "precharge latency (bus cycles)", 4),
-    INIT_PARAM_DFLT(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)", 12),
+	INIT_PARAM(bus_frequency, "Bus frequency"),
+	INIT_PARAM(num_banks, "Number of banks"),
+    INIT_PARAM(RAS_latency, "RAS-to-CAS latency (bus cycles)"),
+    INIT_PARAM(CAS_latency, "CAS latency (bus cycles)"),
+    INIT_PARAM(precharge_latency, "precharge latency (bus cycles)"),
+    INIT_PARAM(min_activate_to_precharge_latency, "Minimum activate to precharge time (bus cycles)"),
+	INIT_PARAM(write_latency, "The write command latency (bus cycles)"),
+	INIT_PARAM(write_recovery_time, "Write recovery time (bus cycles)"),
+	INIT_PARAM(internal_write_to_read, "Internal write to read (bus cycles)"),
+	INIT_PARAM(pagesize, "Page size bit shift"),
+	INIT_PARAM(internal_read_to_precharge, "Internal read to precharge (bus cycles)"),
+	INIT_PARAM(data_time, "Cycles to transfer a burst (bus cycles)"),
+	INIT_PARAM(read_to_write_turnaround, "Read to write turn around time (bus cycles)"),
+	INIT_PARAM(internal_row_to_row, "Internal row to row (bus cycles)"),
+	INIT_PARAM(max_active_bank_cnt, "Maximum number of active banks"),
     INIT_PARAM_DFLT(static_memory_latency, "Return the same latency for all data transfers", false)
 
 END_INIT_SIM_OBJECT_PARAMS(BaseMemory)
@@ -117,11 +140,25 @@ CREATE_SIM_OBJECT(BaseMemory)
     params.snarf_updates = snarf_updates;
     params.do_writes = do_writes;
     params.addrRange = addr_range;
+
+    params.bus_frequency = bus_frequency;
     params.num_banks = num_banks;
+
     params.RAS_latency = RAS_latency;
     params.CAS_latency = CAS_latency;
     params.precharge_latency = precharge_latency;
     params.min_activate_to_precharge_latency = min_activate_to_precharge_latency;
+    params.write_latency = write_latency;
+
+    params.write_recovery_time = write_recovery_time;
+    params.internal_write_to_read = internal_write_to_read;
+    params.pagesize = pagesize;
+    params.internal_read_to_precharge = internal_read_to_precharge;
+    params.data_time = data_time;
+    params.read_to_write_turnaround = read_to_write_turnaround;
+    params.internal_row_to_row = internal_row_to_row;
+
+    params.max_active_bank_cnt = max_active_bank_cnt;
 
     params.static_memory_latency = static_memory_latency;
 
