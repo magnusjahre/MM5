@@ -12,8 +12,12 @@ PerformanceModelMeasurements::PerformanceModelMeasurements(){
 	committedInstructions = 0;
 	ticksInSample = 0;
 
+	accumulatedQueueCycles = 0;
+	accumulatedServiceCycles = 0;
+
 	avgMemoryBusServiceLat = 0.0;
 	avgMemoryBusQueueLat = 0.0;
+
 	busRequests = 0;
 	busWritebacks = 0;
 
@@ -22,6 +26,24 @@ PerformanceModelMeasurements::PerformanceModelMeasurements(){
 
 	cpl = 0.0;
 	avgMemBusParallelism = 0.0;
+}
+
+void
+PerformanceModelMeasurements::computeAverageLatencies(){
+	if(busRequests > 0.0){
+		avgMemoryBusQueueLat = (double) accumulatedQueueCycles / (double) busRequests;
+		avgMemoryBusServiceLat = (double) accumulatedServiceCycles / (double) busRequests;
+	}
+	else{
+		avgMemoryBusQueueLat = 0.0;
+		avgMemoryBusServiceLat = 0.0;
+	}
+
+	DPRINTF(PerformanceModelMeasurements, "Setting avg queue latency %f and avg service latency %f, %d requests, %d writebacks\n",
+			avgMemoryBusQueueLat,
+			avgMemoryBusServiceLat,
+			busRequests,
+			busWritebacks);
 }
 
 double

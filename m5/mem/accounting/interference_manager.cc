@@ -861,11 +861,13 @@ InterferenceManager::buildModelMeasurements(int cpuID, int committedInstructions
 			modelMeasurements.committedInstructions,
 			modelMeasurements.ticksInSample);
 
-	if(memoryBuses.size() != 1) warn("CPU %d: Multichannel memory bus not supported by performance model measurements @ %d", cpuID, curTick);
-	modelMeasurements = memoryBuses[0]->updateModelMeasurements(modelMeasurements);
+	//Note: these measurements are only valid for CPU0, so they are not used for MCP or ASM
+	for(int i=0;i<memoryBuses.size();i++){
+		modelMeasurements = memoryBuses[i]->updateModelMeasurements(modelMeasurements);
+	}
+	modelMeasurements.computeAverageLatencies();
 
 	modelMeasurements.avgMemBusParallelism = ols.globalAvgMemBusPara;
-
 	modelMeasurements.memBusParaHistorgram = ols.memBusParaHistogram;
 
 	return modelMeasurements;
