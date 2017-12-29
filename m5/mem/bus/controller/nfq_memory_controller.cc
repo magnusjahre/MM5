@@ -80,6 +80,8 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     int curCPUID = getQueueID(req->adaptiveMHASenderID);
     assert(curCPUID >= 0 && curCPUID < requests.size());
 
+    if(curCPUID == nfqNumCPUs) fatal("We cannot support requests from unknown CPUs, something must be wrong.");
+
     Tick minTag = getMinStartTag();
     Tick curFinTag = -1;
 	curFinTag = virtualFinishTimes[curCPUID];
@@ -273,6 +275,13 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             }
         }
     }
+
+    DPRINTF(MemoryController,
+            "Lowest virtual start time is %d, found at in queue %d and column %d\n",
+             minval,
+             minrow,
+			 mincol);
+
 
     assert(minrow >= 0 && mincol >= 0);
     MemReqPtr oldestReq = requests[minrow][mincol];
