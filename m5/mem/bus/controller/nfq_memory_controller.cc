@@ -152,6 +152,8 @@ NFQMemoryController::hasMoreRequests() {
 MemReqPtr
 NFQMemoryController::getRequest() {
 
+	checkMaxActivePages();
+
     MemReqPtr retval = pageCmd; // dummy initialization
 
     bool foundReady = false;

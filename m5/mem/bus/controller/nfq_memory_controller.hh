@@ -82,5 +82,9 @@ class NFQMemoryController : public TimingMemoryController
         virtual void setBandwidthQuotas(std::vector<double> quotas){
         	setUpWeights(quotas);
         }
+
+        virtual void incrementWaitRequestCnt(int increment){
+
+        }
 };
 
