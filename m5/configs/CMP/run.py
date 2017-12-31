@@ -141,7 +141,7 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
     
     for i in range(channels):
         
-        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" or (env["FORCE-PM-RDFCFS"] and env["NP"] == 1):
             
             root.membus[i].memory_controller = ReadyFirstMemoryController()
             
