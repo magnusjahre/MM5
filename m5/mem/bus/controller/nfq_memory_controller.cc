@@ -46,11 +46,12 @@ NFQMemoryController::~NFQMemoryController(){
 }
 
 int
-NFQMemoryController::getQueueID(int cpuID){
-	if(cpuID == -1){
-		return nfqNumCPUs;
+NFQMemoryController::getQueueID(MemReqPtr &req){
+	if(req->cmd == Read){
+		return req->adaptiveMHASenderID;
 	}
-	return cpuID;
+	assert(req->cmd == Writeback);
+	return req->nfqWBID;
 }
 
 void
@@ -77,10 +78,8 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     req->cmd == Read ? queuedReads++ : queuedWrites++;
-    int curCPUID = getQueueID(req->adaptiveMHASenderID);
+    int curCPUID = getQueueID(req);
     assert(curCPUID >= 0 && curCPUID < requests.size());
-
-    if(curCPUID == nfqNumCPUs) fatal("We cannot support requests from unknown CPUs, something must be wrong.");
 
     Tick minTag = getMinStartTag();
     Tick curFinTag = -1;
@@ -91,14 +90,18 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     virtualFinishTimes[curCPUID] = req->virtualStartTime + processorIncrements[curCPUID];
 
     DPRINTF(MemoryController,
-            "Inserting request into queue %d (cpu %d), addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
+            "Inserting request into queue %d (cpu %d, NFQ-ID %d, cmd %s), addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
             curCPUID,
             req->adaptiveMHASenderID,
+			req->nfqWBID,
+			req->cmd,
             req->paddr,
             req->virtualStartTime,
             minTag,
             virtualFinishTimes[curCPUID],
             processorIncrements[curCPUID]);
+
+    if(curCPUID == nfqNumCPUs) fatal("We cannot support requests from unknown CPUs, something must be wrong.");
 
     requests[curCPUID].push_back(req);
 
@@ -107,7 +110,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
         setBlocked();
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL){
     	controllerInterference->insertRequest(req);
     }
 
@@ -207,12 +210,12 @@ NFQMemoryController::getRequest() {
     if(retval->cmd == Read || retval->cmd == Writeback){
     	DPRINTF(MemoryController,
     			"Executing request from cpu %d, cmd %s, addr %d, start time is %d, new finish time %d, weight %d\n",
-    			retval->adaptiveMHASenderID,
+				getQueueID(retval),
     			retval->cmd,
     			retval->paddr,
     			retval->virtualStartTime,
-    			virtualFinishTimes[getQueueID(retval->adaptiveMHASenderID)],
-    			processorIncrements[retval->adaptiveMHASenderID]);
+    			virtualFinishTimes[getQueueID(retval)],
+    			processorIncrements[getQueueID(retval)]);
     }
 
     return retval;
@@ -390,7 +393,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
             "Returning column request, start time %d, addr %d, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
-            req->adaptiveMHASenderID);
+            getQueueID(req));
 
     return req;
 }
@@ -431,7 +434,6 @@ NFQMemoryController::printRequestQueue(Tick fromTick){
 
 void
 NFQMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-    assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
 		controllerInterference->estimatePrivateLatency(req, busOccupiedFor);
 	}
