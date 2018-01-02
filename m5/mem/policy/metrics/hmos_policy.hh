@@ -20,6 +20,10 @@ public:
 	virtual std::string metricName(){
 		return std::string("HMoS");
 	}
+
+	virtual LookaheadMetricComponent getLookaheadMetricComponent(){
+		return LMC_SLOWDOWN;
+	}
 };
 
 #endif /* HMOS_POLICY_HH_ */

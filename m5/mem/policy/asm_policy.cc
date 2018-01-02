@@ -236,7 +236,7 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	assert(!sharedCaches.empty());
-	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0);
+	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0, true);
 
 	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
 	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);

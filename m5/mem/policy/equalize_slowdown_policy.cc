@@ -263,8 +263,18 @@ EqualizeSlowdownPolicy::computeIPC(int cpuID, int misses, double gradient, doubl
 double
 EqualizeSlowdownPolicy::computeSpeedup(int cpuID, int misses, double gradient, double b){
 	double estimatedIPC = computeIPC(cpuID, misses, gradient, b);
-	double speedup = estimatedIPC / aloneIPCEstimates[cpuID];
-	DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
+
+	double speedup = 0.0;
+	if(performanceMetric->getLookaheadMetricComponent() == LMC_SPEEDUP){
+		speedup = estimatedIPC / aloneIPCEstimates[cpuID];
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: Speedup = %f / %f = %f\n", cpuID, estimatedIPC, aloneIPCEstimates[cpuID], speedup);
+	}
+	else{
+		assert(performanceMetric->getLookaheadMetricComponent() == LMC_SLOWDOWN);
+		speedup = aloneIPCEstimates[cpuID] / estimatedIPC;
+		DPRINTF(MissBWPolicyExtra, "--- CPU %d: Slowdown = %f / %f = %f\n", cpuID, aloneIPCEstimates[cpuID], estimatedIPC, speedup);
+	}
+
 	return speedup;
 }
 
@@ -300,8 +310,11 @@ EqualizeSlowdownPolicy::lookaheadSearch(PerformanceMeasurement* measurements,
 		}
 	}
 
+	assert(performanceMetric->getLookaheadMetricComponent() == LMC_SPEEDUP || performanceMetric->getLookaheadMetricComponent() == LMC_SLOWDOWN);
+	bool maximize = (performanceMetric->getLookaheadMetricComponent() == LMC_SPEEDUP);
+
 	assert(!sharedCaches.empty());
-	bestAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, lookaheadCap);
+	bestAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, lookaheadCap, maximize);
 
 	vector<double> bestAllocSpeedups = vector<double>(cpuCount, 0.0);
 	for(int i=0;i<cpuCount;i++){

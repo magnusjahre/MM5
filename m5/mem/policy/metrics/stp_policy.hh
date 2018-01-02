@@ -23,6 +23,10 @@ public:
 		return std::string("STP");
 	}
 
+	virtual LookaheadMetricComponent getLookaheadMetricComponent(){
+		return LMC_SPEEDUP;
+	}
+
 };
 
 #endif /* STP_POLICY_HH_ */

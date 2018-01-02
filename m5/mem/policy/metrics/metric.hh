@@ -13,6 +13,11 @@
 #include "base/misc.hh"
 #include "mem/policy/performance_measurement.hh"
 
+enum LookaheadMetricComponent{
+	LMC_SPEEDUP,
+	LMC_SLOWDOWN
+};
+
 class Metric {
 
 public:
@@ -34,6 +39,11 @@ public:
 
 	virtual std::string metricName(){
 		return std::string("Base class metric");
+	}
+
+	virtual LookaheadMetricComponent getLookaheadMetricComponent(){
+		fatal("Lookahead metric component is not defined");
+		return LMC_SPEEDUP;
 	}
 };
 

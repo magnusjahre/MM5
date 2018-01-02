@@ -1789,12 +1789,14 @@ Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curv
 
 template<class TagStore, class Buffering, class Coherence>
 std::vector<int>
-Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap){
+Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap, bool maximize){
 
 	int balance = associativity-cpuCount;
 	if(cap == 0) cap = associativity;
 	vector<int> allocation = vector<int>(cpuCount, 1);
 	DPRINTF(MissBWPolicyExtra, "--- Running lookahead algorithm cap %d and an initial allocation of one way per CPU, starting balance %d\n", cap, balance);
+
+	assert(maximize);
 
 	int round = 0;
 	while(balance > 0){
