@@ -31,6 +31,7 @@ private:
 	vector<int> curAllocation;
 	vector<double> avgLLCMissAdditionalCycles;
 	vector<double> CARshared;
+	vector<double> CARalone;
 	vector<double> epochCumProbDistrib;
 
 	void changeHighPriProcess();
@@ -40,6 +41,7 @@ private:
 	void initCurveTracefiles();
 
 	void updateProbabilityDistribution(std::vector<double> probabilities);
+	void setEpochProbabilities(std::vector<vector<double> > speedups, std::vector<int> llcQuotas);
 
 public:
 	ASMPolicy(std::string _name,

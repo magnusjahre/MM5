@@ -59,6 +59,7 @@ ASMPolicy::ASMPolicy(std::string _name,
 
 	avgLLCMissAdditionalCycles = vector<double>(_cpuCount, 0.0);
 	CARshared = vector<double>(_cpuCount, 0.0);
+	CARalone = vector<double>(_cpuCount, 0.0);
 	epochCumProbDistrib = vector<double>(_cpuCount, 0.0);
 	updateProbabilityDistribution(vector<double>(_cpuCount, 1.0 / (double) _cpuCount));
 
@@ -99,13 +100,13 @@ ASMPolicy::initCurveTracefiles(){
 
 void
 ASMPolicy::updateProbabilityDistribution(vector<double> probabilities){
-	DPRINTF(ASRPolicy, "Updating probability distribution\n");
+	DPRINTF(ASRPolicyProgress, "Updating probability distribution\n");
 	assert(probabilities.size() == epochCumProbDistrib.size());
 	epochCumProbDistrib[0] = probabilities[0];
-	DPRINTF(ASRPolicy, "Probability %f for CPU 0 gives cumulative probability %f\n", probabilities[0], epochCumProbDistrib[0]);
+	DPRINTF(ASRPolicyProgress, "Probability %f for CPU 0 gives cumulative probability %f\n", probabilities[0], epochCumProbDistrib[0]);
 	for(int i=1;i<epochCumProbDistrib.size();i++){
 		epochCumProbDistrib[i] = epochCumProbDistrib[i-1] + probabilities[i];
-		DPRINTF(ASRPolicy, "Probability %f for CPU %d gives cumulative probability %f\n", probabilities[i], i, epochCumProbDistrib[i]);
+		DPRINTF(ASRPolicyProgress, "Probability %f for CPU %d gives cumulative probability %f\n", probabilities[i], i, epochCumProbDistrib[i]);
 	}
 }
 
@@ -213,6 +214,7 @@ ASMPolicy::prepareEstimates(){
 				values[i].carShared);
 
 		CARshared[i] = values[i].carShared;
+		CARalone[i] = values[i].carAlone;
 		avgLLCMissAdditionalCycles[i] = 0.0;
 		if(values[i].avgMissTime > values[i].avgHitTime) avgLLCMissAdditionalCycles[i] = values[i].avgMissTime - values[i].avgHitTime;
 	}
@@ -233,6 +235,35 @@ ASMPolicy::prepareEstimates(){
 }
 
 void
+ASMPolicy::setEpochProbabilities(std::vector<vector<double> > speedups, std::vector<int> llcQuotas){
+	vector<double> estimatedSlowdowns = vector<double>(cpuCount, 0.0);
+
+	double slowdownSum = 0.0;
+	for(int i=0;i<llcQuotas.size();i++){
+		estimatedSlowdowns[i] = 1.0/speedups[i][llcQuotas[i]-1];
+		DPRINTF(ASRPolicyProgress, "CPU %d: estimating slowdown %f from speed-up %f with allocation %d (index %d)\n",
+				i,
+				estimatedSlowdowns[i],
+				speedups[i][llcQuotas[i]-1],
+				llcQuotas[i],
+				llcQuotas[i]-1);
+
+		slowdownSum += estimatedSlowdowns[i];
+	}
+
+	vector<double> probabilities = vector<double>(cpuCount, 0.0);
+	for(int i=0;i<probabilities.size();i++){
+		probabilities[i] = estimatedSlowdowns[i] / slowdownSum;
+		DPRINTF(ASRPolicyProgress, "CPU %d: next epoch probability is %f (%f / %f)\n",
+				i,
+				probabilities[i],
+				estimatedSlowdowns[i],
+				slowdownSum);
+	}
+	updateProbabilityDistribution(probabilities);
+}
+
+void
 ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 
 	if(!doLLCAlloc) return;
@@ -243,8 +274,8 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 		double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
 		double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
 
-		DPRINTF(ASRPolicyProgress, "CPU %d: computing current hits %f, current LLC accesses %f, avg LLC additional miss cycles %f and CAR shared %f\n",
-				i, curHits, llcAccesses, avgLLCMissAdditionalCycles[i], CARshared[i]);
+		DPRINTF(ASRPolicyProgress, "CPU %d: computing current hits %f, current LLC accesses %f, avg LLC additional miss cycles %f, CAR shared %f and CAR alone %f\n",
+				i, curHits, llcAccesses, avgLLCMissAdditionalCycles[i], CARshared[i], CARalone[i]);
 
 		for(int j=0;j<maxWays;j++){
 			double hits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[j];
@@ -252,7 +283,7 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 			double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
 
 			speedups[i][j] = 1.0;
-			if(CARn > 0.0) speedups[i][j] = CARn / CARshared[i];
+			if(CARn > 0.0 && CARalone[i] > 0.0) speedups[i][j] = CARn / CARalone[i];
 
 			DPRINTF(ASRPolicyProgress, "CPU %d: computed speedup %f with hits %f, delta hits %f and CARn %f\n",
 					i, speedups[i][j], hits, deltaHits, CARn);
@@ -265,11 +296,6 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(!sharedCaches.empty());
 	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0, true);
 
-
-	if(manageMemoryBus){
-		fatal("Need to modify the probability distribution from the slowdown estimates");
-	}
-
 	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
 	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
 	allocationTrace.addTrace(tracedata);
@@ -277,6 +303,10 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	for(int i=0;i<sharedCaches.size();i++){
 		sharedCaches[i]->setCachePartition(curAllocation);
 		sharedCaches[i]->enablePartitioning();
+	}
+
+	if(manageMemoryBus){
+		setEpochProbabilities(speedups, curAllocation);
 	}
 }
 
