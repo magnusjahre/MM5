@@ -89,30 +89,25 @@ def createWorkload(workload):
     return simwl
 
 def setNFQParams(useTrafficGenerator, controllerID, optPart):
-    if useTrafficGenerator:
-        length = int(env["NP"])+2
-    else:
-        length = int(env["NP"])+1
-        
-    root.membus[controllerID].memory_controller.num_cpus = int(env["NP"])
     
-    priorities = [1.0 / float(length) for i in range(length)]
-    
+    root.membus[controllerID].memory_controller.num_cpus = int(env["NP"])    
+    priorities = [1.0 / float(env["NP"]) for i in range(env["NP"])]
+
     if optPart != None:
-        if len(optPart.utils) != length:
+        if len(optPart.utils) != env["NP"]:
             panic("The number of partitions does not match the number of CPUs")
         priorities = optPart.utils
     else:
         if "NFQ-PRIORITIES" in env:
             pris = env["NFQ-PRIORITIES"].split(",")
             
-            if len(pris) != int(env["NP"])+1:
-                panic("You need to provide NFQ priorities for both all cores and shared writebacks (and the traffic generator if available)")
+            if len(pris) != int(env["NP"]):
+                panic("You need to provide NFQ priorities for all cores")
                 
-            for i in range(length):
+            for i in range(env["NP"]):
                 priorities[i] = float(pris[i])
-        
-    if sum(priorities) != 1.0:
+    
+    if (sum(priorities) -  1.0) > 0.000001:
         panic("The provided NFQ priorities must add up to 1")
     
     root.membus[controllerID].memory_controller.priorities = priorities

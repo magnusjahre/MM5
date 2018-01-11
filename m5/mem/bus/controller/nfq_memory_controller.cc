@@ -26,8 +26,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
 
     nfqNumCPUs = _numCPUs;
 
-    virtualFinishTimes.resize(nfqNumCPUs+1, 0);
-    requests.resize(nfqNumCPUs+1);
+    virtualFinishTimes.resize(nfqNumCPUs, 0);
+    requests.resize(nfqNumCPUs);
 
     pageCmd = new MemReq();
     pageCmd->cmd = Activate;
@@ -56,7 +56,7 @@ NFQMemoryController::getQueueID(MemReqPtr &req){
 
 void
 NFQMemoryController::setUpWeights(std::vector<double> priorities){
-    processorIncrements.resize(nfqNumCPUs+1, 0);
+    processorIncrements.resize(nfqNumCPUs, 0);
     assert(priorities.size() == processorIncrements.size());
     for(int i=0; i<priorities.size(); i++){
     	processorIncrements[i] = (int) ((1 / priorities[i])*1000);
@@ -100,8 +100,6 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
             minTag,
             virtualFinishTimes[curCPUID],
             processorIncrements[curCPUID]);
-
-    if(curCPUID == nfqNumCPUs) fatal("We cannot support requests from unknown CPUs, something must be wrong.");
 
     requests[curCPUID].push_back(req);
 
