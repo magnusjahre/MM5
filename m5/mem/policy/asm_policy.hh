@@ -21,6 +21,7 @@ private:
 	bool doLLCAlloc;
 	ASREpochEvent* epochEvent;
 	double maximumSpeedup;
+	bool manageMemoryBus;
 
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
@@ -30,12 +31,15 @@ private:
 	vector<int> curAllocation;
 	vector<double> avgLLCMissAdditionalCycles;
 	vector<double> CARshared;
+	vector<double> epochCumProbDistrib;
 
 	void changeHighPriProcess();
 
 	void prepareASMTraces(int numCPUs);
 	void traceASMValues(std::vector<ASMValues> values);
 	void initCurveTracefiles();
+
+	void updateProbabilityDistribution(std::vector<double> probabilities);
 
 public:
 	ASMPolicy(std::string _name,
@@ -55,7 +59,8 @@ public:
 			  int _hybridBufferSize,
 			  int _epoch,
 			  bool _doLLCAlloc,
-			  double _maximumSpeedup);
+			  double _maximumSpeedup,
+			  bool _manageMemoryBus);
 
 	virtual void initPolicy();
 

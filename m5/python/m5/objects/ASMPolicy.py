@@ -6,3 +6,4 @@ class ASMPolicy(BasePolicy):
     epoch = Param.Int("Number of cycles in each epoch")
     allocateLLC  = Param.Bool("Do LLC allocation?")
     maximumSpeedup = Param.Float("Cap speedup at this value")
+    manageMemoryBus = Param.Bool("Do memory bus management?")

@@ -22,7 +22,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 					 int _hybridBufferSize,
 					 int _epoch,
 					 bool _doLLCAlloc,
-					 double _maximumSpeedup)
+					 double _maximumSpeedup,
+					 bool _manageMemoryBus)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -46,6 +47,7 @@ ASMPolicy::ASMPolicy(std::string _name,
 	curHighPriCPUID = 0;
 	doLLCAlloc = _doLLCAlloc;
 	maximumSpeedup = _maximumSpeedup;
+	manageMemoryBus = _manageMemoryBus;
 
 	if(_cpuCount > 1){
 		epochEvent = new ASREpochEvent(this, epoch);
@@ -57,6 +59,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 
 	avgLLCMissAdditionalCycles = vector<double>(_cpuCount, 0.0);
 	CARshared = vector<double>(_cpuCount, 0.0);
+	epochCumProbDistrib = vector<double>(_cpuCount, 0.0);
+	updateProbabilityDistribution(vector<double>(_cpuCount, 1.0 / (double) _cpuCount));
 
 	srand(240000);
 
@@ -94,8 +98,31 @@ ASMPolicy::initCurveTracefiles(){
 }
 
 void
+ASMPolicy::updateProbabilityDistribution(vector<double> probabilities){
+	DPRINTF(ASRPolicy, "Updating probability distribution\n");
+	assert(probabilities.size() == epochCumProbDistrib.size());
+	epochCumProbDistrib[0] = probabilities[0];
+	DPRINTF(ASRPolicy, "Probability %f for CPU 0 gives cumulative probability %f\n", probabilities[0], epochCumProbDistrib[0]);
+	for(int i=1;i<epochCumProbDistrib.size();i++){
+		epochCumProbDistrib[i] = epochCumProbDistrib[i-1] + probabilities[i];
+		DPRINTF(ASRPolicy, "Probability %f for CPU %d gives cumulative probability %f\n", probabilities[i], i, epochCumProbDistrib[i]);
+	}
+}
+
+void
 ASMPolicy::changeHighPriProcess(){
-	int newHighPriCPUID = (rand() / (double) RAND_MAX) * cpuCount;
+	double highPriProb = rand() / (double) RAND_MAX;
+	int newHighPriCPUID = -1;
+	for(int i=0;i<epochCumProbDistrib.size();i++){
+		if(highPriProb <= epochCumProbDistrib[i]){
+			DPRINTF(ASRPolicy, "Random value %f is less than CPU%d end value %f\n", highPriProb, i, epochCumProbDistrib[i]);
+			assert(newHighPriCPUID == -1);
+			newHighPriCPUID = i;
+			break;
+		}
+	}
+	assert(newHighPriCPUID != -1);
+
 	DPRINTF(ASRPolicy, "Changing high priority process from %d to %d\n", curHighPriCPUID, newHighPriCPUID);
 	curHighPriCPUID = newHighPriCPUID;
 
@@ -238,6 +265,11 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	assert(!sharedCaches.empty());
 	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0, true);
 
+
+	if(manageMemoryBus){
+		fatal("Need to modify the probability distribution from the slowdown estimates");
+	}
+
 	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
 	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
 	allocationTrace.addTrace(tracedata);
@@ -335,6 +367,7 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 	Param<int> epoch;
 	Param<bool> allocateLLC;
 	Param<double> maximumSpeedup;
+	Param<bool> manageMemoryBus;
 END_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
@@ -354,7 +387,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM(epoch, "The number of cycles in each epoch"),
 	INIT_PARAM(allocateLLC, "Do LLC allocation?"),
-	INIT_PARAM_DFLT(maximumSpeedup, "Cap speedup at this value", 0.0)
+	INIT_PARAM_DFLT(maximumSpeedup, "Cap speedup at this value", 0.0),
+	INIT_PARAM(manageMemoryBus, "Do memory bus management?")
 END_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 
 CREATE_SIM_OBJECT(ASMPolicy)
@@ -386,7 +420,8 @@ CREATE_SIM_OBJECT(ASMPolicy)
 									  hybridBufferSize,
 									  epoch,
 									  allocateLLC,
-									  maximumSpeedup);
+									  maximumSpeedup,
+									  manageMemoryBus);
 }
 
 REGISTER_SIM_OBJECT("ASMPolicy", ASMPolicy)

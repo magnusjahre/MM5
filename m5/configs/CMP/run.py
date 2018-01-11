@@ -467,6 +467,9 @@ def setUpASMPolicy():
     assert optionName+"DO-LLC-ALLOC" in env
     policy.allocateLLC = env[optionName+"DO-LLC-ALLOC"]
     
+    assert optionName+"DO-BUS-MANAGEMENT" in env
+    policy.manageMemoryBus = env[optionName+"DO-BUS-MANAGEMENT"]
+    
     if optionName+"MAX-SPEEDUP" in env:
         policy.maximumSpeedup = env[optionName+"MAX-SPEEDUP"]
     else:
