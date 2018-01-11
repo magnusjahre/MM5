@@ -26,6 +26,7 @@ private:
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
 	RequestTrace allocationTrace;
+	RequestTrace bandwidthTrace;
 	std::vector<RequestTrace> speedupCurveTraces;
 
 	vector<int> curAllocation;

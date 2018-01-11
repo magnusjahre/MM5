@@ -75,6 +75,9 @@ ASMPolicy::ASMPolicy(std::string _name,
 		header.push_back(curstr.str());
 	}
 	allocationTrace.initalizeTrace(header);
+
+	bandwidthTrace = RequestTrace(_name, "BandwidthTrace");
+	bandwidthTrace.initalizeTrace(header);
 }
 
 void
@@ -261,6 +264,10 @@ ASMPolicy::setEpochProbabilities(std::vector<vector<double> > speedups, std::vec
 				slowdownSum);
 	}
 	updateProbabilityDistribution(probabilities);
+
+	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
+	for(int i=0;i<probabilities.size();i++) tracedata.push_back(probabilities[i]);
+	bandwidthTrace.addTrace(tracedata);
 }
 
 void
