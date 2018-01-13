@@ -91,13 +91,13 @@ ASMPolicy::initCurveTracefiles(){
 		header.push_back(head.str());
 	}
 
-	speedupCurveTraces.resize(cpuCount, RequestTrace());
+	slowdownCurveTraces.resize(cpuCount, RequestTrace());
 
 	for(int i=0;i<cpuCount;i++){
 		stringstream filename;
-		filename << "SpeedupCurveTrace" << i;
-		speedupCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
-		speedupCurveTraces[i].initalizeTrace(header);
+		filename << "SlowdownCurveTrace" << i;
+		slowdownCurveTraces[i] = RequestTrace(name(), filename.str().c_str());
+		slowdownCurveTraces[i].initalizeTrace(header);
 	}
 }
 
@@ -238,16 +238,16 @@ ASMPolicy::prepareEstimates(){
 }
 
 void
-ASMPolicy::setEpochProbabilities(std::vector<vector<double> > speedups, std::vector<int> llcQuotas){
+ASMPolicy::setEpochProbabilities(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas){
 	vector<double> estimatedSlowdowns = vector<double>(cpuCount, 0.0);
 
 	double slowdownSum = 0.0;
 	for(int i=0;i<llcQuotas.size();i++){
-		estimatedSlowdowns[i] = 1.0/speedups[i][llcQuotas[i]-1];
+		estimatedSlowdowns[i] = slowdowns[i][llcQuotas[i]-1];
 		DPRINTF(ASRPolicyProgress, "CPU %d: estimating slowdown %f from speed-up %f with allocation %d (index %d)\n",
 				i,
 				estimatedSlowdowns[i],
-				speedups[i][llcQuotas[i]-1],
+				slowdowns[i][llcQuotas[i]-1],
 				llcQuotas[i],
 				llcQuotas[i]-1);
 
@@ -276,8 +276,8 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	if(!doLLCAlloc) return;
 	DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
 
-	vector<vector<double> > speedups(cpuCount, vector<double>(maxWays, 0.0));
-	for(int i=0;i<speedups.size();i++){
+	vector<vector<double> > slowdowns(cpuCount, vector<double>(maxWays, 0.0));
+	for(int i=0;i<slowdowns.size();i++){
 		double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
 		double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
 
@@ -289,19 +289,21 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 			double deltaHits = hits - curHits;
 			double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
 
-			speedups[i][j] = 1.0;
-			if(CARn > 0.0 && CARalone[i] > 0.0) speedups[i][j] = CARn / CARalone[i];
+			slowdowns[i][j] = 0.0;
+			if(CARn > 0.0 && CARalone[i] > 0.0) slowdowns[i][j] = CARalone[i] / CARn;
+			assert(slowdowns[i][j] >= 0.0);
 
-			DPRINTF(ASRPolicyProgress, "CPU %d: computed speedup %f with hits %f, delta hits %f and CARn %f\n",
-					i, speedups[i][j], hits, deltaHits, CARn);
+
+			DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f with hits %f, delta hits %f and CARn %f\n",
+					i, slowdowns[i][j], hits, deltaHits, CARn);
 		}
 
-		std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(speedups[i]);
-		speedupCurveTraces[i].addTrace(speedupTraceData);
+		std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(slowdowns[i]);
+		slowdownCurveTraces[i].addTrace(speedupTraceData);
 	}
 
 	assert(!sharedCaches.empty());
-	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(speedups, 0, true);
+	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(slowdowns, 0, false);
 
 	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
 	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
@@ -313,7 +315,7 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	}
 
 	if(manageMemoryBus){
-		setEpochProbabilities(speedups, curAllocation);
+		setEpochProbabilities(slowdowns, curAllocation);
 	}
 }
 
