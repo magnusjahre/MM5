@@ -289,10 +289,12 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 			double deltaHits = hits - curHits;
 			double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
 
-			slowdowns[i][j] = 0.0;
-			if(CARn > 0.0 && CARalone[i] > 0.0) slowdowns[i][j] = CARalone[i] / CARn;
-			assert(slowdowns[i][j] >= 0.0);
-
+			if(CARn != 0.0) slowdowns[i][j] = CARalone[i] / CARn;
+			if(slowdowns[i][j] < 1.0){
+				DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, slowdowns[i][j]);
+				slowdowns[i][j] = 1.0;
+			}
+			assert(slowdowns[i][j] >= 1.0);
 
 			DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f with hits %f, delta hits %f and CARn %f\n",
 					i, slowdowns[i][j], hits, deltaHits, CARn);
