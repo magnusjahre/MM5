@@ -1758,13 +1758,13 @@ Cache<TagStore,Buffering,Coherence>::verifyLookaheadAlg(){
 
 template<class TagStore, class Buffering, class Coherence>
 typename Cache<TagStore,Buffering,Coherence>::LookaheadMaximumUtility
-Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance, int cap){
+Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<double> curve, int currentAlloc, int balance, int cap, bool higherIsBetter){
 	double maxMU = -1.0;
 	int maxAdditionalWays = 0;
 	int additionalWays = 1;
 	while(additionalWays <= balance && additionalWays < cap){
 		int newAlloc = currentAlloc + additionalWays;
-		double curMarginalUtility = getMarginalUtility(curve, currentAlloc, newAlloc);
+		double curMarginalUtility = getMarginalUtility(curve, currentAlloc, newAlloc, higherIsBetter);
 		if(curMarginalUtility > maxMU){
 			maxMU = curMarginalUtility;
 			maxAdditionalWays = additionalWays;
@@ -1779,17 +1779,24 @@ Cache<TagStore,Buffering,Coherence>::getMaximumMarginalUtility(std::vector<doubl
 
 template<class TagStore, class Buffering, class Coherence>
 double
-Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc){
-	double denominator = curve[WI(newAlloc)] - curve[WI(currentAlloc)];
+Cache<TagStore,Buffering,Coherence>::getMarginalUtility(std::vector<double> curve, int currentAlloc, int newAlloc, bool higherIsBetter){
+	double denominator = 0.0;
+	if(higherIsBetter){
+		denominator = curve[WI(newAlloc)] - curve[WI(currentAlloc)];
+	}
+	else{
+		denominator = curve[WI(currentAlloc)] - curve[WI(newAlloc)];
+	}
 	double numerator = (double) (newAlloc-currentAlloc);
 	assert(numerator > 0.0);
 	double marginalUtility = denominator / numerator;
+	assert(marginalUtility >= 0.0);
 	return marginalUtility;
 }
 
 template<class TagStore, class Buffering, class Coherence>
 std::vector<int>
-Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap){
+Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std::vector<double> > curves, int cap, bool higherIsBetter){
 
 	int balance = associativity-cpuCount;
 	if(cap == 0) cap = associativity;
@@ -1806,7 +1813,7 @@ Cache<TagStore,Buffering,Coherence>::lookaheadCachePartitioning(std::vector<std:
 		DPRINTF(MissBWPolicyExtra, "--- Round %d with balance %d and cap %d\n", round, balance, cap);
 
 		for(int i=0;i<cpuCount;i++){
-			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance, cap);
+			LookaheadMaximumUtility cpuMaxUtility = getMaximumMarginalUtility(curves[i], allocation[i], balance, cap, higherIsBetter);
 			DPRINTF(MissBWPolicyExtra, "--- Maximum marginal utility of CPU %d is %f with %d additional ways\n", i, cpuMaxUtility.maximumUtility, cpuMaxUtility.additionalWays);
 			if(cpuMaxUtility.maximumUtility > maxMarginalUtility){
 				maxMarginalUtility = cpuMaxUtility.maximumUtility;

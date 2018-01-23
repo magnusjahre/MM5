@@ -21,8 +21,12 @@ public:
 	int committedInstructions;
 	Tick ticksInSample;
 
+	Tick accumulatedQueueCycles;
+	Tick accumulatedServiceCycles;
+
 	double avgMemoryBusServiceLat;
 	double avgMemoryBusQueueLat;
+
 	int busRequests;
 	int busWritebacks;
 
@@ -44,6 +48,8 @@ public:
 	double getGraphHistorgramBusQueueLatency(double paraConst);
 
 	double getActualBusUtilization();
+
+	void computeAverageLatencies();
 
 private:
 	double computeQueueEstimate(double burstSize, double paraConst);

@@ -53,7 +53,7 @@ class NFQMemoryController : public TimingMemoryController
 
         void setUpWeights(std::vector<double> priorities);
 
-        int getQueueID(int cpuID);
+        int getQueueID(MemReqPtr &req);
 
     public:
 
@@ -81,6 +81,10 @@ class NFQMemoryController : public TimingMemoryController
 
         virtual void setBandwidthQuotas(std::vector<double> quotas){
         	setUpWeights(quotas);
+        }
+
+        virtual void incrementWaitRequestCnt(int increment){
+
         }
 };
 

@@ -26,8 +26,8 @@ NFQMemoryController::NFQMemoryController(std::string _name,
 
     nfqNumCPUs = _numCPUs;
 
-    virtualFinishTimes.resize(nfqNumCPUs+1, 0);
-    requests.resize(nfqNumCPUs+1);
+    virtualFinishTimes.resize(nfqNumCPUs, 0);
+    requests.resize(nfqNumCPUs);
 
     pageCmd = new MemReq();
     pageCmd->cmd = Activate;
@@ -46,16 +46,17 @@ NFQMemoryController::~NFQMemoryController(){
 }
 
 int
-NFQMemoryController::getQueueID(int cpuID){
-	if(cpuID == -1){
-		return nfqNumCPUs;
+NFQMemoryController::getQueueID(MemReqPtr &req){
+	if(req->cmd == Read){
+		return req->adaptiveMHASenderID;
 	}
-	return cpuID;
+	assert(req->cmd == Writeback);
+	return req->nfqWBID;
 }
 
 void
 NFQMemoryController::setUpWeights(std::vector<double> priorities){
-    processorIncrements.resize(nfqNumCPUs+1, 0);
+    processorIncrements.resize(nfqNumCPUs, 0);
     assert(priorities.size() == processorIncrements.size());
     for(int i=0; i<priorities.size(); i++){
     	processorIncrements[i] = (int) ((1 / priorities[i])*1000);
@@ -77,7 +78,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     }
 
     req->cmd == Read ? queuedReads++ : queuedWrites++;
-    int curCPUID = getQueueID(req->adaptiveMHASenderID);
+    int curCPUID = getQueueID(req);
     assert(curCPUID >= 0 && curCPUID < requests.size());
 
     Tick minTag = getMinStartTag();
@@ -89,9 +90,11 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
     virtualFinishTimes[curCPUID] = req->virtualStartTime + processorIncrements[curCPUID];
 
     DPRINTF(MemoryController,
-            "Inserting request into queue %d (cpu %d), addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
+            "Inserting request into queue %d (cpu %d, NFQ-ID %d, cmd %s), addr %d, start time is %d, minimum time is %d, new finish time %d, weight %d\n",
             curCPUID,
             req->adaptiveMHASenderID,
+			req->nfqWBID,
+			req->cmd,
             req->paddr,
             req->virtualStartTime,
             minTag,
@@ -105,7 +108,7 @@ NFQMemoryController::insertRequest(MemReqPtr &req) {
         setBlocked();
     }
 
-    if(memCtrCPUCount > 1 && controllerInterference != NULL && req->interferenceMissAt == 0 && req->adaptiveMHASenderID != -1){
+    if(memCtrCPUCount > 1 && controllerInterference != NULL){
     	controllerInterference->insertRequest(req);
     }
 
@@ -151,6 +154,8 @@ NFQMemoryController::hasMoreRequests() {
 
 MemReqPtr
 NFQMemoryController::getRequest() {
+
+	checkMaxActivePages();
 
     MemReqPtr retval = pageCmd; // dummy initialization
 
@@ -203,12 +208,12 @@ NFQMemoryController::getRequest() {
     if(retval->cmd == Read || retval->cmd == Writeback){
     	DPRINTF(MemoryController,
     			"Executing request from cpu %d, cmd %s, addr %d, start time is %d, new finish time %d, weight %d\n",
-    			retval->adaptiveMHASenderID,
+				getQueueID(retval),
     			retval->cmd,
     			retval->paddr,
     			retval->virtualStartTime,
-    			virtualFinishTimes[getQueueID(retval->adaptiveMHASenderID)],
-    			processorIncrements[retval->adaptiveMHASenderID]);
+    			virtualFinishTimes[getQueueID(retval)],
+    			processorIncrements[getQueueID(retval)]);
     }
 
     return retval;
@@ -271,6 +276,13 @@ NFQMemoryController::findRowRequest(MemReqPtr& req){
             }
         }
     }
+
+    DPRINTF(MemoryController,
+            "Lowest virtual start time is %d, found at in queue %d and column %d\n",
+             minval,
+             minrow,
+			 mincol);
+
 
     assert(minrow >= 0 && mincol >= 0);
     MemReqPtr oldestReq = requests[minrow][mincol];
@@ -379,7 +391,7 @@ NFQMemoryController::prepareColumnRequest(MemReqPtr& req){
             "Returning column request, start time %d, addr %d, cpu %d\n",
             req->virtualStartTime,
             req->paddr,
-            req->adaptiveMHASenderID);
+            getQueueID(req));
 
     return req;
 }
@@ -420,7 +432,6 @@ NFQMemoryController::printRequestQueue(Tick fromTick){
 
 void
 NFQMemoryController::computeInterference(MemReqPtr& req, Tick busOccupiedFor){
-    assert(req->interferenceMissAt == 0);
 	if(controllerInterference != NULL){
 		controllerInterference->estimatePrivateLatency(req, busOccupiedFor);
 	}

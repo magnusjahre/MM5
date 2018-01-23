@@ -12,6 +12,7 @@ class BaseL1Cache(BaseCache):
     assoc = 2
     block_size = 64
     write_buffers = 4
+    disableLLCCheckpointLoad = True
     
     #if mshrParamName in env:
     #    mshrs = int(env[mshrParamName])
@@ -107,6 +108,7 @@ class PrivateCache1M(CommonLargeCache):
     size = '1MB'
     assoc = 4
     is_shared = False
+    disableLLCCheckpointLoad = True
     
     if mshrParamName in env:
         mshrs = int(env[mshrParamName])

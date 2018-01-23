@@ -89,30 +89,25 @@ def createWorkload(workload):
     return simwl
 
 def setNFQParams(useTrafficGenerator, controllerID, optPart):
-    if useTrafficGenerator:
-        length = int(env["NP"])+2
-    else:
-        length = int(env["NP"])+1
-        
-    root.membus[controllerID].memory_controller.num_cpus = int(env["NP"])
     
-    priorities = [1.0 / float(length) for i in range(length)]
-    
+    root.membus[controllerID].memory_controller.num_cpus = int(env["NP"])    
+    priorities = [1.0 / float(env["NP"]) for i in range(env["NP"])]
+
     if optPart != None:
-        if len(optPart.utils) != length:
+        if len(optPart.utils) != env["NP"]:
             panic("The number of partitions does not match the number of CPUs")
         priorities = optPart.utils
     else:
         if "NFQ-PRIORITIES" in env:
             pris = env["NFQ-PRIORITIES"].split(",")
             
-            if len(pris) != int(env["NP"])+1:
-                panic("You need to provide NFQ priorities for both all cores and shared writebacks (and the traffic generator if available)")
+            if len(pris) != int(env["NP"]):
+                panic("You need to provide NFQ priorities for all cores")
                 
-            for i in range(length):
+            for i in range(env["NP"]):
                 priorities[i] = float(pris[i])
-        
-    if sum(priorities) != 1.0:
+    
+    if (sum(priorities) -  1.0) > 0.000001:
         panic("The provided NFQ priorities must add up to 1")
     
     root.membus[controllerID].memory_controller.priorities = priorities
@@ -141,7 +136,7 @@ def createMemBus(bankcnt, optPart, useMissBWPolicy):
     
     for i in range(channels):
         
-        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS":
+        if env["MEMORY-BUS-SCHEDULER"] == "RDFCFS" or (env["FORCE-PM-RDFCFS"] and env["NP"] == 1):
             
             root.membus[i].memory_controller = ReadyFirstMemoryController()
             
@@ -472,6 +467,9 @@ def setUpASMPolicy():
     assert optionName+"DO-LLC-ALLOC" in env
     policy.allocateLLC = env[optionName+"DO-LLC-ALLOC"]
     
+    assert optionName+"DO-BUS-MANAGEMENT" in env
+    policy.manageMemoryBus = env[optionName+"DO-BUS-MANAGEMENT"]
+    
     if optionName+"MAX-SPEEDUP" in env:
         policy.maximumSpeedup = env[optionName+"MAX-SPEEDUP"]
     else:
@@ -695,7 +693,7 @@ def copyCheckpointFiles(directory):
                         
                     if name.endswith(".zip"):
                         print >> sys.stderr, "Uncompressing "+name
-                        subprocess.call(["unzip", "-o", directory+"/"+name])
+                        subprocess.call(["unzip", "-oj", directory+"/"+name])
                         os.rename("diskpages0.bin", newname) 
                     else:
                         successful = False
@@ -1132,7 +1130,9 @@ if "USE-SIMPOINT" in env:
             
             fwticks, simulateCycles = setGenerateCheckpointParams(simInsts)
         else:
-            fwticks, simulateCycles = setGenerateCheckpointParams(simpoints.simpoints[env["BENCHMARK"]][simpointNum][simpoints.FWKEY], simpointNum)
+            checkpointAt = simpoints.simpoints[env["BENCHMARK"]][simpointNum]
+            print >> sys.stderr, "Will generate checkpoint at "+str(checkpointAt)+" million instructions"
+            fwticks, simulateCycles = setGenerateCheckpointParams(checkpointAt)
     else:
         
         fwticks = 1

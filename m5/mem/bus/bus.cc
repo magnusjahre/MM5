@@ -637,32 +637,26 @@ Bus::getOtherProcUseTime(MemReqPtr& req, Tick time){
 
 PerformanceModelMeasurements
 Bus::updateModelMeasurements(PerformanceModelMeasurements measurements){
-	if(modelBusRequests > 0.0){
-		measurements.avgMemoryBusQueueLat = (double) modelBusQueueAccumulator / (double) modelBusRequests;
-		measurements.avgMemoryBusServiceLat = (double) modelBusServiceAccumulator / (double) modelBusRequests;
-	}
-	else{
-		measurements.avgMemoryBusQueueLat = 0.0;
-		measurements.avgMemoryBusServiceLat = 0.0;
-	}
-	measurements.busRequests = modelBusRequests;
-	measurements.busWritebacks = modelBusWritebacks;
 
-	measurements.bandwidthAllocation = utilizationLimit;
-	measurements.busUseCycles = modelBusUseCycles;
+	measurements.accumulatedQueueCycles += modelBusQueueAccumulator;
+	measurements.accumulatedServiceCycles += modelBusServiceAccumulator;
+	measurements.busRequests += modelBusRequests;
+	measurements.busWritebacks += modelBusWritebacks;
+	measurements.bandwidthAllocation = utilizationLimit; //Equal for all channels
+	measurements.busUseCycles += modelBusUseCycles;
+
+	DPRINTF(PerformanceModelMeasurements, "Adding %d queue cycles, %d service cycles, %d requests, %d writebacks, allocation %d\n",
+			modelBusQueueAccumulator,
+			modelBusServiceAccumulator,
+			modelBusRequests,
+			modelBusWritebacks,
+			utilizationLimit);
 
 	modelBusQueueAccumulator = 0;
 	modelBusServiceAccumulator = 0;
 	modelBusRequests = 0;
 	modelBusWritebacks = 0;
 	modelBusUseCycles = 0;
-
-	DPRINTF(PerformanceModelMeasurements, "Returning avg queue latency %f and avg service latency %f, %d requests, %d writebacks, allocation %d\n",
-			measurements.avgMemoryBusQueueLat,
-			measurements.avgMemoryBusServiceLat,
-			measurements.busRequests,
-			measurements.busWritebacks,
-			measurements.bandwidthAllocation);
 
 	return measurements;
 }
