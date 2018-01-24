@@ -87,7 +87,7 @@ public:
 	double carShared;
 
 	// Other
-	double speedup;
+	double slowdown;
 	int numEpochs;
 
 	ASMValues(){
@@ -107,7 +107,7 @@ public:
 		carAlone = 0.0;
 		cpuSharedLLCAccesses = 0.0;
 		carShared = 0.0;
-		speedup = 0.0;
+		slowdown = 0.0;
 		numEpochs = 0.0;
 	}
 };

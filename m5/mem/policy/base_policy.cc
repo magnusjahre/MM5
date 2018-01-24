@@ -114,7 +114,7 @@ BasePolicy::BasePolicy(string _name,
 
 	enableOccupancyTrace = false;
 
-	asrPrivateModeSpeedupEsts.resize(cpuCount, 0.0);
+	asmPrivateModeSlowdownEsts.resize(cpuCount, 0.0);
 
 	BasePolicyInitEvent* init = new BasePolicyInitEvent(this);
 	init->schedule(curTick);
@@ -1088,11 +1088,11 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 			assert(newStallEstimate >= 0.0);
 		}
 		else if(perfEstMethod == ASR){
-			assert(asrPrivateModeSpeedupEsts[cpuID] >= 0.0);
-			aloneIPCEstimate = asrPrivateModeSpeedupEsts[cpuID] * sharedIPC;
-			newStallEstimate = curStallCycles / asrPrivateModeSpeedupEsts[cpuID];
+			assert(asmPrivateModeSlowdownEsts[cpuID] >= 0.0);
+			aloneIPCEstimate = asmPrivateModeSlowdownEsts[cpuID] * sharedIPC;
+			newStallEstimate = curStallCycles / asmPrivateModeSlowdownEsts[cpuID];
 			DPRINTF(MissBWPolicy, "CPU %d - Computed alone IPC estimate %f and stall estimate %f with speed-up %f\n",
-					cpuID, aloneIPCEstimate, newStallEstimate, asrPrivateModeSpeedupEsts[cpuID]);
+					cpuID, aloneIPCEstimate, newStallEstimate, asmPrivateModeSlowdownEsts[cpuID]);
 		}
 		else if(perfEstMethod == CONST_1){
 			aloneIPCEstimate = 1.0;

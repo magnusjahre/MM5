@@ -189,28 +189,34 @@ ASMPolicy::prepareEstimates(){
 		epochMeasurements[i].computeCARShared(i, period, &values.at(i));
 
 		assert(values[i].carShared >= 0.0);
-		if(values[i].carAlone == 0.0) values[i].speedup = 1.0;
-		else values[i].speedup = values[i].carAlone / values[i].carShared;
+		values[i].slowdown = 1.0;
+		if(values[i].carShared != 0.0){
+			values[i].slowdown = values[i].carAlone / values[i].carShared;
+		}
+		if(values[i].slowdown < 1.0){
+			DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, values[i].slowdown);
+			values[i].slowdown = 1.0;
+		}
 
 		if(maximumSpeedup != 0.0){
-			if(values[i].speedup >= maximumSpeedup){
+			if(values[i].slowdown >= maximumSpeedup){
 				DPRINTF(ASRPolicyProgress, "Speed-up %f greater than max %f, capping\n",
-						values[i].speedup,
+						values[i].slowdown,
 						maximumSpeedup);
-				values[i].speedup = maximumSpeedup;
+				values[i].slowdown = maximumSpeedup;
 			}
 			else{
-				DPRINTF(ASRPolicyProgress, "Speed-up %f is less than cap %f, not capping\n", values[i].speedup, maximumSpeedup);
+				DPRINTF(ASRPolicyProgress, "Speed-up %f is less than cap %f, not capping\n", values[i].slowdown, maximumSpeedup);
 			}
 		}
 		else{
 			DPRINTF(ASRPolicyProgress, "Capping disabled for CPU %d\n", i);
 		}
 
-		asrPrivateModeSpeedupEsts[i] = values[i].speedup;
-		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode speed-up is %f with CAR-alone %f and CAR-shared %f\n",
+		asmPrivateModeSlowdownEsts[i] = values[i].slowdown;
+		DPRINTF(ASRPolicyProgress, "CPU %d private to shared mode slowdown is %f with CAR-alone %f and CAR-shared %f\n",
 				i,
-				asrPrivateModeSpeedupEsts[i],
+				asmPrivateModeSlowdownEsts[i],
 				values[i].carAlone,
 				values[i].carShared);
 
@@ -235,11 +241,9 @@ ASMPolicy::prepareEstimates(){
 	changeHighPriProcess();
 }
 
-void
-ASMPolicy::setEpochProbabilities(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas){
+std::vector<double>
+ASMPolicy::getMissCurveSlowdownEstimates(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas){
 	vector<double> estimatedSlowdowns = vector<double>(cpuCount, 0.0);
-
-	double slowdownSum = 0.0;
 	for(int i=0;i<llcQuotas.size();i++){
 		estimatedSlowdowns[i] = slowdowns[i][llcQuotas[i]-1];
 		DPRINTF(ASRPolicyProgress, "CPU %d: estimating slowdown %f from speed-up %f with allocation %d (index %d)\n",
@@ -248,17 +252,26 @@ ASMPolicy::setEpochProbabilities(std::vector<vector<double> > slowdowns, std::ve
 				slowdowns[i][llcQuotas[i]-1],
 				llcQuotas[i],
 				llcQuotas[i]-1);
+	}
 
-		slowdownSum += estimatedSlowdowns[i];
+	return estimatedSlowdowns;
+}
+
+void
+ASMPolicy::setBandwidthQuotas(std::vector<double> slowdowns){
+
+	double slowdownSum = 0.0;
+	for(int i=0;i<slowdowns.size();i++){
+		slowdownSum += slowdowns[i];
 	}
 
 	vector<double> probabilities = vector<double>(cpuCount, 0.0);
 	for(int i=0;i<probabilities.size();i++){
-		probabilities[i] = estimatedSlowdowns[i] / slowdownSum;
+		probabilities[i] = slowdowns[i] / slowdownSum;
 		DPRINTF(ASRPolicyProgress, "CPU %d: next epoch probability is %f (%f / %f)\n",
 				i,
 				probabilities[i],
-				estimatedSlowdowns[i],
+				slowdowns[i],
 				slowdownSum);
 	}
 	updateProbabilityDistribution(probabilities);
@@ -274,8 +287,8 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 	if(asmPolicy == ASM_CACHE || asmPolicy == ASM_CACHE_MEM){
 		DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
 
-		vector<vector<double> > slowdowns(cpuCount, vector<double>(maxWays, 0.0));
-		for(int i=0;i<slowdowns.size();i++){
+		vector<vector<double> > slowdownCurves(cpuCount, vector<double>(maxWays, 0.0));
+		for(int i=0;i<slowdownCurves.size();i++){
 			double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
 			double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
 
@@ -287,24 +300,24 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 				double deltaHits = hits - curHits;
 				double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
 
-				if(CARn != 0.0) slowdowns[i][j] = CARalone[i] / CARn;
-				if(slowdowns[i][j] < 1.0){
-					DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, slowdowns[i][j]);
-					slowdowns[i][j] = 1.0;
+				if(CARn != 0.0) slowdownCurves[i][j] = CARalone[i] / CARn;
+				if(slowdownCurves[i][j] < 1.0){
+					DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, slowdownCurves[i][j]);
+					slowdownCurves[i][j] = 1.0;
 				}
-				assert(slowdowns[i][j] >= 1.0);
+				assert(slowdownCurves[i][j] >= 1.0);
 
 				DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f with hits %f, delta hits %f and CARn %f\n",
-						i, slowdowns[i][j], hits, deltaHits, CARn);
+						i, slowdownCurves[i][j], hits, deltaHits, CARn);
 			}
 
-			std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(slowdowns[i]);
+			std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(slowdownCurves[i]);
 			slowdownCurveTraces[i].addTrace(speedupTraceData);
 		}
 
 		assert(!sharedCaches.empty());
 		DPRINTF(ASRPolicyProgress, "Running lookahead algorithm and enforcing cache quotas\n");
-		curAllocation = sharedCaches[0]->lookaheadCachePartitioning(slowdowns, 0, false);
+		curAllocation = sharedCaches[0]->lookaheadCachePartitioning(slowdownCurves, 0, false);
 
 		vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
 		for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
@@ -317,11 +330,13 @@ ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 
 		if(asmPolicy == ASM_CACHE_MEM){
 			DPRINTF(ASRPolicyProgress, "Enforcing bandwidth quotas based on LLC allocation\n");
-			setEpochProbabilities(slowdowns, curAllocation);
+			vector<double> slowdownEst = getMissCurveSlowdownEstimates(slowdownCurves, curAllocation);
+			setBandwidthQuotas(slowdownEst);
 		}
 	}
 	else if(asmPolicy == ASM_MEM){
-		fatal("ASM MEM is not implemented");
+		DPRINTF(ASRPolicyProgress, "Enforcing bandwidth quotas based on raw ASM slowdown estimates\n");
+		setBandwidthQuotas(asmPrivateModeSlowdownEsts);
 	}
 }
 
@@ -352,7 +367,7 @@ ASMPolicy::prepareASMTraces(int numCPUs){
 	headers.push_back("Shared Mode LLC Accesses");
 	headers.push_back("CAR Shared (x10^6)");
 
-	headers.push_back("Speedup");
+	headers.push_back("Slowdown");
 	headers.push_back("Number of Epochs");
 
 	asmTraces.resize(cpuCount, RequestTrace());
@@ -385,7 +400,7 @@ ASMPolicy::traceASMValues(std::vector<ASMValues> values){
 		data.push_back(values[i].cpuSharedLLCAccesses);
 		data.push_back(values[i].carShared*1000000);
 
-		data.push_back(values[i].speedup);
+		data.push_back(values[i].slowdown);
 		data.push_back(values[i].numEpochs);
 
 		asmTraces[i].addTrace(data);

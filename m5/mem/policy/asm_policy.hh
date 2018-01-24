@@ -49,7 +49,8 @@ private:
 	void initCurveTracefiles();
 
 	void updateProbabilityDistribution(std::vector<double> probabilities);
-	void setEpochProbabilities(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas);
+	std::vector<double> getMissCurveSlowdownEstimates(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas);
+	void setBandwidthQuotas(std::vector<double> slowdowns);
 
 public:
 
