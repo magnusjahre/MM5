@@ -21,9 +21,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 					 double _hybridDecisionError,
 					 int _hybridBufferSize,
 					 int _epoch,
-					 bool _doLLCAlloc,
-					 double _maximumSpeedup,
-					 bool _manageMemoryBus)
+					 ASMSubpolicy _subpol,
+					 double _maximumSpeedup)
 : BasePolicy(_name,
 			_intManager,
 			_period,
@@ -45,9 +44,8 @@ ASMPolicy::ASMPolicy(std::string _name,
 
 	maxWays = 0;
 	curHighPriCPUID = 0;
-	doLLCAlloc = _doLLCAlloc;
 	maximumSpeedup = _maximumSpeedup;
-	manageMemoryBus = _manageMemoryBus;
+	asmPolicy = _subpol;
 
 	if(_cpuCount > 1){
 		epochEvent = new ASREpochEvent(this, epoch);
@@ -147,7 +145,7 @@ ASMPolicy::initPolicy(){
 	if(cpuCount > 1){
 		changeHighPriProcess();
 
-		if(doLLCAlloc){
+		if(asmPolicy == ASM_CACHE || asmPolicy == ASM_CACHE_MEM){
 			for(int i=0;i<sharedCaches.size();i++){
 				sharedCaches[i]->setCachePartition(curAllocation);
 				sharedCaches[i]->enablePartitioning();
@@ -273,51 +271,57 @@ ASMPolicy::setEpochProbabilities(std::vector<vector<double> > slowdowns, std::ve
 void
 ASMPolicy::runPolicy(PerformanceMeasurement measurements){
 
-	if(!doLLCAlloc) return;
-	DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
+	if(asmPolicy == ASM_CACHE || asmPolicy == ASM_CACHE_MEM){
+		DPRINTF(ASRPolicyProgress, "Running the ASR Cache Policy\n");
 
-	vector<vector<double> > slowdowns(cpuCount, vector<double>(maxWays, 0.0));
-	for(int i=0;i<slowdowns.size();i++){
-		double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
-		double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
+		vector<vector<double> > slowdowns(cpuCount, vector<double>(maxWays, 0.0));
+		for(int i=0;i<slowdowns.size();i++){
+			double curHits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[curAllocation[i]-1];
+			double llcAccesses = measurements.perCoreCacheMeasurements[i].accesses;
 
-		DPRINTF(ASRPolicyProgress, "CPU %d: computing current hits %f, current LLC accesses %f, avg LLC additional miss cycles %f, CAR shared %f and CAR alone %f\n",
-				i, curHits, llcAccesses, avgLLCMissAdditionalCycles[i], CARshared[i], CARalone[i]);
+			DPRINTF(ASRPolicyProgress, "CPU %d: computing current hits %f, current LLC accesses %f, avg LLC additional miss cycles %f, CAR shared %f and CAR alone %f\n",
+					i, curHits, llcAccesses, avgLLCMissAdditionalCycles[i], CARshared[i], CARalone[i]);
 
-		for(int j=0;j<maxWays;j++){
-			double hits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[j];
-			double deltaHits = hits - curHits;
-			double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
+			for(int j=0;j<maxWays;j++){
+				double hits = measurements.perCoreCacheMeasurements[i].privateCumulativeCacheHits[j];
+				double deltaHits = hits - curHits;
+				double CARn = llcAccesses / (period - (deltaHits * avgLLCMissAdditionalCycles[i]));
 
-			if(CARn != 0.0) slowdowns[i][j] = CARalone[i] / CARn;
-			if(slowdowns[i][j] < 1.0){
-				DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, slowdowns[i][j]);
-				slowdowns[i][j] = 1.0;
+				if(CARn != 0.0) slowdowns[i][j] = CARalone[i] / CARn;
+				if(slowdowns[i][j] < 1.0){
+					DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f is less than 1.0, capping\n", i, slowdowns[i][j]);
+					slowdowns[i][j] = 1.0;
+				}
+				assert(slowdowns[i][j] >= 1.0);
+
+				DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f with hits %f, delta hits %f and CARn %f\n",
+						i, slowdowns[i][j], hits, deltaHits, CARn);
 			}
-			assert(slowdowns[i][j] >= 1.0);
 
-			DPRINTF(ASRPolicyProgress, "CPU %d: computed slowdown %f with hits %f, delta hits %f and CARn %f\n",
-					i, slowdowns[i][j], hits, deltaHits, CARn);
+			std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(slowdowns[i]);
+			slowdownCurveTraces[i].addTrace(speedupTraceData);
 		}
 
-		std::vector<RequestTraceEntry> speedupTraceData = getTraceCurveDbl(slowdowns[i]);
-		slowdownCurveTraces[i].addTrace(speedupTraceData);
+		assert(!sharedCaches.empty());
+		DPRINTF(ASRPolicyProgress, "Running lookahead algorithm and enforcing cache quotas\n");
+		curAllocation = sharedCaches[0]->lookaheadCachePartitioning(slowdowns, 0, false);
+
+		vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
+		for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
+		allocationTrace.addTrace(tracedata);
+
+		for(int i=0;i<sharedCaches.size();i++){
+			sharedCaches[i]->setCachePartition(curAllocation);
+			sharedCaches[i]->enablePartitioning();
+		}
+
+		if(asmPolicy == ASM_CACHE_MEM){
+			DPRINTF(ASRPolicyProgress, "Enforcing bandwidth quotas based on LLC allocation\n");
+			setEpochProbabilities(slowdowns, curAllocation);
+		}
 	}
-
-	assert(!sharedCaches.empty());
-	curAllocation = sharedCaches[0]->lookaheadCachePartitioning(slowdowns, 0, false);
-
-	vector<RequestTraceEntry> tracedata = vector<RequestTraceEntry>();
-	for(int i=0;i<curAllocation.size();i++) tracedata.push_back(curAllocation[i]);
-	allocationTrace.addTrace(tracedata);
-
-	for(int i=0;i<sharedCaches.size();i++){
-		sharedCaches[i]->setCachePartition(curAllocation);
-		sharedCaches[i]->enablePartitioning();
-	}
-
-	if(manageMemoryBus){
-		setEpochProbabilities(slowdowns, curAllocation);
+	else if(asmPolicy == ASM_MEM){
+		fatal("ASM MEM is not implemented");
 	}
 }
 
@@ -406,9 +410,8 @@ BEGIN_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 	Param<double> hybridDecisionError;
 	Param<int> hybridBufferSize;
 	Param<int> epoch;
-	Param<bool> allocateLLC;
+	Param<string> subpolicy;
 	Param<double> maximumSpeedup;
-	Param<bool> manageMemoryBus;
 END_DECLARE_SIM_OBJECT_PARAMS(ASMPolicy)
 
 BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
@@ -427,9 +430,8 @@ BEGIN_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 	INIT_PARAM_DFLT(hybridDecisionError, "The error at which to switch from CPL to CPL-CWP with the hybrid scheme", 0.0),
 	INIT_PARAM_DFLT(hybridBufferSize, "The number of errors to use in the decision buffer", 3),
 	INIT_PARAM(epoch, "The number of cycles in each epoch"),
-	INIT_PARAM(allocateLLC, "Do LLC allocation?"),
-	INIT_PARAM_DFLT(maximumSpeedup, "Cap speedup at this value", 0.0),
-	INIT_PARAM(manageMemoryBus, "Do memory bus management?")
+	INIT_PARAM(subpolicy, "Internal ASM policy to use"),
+	INIT_PARAM_DFLT(maximumSpeedup, "Cap speedup at this value", 0.0)
 END_INIT_SIM_OBJECT_PARAMS(ASMPolicy)
 
 CREATE_SIM_OBJECT(ASMPolicy)
@@ -444,25 +446,42 @@ CREATE_SIM_OBJECT(ASMPolicy)
 
 	BasePolicy::EmptyROBStallTechnique rst = BasePolicy::parseEmptyROBStallTech(emptyROBStallTechnique);
 
+	ASMPolicy::ASMSubpolicy subpolEnum;
+	string subpolStr = subpolicy;
+	if(subpolStr == "ASM-MEM"){
+		subpolEnum = ASMPolicy::ASM_MEM;
+	}
+	else if(subpolStr == "ASM-MEM-EQUAL"){
+		subpolEnum = ASMPolicy::ASM_MEM_EQUAL;
+	}
+	else if(subpolStr == "ASM-CACHE"){
+		subpolEnum = ASMPolicy::ASM_CACHE;
+	}
+	else if(subpolStr == "ASM-CACHE-MEM"){
+		subpolEnum = ASMPolicy::ASM_CACHE_MEM;
+	}
+	else{
+		fatal("Unknown ASM subpolicy");
+	}
+
 	return new ASMPolicy(getInstanceName(),
-							          interferenceManager,
-									  period,
-									  cpuCount,
-									  perfEstMethod,
-									  persistentAllocations,
-									  iterationLatency,
-									  performanceMetric,
-									  enforcePolicy,
-									  wst,
-									  pbst,
-									  rst,
-									  maximumDamping,
-									  hybridDecisionError,
-									  hybridBufferSize,
-									  epoch,
-									  allocateLLC,
-									  maximumSpeedup,
-									  manageMemoryBus);
+			 	 	 	 interferenceManager,
+						 period,
+						 cpuCount,
+						 perfEstMethod,
+						 persistentAllocations,
+						 iterationLatency,
+						 performanceMetric,
+						 enforcePolicy,
+						 wst,
+						 pbst,
+						 rst,
+						 maximumDamping,
+						 hybridDecisionError,
+						 hybridBufferSize,
+						 epoch,
+						 subpolEnum,
+						 maximumSpeedup);
 }
 
 REGISTER_SIM_OBJECT("ASMPolicy", ASMPolicy)

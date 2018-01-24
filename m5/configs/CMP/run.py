@@ -464,11 +464,8 @@ def setUpASMPolicy():
     
     policy.performanceEstimationMethod = "ASR" 
     
-    assert optionName+"DO-LLC-ALLOC" in env
-    policy.allocateLLC = env[optionName+"DO-LLC-ALLOC"]
-    
-    assert optionName+"DO-BUS-MANAGEMENT" in env
-    policy.manageMemoryBus = env[optionName+"DO-BUS-MANAGEMENT"]
+    assert optionName+"SUBPOLICY" in env
+    policy.subpolicy = env[optionName+"SUBPOLICY"]
     
     if optionName+"MAX-SPEEDUP" in env:
         policy.maximumSpeedup = env[optionName+"MAX-SPEEDUP"]

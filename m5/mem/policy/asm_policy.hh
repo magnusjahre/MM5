@@ -14,14 +14,21 @@ class ASREpochEvent;
 
 class ASMPolicy : public BasePolicy{
 
+public:
+	enum ASMSubpolicy{
+		ASM_MEM,
+		ASM_MEM_EQUAL,
+		ASM_CACHE,
+		ASM_CACHE_MEM
+	};
+
 private:
 	int epoch;
 	int maxWays;
 	int curHighPriCPUID;
-	bool doLLCAlloc;
 	ASREpochEvent* epochEvent;
 	double maximumSpeedup;
-	bool manageMemoryBus;
+	ASMSubpolicy asmPolicy;
 
 	vector<ASREpochMeasurements> epochMeasurements;
 	std::vector<RequestTrace> asmTraces;
@@ -45,6 +52,7 @@ private:
 	void setEpochProbabilities(std::vector<vector<double> > slowdowns, std::vector<int> llcQuotas);
 
 public:
+
 	ASMPolicy(std::string _name,
 			  InterferenceManager* _intManager,
 			  Tick _period,
@@ -61,9 +69,8 @@ public:
 			  double _hybridDecisionError,
 			  int _hybridBufferSize,
 			  int _epoch,
-			  bool _doLLCAlloc,
-			  double _maximumSpeedup,
-			  bool _manageMemoryBus);
+			  ASMSubpolicy _subpol,
+			  double _maximumSpeedup);
 
 	virtual void initPolicy();
 

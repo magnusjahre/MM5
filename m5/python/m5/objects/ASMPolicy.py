@@ -1,9 +1,10 @@
 from m5 import *
 from BasePolicy import BasePolicy
 
+class ASMSubpolicy(Enum): vals = ['ASM-MEM', 'ASM-MEM-EQUAL', 'ASM-CACHE', 'ASM-CACHE-MEM']
+
 class ASMPolicy(BasePolicy):    
     type = 'ASMPolicy'
     epoch = Param.Int("Number of cycles in each epoch")
-    allocateLLC  = Param.Bool("Do LLC allocation?")
+    subpolicy = Param.ASMSubpolicy("Internal ASM policy to use")
     maximumSpeedup = Param.Float("Cap speedup at this value")
-    manageMemoryBus = Param.Bool("Do memory bus management?")
