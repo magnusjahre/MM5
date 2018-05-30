@@ -38,7 +38,7 @@
 #include "cpu/smt.hh"
 #include "cpu/base.hh"
 
-#define CACHE_CHECK_INTERVAL 500000
+#define CACHE_CHECK_INTERVAL 5000000
 #define CONTENTION_DELAY 2
 
 using namespace std;
