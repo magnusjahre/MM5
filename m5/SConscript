@@ -226,7 +226,6 @@ base_sources = Split('''
 	mem/policy/performance_measurement.cc
 	mem/policy/performance_model.cc
 	mem/policy/performance_directed.cc
-	mem/policy/model_throttling.cc
 	mem/policy/metrics/metric.cc
 	mem/policy/metrics/hmos_policy.cc
     mem/policy/metrics/stp_policy.cc
@@ -286,6 +285,8 @@ base_sources = Split('''
 	sim/stat_control.cc
 	sim/trace_context.cc
         ''')
+
+# mem/policy/model_throttling.cc
 
 #mem/crossbar/crossbar.cc
 #mem/crossbar/crossbar_interface.cc
