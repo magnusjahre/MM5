@@ -43,7 +43,11 @@ class DetailedCPU(FullCPU):
     dispatch_to_issue = 1
     decode_to_dispatch = 10
     mispred_recover = 3
-    fetch_branches = 3
+    
+    if "FETCH-BRANCHES" in env:
+        fetch_branches = int(env["FETCH-BRANCHES"])
+    else:
+        fetch_branches = 3
     #fetch_branches = 0
     ifq_size = 32
     num_icache_ports = 1
