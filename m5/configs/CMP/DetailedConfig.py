@@ -41,7 +41,10 @@ class DetailedCPU(FullCPU):
     prioritized_issue = False
     thread_weights = [1, 1, 1, 1]
     dispatch_to_issue = 1
-    decode_to_dispatch = 10
+    if "DECODE-TO-DISPATCH" in env:
+        decode_to_dispatch = int(env["DECODE-TO-DISPATCH"])
+    else:    
+        decode_to_dispatch = 10
     mispred_recover = 3
     
     if "FETCH-BRANCHES" in env:
