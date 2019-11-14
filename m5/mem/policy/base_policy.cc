@@ -935,6 +935,7 @@ BasePolicy::initComInstModelTrace(int cpuCount){
 	headers.push_back("CWP");
 	headers.push_back("CWP-table");
 	headers.push_back("Num Write Stalls");
+	headers.push_back("Row Buffer Hit Rate");
 
 	if(cpuCount > 1){
 		headers.push_back("Average Shared Latency");
@@ -1017,7 +1018,8 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 							  int emptyROBStallCycles,
 							  Tick boisAloneStallEst,
 							  CacheAccessMeasurement privateLLCEstimates,
-							  CacheAccessMeasurement sharedLLCMeasurements){
+							  CacheAccessMeasurement sharedLLCMeasurements,
+							  double rowBufferHitRate){
 
 	vector<RequestTraceEntry> data;
 
@@ -1051,6 +1053,7 @@ BasePolicy::updatePrivPerfEst(int cpuID,
 	data.push_back(cwp);
 	data.push_back(ols.cptMeasurements.averageCPCWP());
 	data.push_back(numWriteStalls);
+	data.push_back(rowBufferHitRate);
 
 	if(cpuCount > 1){
 

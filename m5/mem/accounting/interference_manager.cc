@@ -76,6 +76,9 @@ InterferenceManager::InterferenceManager(std::string _name,
 	instTraceStoreLatencySum.resize(_cpu_count, 0);
 	instTraceStoreRequests.resize(_cpu_count, 0);
 
+	dramPageHits.resize(_cpu_count, 0);
+	dramPageAccesses.resize(_cpu_count, 0);
+
 	missBandwidthPolicy = NULL;
 	cacheInterference = NULL;
 
@@ -906,6 +909,12 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 		llcMeasurements = sharedCaches[i]->updateCacheMissMeasurements(llcMeasurements, cpuID);
 	}
 
+	double rowBufferHitRate = 0.0;
+	if(dramPageAccesses[cpuID] > 0){
+		assert(dramPageHits[cpuID] <= dramPageAccesses[cpuID]);
+		double rowBufferHitRate = (double) dramPageHits[cpuID] / (double) dramPageAccesses[cpuID];
+	}
+
 	// Base policy trace
 	if(missBandwidthPolicy != NULL){
 
@@ -933,7 +942,8 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 											   commitTraceEmptyROBStall[cpuID],
 											   boisAloneStallEst,
 											   privateLLCEstimates,
-											   llcMeasurements);
+											   llcMeasurements,
+											   rowBufferHitRate);
 
 		PerformanceModelMeasurements modelMeasurements = buildModelMeasurements(cpuID, committedInstructions, ticksInSample, ols);
 		missBandwidthPolicy->doPerformanceModelTrace(cpuID, modelMeasurements);
@@ -1035,6 +1045,15 @@ InterferenceManager::setASRHighPriCPUID(int newHighPriCPUID){
 	asrEpocMeasurements.highPriCPU = newHighPriCPUID;
 	for(int i=0;i<memoryBuses.size();i++){
 		memoryBuses[i]->setASRHighPriCPUID(newHighPriCPUID);
+	}
+}
+
+void
+InterferenceManager::setDRAMPageResult(MemReqPtr& req){
+	if(req->cmd == Read){
+		assert(req->adaptiveMHASenderID != -1);
+		if(req->dramResult == DRAM_RESULT_HIT) dramPageHits[req->adaptiveMHASenderID]++;
+		dramPageAccesses[req->adaptiveMHASenderID]++;
 	}
 }
 

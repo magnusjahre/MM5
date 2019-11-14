@@ -329,7 +329,8 @@ public:
 						   int emptyROBStallCycles,
 						   Tick boisAloneStallEst,
 						   CacheAccessMeasurement privateLLCEstimates,
-						   CacheAccessMeasurement sharedLLCMeasurements);
+						   CacheAccessMeasurement sharedLLCMeasurements,
+						   double rowBufferHitRate);
 
 	static RequestEstimationMethod parseRequestMethod(std::string methodName);
 	static PerformanceEstimationMethod parsePerformanceMethod(std::string methodName);

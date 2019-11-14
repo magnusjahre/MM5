@@ -250,6 +250,9 @@ private:
 	std::vector<Tick> commitTracePrivateBlockedStall;
 	std::vector<Tick> commitTraceEmptyROBStall;
 
+	std::vector<int> dramPageHits;
+	std::vector<int> dramPageAccesses;
+
 	std::vector<MemoryOverlapEstimator*> overlapEstimators;
 
 	int intManCPUCount;
@@ -433,6 +436,8 @@ public:
 	void busWritebackCompleted(MemReqPtr& req, Tick finishedAt);
 
 	void setASRHighPriCPUID(int newHighPriCPUID);
+
+	void setDRAMPageResult(MemReqPtr& req);
 };
 
 #endif
