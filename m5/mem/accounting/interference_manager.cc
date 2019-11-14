@@ -912,7 +912,7 @@ InterferenceManager::updatePrivPerfEst(int cpuID, int committedInstructions, Tic
 	double rowBufferHitRate = 0.0;
 	if(dramPageAccesses[cpuID] > 0){
 		assert(dramPageHits[cpuID] <= dramPageAccesses[cpuID]);
-		double rowBufferHitRate = (double) dramPageHits[cpuID] / (double) dramPageAccesses[cpuID];
+		rowBufferHitRate = (double) dramPageHits[cpuID] / (double) dramPageAccesses[cpuID];
 	}
 
 	// Base policy trace

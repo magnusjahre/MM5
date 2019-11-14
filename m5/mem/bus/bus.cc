@@ -770,6 +770,8 @@ void Bus::latencyCalculated(MemReqPtr &req, Tick time, bool fromShadow)
         modelBusRequests++;
         modelBusUseCycles += serviceLatency;
 
+        if(interferenceManager != NULL) interferenceManager->setDRAMPageResult(req);
+
         if(req->interferenceMissAt == 0){
 			req->latencyBreakdown[MEM_BUS_QUEUE_LAT] += queueLatency;
 			req->latencyBreakdown[MEM_BUS_SERVICE_LAT] += serviceLatency;
