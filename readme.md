@@ -9,6 +9,8 @@ The only missing dependency for a recent default ubutnu seems to be libz. Instal
 sudo apt-get install zlib1g-dev
 ```
 
+Note that more recent versions than 3.0.1 of Scons seems to break. Fortunately, it is fairly straight forward to grab this version from Sourceforge and install it yourself if you have to.
+
 If you want to try to run MM5, it is useful to know that it expects a few environment variables. The below code assumes that you got hold of CAL's pre-compiled benchmarks and cloned both MM5 and MM5-tools into your home directory. If so, adding the below code to your .bashrc file will save you some confusing debugging.
 
 ```
