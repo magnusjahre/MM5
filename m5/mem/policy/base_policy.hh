@@ -65,7 +65,10 @@ public:
         SHARED_STALL,
         ZERO_STALL,
 		CONST_1,
-		ASR
+		ASR,
+		LIN_TREE_10,
+		LIN_TREE_40,
+		LIN_TREE_80
     } PerformanceEstimationMethod;
 
     typedef enum{
