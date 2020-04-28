@@ -871,7 +871,11 @@ if "L2BANKSIZE" in env:
 fairCrossbar = False
 if "USE-FAIR-CROSSBAR" in env:
     fairCrossbar = True
-    
+
+for arg in env.keys():
+    if "__" in arg:
+        env[arg.replace("__", "-")] = env[arg]
+
 if 'MEMORY-SYSTEM' not in env:
     panic("Specify which -EMEMORY-SYSTEM to use (Legacy, CrossbarBased or RingBased)")
     
